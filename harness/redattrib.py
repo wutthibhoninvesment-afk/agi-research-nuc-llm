@@ -17,11 +17,30 @@ checker breaks it."
 
 This module measures the same thing over ALL FOUR checks, and the mechanism
 does not survive contact with the other three. The rate at which a check's
-OWNER opens its own red episodes ranges from 0/16 to 5/5 across the four,
+OWNER opens its own red episodes ranges from 0/46 to 8/8 across the four,
 so "who owns it" predicts nothing on its own. What does predict it is
 declared in `harness/crosstrack-registry.json`: the node's SUBJECT SCOPE --
 whose work can turn it red -- which is a different question from which suite
 the node lives in.
+
+TWO LOG GRAMMARS, NOT ONE (round 461, SWE-loop D). Three of the four checks
+write pytest output; `skills-check` writes a checker/verdict TABLE. Round
+455 built the pytest parser, pointed it at all four, got a wrong answer on
+the fourth, and then withdrew the fourth behind a printed GRAMMAR GAP rather
+than reporting a silent zero -- which was the right call and still left the
+headline computed over three checks while the docstring said four. Round 461
+taught it the second grammar (`parse_corpus_row`) instead of widening the
+first. The check that was 0 nodes and 0 episodes is 7 nodes and 46 episodes,
+none of them opened by the track that owns it, and the invisible-open rate
+went from 19/32 = 59% to 65/78 = 83%.
+
+Round 453 measured the same corpus by anchoring on each log's
+`corpus-check:` aggregate line. This module anchors on the per-row `ERROR`
+flags -- an independent derivation from the same files -- and reproduces
+round 453's headline exactly: 24 red runs of 89 over rounds 364-452, 16
+episodes, longest 4, openers language(C) 7 / SWE-loop(D) 6 / harness(A) 2 /
+NUC(E) 1 / skills(B) ZERO. `test_round_453s_check_level_measurement_is_
+reproduced_exactly` holds that agreement open.
 
 The number this module exists to produce is the INVISIBLE-OPEN RATE: the
 share of red episodes whose opening round could not have seen the red by
@@ -37,7 +56,10 @@ test_shape_needs_three_adjacent_tokens_on_both_sides`, while
 `logs/health_round_362.log` records the actual failure as
 `test_run_driver_whence_health_check.py::
 test_whence_health_check_fail_logged_when_script_fails`. The per-round logs
-carry every `FAILED <nodeid>` line and all 554 of them are retained.
+carry every `FAILED <nodeid>` line and all 578 of them are retained (554 at
+round 455). The reconciliation printed by `attribute` is the guard on that
+claim: every round the driver called FAIL or ERROR must be a round in which
+this parser found a red node or found something that could not report.
 
 Commands
 --------
@@ -126,7 +148,7 @@ def read_logs(root=ROOT):
     logdir = os.path.join(root, "logs")
     if not os.path.isdir(logdir):
         return runs
-    pat = re.compile(r"^(%s)_(\d+)\.log$" % "|".join(CHECKS))
+    pat = re.compile(r"^(%s)_(\d+)\.log$" % "|".join(PYTEST_LOGS))
     for fn in sorted(os.listdir(logdir)):
         m = pat.match(fn)
         if not m:
@@ -140,7 +162,32 @@ def read_logs(root=ROOT):
         for nid in re.findall(r"^FAILED (\S+)", text, re.M):
             nodes.add(nid if rel == "." else "%s/%s" % (rel, nid))
         runs[prefix][rnd] = frozenset(nodes)
+    for prefix, per_round in corpus_rows(root).items():
+        for rnd, rows in per_round.items():
+            runs[prefix][rnd] = frozenset(
+                CORPUS_NODE % c for c, (st, _co) in rows.items()
+                if st == "ERROR")
     return runs
+
+
+def observed_nodes(root=ROOT):
+    """prefix -> {round: frozenset(nodeid)} | None -- what each run OBSERVED.
+
+    `None` for a pytest check: pytest reports the whole suite it collected,
+    so every node of that suite is observed on every run and there is nothing
+    to intersect. A corpus check reports one row per checker that ran, and a
+    checker that did not exist yet -- or was killed mid-run -- is observed by
+    nobody. `analyse` uses this to build each node's OWN run order, so a
+    round in which a node was not observed can neither open, close nor split
+    one of its episodes.
+    """
+    out = {p: None for p in PYTEST_LOGS}
+    for prefix, per_round in corpus_rows(root).items():
+        out[prefix] = {
+            rnd: frozenset(CORPUS_NODE % c for c, (st, _co) in rows.items()
+                           if st in CONCLUSIVE)
+            for rnd, rows in per_round.items()}
+    return out
 
 
 # A log with no pytest count line did not run a suite to completion. Round
@@ -159,9 +206,105 @@ COUNT_LINE = re.compile(r"^\d+ (passed|failed)|, \d+ (passed|failed)", re.M)
 # TABLE whose count line reads `unit_tests  ok  939 passed in 367.50s`,
 # indented rather than at line start. A grammar-specific heuristic applied
 # across grammars is the same error this module measures, committed by the
-# module doing the measuring. `skills-check` is excluded here and reported
+# module doing the measuring. `skills-check` was excluded there and reported
 # as a GRAMMAR GAP instead, which is the honest shape: unmeasured, not green.
+#
+# Round 461 (SWE-loop D) closed the gap by teaching this module the OTHER
+# grammar rather than by widening the pytest one. See `parse_corpus_row`.
 PYTEST_LOGS = ("health_round", "whence_health_round", "nuc_health_round")
+
+# ---------------------------------------------------------------------------
+# The second grammar (round 461).
+#
+# `skills/run_checks_fast.sh` execs `corpus_check.py`, whose main() prints one
+# row per checker with a single format string, `"%-18s %-22s %s" % (check,
+# flag, summary)`, and then one `corpus-check: ...` aggregate line. `flag` is
+# `ok`, `warn <codes>`, `ERROR <codes>`, or a bare status word -- `TIMEOUT`
+# or `ABSENT` -- from `run_one`'s non-`ran` branches.
+#
+# So the finest unit this log can name is the CHECKER ROW, not a test. That
+# is a real ceiling and not a parser limitation: the row that says
+# `unit_tests ERROR rc1 / 2 failed, 937 passed` is a whole pytest suite, and
+# `run_one` writes its child's output to a `tempfile.mkstemp` sink that a
+# `finally` unlinks. WHICH tests failed inside a red `unit_tests` row is
+# retained nowhere, for any round. `unit_tests` is therefore one node here,
+# and its `why` in the registry says so.
+#
+# Two consequences for the machinery below, both of which the pytest grammar
+# never had to face:
+#
+#   * A row can be NEITHER red nor green. `TIMEOUT` means the checker was
+#     killed; it is not evidence that it passed. Such a round is dropped from
+#     that node's run order, exactly as a round with no log at all is dropped
+#     from a check's -- see `test_a_round_the_check_never_ran_cannot_join_two_
+#     episodes`. Counting it green would split one episode into two.
+#   * The corpus GROWS. `carryforward` joined at round 369, `verb_audit` at
+#     423, `placeholder_check` at 429, `selfdesc_check` at 435. A checker that
+#     did not exist yet has no row, and its absence is not a pass either.
+CORPUS_LOGS = ("skills_health_round",)
+
+#: Pseudo node id for a checker row. The path is the file that PRINTS the
+#: row, so the id resolves to something a reader can open, and it starts with
+#: `skills/` so `node_suite` places it in the same suite the check hosts.
+CORPUS_NODE = "skills/skill-authoring/scripts/corpus_check.py::%s"
+
+# `%-18s %-22s` pads with spaces, and no checker name reaches 18 characters
+# (`state_claim_check` is 17), so the name is always followed by >=2 spaces
+# and the flag always starts at column 19. The codes token is captured only
+# when EXACTLY ONE space follows the status word, which is what the format
+# string produces for `warn P004,P006` and never for `ok`/`TIMEOUT` (whose
+# `%-22s` padding leaves >=16). The `corpus-check:` aggregate line does not
+# match: `-` is not in the name class, so the name group cannot span it.
+CORPUS_ROW = re.compile(r"^(\w[\w.]*) {2,}(ok|warn|ERROR|TIMEOUT|ABSENT)(?: (\S+))?")
+
+#: Row statuses that are an OBSERVATION of the checker. Anything else means
+#: the checker did not report -- see the `TIMEOUT` note above.
+CONCLUSIVE = ("ok", "warn", "ERROR")
+
+
+def parse_corpus_row(line):
+    """(checker, status, codes) for one `corpus_check.py` row, else None."""
+    m = CORPUS_ROW.match(line.rstrip("\n"))
+    if not m:
+        return None
+    return m.group(1), m.group(2), m.group(3)
+
+
+def corpus_rows(root=ROOT):
+    """prefix -> {round: {checker: (status, codes)}} over the corpus logs."""
+    out = {k: {} for k in CORPUS_LOGS}
+    logdir = os.path.join(root, "logs")
+    if not os.path.isdir(logdir):
+        return out
+    pat = re.compile(r"^(%s)_(\d+)\.log$" % "|".join(CORPUS_LOGS))
+    for fn in sorted(os.listdir(logdir)):
+        m = pat.match(fn)
+        if not m:
+            continue
+        rows = {}
+        with open(os.path.join(logdir, fn), encoding="utf-8",
+                  errors="replace") as fh:
+            for line in fh:
+                got = parse_corpus_row(line)
+                if got:
+                    rows[got[0]] = (got[1], got[2])
+        out[m.group(1)][int(m.group(2))] = rows
+    return out
+
+
+def unconclusive_rows(root=ROOT):
+    """prefix -> {round: [checker]} for rows that are neither red nor green.
+
+    The corpus analogue of `could_not_run`, one granularity finer: there the
+    whole log failed to report, here one row of it did.
+    """
+    out = {}
+    for prefix, per_round in corpus_rows(root).items():
+        out[prefix] = {r: sorted(c for c, (st, _co) in rows.items()
+                                 if st not in CONCLUSIVE)
+                       for r, rows in per_round.items()
+                       if any(st not in CONCLUSIVE for st, _co in rows.values())}
+    return out
 
 
 def could_not_run(root=ROOT):
@@ -208,6 +351,27 @@ def driver_verdicts(root=ROOT):
     return out
 
 
+def driver_bad_rounds(root=ROOT):
+    """check label -> set(round) the driver called FAIL or ERROR.
+
+    `driver_verdicts` counts; this names the rounds, which is what a set
+    reconciliation against the per-round logs needs.
+    """
+    out = {v: set() for v in CHECK_LABEL.values()}
+    path = os.path.join(root, "logs", "driver.log")
+    if not os.path.exists(path):
+        return out
+    labels = sorted(CHECK_LABEL.values(), key=len, reverse=True)
+    pat = re.compile(r"round (\d+): (%s) (FAIL|ERROR)"
+                     % "|".join(re.escape(x) for x in labels))
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            m = pat.search(line)
+            if m:
+                out[m.group(2)].add(int(m.group(1)))
+    return out
+
+
 def node_suite(nodeid):
     """Longest declared-suite prefix that the node id starts with."""
     best = None
@@ -242,6 +406,7 @@ def analyse(root=ROOT):
     nodes_reg = reg["nodes"]
     tracks = round_tracks(root)
     runs = read_logs(root)
+    obs = observed_nodes(root)
 
     seen = {}          # nodeid -> set(rounds red)
     for prefix, per_round in runs.items():
@@ -266,7 +431,9 @@ def analyse(root=ROOT):
         prefix = next((p for p, (_r, s) in CHECKS.items() if s == suite), None)
         if prefix is None:
             continue
-        order = sorted(runs[prefix])
+        po = obs.get(prefix)
+        order = [r for r in sorted(runs[prefix])
+                 if po is None or nid in po.get(r, frozenset())]
         eps = episodes_for(nid, order, seen[nid])
         scope = nodes_reg.get(nid, {}).get("subject_scope", "UNDECLARED")
         for e in eps:
@@ -310,7 +477,9 @@ def analyse(root=ROOT):
         }
 
     cnr = could_not_run(root)
+    unconc = unconclusive_rows(root)
     dv = driver_verdicts(root)
+    bad_rounds = driver_bad_rounds(root)
     grammar = []
     for prefix, (_rel, suite) in CHECKS.items():
         label = CHECK_LABEL[prefix]
@@ -322,8 +491,40 @@ def analyse(root=ROOT):
                 "0 test node(s) -- its logs are not pytest output, so it is "
                 "NOT represented in any number below" % (label, driver_red))
 
+    # The parse, reconciled against the driver's own verdict, ROUND BY ROUND.
+    #
+    # Round 455 did this with counts and an ADDITION:
+    # `len(parsed_red) + len(unrunnable & driver_bad)`. Round 461's corpus
+    # grammar breaks that arithmetic on real data -- skills-check round 431
+    # has both an `ERROR K001` row and a `TIMEOUT` row, so it is red AND
+    # unrunnable, and the sum counts it twice. A union cannot double-count
+    # and reduces to the sum whenever the two are disjoint, which is why the
+    # pytest checks never noticed. The same defect was latent there: a pytest
+    # suite killed after printing one `FAILED` line lands in both sets too.
+    recon = OrderedDict()
+    for prefix, (_rel, suite) in CHECKS.items():
+        label = CHECK_LABEL[prefix]
+        have = set(runs[prefix])
+        parsed_red = {r for r, nodes in runs[prefix].items()
+                      if any(node_suite(n) == suite for n in nodes)}
+        unrunnable = (set(cnr.get(prefix, ())) if prefix in PYTEST_LOGS
+                      else set(unconc.get(prefix, ())))
+        bad = bad_rounds[label] & have
+        accounted = parsed_red | (unrunnable & bad)
+        recon[label] = {
+            "parsed_red_runs": len(parsed_red),
+            "unconclusive_runs": len(unrunnable),
+            "driver_bad_runs": len(bad),
+            "driver_bad_rounds_with_no_log": sorted(bad_rounds[label] - have),
+            "accounted": len(accounted),
+            "agrees": accounted == bad,
+            "unexplained": sorted(bad ^ accounted),
+        }
+
     return {
         "could_not_run": cnr,
+        "unconclusive_rows": unconc,
+        "reconciliation": recon,
         "driver_verdicts": {k: dict(v) for k, v in dv.items()},
         "grammar_gaps": grammar,
         "scope_by_visibility": {
@@ -395,6 +596,24 @@ def cmd_attribute(args):
               "not red):")
         for k, v in cnr.items():
             print("  %-21s rounds %s" % (CHECK_LABEL[k], v))
+    unc = {k: v for k, v in res["unconclusive_rows"].items() if v}
+    if unc:
+        print("\nUNCONCLUSIVE ROWS (the checker was killed or absent -- not "
+              "green, not red):")
+        for k, v in unc.items():
+            for rnd in sorted(v):
+                print("  %-21s round %s: %s" % (CHECK_LABEL[k], rnd,
+                                                ",".join(v[rnd])))
+    print("\nPARSE RECONCILED AGAINST driver.log, round by round:")
+    hdr2 = ("%-21s %10s %12s %11s %10s %8s"
+            % ("check", "red runs", "unconclusive", "driver bad",
+               "accounted", "agrees"))
+    print(hdr2); print("-" * len(hdr2))
+    for label, v in res["reconciliation"].items():
+        print("%-21s %10d %12d %11d %10d %8s"
+              % (label, v["parsed_red_runs"], v["unconclusive_runs"],
+                 v["driver_bad_runs"], v["accounted"],
+                 "yes" if v["agrees"] else "NO %s" % v["unexplained"]))
     for g in res["grammar_gaps"]:
         print("\nGRAMMAR GAP  %s" % g)
     if res["registry_findings"]:

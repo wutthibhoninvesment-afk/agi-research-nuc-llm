@@ -170,22 +170,92 @@ def test_the_recall_ceiling_is_reported_by_nothing_that_prints_recall():
 
 # --------------------------------------------------- the unreachable unit --
 
-def test_one_unit_has_never_been_evidence_and_the_registry_says_why():
-    """`test_swe_campaign.py[heavy]` has never produced a ledger row. The
-    heavy registry's own prose says its single test "does not finish inside
-    any budget this program grants a round", so 33/33 is not reachable even
-    with unlimited rounds — the true ceiling is 32/33 before the rotation
-    is considered at all."""
-    reg = json.load(open(os.path.join(REPO_ROOT, "harness", "tier-units.json")))
-    assert "test_swe_campaign.py" in reg["heavy"]
-    assert "does not finish inside any budget" in reg["_comment"]
-    seen = set()
+def _ledger_rows_for(unit):
+    """Every ledger row whose unit id is `unit`, oldest first."""
+    out = []
     with open(LEDGER) as fh:
         for line in fh:
             if line.strip():
                 row = json.loads(line)
-                seen.add(row.get("unit") or row.get("file"))
-    assert "test_swe_campaign.py[heavy]" not in seen
+                if (row.get("unit") or row.get("file")) == unit:
+                    out.append(row)
+    return out
+
+
+#: A ledger outcome that is EVIDENCE about the run. `classify` reaches
+#: `fresh_pass`/`fresh_fail` from these two and from nothing else; `timeout`
+#: falls through to `unknown` however fresh the digests are.
+EVIDENCE_OUTCOMES = ("passed", "failed")
+
+
+def test_one_unit_has_never_been_evidence_and_the_registry_says_why():
+    """`test_swe_campaign.py[heavy]` has never produced EVIDENCE. The heavy
+    registry's own prose says its single test "does not finish inside any
+    budget this program grants a round", so 33/33 is not reachable even with
+    unlimited rounds — the true ceiling is 32/33 before the rotation is
+    considered at all.
+
+    Round 461 repaired the predicate, not the claim. Round 457 wrote this as
+    `"test_swe_campaign.py[heavy]" not in seen` — an ABSENCE OF ANY ROW —
+    and round 459's post-round slice appended one: outcome `timeout`,
+    returncode -9, 3000.12 s. The assertion went red at round 460 while
+    everything it was written to protect was still true, because "never
+    produced a ledger row" was a proxy for "never been evidence" and the two
+    came apart the first time the unit was actually attempted. A timed-out
+    row is not a pass; it is not a fail either. Assert the thing the
+    docstring claims.
+
+    The row is pinned POSITIVELY as well: if `[heavy]` ever finishes, the
+    `timeout` assertion breaks on purpose and 33/33 becomes reachable.
+    """
+    reg = json.load(open(os.path.join(REPO_ROOT, "harness", "tier-units.json")))
+    assert "test_swe_campaign.py" in reg["heavy"]
+    assert "does not finish inside any budget" in reg["_comment"]
+    rows = _ledger_rows_for("test_swe_campaign.py[heavy]")
+    assert [r for r in rows if r.get("outcome") not in EVIDENCE_OUTCOMES] == rows, (
+        "a [heavy] row now carries an evidence outcome %r — the unit finished, "
+        "so 33/33 is reachable and this test and round 457's ceiling both "
+        "need rewriting, not retuning"
+        % [r.get("outcome") for r in rows if r.get("outcome") in EVIDENCE_OUTCOMES])
+    assert all(r.get("outcome") == "timeout" for r in rows), (
+        "every [heavy] row so far is a timeout; a new non-timeout, "
+        "non-evidence outcome is a state nothing here has reasoned about: %r"
+        % sorted({r.get("outcome") for r in rows}))
     units = {u["id"] for u in slowtier.slow_tier_units()}
     assert "test_swe_campaign.py[heavy]" in units, (
         "the unit is declared, so it counts in the denominator")
+    st = slowtier.status()
+    state = {r["unit"]: r["state"] for r in st["rows"]}
+    assert state["test_swe_campaign.py[heavy]"] not in slowtier.CONCLUSIVE
+    assert state["test_swe_campaign.py[heavy]"] not in slowtier.SCOPED_CONCLUSIVE
+
+
+def test_the_light_half_of_the_split_has_a_row_and_it_is_still_not_evidence():
+    """Round 455's next-steps item 4, re-derived and CORRECTED at round 461.
+
+    It read: "`test_swe_campaign.py[light]` is still `unknown` to the
+    slow-tier instrument. Recall is 9% (3 conclusive of 33)". Both halves
+    have moved. `[light]` is no longer `unknown` — round 457's slice ran it
+    (2026-09-02 17:03:10, outcome `timeout`, 3000.23 s) against checkout
+    `88cba3aa3d246012`, which has since moved, so it classifies as
+    `stale_checkout`. And recall is no longer 9%.
+
+    What has NOT moved is the substance: the row is a timeout, so `[light]`
+    has never been evidence either, and both halves of the split remain
+    outside `n_conclusive`. This test pins the substance and deliberately
+    does not pin the recall number, which is a sawtooth by design.
+    """
+    rows = _ledger_rows_for("test_swe_campaign.py[light]")
+    assert rows, "round 457's slice ran it; the row is the evidence for this test"
+    assert all(r.get("outcome") not in EVIDENCE_OUTCOMES for r in rows)
+    st = slowtier.status()
+    state = {r["unit"]: r["state"] for r in st["rows"]}
+    assert state["test_swe_campaign.py[light]"] not in slowtier.CONCLUSIVE
+    assert state["test_swe_campaign.py[light]"] not in slowtier.SCOPED_CONCLUSIVE
+    # Neither half of the split can ever be conclusive while both time out,
+    # so the ceiling round 457 derived is 31/33, not 32/33, for as long as
+    # that holds. Stated here rather than in prose because prose is what
+    # round 455's item 4 was.
+    never = {r["unit"] for r in st["rows"]
+             if r["state"] not in slowtier.CONCLUSIVE + slowtier.SCOPED_CONCLUSIVE}
+    assert {"test_swe_campaign.py[light]", "test_swe_campaign.py[heavy]"} <= never

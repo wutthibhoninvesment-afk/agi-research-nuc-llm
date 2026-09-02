@@ -4,6 +4,7 @@
     "own-suite": "Only a change inside the hosting suite's own directory can turn it red. The hosting track is the only track that can open it, and can see it by running its own fast tier.",
     "whole-tree": "A change ANYWHERE in the repo can turn it red -- the node asserts a property of the checked-in tree as a whole. Any track can open it; only the hosting track routinely runs the suite that contains it.",
     "shared-file-own-content": "The subject is a file every track writes, but the specific claim is about a region only one track writes. Hosting track opens it; the blast radius looks wide and is not.",
+    "shared-corpus": "The subject is a file or directory that EVERY track writes -- `skills/` (CLAUDE.md ground rule 5 tells every round to author or upgrade a SKILL.md), `state/research-state.md`'s live Next-steps block, `state/slow-tier-ledger.jsonl`. Any track can open it and only the hosting track routinely runs the check, so the visibility consequence matches `whole-tree`; the SUBJECT does not, because a change outside that one shared thing cannot turn it red. Round 461 added this. Round 455's four values were measured on three checks whose subjects are code trees written mainly by their own track, and `skills-check` -- whose subject is a corpus every track writes -- fits none of them: `own-suite` is empirically false (skills(B) opened 0 of 46 episodes) and `whole-tree` overstates the blast radius. `shared-file-own-content` is the one-track case of the same shape and is kept distinct on purpose.",
     "environmental": "Nothing in the repo turns it red. Verdict alternates on unchanged code (1-CPU contention, timing). An `opener` for such an episode did not cause it, and attributing one is the error this status prevents."
   },
   "_track_suites": {
@@ -48,8 +49,8 @@
       "why": "Subject is harness/run_tests_fast.sh's exit-code contract. Opened by round 409 (harness A) -- the hosting track, which could and did see it."
     },
     "harness/tests/test_run_driver_whence_health_check.py::test_whence_health_check_fail_logged_when_script_fails": {
-      "subject_scope": "own-suite",
-      "why": "Subject is run_driver.sh's logging of the whence check, exercised in a tmp_path. Opened by round 362 (language C) -- note the driver.log line for 362 names a different test; the per-round log logs/health_round_362.log is the accurate source."
+      "subject_scope": "environmental",
+      "why": "ROUND 461 DECIDED ROUND 455's ITEM 6, AND BOTH OFFERED ANSWERS WERE WRONG. Round 455 declared this `own-suite`, called `shared-file-own-content` arguable, and left the choice to a later round because either answer moves its own headline. The evidence says neither. (1) The failure in logs/health_round_362.log is `subprocess.TimeoutExpired` on a 45s wall-clock wait -- `pytest.fail(\"driver did not stop within 45s\")` -- inside a health run that took 854.14s on a box with nproc 1. It is a clock failure, not an assertion about run_driver.sh's behaviour; the test drives real `bash run_driver.sh` subprocesses and compares a sub-second start delta against a 2s sleep. (2) Round 362 (language C) committed six files, all under languages/whence/ and state/whence/, and touched neither run_driver.sh nor anything else this test reads. (3) One red in 218 retained health runs. (4) Independently of all that, `shared-file-own-content` is refuted at its premise: it requires a file EVERY track writes, and run_driver.sh is harness(A)'s in 17 of the 20 attributed commits that touch it (one skills B, round 363, wiring the skills check). The reclassification moves own-suite from 1/9 invisible to 0/8 and therefore STRENGTHENS round 455's association, which is why the evidence is written out here in full and the headline is published both ways in knowledge/round-461-*.md."
     },
     "languages/whence/tests/test_field_corpus_selector.py::test_the_live_tree_has_no_drift": {
       "subject_scope": "own-suite",
@@ -94,6 +95,50 @@
     "nuc/tests/test_kv_reuse_model.py::test_system_hint_is_a_token_prefix_for_nuc_mini": {
       "subject_scope": "own-suite",
       "why": "Same born-red install episode, rounds 410-441."
+    },
+    "harness/tests/test_redattrib.py::TestThisTree::test_the_registry_is_fail_closed_over_the_live_logs": {
+      "subject_scope": "whole-tree",
+      "why": "Asserts THIS registry covers every node that has gone red in any of the four checks' logs, so any track's undeclared red opens it. Red at round 460 (NUC E) because rounds 459 and 460 added four undeclared red nodes. Note the ONE-ROUND LAG that follows from the design: the evidence this test reads is `logs/health_round_<N>.log`, and round N's copy is still being written by the run this test is part of, so a fail-closed registry cannot fire in the round that breaks it. It is not a scheduling defect -- moving the runner earlier makes it worse, not better."
+    },
+    "harness/tests/test_redattrib.py::TestThisTree::test_the_cli_audit_exits_zero_on_this_tree": {
+      "subject_scope": "whole-tree",
+      "why": "Same subject as test_the_registry_is_fail_closed_over_the_live_logs, stated as a subprocess exit code. The two always go red together and did, at round 460."
+    },
+    "harness/tests/test_slowtier_rotation_ceiling.py::test_one_unit_has_never_been_evidence_and_the_registry_says_why": {
+      "subject_scope": "shared-corpus",
+      "why": "Subject is `state/slow-tier-ledger.jsonl`, which run_driver.sh appends to after EVERY round whatever the track. Opened at round 460 (NUC E) -- but the row that broke it was appended at 2026-09-02 19:31:45 by round 459's post-round slice, 50 minutes after round 459's own health check had already run at 18:41:43. So the recorded opener is off by one round AND names a track rather than the driver. That is a distinct thing from `environmental` (a real artefact did change) and this vocabulary cannot yet say it; recorded here rather than given a sixth scope on one observation. Round 461 fixed the assertion, not the ledger: see the knowledge file."
+    },
+    "harness/tests/test_swe_mutation.py::test_the_grandchild_pid_survives_a_grandchild_slower_than_the_cap": {
+      "subject_scope": "environmental",
+      "why": "Sibling of test_timeout_kills_grandchild_holding_stdout in the same file and the same class of assertion. `harness/swe/mutation.py` last changed at round 437 (ce7a89d); this node was red at rounds 459 and 460 and passed twice consecutively when re-run at round 461 on byte-identical code (1 passed in 3.13s, 1 passed in 2.07s). A timing assertion on a 1-CPU box. Round 459 (skills B) is recorded as opening an episode it did not cause."
+    },
+    "skills/skill-authoring/scripts/corpus_check.py::unit_tests": {
+      "subject_scope": "whole-tree",
+      "why": "ONE ROW, ONE WHOLE PYTEST SUITE: `-m pytest -q skills/skill-authoring/scripts skills/session-inheritance-audit/scripts`, 959 tests at round 460. 8 of its 14 test files read `knowledge/`, `state/research-state.md` or `CLAUDE.md`, so a change anywhere in the record can turn it red. WHICH tests failed is recoverable from nothing: `corpus_check.run_one` writes the child's output to a `tempfile.mkstemp` sink and unlinks it in a `finally`, so the retained log keeps only `2 failed, 937 passed`. This node is therefore the granularity floor of the whole skills-check parse, and it is the reddest node in the repo -- 25 red rounds, 18 episodes, 0 opened by skills(B)."
+    },
+    "skills/skill-authoring/scripts/corpus_check.py::carryforward": {
+      "subject_scope": "whole-tree",
+      "why": "`carryforward_check.py` walks the entire repo (`os.walk(root)`) for PREDICTIONS banks and reads `knowledge/` and `state/prediction-bank-ledger.json`. D-013 makes every track bank predictions, so every track can turn it red. 19 red rounds in 15 episodes; openers language(C) 6, SWE-loop(D) 6, harness(A) 1, NUC(E) 1, skills(B) 0."
+    },
+    "skills/skill-authoring/scripts/corpus_check.py::claim_check": {
+      "subject_scope": "whole-tree",
+      "why": "Re-executes each SKILL.md Verification block and RESOLVES the paths it cites against `--repo-root`, so a rename anywhere in the repo turns it red even though the prose it reads is under `skills/`. Red at rounds 410 and 420, both opened by language(C)."
+    },
+    "skills/skill-authoring/scripts/corpus_check.py::xref_check": {
+      "subject_scope": "whole-tree",
+      "why": "Checks that every cited bare identifier is defined somewhere; its authoritative scope includes `CLAUDE.md`, which CLAUDE.md itself names as the X002 registry, plus the markdown tree. Red at rounds 365, 372, 404 and 452; openers SWE-loop(D) 1, language(C) 3."
+    },
+    "skills/skill-authoring/scripts/corpus_check.py::skill_lint": {
+      "subject_scope": "shared-corpus",
+      "why": "argv is `skill_lint.py <root>/skills --house --strict`; nothing outside `skills/` is read, so this is NOT whole-tree. It is not own-suite either: `skills/` is written by every track under CLAUDE.md ground rule 5. Red at rounds 413, 421 and 437; openers SWE-loop(D) 2, harness(A) 1, skills(B) 0."
+    },
+    "skills/skill-authoring/scripts/corpus_check.py::case_coverage": {
+      "subject_scope": "shared-corpus",
+      "why": "Reads `skills/`, `skills/trigger-cases.json`, `state/trigger-eval/` reports and the two baselines. A skill added by any track with no trigger cases is P001, which is the shape round 363 measured three times over. Red at rounds 398, 419 and 431-434; openers language(C) 1, SWE-loop(D) 2, skills(B) 0."
+    },
+    "skills/skill-authoring/scripts/corpus_check.py::state_claim_check": {
+      "subject_scope": "shared-corpus",
+      "why": "Subject is the live `## Next steps` block of `state/research-state.md`, which every track appends to every round -- the same file as test_v22.py::test_research_state_track_c_names_the_same_version_as_spec_md, but not the same claim: that one is about the one line only language(C) writes and is `shared-file-own-content`, this one is about whatever the newest block says. Red once, round 398, opened by language(C)."
     }
   }
 }

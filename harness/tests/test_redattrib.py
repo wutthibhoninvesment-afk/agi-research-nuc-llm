@@ -10,6 +10,7 @@ that never has would fire this module's own R002. It joins the registry the
 first time it breaks, which is the fail-closed behaviour, not an omission.
 """
 
+import collections
 import json
 import os
 import subprocess
@@ -38,7 +39,7 @@ def build_root(tmp, driver_lines, logs, registry):
 
 BASE_REG = {
     "_subject_scope": {"own-suite": "", "whole-tree": "", "environmental": "",
-                       "shared-file-own-content": ""},
+                       "shared-file-own-content": "", "shared-corpus": ""},
     "_track_suites": {"harness(A)": ["harness/tests"],
                       "language(C)": ["languages/whence/tests"],
                       "skills(B)": ["skills"],
@@ -53,6 +54,127 @@ def pytest_log(*failed):
     if failed:
         return body + "%d failed, 10 passed in 1.00s\n" % len(failed)
     return body + "10 passed in 1.00s\n"
+
+
+def corpus_log(rows, n_err=0, n_warn=0, broken=()):
+    """A `corpus_check.py` log built with that file's OWN format string.
+
+    Written as `"%-18s %-22s %s"` rather than with hand-typed spacing so a
+    change to the real format breaks these tests instead of quietly making
+    them test a grammar nothing emits.
+    """
+    out = ["%-18s %-22s %s" % (name, flag, summary)
+           for name, flag, summary in rows]
+    out.append("corpus-check: %d checker(s), %d error(s), %d warning(s)%s"
+               % (len(rows), n_err, n_warn,
+                  ("; COULD NOT RUN: " + ",".join(broken)) if broken else ""))
+    return "\n".join(out) + "\n"
+
+
+class TestCorpusGrammar(unittest.TestCase):
+    """Round 461. The second log grammar, and the two things it forces."""
+
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.mkdtemp()
+
+    def test_every_flag_shape_the_emitter_can_produce_parses(self):
+        cases = [
+            ("skill_lint", "ok", ("skill_lint", "ok", None)),
+            ("carryforward", "ERROR K001", ("carryforward", "ERROR", "K001")),
+            ("unit_tests", "ERROR rc1", ("unit_tests", "ERROR", "rc1")),
+            ("state_claim_check", "warn S005",
+             ("state_claim_check", "warn", "S005")),
+            # 24 characters: WIDER than the %-22s field, so exactly one space
+            # separates it from the summary. A column-offset parser reads the
+            # summary as the codes here; this is the live shape at round 460.
+            ("case_coverage", "warn P004,P006,P007,P009",
+             ("case_coverage", "warn", "P004,P006,P007,P009")),
+            ("unit_tests", "TIMEOUT", ("unit_tests", "TIMEOUT", None)),
+            ("selfdesc_check", "ABSENT", ("selfdesc_check", "ABSENT", None)),
+        ]
+        for name, flag, want in cases:
+            line = "%-18s %-22s %s" % (name, flag, "some summary 1 error(s)")
+            self.assertEqual(RA.parse_corpus_row(line), want, line)
+
+    def test_the_aggregate_line_is_not_a_checker_row(self):
+        """`corpus-check: 10 checker(s), 2 error(s)` must not parse as a row
+        named `corpus` with status `10`. It is the line round 453 anchored
+        its own count on, and it is in every log."""
+        self.assertIsNone(RA.parse_corpus_row(
+            "corpus-check: 10 checker(s), 2 error(s), 7 warning(s)"))
+        self.assertIsNone(RA.parse_corpus_row(""))
+        self.assertIsNone(RA.parse_corpus_row("FAILED some/test.py::t"))
+
+    def _root(self, per_round):
+        logs = {"skills_health_round_%d.log" % r: corpus_log(rows)
+                for r, rows in per_round.items()}
+        return build_root(self.tmp, ["[t] round %d track=skills(B) start" % r
+                                     for r in per_round], logs, BASE_REG)
+
+    def test_an_error_row_becomes_a_red_node_named_for_the_checker(self):
+        root = self._root({1: [("skill_lint", "ERROR B001", "x")]})
+        self.assertEqual(
+            RA.read_logs(root)["skills_health_round"][1],
+            frozenset([RA.CORPUS_NODE % "skill_lint"]))
+
+    def test_a_timeout_round_does_not_split_an_episode(self):
+        """THE reason `observed_nodes` exists. Rounds 1 and 3 are red and
+        round 2 was killed. Treating the kill as a pass reports two
+        one-round episodes with two different openers; it is one episode."""
+        root = self._root({
+            1: [("unit_tests", "ERROR rc1", "2 failed")],
+            2: [("unit_tests", "TIMEOUT", "timed out after 600s")],
+            3: [("unit_tests", "ERROR rc1", "2 failed")],
+            4: [("unit_tests", "ok", "10 passed")],
+        })
+        res = RA.analyse(root)
+        eps = [e for e in res["episodes"]
+               if e["node"] == RA.CORPUS_NODE % "unit_tests"]
+        self.assertEqual(len(eps), 1)
+        self.assertEqual((eps[0]["open"], eps[0]["len"], eps[0]["close"]),
+                         (1, 2, 4))
+        self.assertEqual(RA.unconclusive_rows(root)["skills_health_round"],
+                         {2: ["unit_tests"]})
+
+    def test_a_checker_that_did_not_exist_yet_is_not_a_pass(self):
+        """`carryforward` joined at round 369, `selfdesc_check` at 435. A
+        checker with no row is unobserved, exactly like a check with no log,
+        so it can neither open nor close an episode."""
+        root = self._root({
+            1: [("skill_lint", "ok", "x")],
+            2: [("skill_lint", "ok", "x"), ("carryforward", "ERROR K001", "y")],
+            3: [("skill_lint", "ok", "x"), ("carryforward", "ok", "y")],
+        })
+        res = RA.analyse(root)
+        rows = [n for n in res["nodes"]
+                if n["node"] == RA.CORPUS_NODE % "carryforward"]
+        self.assertEqual(rows[0]["red_rounds"], [2])
+        eps = [e for e in res["episodes"] if e["node"] == rows[0]["node"]]
+        self.assertEqual([(e["open"], e["close"]) for e in eps], [(2, 3)])
+
+    def test_the_reconciliation_is_a_union_and_never_double_counts(self):
+        """Round 455 reconciled with `len(parsed_red) + len(unrunnable & bad)`.
+        skills-check round 431 is BOTH -- an `ERROR K001` row and a `TIMEOUT`
+        row in the same log -- and the sum counts that round twice. The union
+        is what agrees with the driver, and it degenerates to the sum
+        whenever the two sets are disjoint, which is why three pytest checks
+        never exposed it."""
+        logs = {"skills_health_round_1.log": corpus_log(
+            [("carryforward", "ERROR K001", "y"),
+             ("unit_tests", "TIMEOUT", "timed out after 600s")],
+            n_err=1, broken=("unit_tests",))}
+        root = build_root(self.tmp,
+                          ["[t] round 1 track=skills(B) start",
+                           "[t] round 1: skills-check ERROR - a checker could "
+                           "not run - x"],
+                          logs, BASE_REG)
+        rec = RA.analyse(root)["reconciliation"]["skills-check"]
+        self.assertEqual(rec["parsed_red_runs"], 1)
+        self.assertEqual(rec["unconclusive_runs"], 1)
+        self.assertEqual(rec["driver_bad_runs"], 1)
+        self.assertEqual(rec["accounted"], 1)      # a sum would say 2
+        self.assertTrue(rec["agrees"])
 
 
 class TestSynthetic(unittest.TestCase):
@@ -213,40 +335,81 @@ class TestThisTree(unittest.TestCase):
         self.assertEqual([f for f in res["registry_findings"] if f[0] == "R004"], [])
 
     def test_the_parser_agrees_with_the_drivers_own_verdict_count(self):
-        """A cross-check on the parse, not on the repo.
+        """A cross-check on the parse, not on the repo, for ALL FOUR checks.
 
-        For each pytest-grammar check, the number of runs this module found
-        red nodes in must equal the number of FAIL runs run_driver.sh
-        recorded, EXCEPT for runs whose suite could not run at all -- those
-        the driver calls FAIL or ERROR while the log holds no FAILED line.
+        Round 455 ran this over the three pytest-grammar checks only and did
+        the arithmetic here in the test. Round 461 moved it into `analyse`
+        (`reconciliation`), so the CLI prints the same cross-check it is
+        tested on, widened it to `skills-check`, and changed the addition to
+        a set union -- see `test_the_reconciliation_is_a_union_and_never_
+        double_counts` for the round that breaks the sum.
+
+        Every round the driver called FAIL or ERROR must be a round in which
+        this parser either found a red node or found something that could
+        not report, and there must be no such round left over on either side.
         """
         res = RA.analyse(ROOT)
-        runs = RA.read_logs(ROOT)
-        cnr = RA.could_not_run(ROOT)
-        for prefix in RA.PYTEST_LOGS:
-            label = RA.CHECK_LABEL[prefix]
-            suite = RA.CHECKS[prefix][1]
-            parsed_red = {r for r, nodes in runs[prefix].items()
-                          if any(RA.node_suite(n) == suite for n in nodes)}
-            dv = res["driver_verdicts"][label]
-            unrunnable = set(cnr[prefix])
-            self.assertEqual(
-                len(parsed_red) + len(unrunnable & self._driver_bad(label)),
-                dv.get("FAIL", 0) + dv.get("ERROR", 0),
-                "%s: parsed %d red run(s), driver recorded %d FAIL + %d ERROR"
-                % (label, len(parsed_red), dv.get("FAIL", 0), dv.get("ERROR", 0)))
+        for label, v in res["reconciliation"].items():
+            self.assertTrue(
+                v["agrees"],
+                "%s: %d red run(s) + %d unconclusive account for %d of the "
+                "driver's %d FAIL/ERROR run(s); unexplained rounds %s"
+                % (label, v["parsed_red_runs"], v["unconclusive_runs"],
+                   v["accounted"], v["driver_bad_runs"], v["unexplained"]))
 
-    @staticmethod
-    def _driver_bad(label):
-        import re
-        bad = set()
-        with open(os.path.join(ROOT, "logs", "driver.log"),
-                  encoding="utf-8", errors="replace") as fh:
-            for line in fh:
-                m = re.search(r"round (\d+): %s (FAIL|ERROR)" % re.escape(label), line)
-                if m:
-                    bad.add(int(m.group(1)))
-        return bad
+    def test_the_fourth_check_is_represented_and_reports_no_grammar_gap(self):
+        """Round 455's own GRAMMAR GAP line, closed. It said skills-check was
+        `NOT represented in any number below`; the headline was over three
+        checks while claiming four."""
+        res = RA.analyse(ROOT)
+        self.assertEqual(res["grammar_gaps"], [])
+        self.assertGreater(res["per_check"]["skills-check"]["nodes_ever_red"], 0)
+        self.assertGreater(res["per_check"]["skills-check"]["episodes"], 0)
+
+    def test_every_corpus_node_names_a_file_that_exists(self):
+        """The pseudo node id is `<path>::<checker>`; the path half must
+        resolve, or the id is a label rather than a pointer."""
+        res = RA.analyse(ROOT)
+        for n in res["nodes"]:
+            if n["suite"] == "skills":
+                path = n["node"].split("::")[0]
+                self.assertTrue(os.path.exists(os.path.join(ROOT, path)),
+                                "%s does not exist" % path)
+
+    def test_round_453s_check_level_measurement_is_reproduced_exactly(self):
+        """Round 453 (skills B) measured the skills corpus over rounds
+        364-452 by anchoring on each log's `corpus-check:` aggregate line and
+        reading `N error(s)`. This module anchors on the per-row `ERROR`
+        flags instead -- a different derivation of the same quantity from the
+        same files -- and must land on the same numbers.
+
+        History does not change, so this is a stable pin: if it breaks,
+        either a retained log was edited or the parse did.
+        """
+        runs = RA.read_logs(ROOT)["skills_health_round"]
+        window = [r for r in sorted(runs) if 364 <= r <= 452]
+        red = {r for r in window if runs[r]}
+        self.assertEqual((len(window), len(red)), (89, 24))
+        eps = RA.episodes_for("any", window, red)
+        self.assertEqual(len(eps), 16)
+        self.assertEqual(max(len(e["rounds"]) for e in eps), 4)
+        tracks = RA.round_tracks(ROOT)
+        opened = collections.Counter(tracks.get(e["open"]) for e in eps)
+        self.assertEqual(dict(opened), {"language(C)": 7, "SWE-loop(D)": 6,
+                                        "harness(A)": 2,
+                                        "NUC-integration(E)": 1})
+        self.assertEqual(opened["skills(B)"], 0,
+                         "round 453's headline: zero episodes opened by the "
+                         "track that owns the checkers")
+
+    def test_no_skills_check_episode_was_opened_by_the_track_that_owns_it(self):
+        """Round 453's finding at the finer granularity this module added.
+        Stated as a direction, not a count, so a new round does not break
+        it -- but a skills(B) round opening one WOULD, and should."""
+        res = RA.analyse(ROOT)
+        v = res["per_check"]["skills-check"]
+        self.assertEqual(v["opened_by_owner"], 0)
+        self.assertEqual(v["invisible_opens"], v["attributable"])
 
     def test_the_headline_association_is_reproducible(self):
         """whole-tree reds are opened by rounds that cannot see them; own-suite
