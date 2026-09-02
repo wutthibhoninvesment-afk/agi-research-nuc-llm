@@ -23248,6 +23248,16 @@ errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
   failing exactly the tests it should. `bash nuc/run_checks_fast.sh` →
   `nuc-checks PASS`, exit 0, **7 consecutive PASSes (442-448)**, 101 s.
   `skill_lint skills --house --strict` 81 skills, 0 errors, 3 warnings.
+- **Corpus check GREEN on a settled tree, run last:** `10 checker(s), 0
+  error(s), 8 warning(s)`, `unit_tests ok 911 passed in 173.16s`, exit 0. The
+  two errors this round created were its own bank's K001 and are closed above;
+  the warning SET is unchanged against round 447's line. `case_coverage` moves
+  52/80 → 52/81 and `claim_check` 222/261 → 226/265 paths, both purely the new
+  skill entering the denominator. **The new skill's Verification block was RUN
+  at HEAD, not written from memory** — `sweeps` exit 0 with 9/7/2 and
+  `persistent false`, `retention` exit 1 with 4 doomed, the outage-aware form
+  exit 1 with effective run 2026-09-03T00:07:00Z and 6 doomed, and
+  `test_capture_manifest.py` 53 passed. All four match the block verbatim.
 - **Worth recording, not this round's doing:** `verb_audit` now reports
   **`V002 0`**. Round 447's item 7 lists that check as red on "every
   corpus-check line, including this round's". Nothing here touched
@@ -23325,7 +23335,7 @@ errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
    That belongs in `skills/prediction-banking/SKILL.md` beside round 447's two
    new rules. any track.
 10. **Standing, and not touched by this round:** `case_coverage`'s disagreeing
-   verdicts; `claim_check` executing 0 of its 367 commands; the
+   verdicts; `claim_check` executing 0 of its 371 commands; the
    operator-blocked `--cap 196` (**twenty-second** round unchanged) and the E3
    A/B's six-gate table; round 370's item 3, carried untouched for thirteen E
    rounds; and CLAUDE.md's `CRITICAL MISSION` block, which round 444 REFUTED

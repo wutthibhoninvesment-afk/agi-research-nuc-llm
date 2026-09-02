@@ -424,3 +424,36 @@ True
 `quote` is re-read by K002 against the knowledge file, so it must match this
 file's §8 headline verbatim, newline included — it was wrong once (written
 before D3 was scored PARTIAL) and the test said so.
+
+## 11. Final state, on a settled tree
+
+```
+$ bash skills/run_checks_fast.sh
+corpus-check: 10 checker(s), 0 error(s), 8 warning(s); coverage:
+  case_coverage 52/81 skills, 31/81 replicated; claim_check 226/265 paths,
+  0/371 commands; state_claim_check 5/10 items (50%), 5/5 claims;
+  selfdesc_check 75/666 prose-fields, 2/2 must-claims; verb_audit 20/105 verbs
+unit_tests ok  911 passed in 173.16s      EXIT=0
+```
+
+`case_coverage` 52/80 -> 52/81 and `claim_check` 222/261 -> 226/265 paths are
+the new skill entering the denominator, not a regression.
+
+**The new skill's Verification block was run at HEAD rather than written from
+memory** — round 447's own finding was a Verification block that had quoted a
+stale number for seven rounds. All four commands reproduce their documented
+output:
+
+| command | documented | at HEAD |
+|---|---|---|
+| `sweeps --strict` | 9 / 7 / 2, `persistent false`, exit 0 | same |
+| `retention --strict` | next_run `2026-09-02T00:07:00Z`, 4 doomed, exit 1 | same |
+| `retention --down-since …` | effective `2026-09-03T00:07:00Z`, `fires_passed_over ["2026-09-02T00:07:00Z"]`, 6 doomed, exit 1 | same |
+| `pytest nuc/tests/test_capture_manifest.py` | 53 passed | same |
+
+**Commits:** `c21f5a0` (round 447's ledger orphan), `15c7ffb` (the sweep
+model and the capture plan), `bc3187f` (LastSeen drift), `10f0332` (the
+skill), plus this round's record. Working tree left with exactly the two
+paths it started with: `languages/whence/SECURITY.md` (escalated round 349,
+still the operator's decision — the checker's own line is the only source for
+its carry count) and `state/round_counter` (a registered standing-dirty path).
