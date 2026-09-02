@@ -14,6 +14,24 @@ sys.path.insert(0, NUC)
 
 import kv_reuse_model as krm  # noqa: E402
 
+# Round 442 (NUC-integration E): the same guard `test_prompt_budget.py` has
+# carried since round 22, applied to the two tests here that need a real
+# tokenizer. `tokenizers` is an OPTIONAL dependency — it is present in the
+# repo `.venv` (which every round runs under, via claude-wrapper.sh) and
+# absent from /usr/bin/python3 (which the driver's health checks run under,
+# because run_driver.sh never activates the venv). Without this marker those
+# two tests raised ModuleNotFoundError instead of skipping, and
+# `nuc-health-check` reported FAIL on every round from 410 to 441 — 32
+# consecutive rounds, zero PASSes — for a missing optional dependency rather
+# than for a regression. A health check that cannot go green cannot report
+# anything. Round 442 also made the check pick the venv interpreter
+# (`nuc/run_checks_fast.sh`), so on this host these tests RUN; this marker is
+# the belt to that braces, and it is what keeps the answer honest on any
+# interpreter that lacks the library.
+needs_tok = pytest.mark.skipif(
+    not krm.have_tokenizer(),
+    reason="tokenizers lib or tokenizer.json missing")
+
 RAW_REPLY = '{"tool_calls":[{"name":"run_shell","arguments":{"command":"df -h /"}}]}'
 
 
@@ -136,6 +154,7 @@ def _turn2_request(req1, raw_reply):
     return {"messages": msgs, "tools": req1["tools"]}
 
 
+@needs_tok
 def test_agent_turn2_breaks_strict_but_not_snapshot(probe):
     """Turn 2's prompt continues turn 1's prompt only up to the assistant
     header: the generation suffix (empty <think> block) is omitted from the
@@ -171,6 +190,7 @@ def test_agent_turn2_breaks_strict_but_not_snapshot(probe):
     assert sys_pos == 317
 
 
+@needs_tok
 def test_system_hint_is_a_token_prefix_for_nuc_mini(probe):
     tok = krm.tokenizer()
     p1 = probe["p1"]

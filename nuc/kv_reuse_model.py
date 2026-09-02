@@ -158,9 +158,33 @@ def decode_tok_s(kv_positions):
 
 
 # --- scenarios ----------------------------------------------------------------
+TOKENIZER_JSON = os.path.join(HERE, "tokenizer-qwen36.json")
+
+
+def have_tokenizer():
+    """Is a real tokenizer available in THIS interpreter?
+
+    Round 442 (NUC-integration E). `tokenizers` is an optional dependency: it
+    lives in the repo's `.venv` and in no other interpreter on this host, and
+    nothing in the tree declares it (there is no requirements.txt/pyproject).
+    `nuc/tests/test_prompt_budget.py` has always known that and skips its
+    tokenizer-dependent tests through a `needs_tok` marker built on exactly
+    this pair of conditions. `tokenizer()` below did not, so the SAME missing
+    optional dependency skipped one test file and raised ModuleNotFoundError
+    in another — which is why `nuc-health-check` read FAIL on all 32 rounds
+    from 410 to 441 without a single PASS. Exported so the two test files ask
+    the question the same way instead of each inventing it.
+    """
+    try:
+        import tokenizers  # noqa: F401
+    except ImportError:
+        return False
+    return os.path.exists(TOKENIZER_JSON)
+
+
 def tokenizer():
     from tokenizers import Tokenizer
-    return Tokenizer.from_file(os.path.join(HERE, "tokenizer-qwen36.json"))
+    return Tokenizer.from_file(TOKENIZER_JSON)
 
 
 def system_boundary(text):

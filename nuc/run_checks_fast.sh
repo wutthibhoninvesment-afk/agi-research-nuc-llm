@@ -50,20 +50,100 @@
 # harness(A)'s artifact. Same handoff here. The wiring is four lines in the
 # round-277 concurrent block plus a `nuc-health-check` log line and its own
 # per-round log file, mirroring the whence check exactly.
+#
+# ---------------------------------------------------------------------------
+# Round 442 (NUC-integration E): INTERPRETER RESOLUTION, and why it is here.
+#
+# This check reported FAIL on every round from 410 (when it was wired in) to
+# 441. Thirty-two consecutive rounds; `grep "nuc-health-check PASS"
+# logs/driver.log` returned nothing at all. It never had a green baseline, so
+# nobody could tell "still broken" from "newly broken", which is the entire
+# service a health check provides. Five track-E rounds (412, 418, 424, 430,
+# 436) ran during that window and none of their knowledge files mentions it.
+#
+# The cause was not a bug in nuc/. It was that the check and the ROUND ran
+# under DIFFERENT PYTHON INTERPRETERS:
+#
+#   * `claude-wrapper.sh` does `source .venv/bin/activate`, so every round —
+#     and therefore every `pytest nuc/tests` a round types by hand — runs
+#     under `.venv/bin/python3`, which has `tokenizers==0.23.1`.
+#   * `run_driver.sh` never activates the venv. It only appends
+#     `node_modules/.bin` to PATH, and it launches the four health checks from
+#     its own shell. The live driver process carries `VIRTUAL_ENV` pointing at
+#     `.venv` with NO `.venv/bin` on PATH — a half-activated venv — so bare
+#     `python3` here resolved to `/usr/bin/python3`, which has pytest 9.1.1
+#     and no `tokenizers`.
+#
+# Measured round 442: `pytest nuc/tests` is 794 passed / 0 failed under the
+# venv and 2 failed / 787 passed / 5 skipped under /usr/bin/python3. Same
+# tree, same pytest version, same Python 3.12.3 — different answer. A check
+# that measures an interpreter no round ever runs is not measuring this
+# program, so it resolves the interpreter itself rather than inheriting
+# whatever PATH the caller happened to have.
+#
+# Preference order, and each step is deliberate:
+#   1. `$NUC_CHECK_PYTHON` if set — an explicit override, which is also how
+#      `nuc/tests/test_run_checks_interpreter.py` exercises both branches
+#      without needing two interpreters to exist.
+#   2. the repo's own `.venv/bin/python3` — the interpreter rounds use, and
+#      the one `nuc/prompt_budget.py`'s docstring has named since round 22
+#      ("run under the hermes venv python, which has `tokenizers`").
+#   3. bare `python3` — for any checkout with no `.venv`.
+# A candidate is only accepted if it can `import pytest`; otherwise the next
+# one is tried. Trading "red because tokenizers is missing" for "red because
+# pytest is missing" would be no improvement.
+#
+# The choice is EXPORTED, so the nested run that
+# `test_the_fast_check_runs_green_on_this_tree` spawns inherits it instead of
+# re-resolving and possibly disagreeing with its parent. Before this round
+# that test genuinely returned different answers depending on which shell
+# started it: green from inside a round, red from the driver.
+#
+# This is NOT the whole defect. All four health checks
+# (`harness/run_tests_fast.sh`, `languages/whence/run_tests_fast.sh`,
+# `skills/run_checks_fast.sh` and this one) call bare `python3` and are
+# exposed identically; nuc/ is simply the only one with a venv-only import,
+# so it is the only one that ever went red. The general fix belongs in
+# `run_driver.sh`, which is harness(A)'s artifact — same handoff round 388
+# made when it built this script and left the driver wiring to round 409.
+# ---------------------------------------------------------------------------
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+# A candidate must PRINT the sentinel, not merely exit 0. `[ -x ]` plus a
+# zero exit status is not enough: /bin/true is executable and exits 0 for any
+# argv, so an exit-status-only test accepts it as a Python interpreter and the
+# check then fails with something far more confusing than what it replaced.
+_usable() {
+  [ -n "$1" ] && [ -x "$1" ] || return 1
+  [ "$("$1" -c 'import pytest; print("nuc-ok")' 2>/dev/null)" = "nuc-ok" ]
+}
+
+NUC_PY=""
+for _cand in "${NUC_CHECK_PYTHON:-}" "$PWD/.venv/bin/python3" "$(command -v python3 || true)"; do
+  if _usable "$_cand"; then NUC_PY="$_cand"; break; fi
+done
+if [ -z "$NUC_PY" ]; then
+  echo "nuc-checks interpreter: NONE USABLE (no python3 with pytest)"
+  echo "nuc-checks FAIL (pytest rc=None, audit rc=None)"
+  exit 1
+fi
+export NUC_CHECK_PYTHON="$NUC_PY"
+
+if "$NUC_PY" -c "import tokenizers" >/dev/null 2>&1; then _tok=present; else _tok=absent; fi
+echo "nuc-checks interpreter: $NUC_PY (tokenizers $_tok)"
 
 rc=0
 
 set +e
-python3 -m pytest -q nuc/tests/ "$@"
+"$NUC_PY" -m pytest -q nuc/tests/ "$@"
 pytest_rc=$?
 set -e
 if [ $pytest_rc -ne 0 ]; then rc=1; fi
 
 echo
 set +e
-audit_json=$(python3 nuc/constant_audit.py audit nuc/ --json)
+audit_json=$("$NUC_PY" nuc/constant_audit.py audit nuc/ --json)
 audit_rc=$?
 set -e
 
@@ -72,7 +152,7 @@ set -e
 # FAIL path would kill the check before it could print why. Verified both ways
 # in round 388 (see `test_the_fast_check_reports_fail_on_a_transform_risk`).
 set +e
-summary=$(printf '%s' "$audit_json" | python3 -c '
+summary=$(printf '%s' "$audit_json" | "$NUC_PY" -c '
 import json, sys
 try:
     s = json.load(sys.stdin)["summary"]
