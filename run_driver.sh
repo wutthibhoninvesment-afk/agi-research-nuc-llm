@@ -658,6 +658,74 @@ TURN BUDGET (added round 391, harness A — measured, not advice). This session 
     else
       log "round $ROUND: slowtier-slice ERROR — $(tail -n 5 "$SLOWTIER_LOG" | tr '\n' ' ')"
     fi
+
+    # Round 457 (harness A): land the row the slice just wrote.
+    #
+    # The append above happens AFTER round $ROUND's Claude session has
+    # exited, so the round that paid for the row cannot possibly commit it.
+    # Measured over every slice since the check was wired at round 439:
+    # 22 driver-written rows, ZERO committed by their own round, 21
+    # committed by the immediately following round (delta +1, no
+    # exceptions), 1 outstanding at the time of writing. Round 452
+    # diagnosed this correctly — "the driver always appends after the
+    # round's last commit, so it is a step in the wrong order, not a race" —
+    # and rounds 453, 454, 455 and 456 each carried it forward as a
+    # next-step while spending their own part 0 on the manual `git add`.
+    # The cost is not the commit; it is that `check_round_recorded` opens
+    # every round with an unattributed-dirty-path gap that is never the
+    # round's own work, which is exactly the signal that check exists to
+    # make meaningful.
+    #
+    # Scoped, and deliberately minimal:
+    #
+    #   * ONE pathspec. `git commit -- <path>` commits the working-tree
+    #     content of that path alone and leaves the index untouched, so a
+    #     round that died with other work staged keeps it staged and
+    #     nothing unattributed is swept into a driver commit. There is no
+    #     `git add` here on purpose: an untracked ledger would make the
+    #     commit fail, which degrades to exactly today's behaviour (the
+    #     next round lands it by hand) rather than to the driver deciding
+    #     to start tracking a file.
+    #   * The workspace must BE a git repository root, not merely sit
+    #     inside one. Every `harness/tests/test_run_driver_*.py` fixture
+    #     runs the driver in a tmp_path; if one of those ever lands under a
+    #     checkout, `rev-parse --show-toplevel` equality is what stops a
+    #     test from committing into it.
+    #   * The subject line does NOT contain "round $ROUND".
+    #     `check_round_recorded.committed_per_git_log` greps `git log --all
+    #     --oneline` — subjects only — for the substring "round N", and
+    #     answers "did round N commit anything?" from it. A driver commit
+    #     naming the round would answer YES for a round that committed
+    #     nothing at all, hiding gap shape 3 (recorded but never landed) —
+    #     the exact shape round 456 was reported under. The round number
+    #     goes in the BODY, which that grep cannot see.
+    #   * Diagnostic-only, like the five checks above: a failed commit is
+    #     logged and the driver goes on to the next round.
+    SLOWTIER_LEDGER_REL="state/slow-tier-ledger.jsonl"
+    SLOWTIER_WS_TOP=$(git -C "$WS" rev-parse --show-toplevel 2>/dev/null || true)
+    SLOWTIER_WS_REAL=$(cd "$WS" 2>/dev/null && pwd -P || echo "")
+    if [ -n "$SLOWTIER_WS_TOP" ] && [ "$SLOWTIER_WS_TOP" = "$SLOWTIER_WS_REAL" ] \
+       && git -C "$WS" rev-parse --verify -q HEAD >/dev/null 2>&1; then
+      if ! git -C "$WS" ls-files --error-unmatch -- "$SLOWTIER_LEDGER_REL" >/dev/null 2>&1; then
+        # Untracked. Round 439's own rule about its off switch applies:
+        # "an invisible off-switch is the same failure with the sign
+        # flipped". Say so rather than skipping in silence.
+        if [ -f "$WS/$SLOWTIER_LEDGER_REL" ]; then
+          log "round $ROUND: slowtier-ledger NOT COMMITTED — $SLOWTIER_LEDGER_REL is untracked, and deciding to start tracking a file is a round's judgement, not a background job's"
+        fi
+      elif ! git -C "$WS" diff --quiet HEAD -- "$SLOWTIER_LEDGER_REL" 2>/dev/null; then
+        SLOWTIER_COMMIT_RC=0
+        git -C "$WS" commit -q \
+          -m "driver: slow-tier ledger append (post-round slice)" \
+          -m "Written by harness/run_slowtier_slice.sh after round $ROUND's session exited. Committed here, scoped to this one path, because the round that paid for the measurement is already gone — see run_driver.sh's comment at this call site and knowledge/round-457-*.md." \
+          -- "$SLOWTIER_LEDGER_REL" >/dev/null 2>&1 || SLOWTIER_COMMIT_RC=$?
+        if [ "$SLOWTIER_COMMIT_RC" -eq 0 ]; then
+          log "round $ROUND: slowtier-ledger committed ($(git -C "$WS" log -1 --format=%h 2>/dev/null))"
+        else
+          log "round $ROUND: slowtier-ledger commit FAILED rc=$SLOWTIER_COMMIT_RC — left for the next round to land by hand"
+        fi
+      fi
+    fi
   fi
 
   # Safety valve (round 150+): if the log file exists but contains ZERO "type":"result""
