@@ -2247,5 +2247,31 @@
    "copied-mirror-drift"
   ],
   "prompt": "I keep finding comments in our tests that say things like \"kept in sync with the parser fixture\" or \"mirrors what the integration harness does\". Nothing checks any of those sentences. Is there a way to stop them from quietly becoming false?"
+ },
+ {
+  "id": "ssd-near",
+  "expect": [
+   "suppressor-shares-the-detector-shape"
+  ],
+  "prompt": "Our unused-value warning only fires when the discarded expression is itself an error type. I'm changing it to also look inside discarded lists and maps. First run of the new version flags three files that were deliberately marked OK. What am I missing?"
+ },
+ {
+  "id": "ssd-mid",
+  "expect": [
+   "suppressor-shares-the-detector-shape"
+  ],
+  "prompt": "I taught our exception linter to follow __cause__ chains instead of just checking the outermost exception. Now it reports every place we deliberately re-raise with a suppression comment, because the comment matcher still only looks at the top-level type. Should I just add those to the ignore file?"
+ },
+ {
+  "id": "ssd-far",
+  "expect": [
+   "suppressor-shares-the-detector-shape"
+  ],
+  "prompt": "Before I merge this: the alert rule used to key on the outer batch event and now it keys on each member. The mute list is keyed on the batch. There's also a 100-entry cap on the mute cache that both kinds of mute would now share. Is that going to bite us?"
+ },
+ {
+  "id": "ssd-neg-two-copies",
+  "expect": [],
+  "prompt": "The same anchor expression appears in two test files and a fix from a year ago only landed in one of them. How do I stop that happening again?"
  }
 ]

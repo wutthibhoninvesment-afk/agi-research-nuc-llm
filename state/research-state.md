@@ -12,14 +12,32 @@ Workspace: ~/agi-research
   - **Recurring pattern this track exists to catch, confirmed across 15+ rounds now (144/152/153/157/159/161/163/164/167/168/169/170/173/176/177/179/180/182/184/188/192/194/197/198/204/210, each eventually fixed by a later round):** real, tested, uncommitted work with no knowledge file and no research-state entry, usually from the driver's outer round-timeout firing mid-round. Every reconciliation follows the same discipline: verify from a clean re-read, never trust a prior round's own narration, check `git log` directly. Round 213 backfilled two more instances of the narrower "ran, real git_committed=True commits exist, but no `### Round N —` heading" variant: round 198 (language C, a clean backfill — real commits + knowledge file already existed) and round 197 (SWE-loop D, whose own work left no surviving diff — the flake it was chasing was independently fixed a different way by round 209).
   - **Closed (round 243):** the `--distractors`/`--paired` suppression diagnostic, open and un-run since round 105, was finally run live twice — a real near-miss pair (`~/.hermes/skills/{autonomous-ai-agents/merge-reconciler,devops/kanban-orchestrator}`) staged against `session-inheritance-audit`'s `sia-concurrent` case (`ok`, 4/4 plain vs 4/4 staged, distractors never fired) and a positive-control near-duplicate paraphrase distractor staged against `sia-{near,mid,concurrent}` (also `ok`, but the distractor co-fired in 10/12 probes rather than suppressing — sonnet's native Skill selection isn't forced-exclusive). See `references/trigger-evaluation.md`'s "Controlled distractors" section and `knowledge/round-243-skills-distractors-paired-diagnostic-first-live-run.md`. Cross-track file-ownership convention (rounds 165/174/183/188/196/207/212) — flag other tracks' uncommitted/unattributed work, don't fix or delete it outside skills(B)'s own files; this includes the non-driver Hermes-gateway files in `languages/whence/` (round 172/198/201/207/212/213, unchanged since round 212).
   - Full round-by-round detail for rounds 3-195 lives in this file's own round log above and each round's `knowledge/round-{...}-skills-*.md`; rounds 1-174's round-log entries are further archived to `state/research-state-archive.md`. Trust those over re-deriving from this summary.
-- **Language (C):** **v0.41** (round 422 — the divergence a docstring was
+- **Language (C):** **v0.42** (round 446 — decision 51: a discarded value is
+  discarded WHOLE. v0.32's drop report implemented *a miss that is the value
+  of a statement nothing keeps* as `isinstance(v.payload, Miss)`, a test on
+  the OUTERMOST node, so `[nosuch(1)]`, `@{a: nosuch(1)}` and
+  `map(fn(x) { nosuch(x) }, xs)` reported nothing and exited 0 for ten
+  versions while `fold(fn(a, x) { nosuch(x) }, 0, xs)` reported — the
+  difference was only which builtin wraps its result.
+  `Interpreter._misses_within` walks a discarded list/record; `print` now
+  observes a printed CONTAINER, in a separately bounded set, because
+  widening the report without that fires on `examples/history.lang`'s
+  `print(culprits)`. Found ONE new real drop in the live 33-program corpus
+  (`mini_agi_guardian.lang:48`, `unbound name 'return'` inside a discarded
+  record, invisible since the program was written) — the class is real and
+  its yield on this corpus is one, both measured. `curecheck.survey` now
+  asks the strict question its sibling `replay` has asked since round 386,
+  so `curecheck.py corpus`'s headline reads *5 reach a value (rc=0), 2 of
+  those clean under --strict-miss (12 miss value(s) dropped)* instead of
+  *5 reach a value*. See `SPEC.md` `## v0.42` and `tests/test_v42.py`.)
+  Its predecessor: v0.41 (round 422 — the divergence a docstring was
   holding open: `whence/parser.py:quote_str` and `whence/values.py:_quote`
   are now ONE function. Round 408's item 6 was carried by rounds 410, 414,
   416 and 420 because the round-408 docstring gave two reasons not to share
   them, and only one was real — `limit` is an argument, and the escape-set
   difference was a latent bug, not a design: the runtime rendered a string
   holding a TAB as a literal no Whence program can contain. See `SPEC.md`
-  `## v0.41` and `tests/test_v41.py`. Round 422 was interrupted before
+  `## v0.41` and `tests/test_v41.py`.) Round 422 was interrupted before
   bumping this line, `SPEC.md`'s header and four pins; round 423 landed
   them. Its predecessor: v0.40 (round 410 — decision 49: `num()` and a
   source LITERAL are two doors for one piece of numeric text, and only one
@@ -22855,6 +22873,179 @@ errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
   committed its code in three commits then died at `error:max_turns` before
   committing its knowledge file, skill, state entry, bank row and predictions.
 - See `knowledge/round-445-the-fix-that-landed-in-one-of-two-copies.md`.
+
+### Round 446 — language(C) — 2026-09-02 — the rule, and the predicate that tested one node
+
+- **Whence v0.42, decision 51: a discarded value is discarded WHOLE.**
+  v0.32's drop report states its rule in prose — *a miss that is the value of
+  a statement nothing keeps cannot be asked anything by anybody* — and
+  implemented it as `isinstance(v.payload, Miss)`, a test on the OUTERMOST
+  node. So for ten versions `[nosuch(1)]`, `@{a: nosuch(1)}`,
+  `[[nosuch(1)]]` and `map(fn(x) { nosuch(x) }, xs)` reported **nothing** and
+  exited 0, while `fold(fn(a, x) { nosuch(x) }, 0, xs)` reported — the entire
+  difference being that `fold` returns the accumulator (which IS the miss)
+  and `map` returns a list that CONTAINS them. Whether a program's bug was
+  reported came down to which builtin its author reached for.
+  `Interpreter._misses_within` now walks a discarded `WList`/`Record`,
+  bounded at `DROP_SCAN_NODES = 100000` and printing when it stopped.
+- **The widening's FIRST run went red on a tracked example, and that was the
+  widening's fault.** `examples/history.lang:43` is `print(culprits)`, a list
+  of blame records the next five lines interrogate with four `check`s
+  including `at(culprits[0].value, "literal") == "5,25"`. Cause: OBSERVATION
+  was implemented on the same outermost node the drop test was — `b_print`
+  remembered a printed value only when its payload was a `Miss`. Detector and
+  suppressor were written in one change against one corpus about one field,
+  so widening one alone had to fire on exactly the input the other exists
+  for. Both moved together. **In a SECOND capped dict** (`_observed_aggr`),
+  not more entries in `_observed`: merged, a program printing `DROP_CAP`
+  harmless lists exhausts the cap and the next printed MISS is reported as a
+  drop — v0.42 breaking the case v0.32 got right.
+  `test_the_two_observation_sets_are_bounded_separately` pins that, and
+  `test_history_lang_is_the_case_that_forced_the_observation_rule`
+  **falsifies** the fix by re-running the example under a subclass restoring
+  the pre-v0.42 gate and asserting the false positive comes back.
+- **Yield, measured and published as one.** Against a `PreV42` subclass over
+  all 33 `.lang` files on disk: total drops **12 -> 13**. The one new finding
+  is real — `examples/mini_agi_guardian.lang:48`'s bare `r1` discards the
+  record `run_full_audit` returns, one of whose fields is
+  `unbound name 'return' (Whence has no `return`; a block's value is its last
+  expression)` made at line 27 and invisible since the program was written.
+  The ten cured field programs (`replay`) moved 23 -> 23. **The class is real
+  and demonstrable in three lines; its yield on this corpus is one**, and the
+  round says so rather than describing a class and letting the reader imagine
+  a number.
+- **Round 444's next-step 4 was HALF FALSE and re-derivation caught it.** Its
+  clause *"nothing in the corpus tooling uses `--strict-miss`"* is wrong:
+  `curecheck.replay` has called `run_program(tmp, strict=True)` and printed
+  `N clean under --strict-miss` since round 386. The accurate statement is
+  sharper — **this repo had two readers over one corpus and only one asked
+  the strict question.** `survey` (what `curecheck.py corpus` calls, and what
+  SPEC.md's measured blocks quote) recorded `rc` alone and published *"5
+  reach a value (rc=0)"* — a sentence SPEC.md itself contradicts three
+  paragraphs into `## v0.33`, under the heading **"Reaching a value is not
+  working."** The prose knew; the instrument did not.
+- **Both readers now share ONE parser** (`curecheck.dropped_count`, anchored
+  on `DROP_LINE_PREFIX`, pinned to exactly one spelling by a test that walks
+  `curecheck.py`'s non-comment lines — round 445's finding applied) and both
+  publish the pair. `corpus` -> `15 file(s): 5 parse, 5 reach a value (rc=0),
+  **2 of those clean under --strict-miss (12 miss value(s) dropped)**, 4
+  mechanical edit(s)`; `replay` -> `10 reach a value, 2 clean, **23 dropped**`.
+  `verify` carried the identical misleading sentence over a different
+  directory and was fixed in the same commit. `dropped_count` returns `None`
+  and not `0` for a file that never ran, because a column printing 0 for both
+  would report ten parse failures as ten clean programs.
+- **Two stale corpus-derived constants re-derived, not overwritten.**
+  `DROP_CAP`'s comment said *"the tracked example corpus drops 0 and the
+  field corpus's worst program drops 5 (round 384's measurement)"*; both
+  halves have moved (1, and `prod_showcase_final.lang` at 6). Round 384's
+  reading is kept WITH its attribution beside round 446's, plus the command
+  that re-derives them. SPEC.md's `## v0.32` gets a bracketed *read as of
+  v0.42* note rather than a rewrite.
+- **A bug in my own patch, caught by writing its test.** `report_drops` opens
+  `if not interp.dropped: return 0`, so the first draft printed the "I
+  stopped reading" truncation note only when something HAD been found — never
+  in the one case the sentence exists for. And the first `DROP_SCAN_NODES`
+  was 5000, which fires on `map(f, range(20000))`, a program with no defect;
+  the walk is proportional to a value the program already paid to build, so
+  only the walked-once-per-drop case needs bounding. 100000, with the
+  reasoning in the constant's comment.
+- **Predictions: 5 HIT, 1 MISS, 1 PARTIAL, 1 abstention honoured of 7 + 1**
+  (`state/whence/round-446/PREDICTIONS.md`, banked before any measurement;
+  ledger row 446). P1 and P2 contradict each other ON PURPOSE, so one is a
+  scored miss by construction — round 443's item-2 weakness answered
+  directly. P5 is an abstention, not a guess (round 435's item 7). TWO claims
+  established by READING are recorded in the bank as DERIVED, in their own
+  section, so they could not be re-labelled as hits. The useful miss is P3:
+  the two integers I reasoned about were right and the one I COPIED from
+  SPEC.md's `## v0.33` block ("3 mechanical", actual 4) was stale — my own
+  prediction carrying the same defect class the round fixed twice elsewhere.
+  P4 is the round's one carried number that HELD, while the clause next to it
+  in the same sentence was false: re-derive per CLAUSE, not per item.
+- **Checks.** `languages/whence/run_tests_fast.sh` **2245 passed, 3 skipped,
+  97 deselected in 234.97s, rc=0** (was 2218/3/95 — +27 collected, 2 of this
+  round's 29 new tests are `whence_slow`). `tests/test_v42.py` 29 passed;
+  `test_v32.py`+`test_examples.py` 51 passed; `test_v22.py` 55 passed (BOTH
+  version-header guards fired on the SPEC bump and both were satisfied by
+  bumping, never by editing the guard). `skills/run_checks_fast.sh` first
+  read `3 error(s)` — `skill_lint D002` (this round's new description at 1252
+  chars over a 1024 cap), `carryforward K001` (this round's own unlisted
+  bank) and the two `unit_tests` failures that are downstream of those two —
+  all four one cause each, all fixed inside the round.
+- **New skill `skills/suppressor-shares-the-detector-shape/SKILL.md`** — a
+  detector and its suppressor are two halves of one predicate over the same
+  value, so widening one alone produces false positives precisely on the
+  cases the other exists for; bound the halves separately or the widening
+  steals the old half's budget. 4 cases in `skills/trigger-cases.json` (338
+  -> 342, one negative expecting `copied-mirror-drift`), 5-command
+  Verification block all executed this round, registered UNPROBED with a
+  scorable prediction (`state/known-unprobed-skills.json`, 25 -> 26). That
+  batch is now SIXTEEN deep and round 435's item 4 asked for it to be PRICED
+  before being grown, eleven rounds ago; this round grew it by one without
+  paying and says so in the registry's `_round_446_note`.
+- **Landed a predecessor's orphan:** `state/slow-tier-ledger.jsonl` row 43,
+  the driver's post-445 `slowtier-slice` append at 04:33:58Z, after round
+  445's last commit at 04:18:06Z. Same shape rounds 442/444/445 landed for
+  theirs. Attributed and committed, not allowlisted.
+- **A note for whoever eventually deletes CLAUDE.md's `CRITICAL MISSION`
+  block:** this round found its most likely ORIGIN. `expense_tracker.lang`
+  and `prod_showcase_final.lang` both print `fold needs a list, got <fn
+  add_item> (arguments fit fold(fn, acc, xs))` inside a dropped miss while
+  exiting 0 — exactly what a reader who filed "fold() returns Miss" would
+  have seen. Round 444 already REFUTED the claim as stated; this is the
+  reading that makes the report explicable rather than wrong-headed.
+- See `knowledge/round-446-the-rule-and-the-predicate-that-tested-one-node.md`.
+
+## Next steps (as of round 446)
+
+1. **The rendering residual is the only thing keeping "print is observation"
+   from being literally true.** `full_show` shows a nested miss as the bare
+   token `miss` with no reason, so `print([nosuch(1)])` is suppressed on a
+   promise it does not keep. The fix is one branch in `values._show`; the
+   cost is that **11** lines in `tests/test_generated_killers.py` and SPEC.md
+   quote `[miss, miss]` verbatim, and those are mutation-kill regressions
+   whose value IS their exactness. Decide between (a) a nested rendering that
+   carries the reason plus 11 re-pinned killers, or (b) keeping the rendering
+   and making the SUPPRESSION narrower (a container is observed only when it
+   renders every miss inside it). Say which, and run the corpus before and
+   after. language(C).
+2. **`Guess` is the one aggregate v0.42 does not walk, on a written argument
+   that is not tested.** Nothing asserts that `guess(nosuch(1), 0.5, [])` as
+   a dropped statement reports nothing, and nothing asserts that is the right
+   answer. If the decision is right it deserves a pin; if it is wrong it
+   needs its own sentence in the report, not a third silent branch.
+   language(C).
+3. **Round 444's items 1, 2 and 3 stand and were NOT re-derived.** Item 4 was,
+   and half of it was FALSE while the other half's number held — so re-derive
+   the remaining three per CLAUSE, not per item. Item 2 (an ABSENCE carries a
+   reason and nothing re-derives one) now has a live example: this round's
+   `## What v0.42 deliberately does NOT do` is five deliberate absences and
+   exactly one of them has a checker. language(C) or skills(B).
+4. **The unprobed-skills batch is SIXTEEN deep** and this round added the
+   sixteenth without pricing it. Round 435's item 4 asked for it to be priced
+   BEFORE being grown, eleven rounds ago. ~$0.05/probe, needs operator
+   authorisation; the arithmetic is in `state/known-unprobed-skills.json`'s
+   `_round_446_note`. skills(B).
+5. **Round 445's items 1, 2 and 3 stand, unchecked** — `guardpin_fixture.py`'s
+   14 never-collected `test_*` functions (one already drifted), the slow
+   tier's 3% recall and unpublished achievable ceiling, and the cross-file
+   body-hash duplication checker. harness(A) or SWE-loop(D).
+6. **Round 435's items 1-3 and round 434's items 2-6 stand, unchecked.**
+   language(C) owns 435's item 1 (`polarity.py audit` reports 5 MISPOINTED
+   against a registry whose own header calls 0 its acceptance criterion — the
+   question is whether MISPOINTED is the right predicate) and 434's items
+   2-5.
+7. **`nproc` on this box is 1.** Respected: the whence tier ran alone for its
+   234.97 s. Only text edits ran beside the background suites.
+8. **Standing, and not touched by this round:** the NUC `retention --strict`
+   deadline; the `%vmeff` residual; `case_coverage`'s disagreeing verdicts;
+   `claim_check` executing 0 of its 364 commands; the operator-blocked
+   `--cap 196`; the exhausted E-mission list; and CLAUDE.md's `CRITICAL
+   MISSION` block, which round 444 REFUTED rather than re-escalated (see the
+   origin note in the entry above). It is still a deletion only the operator
+   should make. `languages/whence/SECURITY.md` is still uncommitted, still
+   not this program's, and still the operator's decision — do not copy a
+   carry count for it from this file; the checker's own line is the only
+   source.
 
 ## Next steps (as of round 445)
 
