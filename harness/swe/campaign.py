@@ -669,9 +669,10 @@ class Campaign(object):
                 continue
             k = K.find_killer(m, programs, original, self.root, cache)
             killers.append(k)
-            self.log("%-9s %s tried=%d%s %.1fs" % ("KILLER" if k.found else "no_killer",
+            self.log("%-9s %s tried=%d%s%s %.1fs" % ("KILLER" if k.found else "no_killer",
                                                     m.id, k.tried,
                                                     " undecided=%d" % k.undecided if k.undecided else "",
+                                                    " unmeasured=%d" % k.unmeasured if k.unmeasured else "",
                                                     k.seconds))
         found = [k for k in killers if k.found]
         if found:
@@ -685,7 +686,14 @@ class Campaign(object):
                 # evidence because the mutant blew the wall-clock budget and
                 # a 3x one did not settle it. A `no_killer` with undecided>0
                 # is a weaker claim than one with undecided==0.
-                "undecided": sum(k.undecided for k in killers), "test_file": test_file,
+                "undecided": sum(k.undecided for k in killers),
+                # Round 443 (SWE-loop D): programs that never reached the
+                # mutant because the ORIGINAL's own run of them timed out even
+                # at the retry budget. `programs` is the corpus offered;
+                # `programs - unmeasured` is the corpus actually compared, and
+                # until this key existed only the first number was written down.
+                "unmeasured": sum(k.unmeasured for k in killers),
+                "test_file": test_file,
                 "seconds": round(time.time() - t0, 1), "killers": [k.as_dict() for k in killers]}
         _dump_json(art, data)
         self._mark("corpus", "done", survivors=len(survivors), found=len(found),

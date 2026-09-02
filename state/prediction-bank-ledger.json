@@ -905,6 +905,14 @@
    "where": "knowledge/round-442-the-check-that-never-had-a-baseline.md",
    "quote": "**8 HIT, 3 MISS, 1 PENDING of 12**",
    "note": "Section 8, one table row per banked line. The bank separates what was already MEASURED at bank time (the 32-round FAIL streak, the two SSH timeouts, the venv/system interpreter split) from what was predicted, so a reader can tell diagnosis from forecast. Fix B was measured ALONE before fix A existed, which is what makes B3 -- 'fix B alone would have turned all 32 red rounds green' -- a measurement rather than an inference. C3 is the miss the bank's own section E1 pre-flagged as the shaky line, and it was scored a miss rather than having its band widened: 86s then 96s against a predicted 120-200s, because the band was built from round 441's CONTENDED 150.5s on a 1-core box and applied to a solo run. D1 missed 2-for-4 by counting the modules already read instead of scanning for the rest. D2 is the instructive miss: it predicted the skills check would pass under the system interpreter and it exits 1 -- and the FIRST reading of that (a second interpreter bug) was WRONG. Running the same suite under both interpreters gave identical failures, so the skills check is dirty-tree sensitive, not interpreter sensitive, and the dirt was this round's own unfinished work: a banked prediction with no ledger entry (this entry) and a comment citing a test file not yet written. C2 is banked PENDING and explicitly not claimed -- whether round 443 logs the first-ever nuc-health-check PASS cannot be observed from inside round 442."
+  },
+  "443": {
+   "bank": "state/round-443-predictions.md",
+   "status": "scored",
+   "scored_by": 443,
+   "where": "knowledge/round-443-the-race-that-was-not-schedulable.md",
+   "quote": "**11 HIT, 0 MISS, 1 deliberate omission of 12**",
+   "note": "Section 5, one table row per banked line. The clean sweep is NOT the result -- it is a warning, and the round says so: C1's band (< 90 s, actual 31.27 s) was 3x too generous and is scored as a weak hit rather than a win, on the same reasoning that made round 442 score its C3 a miss instead of widening the band. C3 was banked in advance as a DELIBERATE OMISSION (the 592 s whole-file run the round's wall clock did not hold), so it is discharged as omitted rather than counted as a hit. A2 came in stronger than banked: the probe is a mutant whose source is byte-identical to the original, so 'this killer is spurious' needs no reachability argument at all, which is the step rounds 433 and 437 both had to reason their way through."
   }
  }
 }

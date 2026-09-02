@@ -22566,6 +22566,154 @@ errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
   `logs/nuc_r442_final.log`; `state/nuc-missions.md` round-442 addendum;
   `state/prediction-bank-ledger.json` row 442.
 
+### Round 443 — SWE-loop(D) — 2026-09-02 — the race that was not schedulable
+
+- **The carried red was stale TWICE, and the correction was already in this
+  repo.** `test_swe_campaign.py::test_review_stage_and_report` passes: 47.92 s
+  under `.venv/bin/python3`, 43.64 s under `/usr/bin/python3`, so round 442's
+  interpreter split does not explain it either. **Round 437 had already run
+  it, refuted both of round 433's candidate shapes with artefacts, diagnosed
+  the real cause and shipped a fix.** Rounds 438-442 carried the item forward
+  verbatim, each saying "carried, NOT re-derived". The second staleness is the
+  instructive one: the carry's instruction was *"do not guess between the two
+  shapes"*, and by round 437 the answer was **neither** — a later round is
+  told to choose between two options already eliminated. The carry records
+  that nobody re-derived it; nothing in it looks for a round that already did.
+- **Round 437's stated honest limit was not a limit.** It wrote: *"this round
+  did not observe the spurious kill. It cannot — the race is not
+  schedulable."* The race is schedulable; it is not race-able. Round 437 was
+  trying to PRODUCE a load spike, and a spike needs simulating, not producing.
+  Two ingredients make it exact: an **identity mutant** (`Mutant(...,
+  source=<the original interp.py text, byte for byte>)`, so `found is True` is
+  spurious by construction and no reachability argument is needed) and
+  **`TIMEOUT_RETRY_FACTOR = 1.0` as the negative control** (removes exactly
+  the headroom round 437 added, and nothing else). `/tmp/r443/repro.py`,
+  **0.456 s**: headroom 3.0 → `found=False`; headroom 1.0 → `found=True,
+  program='let b = 2'` — round 433's symptom caught in the act, on a mutant
+  textually identical to the original. Round 437's circumstantial case is now
+  direct.
+- **NEW DEFECT, same family, on the side round 437 declared handled.**
+  `find_killer` skips a program whose ORIGINAL run timed out — correct — and
+  **caches the verdict**, and `campaign.stage_corpus` builds `cache = {}` once
+  and passes the same dict to every `find_killer` in the campaign. So one
+  load-spiked original timeout does not skip the program for the current
+  mutant, it **deletes it from the corpus of every LATER mutant in the run**,
+  after the load is gone. Observed, not argued: mutant 2 runs with the box
+  quiet and still never sees the program; `cache` still holds
+  `{'kind': 'timeout'}`. And nothing counted it — `tried` is `len(programs)`
+  and `undecided` counts only mutant-side non-measurements, so a `no_killer`
+  over 27 programs of which 5 were never compared was spelled exactly like one
+  where all 27 were. This is the complaint round 437 invented `undecided` to
+  answer, one side over; what it missed is that the original's side has a
+  CACHE, and a cache turns a per-mutant skip into a per-campaign deletion.
+- **Fix, symmetric with round 437's:** re-measure the original at the same
+  headroom the mutant already gets BEFORE writing the verdict into the shared
+  cache; count what stays unmeasured. `Killer.unmeasured` (default 0),
+  `killers.json["unmeasured"]`, and the corpus log line prints it only when
+  non-zero. **Zero extra `behaviour()` calls on the path every real corpus
+  takes** — pinned, not asserted. `programs` is the corpus OFFERED;
+  `programs - unmeasured` is the corpus actually COMPARED, and until this
+  round only the first number was written down.
+- **Verified by falsification, not by assertion.** `test_swe_killers.py`
+  **21 passed in 31.27 s** (14 before, 7 new). Guard reverted in place →
+  **3 failed, 18 passed in 30.85 s**, and the three reds are exactly the three
+  round-443 pins; round 437's four `compare()` pins stay green, correctly.
+  `swe/killers.py` restored byte-identically (`md5sum -c`: OK). None of the
+  seven tests reads a log line — round 442's item 4 — they read `Killer`
+  fields and the `behaviour` call list.
+- **`test_without_that_headroom_the_same_spike_kills_an_identity_mutant` is a
+  NEGATIVE CONTROL, not a bug report.** It asserts the kill IS manufactured at
+  factor 1.0. If it ever starts passing by returning `found is False`, the
+  guard has stopped being the thing doing the work.
+- **Predictions (D-013):** `state/round-443-predictions.md`, banked at 02:12
+  UTC before a line of `killers.py` was edited, with every baseline
+  re-derived at HEAD and its command printed. **11 HIT, 0 MISS, 1 deliberate
+  omission of 12.** The clean sweep is a warning, not a result, and the round
+  says so: C1's band (`< 90 s`, actual 31.27 s) was 3x too generous and is
+  scored a WEAK hit — the same reasoning that made round 442 score its C3 a
+  miss rather than widen the band. C3 was banked IN ADVANCE as a deliberate
+  omission (the 592 s whole-file run the wall clock did not hold).
+- **Landed a predecessor's orphan:** `state/slow-tier-ledger.jsonl`, round
+  442's own `slowtier-slice` append (`test_swe_loop_cli.py`, 78.26 s, passed),
+  made by the driver at 02:04 after round 442's commits — the record-gap
+  check's shape 4, the second consecutive round to inherit one. Attributed and
+  committed, not allowlisted.
+- **Also verified, for round 442's item 1:** `nuc-health-check` logged its
+  **first PASS in the check's history** — on the **round-442** line
+  (`02:02:47`, `802 passed`), not the round-443 line round 442 predicted. The
+  health checks run AFTER the round subprocess in `run_driver.sh` (line ~619
+  against the `claude -p` call at ~314), so **round 442 could have observed
+  its own effect**; its C2 was banked PENDING on a mistaken belief about the
+  driver's ordering. The fix works. `grep -c "nuc-health-check PASS"` is 1.
+- **Artifacts:** `knowledge/round-443-the-race-that-was-not-schedulable.md`;
+  `state/round-443-predictions.md`; 7 new tests in
+  `harness/tests/test_swe_killers.py`; `harness/swe/killers.py` and
+  `harness/swe/campaign.py`; `state/prediction-bank-ledger.json` row 443.
+
+## Next steps (as of round 443)
+
+1. **A carried next-step has no way to notice that a later round CLOSED it.**
+   Round 437 closed round 433's red and rounds 438-442 carried it anyway, for
+   five rounds, saying "NOT re-derived" each time. The honest label hid a
+   closed item. The cheap fix is mechanical: before carrying an item, grep the
+   knowledge files of every round SINCE the one it came from for the item's
+   own identifiers (here, `test_review_stage_and_report` — it appears 3 times
+   in round 437's file). That is one grep per carried item and it would have
+   saved five rounds of carriage. Worth a checker in
+   `skills/skill-authoring/scripts/` and a line in the carry convention.
+   skills(B).
+2. **Do not treat an 11-of-12 prediction sweep as calibration.** C1's band was
+   3x too wide and still scored HIT. A bank whose bands are generous enough
+   cannot be wrong, which makes it worthless as a check. The next D round
+   should bank at least one band tight enough that it plausibly misses, and
+   say which line that is. any track.
+3. **`unmeasured` is a NEW key in `killers.json`.** Every artefact written
+   before round 443 lacks it, so a reader comparing corpora across rounds must
+   read "absent" as UNKNOWN, never as 0. Nothing enforces that yet.
+   SWE-loop(D).
+4. **The spike is simulated, not raced for — and `behaviour()`'s `SIGALRM` is
+   still unpinned.** Round 443's seven tests prove the DECISION LOGIC handles a
+   spike correctly. They do not prove the alarm fires when it should. That is a
+   different pin and it does not exist. SWE-loop(D).
+5. **Still carried, and honestly not touched by this round:**
+   `test_swe_campaign.py[light]` has never gone through the slow-tier
+   instrument, so the tier's recall for that file is still **0%** (carried
+   since round 433); A4's **748 s** for `test_cli_runs_offline_stages_and_stops`
+   is still a FLOOR, not a runtime, for the third round running; A8's "one leaf
+   too big for the container" is still untested against the other 30 `whole`
+   files; and the harness fast tier's V002
+   `test_no_unexplained_broken_invocation` is still red (since round 429 — fix
+   the RULE, not an exemption). This round chose the defect over the
+   instrument; that is a choice, not a completion. harness(A) or SWE-loop(D).
+6. **Round 442's items 2 and 3 are untouched and both are harness(A)'s.** All
+   four health checks still call bare `python3` and only `nuc/` was fixed; the
+   repo still has NO dependency file at all (no `requirements.txt`,
+   `pyproject.toml` or `setup.py`), and the `.venv`'s 23 packages remain the
+   de-facto contract. Round 442's item 1 is CLOSED by this round — see the
+   entry above, and note the answer differed from what 442 predicted about
+   WHICH log line would carry it. harness(A).
+7. **Rounds 437-442's remaining next-step lists stand because nothing here
+   touched them**, not because anything checked them. Re-derive before
+   quoting: this is the seventh consecutive round where re-deriving a carried
+   item changed its answer, and this round's version of that lesson is the
+   sharpest one yet — the correction was already in-tree, four rounds back,
+   in a knowledge file whose title does not mention the test.
+8. **`nproc` on this box is 1.** Unchanged, and respected this round: the
+   only concurrency was one backgrounded pytest while text files were being
+   written. Do not carry a wall-clock figure across the concurrency boundary
+   without saying which side it came from.
+9. **Standing, and not touched by this round:** the NUC `retention --strict`
+   deadline (and the box has been down for two consecutive E rounds); the
+   `%vmeff` residual; `case_coverage`'s 49-of-103 disagreeing verdicts;
+   `claim_check` executing 0 of its commands; the operator-blocked `--cap 196`;
+   the exhausted E-mission list (E1-E5 all `[x]` since round 124 while
+   CLAUDE.md still says "pick the first unchecked mission"); and CLAUDE.md's
+   `CRITICAL MISSION` block, re-escalated for the TWENTY-SECOND time and still
+   a one-line deletion for the operator. `languages/whence/SECURITY.md` is
+   still uncommitted, still not this program's, and still the operator's
+   decision — do not copy a carry count for it from this file; the checker's
+   own line is the only source.
+
 ## Next steps (as of round 442)
 
 1. **VERIFY C2 FIRST — it is one grep and it is the whole point of the

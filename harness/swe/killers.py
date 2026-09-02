@@ -163,7 +163,7 @@ def corpus(seed=0, n=300, root=WHENCE_ROOT, include_examples=True):
 
 class Killer(object):
     def __init__(self, mutant, program, expected, mutant_behaviour, tried, seconds,
-                 undecided=0):
+                 undecided=0, unmeasured=0):
         self.mutant = mutant
         self.program = program          # minimized killer source (None if none)
         self.expected = expected        # original behaviour on `program`
@@ -177,6 +177,15 @@ class Killer(object):
         # non-zero `undecided` is weaker than one with zero, and until this
         # field existed the two were spelled the same.
         self.undecided = undecided
+        # Round 443 (SWE-loop D): programs that never reached the mutant at
+        # all, because the ORIGINAL's own run of them timed out. Round 437
+        # guarded the mutant side of this comparison and left the original's
+        # single measurement in place; `undecided` counts pairs that produced
+        # no evidence, and this counts programs that produced no COMPARISON.
+        # `tried` counts neither distinction on its own, so before this field
+        # a `no_killer` over 27 programs of which 5 were never compared was
+        # spelled exactly like one over 27 that all were.
+        self.unmeasured = unmeasured
 
     @property
     def found(self):
@@ -184,7 +193,7 @@ class Killer(object):
 
     def as_dict(self):
         return {"mutant": self.mutant.id, "found": self.found, "tried": self.tried,
-                "undecided": self.undecided,
+                "undecided": self.undecided, "unmeasured": self.unmeasured,
                 "seconds": round(self.seconds, 2), "program": self.program,
                 "expected": self.expected, "mutant_behaviour": self.mutant_behaviour}
 
@@ -266,11 +275,27 @@ def find_killer(mutant, programs, original_pkg, project_root, orig_cache=None,
                           0, time.time() - t0)
         orig_cache = orig_cache if orig_cache is not None else {}
         undecided = 0
+        unmeasured = 0
         for i, src in enumerate(programs):
             if src not in orig_cache:
-                orig_cache[src] = behaviour(original_pkg, src, timeout_s=timeout_s)
+                e = behaviour(original_pkg, src, timeout_s=timeout_s)
+                if e["kind"] == "timeout":
+                    # Round 443 (SWE-loop D), symmetric with round 437's guard
+                    # on the other side of this same comparison. A timeout is a
+                    # statement about the WALL CLOCK, not about the program, and
+                    # `orig_cache` is built ONCE per campaign and shared across
+                    # every mutant (`campaign.stage_corpus`) — so believing a
+                    # single load-spiked original timeout does not skip this
+                    # program for this mutant, it deletes the program from the
+                    # corpus of every LATER mutant in the run, after the load is
+                    # long gone. Re-measure at the same headroom the mutant side
+                    # gets before writing that verdict into the shared cache.
+                    e = behaviour(original_pkg, src,
+                                  timeout_s=timeout_s * TIMEOUT_RETRY_FACTOR)
+                orig_cache[src] = e
             expected = orig_cache[src]
             if expected["kind"] == "timeout":
+                unmeasured += 1
                 continue
             verdict, expected, got = compare(original_pkg, mut_pkg, src, expected,
                                              timeout_s=timeout_s)
@@ -293,9 +318,10 @@ def find_killer(mutant, programs, original_pkg, project_root, orig_cache=None,
                         behaviour(original_pkg, small, timeout_s=timeout_s),
                         timeout_s=timeout_s)
                 return Killer(mutant, small, small_expected, small_got,
-                              i + 1, time.time() - t0, undecided=undecided)
+                              i + 1, time.time() - t0, undecided=undecided,
+                              unmeasured=unmeasured)
         return Killer(mutant, None, None, None, len(programs), time.time() - t0,
-                      undecided=undecided)
+                      undecided=undecided, unmeasured=unmeasured)
     finally:
         import shutil
         shutil.rmtree(tmp, ignore_errors=True)
