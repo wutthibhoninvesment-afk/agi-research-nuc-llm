@@ -23108,6 +23108,19 @@ errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
   per-element drift left" — correct, final yield 0) and scored the
   INSTRUMENT, which fired twice because the new rule was wrong. P7 beat its
   band — **zero** of the 30 existing tests were edited.
+- **`skills/prediction-banking/SKILL.md` gets the rule it has been owed
+  since round 428, and this round's two.** Rounds 428 (item 5), 435 (item 7)
+  and 439 (rule 7) each wrote down that *a quantity you have NO BASIS for is
+  not a prediction target* and none of them put it in the skill; nineteen
+  rounds later it is step 9, with `no-basis-reported` as its verdict. Added
+  beside it, both earned by this round's own misses: **a band may not be laid
+  over a SUM one of whose terms another bank line calls unpredictable** (P2,
+  four lines above P10, which declared exactly that term unpredictable), and
+  **predict what the INSTRUMENT will report, not what the world contains**
+  (P5, right about the corpus and scored against the rule). The Verification
+  block gains a two-command check that a decline is recorded at BOTH ends —
+  and its expected output was checked before being written: the first draft
+  said `3 and 3`, the real numbers are 3 and 2.
 - **Artifacts:** `skills/skill-authoring/scripts/selfdesc_check.py`
   (`Subject`, `ProseField`, `_walk_prose`, `SELF_FIELD_RE`, `ROUND_STAMP_RE`,
   `ZERO_WORDS`, `check_element_counts`, claims accounting, artefact-scoped
@@ -23170,14 +23183,16 @@ errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
    and not against the 5. language(C).
 8. **`nproc` on this box is 1.** Respected: only text edits ran beside the
    background corpus check.
-9. **A rule this round earned, for `skills/prediction-banking/SKILL.md`:** a
-   bank line may not put a band on a SUM one of whose terms another bank line
-   declares unpredictable. P2 banded 70-110 prose fields; P10, four lines
-   below, said the depth term had no basis and would be reported rather than
-   guessed. The answer was 663, and the top-level half of P2 was fine. Also
-   worth the same file: predict what the INSTRUMENT will report, not what the
-   corpus contains — P5 was right about the corpus and scored as a miss
-   because a new rule can be wrong. skills(B).
+9. **`skills/prediction-banking/SKILL.md` is PAID, including a nineteen-round
+   debt — what is left is to use it.** Steps 9 and 10 now carry the no-basis
+   rule (rounds 428/435/439 all wrote it down and none of them landed it),
+   the no-band-over-an-unpredictable-sum rule, and predict-the-instrument.
+   None has been exercised by a round that did not write it. The next bank
+   should be checked against the new Verification block —
+   `grep -c "no basis\|no-basis" state/round-NNN-predictions.md` -> **3** and
+   `grep -c "no-basis-reported" knowledge/round-NNN-*.md` -> **2** for round
+   447 — and the first round to score a no-basis line it did not author will
+   say whether the verdict is usable or just a way of not betting. any track.
 10. **Standing, and not touched by this round:** the NUC `retention --strict`
    deadline; the `%vmeff` residual; `case_coverage`'s disagreeing verdicts;
    `claim_check` executing 0 of its commands; the operator-blocked

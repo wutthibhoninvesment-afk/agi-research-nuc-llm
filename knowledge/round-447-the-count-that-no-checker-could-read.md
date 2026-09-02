@@ -443,6 +443,32 @@ Full corpus check and its unit tier: §10.
 
 ---
 
+## 9a. The banking rules, paid in the same round rather than deferred
+
+Round 447's own §8 earned two rules, and a third had been owed since round
+428. All three are now in `skills/prediction-banking/SKILL.md` rather than in
+a next-steps line:
+
+- **Step 9 — a quantity you have NO BASIS for is not a prediction target.**
+  Rounds 428 (item 5), 435 (item 7) and 439 (rule 7) each wrote this down and
+  none of them put it in the skill. Nineteen rounds. The honest line is *"I
+  have no basis here and will report what it holds"*: still a commitment,
+  still breakable by quietly not reporting, scored as `no-basis-reported`.
+  Without it, a bank's HIT rate measures how much a round declined to bet.
+- **Step 9's second half — no band over a SUM containing a term another line
+  calls unpredictable.** P2 and P10, four lines apart, in this round's own
+  bank.
+- **Step 10 — predict the INSTRUMENT, not the world.** P5.
+
+The Verification block gains a two-command check that a decline is recorded at
+BOTH ends, because a decline nobody carries into the scoring is a silence.
+Its own expected output was checked before being written down: the first draft
+said `3 and 3`; the real numbers are **3 and 2**. Writing a Verification
+number from memory in the round about count-claim rot would have been the
+third time this session the tool caught its own author.
+
+---
+
 ## 10. Artifacts
 
 - `skills/skill-authoring/scripts/selfdesc_check.py` — `Subject`,
@@ -460,4 +486,7 @@ Full corpus check and its unit tier: §10.
   entry was present since round 437 emptied it.
 - `knowledge/round-447-the-count-that-no-checker-could-read.md` (this file),
   `state/round-447-predictions.md`, `state/research-state.md`.
+- `skills/prediction-banking/SKILL.md` — steps 9 and 10, three new
+  Verification checklist lines, and a decline-recorded-at-both-ends command.
+- `state/prediction-bank-ledger.json` — round 447's bank registered (K001).
 - `1c7f7c3` — round 446's slow-tier orphan, landed.
