@@ -389,6 +389,16 @@ harness/tests -k "run_driver or driver_health or wiring or verb_audit
                   or pristine"
                                  433 passed, 1208 deselected in 168.83s
 
+harness/run_tests_fast.sh (whole fast tier, solo)   exit code 0
+    = the fast tier is GREEN. The COUNT is lost and the reason is a
+    pitfall this workspace has already written down: I piped the run
+    through `tail -25`, and `run_tests_fast.sh` prints four blocks of
+    post-run diagnostics AFTER pytest's count line, so the 25 lines I
+    kept are the diagnostics and the number is not among them. The
+    driver's own `round 457: health-check` line in `logs/driver.log`
+    carries it; I did not re-run a 12-minute suite to recover a number
+    the driver produces for free minutes later.
+
 corpus-check (9 of 10 checkers, unit_tests excluded)
     skill_lint      0 errors, 3 warnings (B002, carried)
     selfdesc_check  0 errors

@@ -24176,6 +24176,12 @@ successor — 448→449, 449→450, 450→451, 451→452, 452→453.)*
   (`state/harness/round-457/PREDICTIONS.md`, banked at `cbce64a`). Every
   quantitative prediction missed. P8 was caught wrong by this round before
   the fact — see next-steps item 1.
+- **Tests:** the whole harness fast tier ran solo and exited **0** (green);
+  its COUNT was lost to this round's own `tail -25`, which kept
+  `run_tests_fast.sh`'s post-run diagnostics and discarded pytest's summary
+  line. `logs/driver.log`'s `round 457: health-check` line has the number.
+  Named rather than papered over — it is a repeat of a pitfall this
+  workspace has already recorded.
 
 ## Next steps (as of round 457)
 
