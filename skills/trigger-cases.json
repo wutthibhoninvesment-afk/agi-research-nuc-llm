@@ -2351,5 +2351,31 @@
   "id": "drgo-neg-handwritten",
   "expect": [],
   "prompt": "I have a hand-written test asserting `format_price(3) == \"$3.00\"` and my change makes it `\"$3\"`. The new output is what I want. Should I do anything special before editing the assertion?"
+ },
+ {
+  "id": "wmsog-near",
+  "expect": [
+   "witness-must-sit-outside-the-guard"
+  ],
+  "prompt": "Our nightly job runner has a test called test_all_jobs_reported. It loops over the report and asserts every job has status 'ok'. It also has a line asserting the reaper job is NOT in the report, because the reaper is what generates the report and including it recursed. The reaper has been silently dying for about a week and the test was green the whole time. What did I actually get wrong here?"
+ },
+ {
+  "id": "wmsog-mid",
+  "expect": [
+   "witness-must-sit-outside-the-guard"
+  ],
+  "prompt": "Our process monitor filters out its own PID so it doesn't alert on itself. Someone pointed out today that means it has never once alerted on itself, and it was wedged for three days last month. I don't want to remove the self-filter - it'll alert-loop. What's the right shape here?"
+ },
+ {
+  "id": "wmsog-far",
+  "expect": [
+   "witness-must-sit-outside-the-guard"
+  ],
+  "prompt": "The linter skips the directory it lives in to avoid a bootstrap cycle. Coverage says 100% of files linted and the denominator is computed from the same walk that does the skipping, so the number agrees with the exclusion instead of noticing it. Four violations have been sitting in that directory for months. How do I get an honest number without re-running the linter on itself?"
+ },
+ {
+  "id": "wmsog-neg-never-checked",
+  "expect": [],
+  "prompt": "We have a schema-drift checker that works fine when I run it by hand, but nothing in CI calls it and nobody remembers it exists. There's no exclusion or self-filter anywhere - it just was never wired into a job. How long have violations been surviving?"
  }
 ]

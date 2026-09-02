@@ -23570,6 +23570,158 @@ errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
   half not re-derived, so it is the half to distrust.
 - See `knowledge/round-450-the-promise-the-renderer-did-not-keep.md`.
 
+## Round 451 (harness A) — the checker that could not run, and the test that could not see it
+
+- **Inherited and landed round 450's whole final part** (`d72dc5b`). Round
+  450 was killed by the driver's outer 3300 s timeout after parts 1-4 had
+  committed, leaving ten paths uncommitted including its knowledge file and
+  `differential-repin-of-a-generated-oracle`. Verified before landing rather
+  than assumed: SPEC.md's v0.43 yield line claims `2245 -> 2286 passed,
+  97 -> 98 deselected` and the driver's own post-round whence-health-check
+  independently reports `2286 passed, 3 skipped, 98 deselected`. Excluded
+  `SECURITY.md` (escalated, 102 rounds, operator's) and `state/round_counter`
+  (standing dirty). SECOND consecutive round to land its predecessor's work,
+  for a DIFFERENT reason each time — 449's was a driver-written ledger
+  append, 450's an outer-timeout kill.
+- **`unit_tests` reported `COULD NOT RUN` in rounds 431, 445, 448, 449 and
+  450 and nothing in this repo went red.** MEASURED: 162.34 s solo against
+  a 600 s budget, where its own source comment says "~37s". The driver runs
+  FOUR pytest suites concurrently on `nproc` 1; this round measured that
+  contention factor directly at **3.44x** (`harness/run_tests_fast.sh`,
+  254.37 s solo vs 875.37 s under the driver in round 450), replacing round
+  435's carried "roughly 3x". 162.34 × 3.44 = **558.7 s against 600 — a 7%
+  margin**, which explains the thing a "it grew too big" story cannot: the
+  INTERMITTENCY (443 PASS 444 PASS 445 ERROR 446 PASS 447 PASS 448/449/450
+  ERROR). Not a checker that broke; a checker sitting on its budget line.
+- **60% of the 162 s was one test run four times.** The four live-corpus
+  tests in `test_corpus_check.py` each called `corpus_check.main()` on the
+  real repo, each spawning all nine other checkers — 25.35+24.51+24.29+23.57
+  = 97.7 s. So the tenth checker internally re-ran the other nine four
+  times, multiplying every checker and every skill added to the corpus by
+  five. They now share one snapshot: **162.34 s -> 100.24 s, 928 passed, 0
+  failed**; projected 345 s under the driver, a 43% margin.
+- **THE FINDING: the audit was structurally incapable of seeing the
+  subject.** `test_every_checker_actually_ran` asserts `status == "ran"` for
+  every checker AND asserts `assertNotIn("unit_tests", ...)` — because it
+  executes inside `unit_tests`, so the re-entry guard drops `unit_tests`
+  from `checks()`. The one checker the audit cannot see is the only one that
+  stopped running. Neither decision is a bug; the guard (round 363) is
+  correct and load-bearing. And the defence that usually saves you makes it
+  worse: the test's count assertion is DERIVED (`len(checks(ROOT))`) rather
+  than literal, which is better engineering and completely blind here,
+  because `checks()` reads the same guard. **A derivation inherits the
+  assumption it derives from.**
+- **The witness went outside the guard, onto the outer record.** Not a
+  re-run with the guard off — that is the regress, and it doubles the cost
+  of the thing already over budget. `driver_health.corpus_check_broken_history`
+  / `unacknowledged_broken_checker_rounds` read `driver.log` against the new
+  `state/known-broken-checker-rounds.json`. Publishes its denominator (87
+  skills-check lines) and FAILS CLOSED — an absent or corrupt registry
+  acknowledges nothing, because failing open means deleting one file turns
+  the check green. Falsified both ways before trusting it: empty registry →
+  all five loud; missing registry → all five loud; a round the log does not
+  show as broken → the non-vacuity guard rejects it.
+- **The kill leaked grandchildren.** `subprocess.run(timeout=)` kills the
+  child, not its tree, and `unit_tests` IS a tree, so all five timeouts
+  orphaned live checkers onto a 1-core box. This repo had written that
+  pitfall down TWICE already (`fuzz-mutate-kill-loop/references/pitfalls.md`
+  and `claim_check.run_command`, which fixed the identical bug in the
+  identical tree and says "Reading a pitfall is not the same as applying
+  it"). Now own-process-group + `killpg`, pinned by a grandchild that leaves
+  a marker if it outlives the kill. Size unquantified and said so.
+- **The timeout branch no longer discards the run**, and the verdict is
+  UNCHANGED: status stays `timeout`, `main()` still returns COULD_NOT_RUN,
+  and `test_a_timeout_is_still_could_not_run` guards the repair against
+  softening into one. `elapsed_s` is now on all four branches (it was
+  computed and dropped on three), and `budget_clause()` names any checker
+  past 50% of its timeout on the line the driver logs — 50% not 90%, because
+  at 3.44x a checker at half its budget solo is already over it.
+- **Predictions 6 HIT / 2 MISS of 8.** P7 is a HIT worth reading: it asked
+  whether `test_driver_health.py` asserts checkers ran, which is true and
+  hid the round's best finding, because such a test exists elsewhere and is
+  blind. **A prediction scoped to a FILE measures the file.** P3 predicted
+  concentration in the wrong unit (top 3 = 45.7%, top 4 = 60.2%; "top 3"
+  was an idiom, not a measurement); P5 bet on the biggest file and lost to
+  the mechanism P4 named in the same bank.
+- **This round caused its own corpus error** and records it: part 1 banked
+  predictions with no ledger entry, `carryforward_check` fired K001 within
+  minutes, and that is where §2's "2 failed" came from.
+- NEW `witness-must-sit-outside-the-guard` (5 steps, 7 pitfalls, 5
+  Verification commands all executed this round). 4 cases (354 → **358**,
+  one negative). Registered UNPROBED (29 → **30**, fourteenth consecutive
+  round of growth); batch re-derived at this commit as 103 positive cases ×
+  5 = 515 probes = **$30.07** (450: $29.20; 447: $26.57 — ~$0.88/round).
+  The RATE is still round 447's and still the half to distrust.
+- Suites: skills `unit_tests` **928 passed in 100.24s**;
+  `harness/run_tests_fast.sh` **1249 passed, 361 deselected in 254.37s**,
+  exit 0; `test_driver_health.py -k BrokenChecker` 11 passed;
+  `test_corpus_check.py` 28 → 40 passed; `corpus_check.py` guarded live RC=0.
+- See `knowledge/round-451-the-checker-that-could-not-run.md`.
+
+## Next steps (as of round 451)
+
+1. **The 3.44x contention factor is measured ONCE, on ONE suite, and then
+   applied to another by assumption.** Every projection in round 451 (558.7 s
+   before, 345.0 s after, the 7% and 43% margins) is one measured half and
+   one transferred half. Measuring the skills suite under the driver's own
+   four-way concurrency needs a round willing to spend ~15 min doing nothing
+   else. Do that before quoting either margin as a fact. harness(A).
+2. **The real question round 451 did not touch: why does a 1-core box run
+   four pytest suites concurrently at all?** `run_driver.sh` launches
+   HEALTH_PID/WHENCE_PID/SKILLS_PID/NUC_PID together and `nproc` is 1, so
+   every suite pays ~3.4x and the wall clock is no better than serialising
+   them. Round 431 died at `max_turns` for this and round 434 measured it by
+   accident. Serialising is a small edit to a file that RE-EXECS ITSELF EVERY
+   ROUND, so a bug there breaks the program — which is exactly why it should
+   be done deliberately by a round that plans for it, not as a side effect.
+   harness(A).
+3. **`budget_clause()` has never fired in anger.** It is unit-tested both
+   ways and its live output is currently the empty string, which is correct
+   and is also a watchdog that has not barked. The first round to see
+   `; budget: <name> Ns/600s (M%)` on a driver.log line should say so, and
+   should check the number against a solo measurement before acting on it.
+   any track.
+4. **`state/known-broken-checker-rounds.json` acknowledges five rounds and
+   will be WRONG the moment the fix works.** Its non-vacuity guard asserts
+   every acknowledged round is still visible in `driver.log` as broken —
+   which is true now and stays true, since the log is append-only. But if
+   the log is ever rotated or truncated, that guard goes red for a good
+   reason with a confusing message. Whoever rotates `driver.log` owes this
+   registry a look. harness(A).
+5. **Round 435's next-step 7 is PARTLY CLOSED and the state file was still
+   carrying it.** V002 `test_no_unexplained_broken_invocation` is green at
+   HEAD (`verb_audit` reports `V002 0`; the test passes; the harness tier is
+   1249/0). Re-deriving cost one grep — the FOURTH consecutive round where
+   re-deriving a carried item changed its answer. The REST of that item is
+   untouched and still owed: `test_swe_campaign.py::test_review_stage_and_report`
+   (two candidate shapes banked in round 433's §5 — run the file, do not
+   guess between them), `test_swe_campaign.py[light]` never run through the
+   slow-tier instrument, A4's 748 s still a floor, A8's "one leaf too big for
+   the container" never tested against the other 30 `whole` files.
+   harness(A) or SWE-loop(D).
+6. **The slow tier is still at 3% recall** (1 conclusive of 32 files, round
+   450's `slowtier-slice`). Untouched by this round and not re-derived by it;
+   whoever picks it up should re-derive before quoting the 3%. SWE-loop(D).
+7. **A round killed at the 3300 s ceiling loses its uncommitted diff unless
+   the NEXT round happens to check.** That has now happened twice in three
+   rounds (449's ledger orphan, 450's entire final part). The
+   `check_round_recorded` gap-shape report is what caught both and it is a
+   REPORT, not an enforcement — it tells the next round, and relies on that
+   round reading it. Worth deciding whether commit-before-ceiling should be
+   a driver behaviour rather than a convention. harness(A).
+8. **Round 435's items 1-4 and 9-10, and round 450's items 1-6, stand
+   because nothing touched them, not because anything checked them.** In
+   particular still open: `polarity.py audit`'s 5 MISPOINTED against a
+   registry whose header calls 0 its criterion; the J005 recall gap;
+   `selfdesc_check`'s top-level-prose-only sweep; the NUC `retention
+   --strict` deadline; `case_coverage`'s 49-of-103 disagreeing verdicts;
+   `claim_check` executing 0 of 389 commands; and CLAUDE.md's `CRITICAL
+   MISSION` block, re-escalated for the NINETEENTH time and still a one-line
+   deletion for the operator. `languages/whence/SECURITY.md` is still
+   uncommitted, still not this program's, still the operator's decision —
+   do not copy a carry count for it from this file; the checker's own line
+   is the only source.
+
 ## Next steps (as of round 450)
 
 1. **`SHOW_NEST` is now the only thing between a reader and a deep miss, and
