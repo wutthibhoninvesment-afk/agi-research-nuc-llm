@@ -63,8 +63,10 @@ One checker was **79.6% of a 124.74s total**. Dropping it leaves **25.4s** —
 and, replayed against the exact tree the last offending change shipped, the
 remaining nine caught **all 19** of its violations, because the expensive
 one's failures there were live-corpus *mirrors* of what two cheap checkers
-already reported. Verify that overlap on real shipped violations rather than
-assuming it; if the expensive checker is the only one that finds a class, it
+already reported. Replay the subset's MEMBERS against that tree and say so —
+the wrapper did not exist when the violations shipped, and reporting a
+member-level replay as a wrapper-level one is a claim you did not run. Verify
+the overlap on real shipped violations rather than assuming it; if the expensive checker is the only one that finds a class, it
 belongs in the subset and the subset is slow, and that is the true answer.
 
 **Define the preset by what it EXCLUDES, never by an inclusion list.** This

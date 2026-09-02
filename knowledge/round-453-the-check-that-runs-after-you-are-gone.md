@@ -143,7 +143,15 @@ round and **99.31 s** inside the timing harness above; both are solo, the
 "~37s".
 
 **One checker is 79.6% of the cost.** Dropping it leaves 25.4 s measured, and
-the surviving nine catch all 19 of round 452's violations (§2). Measured
+the surviving nine catch all 19 of round 452's violations (§2). **What was
+actually executed**, and the distinction matters for D2: the nineteen are all
+`xref_check` findings (18 `X001:53` sites + 1 `X004` path), and the evidence
+is `xref_check` and `carryforward` run individually against the tree at
+`f1edb2e` — round 452's shipped tree plus this round's state backfill — not a
+`--precommit` invocation at that commit, which did not exist yet. Both
+checkers are in the subset, so the conclusion holds; it is a replay of the
+subset's members rather than of the subset's wrapper, and quoting it as the
+latter would be a claim I did not run. Measured
 end-to-end: `--precommit` = **25.95 s, 0 errors**.
 
 The prose costs already in `checks()` (`0.7 s`, `<0.5 s`, `~2 s`, `~30 s`,
@@ -268,7 +276,7 @@ before any measurement in the subject ran.
 | C4 | SENT | the 3 `unit_tests` failures are count pins | **MISS** — live-corpus assertions |
 | C5 | MODEL | ≥1 failure in `test_xref_check`/`test_carryforward_check` | **HIT** — both, plus `test_corpus_check` |
 | D1 | MODEL | under 120 added lines in `corpus_check.py` | **MISS** — 135 |
-| D2 | MODEL | subset catches ≥18 of 19, likeliest all | **HIT** — 19 of 19 |
+| D2 | MODEL | subset catches ≥18 of 19, likeliest all | **HIT** — 19 of 19, via the subset's MEMBERS at `f1edb2e`, not its wrapper (§4) |
 | D3 | MODEL | subset under 60 s | **HIT** — 25.95 s |
 | D4 | SENT | K003 is order-dependent, not pre-commit catchable | **HIT** — and see §8 |
 | D5 | NONE | declined: whether a future round adopts it | **declined, not scored** |
