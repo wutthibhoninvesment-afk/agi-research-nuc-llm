@@ -1034,6 +1034,14 @@
    "where": "knowledge/round-458-the-depth-that-belonged-to-a-runner.md",
    "quote": "## 3. Predictions: 5 of 10 held",
    "note": "Section 3, one table row per banked line. The split is the finding: BOTH mechanism predictions held EXACTLY (P1 the cited test's value is 500; P2 the same source at the interpreter default is 20000) and EVERY sizing prediction missed (488 programs not 900-1400; max depth 20000 not 'below 1201'; 165.7 s not 300-900 s; 0 failures of 488 not 2-10%). P1 and P2 were derived from source already read -- canonical()'s max_depth=500 default and DEFAULT_MAX_DEPTH -- and every miss was a guess about a population nobody had measured, which is the same move the round was sent to correct. P4 is the one to read: it was DERIVED from P1 ('500 < 1201, so the test corpus cannot beat the examples corpus') by arithmetic that smuggled in the unmeasured premise that the cited killer was the test corpus's deepest program. It was off by 40x. Repairing a number does not repair what was derived from it. The bank also records a prediction REVERSED before measurement, in the file, rather than silently rewritten."
+  },
+  "459": {
+   "bank": "state/skills/round-459/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 459,
+   "where": "knowledge/round-459-the-claims-that-only-drift-one-way.md",
+   "quote": "**5 clean HITs, 1 split, 2 MISSes, 2 unresolvable-as-posed, 1 reported.**",
+   "remainder": "P2 (how many C002 corpus-wide) and P4 (whole-corpus wall clock) are unresolvable AS POSED, not unscored: the corpus-wide sweep was stopped at 23 of 86 skills to spend the remaining budget on the 12 skills the repairs needed. Section 6 of the knowledge file says so and gives the partial numbers rather than a partial denominator dressed as a whole one."
   }
  }
 }
