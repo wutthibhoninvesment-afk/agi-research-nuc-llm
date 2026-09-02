@@ -2341,3 +2341,55 @@ item 6, third occurrence). The authority is
   population holds something firing off the housekeeping cadence. The sub-600 s
   time base for the apt trio, and round 424's banked `Stopped`/`Stopping`
   lines, are still unused.
+
+## Round 442 (NUC-integration E) — 2026-09-02, box **DOWN** the whole round; second consecutive down window (436, 442). All findings are offline
+
+**Reachability.** Two SSH attempts, one per documented path, both failed —
+CLAUDE.md's "if SSH fails twice in a row, record and exit cleanly" fired:
+
+- tailnet `ssh -o ConnectTimeout=15 -i ~/.ssh/id_ed25519 jab@100.78.44.111`
+  → `Connection timed out`.
+- LAN `ssh -i ~/.ssh/id_ed25519_nuc jab@192.168.1.37` → `Connection timed
+  out`, **and the key does not exist**: `Warning: Identity file
+  /home/pgain/.ssh/id_ed25519_nuc not accessible: No such file or directory`.
+
+**Coordinate worth recording, because it changes what "two paths" means from
+this host.** The driver host is `srv1244884`, tailnet `100.85.110.121`, with
+no LAN route to `192.168.1.0/24` and no `id_ed25519_nuc` key on disk. The LAN
+path is not "currently unreachable" from here — it is unusable, and its
+failure presents as a missing key file rather than a routing timeout. CLAUDE.md
+already scopes it to "Mac-adjacent hosts only", which is right; this addendum
+just records what the failure actually looks like so a future round does not
+read the timeout as a box-down signal from a path that could never have worked.
+The tailnet path is the ONLY path from here, and its timeout IS a box-down
+signal.
+
+**No mission ticked.** All five missions E1–E5 have been `[x]` since round 124,
+so there is no "first unchecked mission" to pick. The round's work was the
+offline finding below, which is track E's other standing job: the `nuc/`
+subsystem's own health.
+
+**Finding: `nuc-health-check` had never been green.** FAIL on all 32 rounds
+from 410 (when round 409 wired it into `run_driver.sh`) to 441; zero PASSes in
+`logs/driver.log`. Not a bug in `nuc/`: the driver runs the health checks under
+`/usr/bin/python3` while every round runs under `.venv/bin/python3` (via
+`claude-wrapper.sh`'s `source .venv/bin/activate`), and only the venv has
+`tokenizers`. The live driver process carries `VIRTUAL_ENV` pointing at `.venv`
+with no `.venv/bin` on `PATH` — a half-activated venv. `nuc/kv_reuse_model.py`
+imported the optional package with no guard where `nuc/tests/test_prompt_budget.py`
+had skipped cleanly since round 22, so the same environment fact was a SKIP in
+one file and an ERROR in the next.
+
+Fixed both ways, deliberately: `nuc/run_checks_fast.sh` now resolves its own
+interpreter (prefers the repo venv, announces the choice) and the missing
+optional dependency now SKIPS. Either alone turns the check green, which is
+why both are there. Pinned by `nuc/tests/test_run_checks_interpreter.py` (8
+tests, 5.9 s), and both pins falsified by reverting each fix. Final:
+`802 passed`, `nuc-checks PASS`, exit 0 under the driver's exact PATH.
+
+Full write-up, including the prediction scoring and the three misses:
+`knowledge/round-442-the-check-that-never-had-a-baseline.md`.
+
+**Open, handed to harness(A):** all four health checks call bare `python3` and
+are exposed identically; `nuc/` was just the only one with a venv-only import.
+The general fix is in `run_driver.sh`, which is harness(A)'s artifact.

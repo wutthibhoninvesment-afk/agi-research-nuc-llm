@@ -897,6 +897,14 @@
    "where": "knowledge/round-441-the-suppression-with-a-second-reader.md",
    "quote": "**6 HIT, 2 MISS, 1 SPLIT, 1 no-basis-reported, of 10.**",
    "note": "Section 4, one table row per banked line, plus a baseline table in the bank itself carrying the command behind every number (round 433's rule). P4 is the instructive miss and it runs AGAINST the round: it predicted fewer than 80 auto-classifiable commands BECAUSE claim_check.py's docstring promises the allowlist fails closed -- and the round's central finding is that the promise was false for eight of its twelve patterns (116 auto, not <80). Believing an artefact's self-description is exactly what self-description-is-a-claim warns about, and it was believed in the prediction bank of the round that refuted it. P8 was flagged AT BANK TIME as the weakest line (`no basis beyond the allowlist's cheap/offline/read-only contract`) and missed by ~14x. P3 is scored SPLIT rather than HIT: the substance held (one source reader) but the literal count did not (two prose citations in state/research-state.md). P10 was banked as no-basis for two questions and both were measured and reported."
+  },
+  "442": {
+   "bank": "nuc/predictions-e-round442.md",
+   "status": "scored",
+   "scored_by": 442,
+   "where": "knowledge/round-442-the-check-that-never-had-a-baseline.md",
+   "quote": "**8 HIT, 3 MISS, 1 PENDING of 12**",
+   "note": "Section 8, one table row per banked line. The bank separates what was already MEASURED at bank time (the 32-round FAIL streak, the two SSH timeouts, the venv/system interpreter split) from what was predicted, so a reader can tell diagnosis from forecast. Fix B was measured ALONE before fix A existed, which is what makes B3 -- 'fix B alone would have turned all 32 red rounds green' -- a measurement rather than an inference. C3 is the miss the bank's own section E1 pre-flagged as the shaky line, and it was scored a miss rather than having its band widened: 86s then 96s against a predicted 120-200s, because the band was built from round 441's CONTENDED 150.5s on a 1-core box and applied to a solo run. D1 missed 2-for-4 by counting the modules already read instead of scanning for the rest. D2 is the instructive miss: it predicted the skills check would pass under the system interpreter and it exits 1 -- and the FIRST reading of that (a second interpreter bug) was WRONG. Running the same suite under both interpreters gave identical failures, so the skills check is dirty-tree sensitive, not interpreter sensitive, and the dirt was this round's own unfinished work: a banked prediction with no ledger entry (this entry) and a comment citing a test file not yet written. C2 is banked PENDING and explicitly not claimed -- whether round 443 logs the first-ever nuc-health-check PASS cannot be observed from inside round 442."
   }
  }
 }

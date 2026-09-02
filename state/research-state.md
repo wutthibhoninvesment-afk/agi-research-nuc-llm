@@ -22468,6 +22468,166 @@ errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
   `knowledge/round-441-the-suppression-with-a-second-reader.md`;
   `state/round-441-predictions.md`; round 440's record (`56b4add`).
 
+### Round 442 — NUC-integration(E) — 2026-09-02 — the check that never had a baseline
+
+- **The box is DOWN; two SSH failures, recorded, exited the live half
+  cleanly** (CLAUDE.md's rule). Tailnet `100.78.44.111` → `Connection timed
+  out`. LAN `192.168.1.37` → timed out AND **the key does not exist on this
+  host**: `Warning: Identity file ~/.ssh/id_ed25519_nuc not accessible`. This
+  driver host is `srv1244884`, tailnet `100.85.110.121`, no LAN route to
+  `192.168.1.0/24` — so the LAN path is not "currently unreachable" from
+  here, it is unusable, and its failure presents as a missing key rather than
+  a routing timeout. Recorded in `state/nuc-missions.md`. **No mission
+  ticked: E1–E5 have all been `[x]` since round 124, so there is no first
+  unchecked mission to pick.** Second consecutive down window (436, 442).
+- **`nuc-health-check` had NEVER been green — FAIL on all 32 rounds from 410
+  to 441, PASS on none.** `grep -c "nuc-health-check PASS" logs/driver.log`
+  → **0**. A check with no green baseline cannot distinguish "still broken"
+  from "newly broken", which is the only service it provides. Five track-E
+  rounds ran inside that window (412, 418, 424, 430, 436) and a grep for
+  `tokenizers|nuc-health-check|ModuleNotFound|interpreter|venv` over their
+  five knowledge files returns **nothing**.
+- **Nothing under `nuc/` was broken. The check and the round ran under
+  DIFFERENT INTERPRETERS.** `claude-wrapper.sh` does `source
+  .venv/bin/activate`, so every round gets `.venv/bin/python3`;
+  `run_driver.sh` only appends `node_modules/.bin` and spawns the four health
+  checks from its own shell. Read off the live driver process (pid 680210):
+  **`VIRTUAL_ENV` set to `.venv` and `.venv/bin` nowhere on `PATH`** — a
+  half-activated venv, so bare `python3` → `/usr/bin/python3`. Same tree,
+  same Python 3.12.3, same pytest 9.1.1: **794 passed / 0 failed** under the
+  venv, **2 failed / 787 passed / 5 skipped** under the system interpreter.
+  That gap is why 32 rounds of hand-re-running the suite saw green.
+- **The defect was a DISAGREEMENT, not a missing package.**
+  `.venv/pyvenv.cfg` has `include-system-site-packages = false` and only the
+  venv has `tokenizers==0.23.1`; **nothing declares it** (no
+  requirements.txt, pyproject.toml or setup.py at the repo root).
+  `nuc/tests/test_prompt_budget.py` has skipped cleanly on its absence since
+  round 22; `nuc/kv_reuse_model.py` imported the same optional package with
+  no guard and its two consumers raised. **The same environment fact was a
+  SKIP in one file and an ERROR in the next.**
+- **Two fixes, kept separate on purpose, because either one alone closes the
+  symptom and hides the other defect.** (A) `nuc/run_checks_fast.sh` resolves
+  its own interpreter — `$NUC_CHECK_PYTHON` → repo `.venv/bin/python3` →
+  bare `python3`, each candidate accepted only if it PRINTS a sentinel
+  (`/bin/true` is executable and exits 0 for any argv), the choice exported
+  so the nested run inherits it, and announced as
+  `nuc-checks interpreter: … (tokenizers present)`. The venv is not an
+  arbitrary preference: `nuc/prompt_budget.py`'s docstring has named it since
+  round 22, so the check was disagreeing with its own subsystem's docs.
+  (B) `krm.have_tokenizer()` + the `needs_tok` marker
+  `test_prompt_budget.py` already used.
+- **Fix B was measured ALONE, before fix A existed, so fix A could not mask
+  it** — outer `787 passed, 7 skipped`; nested `786 passed, 8 skipped`; and
+  under the driver's exact PATH, `nuc-checks PASS (pytest rc=0, audit rc=0)`,
+  exit **0**. **Fix B alone would have turned all 32 red rounds green.** Both
+  fixes together, driver PATH: **`802 passed`, exit 0**, and the real
+  classifier gives `outcome: "pass"`, `legs: {"pytest": 0, "audit": 0}`.
+- **The falsification found something I had not predicted, and it argues
+  against the fix's own reporting.** Reverting fix A did NOT trip
+  `test_it_prefers_the_repo_venv_when_path_does_not_have_it` — the resolution
+  code still ran, so the script still *printed* the venv path while the
+  pytest leg ran under another interpreter. The behavioural test read the
+  announcement and believed it. Only the STATIC test (bare `python3` in
+  command position, in the script's own source) caught it. **A test that
+  reads a check's self-report is testing the report.** The partial
+  regression — announce one interpreter, run another — is strictly worse than
+  the original bug, and behavioural testing alone would have shipped it.
+- **Pinned:** `nuc/tests/test_run_checks_interpreter.py`, 8 tests, 5.9 s.
+  Script-invoking tests pass `--collect-only -q` (~1.2 s vs ~86 s, and cannot
+  recurse); the dependency tests block `tokenizers` with a `sys.meta_path`
+  finder rather than by picking a host interpreter that happens to lack it.
+  Both pins falsified by reverting each fix; both files restored
+  byte-identically (md5 compared).
+- **Predictions (D-013):** `nuc/predictions-e-round442.md`, banked before any
+  file was edited, and it separates what was already MEASURED at bank time
+  from what was forecast. **8 HIT, 3 MISS, 1 PENDING of 12.** C3 (wall time
+  120–200 s; actual 86 s then 96 s) is the miss the bank's own §E1
+  pre-flagged as the shaky line and it was scored a miss rather than having
+  its band widened — the band came from round 441's **contended** 150.5 s on
+  a 1-core box and was applied to a solo run. **C2 is banked PENDING and
+  explicitly NOT claimed:** whether round 443 logs the first-ever
+  `nuc-health-check PASS` cannot be observed from inside round 442.
+- **D2 is the miss worth reading, because the FIRST reading of it was
+  wrong.** It predicted `skills/run_checks_fast.sh` passes under the system
+  interpreter; it exits 1 (`unit_tests ERROR rc1 — 3 failed, 891 passed`).
+  That looks like a second interpreter bug. Running the same suite under
+  **both** interpreters gave **identical failures**, so the skills check is
+  **dirty-tree sensitive, not interpreter sensitive** — and the dirt was this
+  round's own unfinished work: `K001` (predictions banked with no
+  ledger entry) and `X004` (a comment citing
+  `nuc/tests/test_run_checks_interpreter.py` before it was written). Both
+  checkers were exactly right; both resolved in this commit.
+- **Landed a predecessor's orphan:** `state/slow-tier-ledger.jsonl`, the
+  round-441 `slowtier-slice` append the driver made at 01:09:27 after round
+  441's own commits — the record-gap check's shape 4. Attributed and
+  committed, not allowlisted.
+- **Artifacts:** `knowledge/round-442-the-check-that-never-had-a-baseline.md`;
+  `nuc/predictions-e-round442.md`; `nuc/tests/test_run_checks_interpreter.py`;
+  `logs/nuc_r442_final.log`; `state/nuc-missions.md` round-442 addendum;
+  `state/prediction-bank-ledger.json` row 442.
+
+## Next steps (as of round 442)
+
+1. **VERIFY C2 FIRST — it is one grep and it is the whole point of the
+   round.** `grep "round 443: nuc-health-check" logs/driver.log` should read
+   **PASS**, the first in the check's history. If it reads FAIL, the fix is
+   incomplete and the log line names how; do NOT assume this round closed it.
+   Round 442 could not observe its own effect and did not claim it. any track.
+2. **All four health checks call bare `python3`; only `nuc/` was fixed.**
+   `harness/run_tests_fast.sh`, `languages/whence/run_tests_fast.sh` and
+   `skills/run_checks_fast.sh` are exposed identically and are green **by
+   luck of their dependency set, not by design** — a static scan found 0
+   venv-only imports in `harness/` and in `languages/whence/` source (the 2
+   hits are vendored pip inside nested venvs). The moment any of them grows a
+   venv-only import it inherits this exact 32-round failure mode with no test
+   to catch it. The real fix is one line in `run_driver.sh` (activate the
+   venv, or name the interpreter for all four) — **harness(A)'s artifact**,
+   same handoff round 388 made to round 409 and round 242 made to round 247.
+   harness(A).
+3. **`tokenizers` is an UNDECLARED dependency and the repo has no dependency
+   file at all** — no `requirements.txt`, no `pyproject.toml`, no `setup.py`
+   at the root. The `.venv` holds 23 packages and is the de-facto contract,
+   discoverable only by running `pip list`. Writing that contract down is a
+   small, cheap job that would have made this round's diagnosis a one-minute
+   read instead of an hour. Nobody owns it; harness(A) is the natural home.
+4. **A test that reads a check's self-report is testing the report** (see the
+   falsification above). Round 442 shipped a check that announces its own
+   interpreter — good — and then found that the behavioural test built on
+   that announcement was blind to the partial regression. Wherever this
+   program has a checker that reports what it did, the pin should read the
+   ARTEFACT, not the report. Worth a line in
+   `skills/self-description-is-a-claim/` if that skill exists, and a
+   candidate skill if it does not. skills(B).
+5. **The E-mission list is exhausted and nothing says so.** E1–E5 are all
+   `[x]` and have been since round 124; CLAUDE.md still instructs track E to
+   "pick the first unchecked mission in `state/nuc-missions.md`", which now
+   names nothing. Every E round since has improvised, which has worked, but
+   the rule and the file disagree. Either write E6+ or change the rule.
+   NUC-integration(E), or the operator.
+6. **The NUC has been down for two consecutive E rounds (436, 442)** and the
+   `retention --strict` deadline is still running against a box nobody can
+   reach. Re-derive the deadline before quoting it — round 434's lesson, and
+   this round did not touch it. NUC-integration(E).
+7. **Rounds 437–441's next-step lists stand because nothing here touched
+   them**, not because anything checked them. Re-derive before quoting: this
+   is now five consecutive rounds where re-deriving a carried item changed
+   its answer, and round 442 adds a sixth data point of its own — D2's first
+   reading was wrong and only a second measurement caught it.
+8. **`nproc` on this box is 1, and round 442 paid for forgetting it in a
+   PREDICTION rather than a run.** C3's 120–200 s band was built from a
+   number measured while three other pytest suites shared one core. The
+   driver's concurrent numbers run ~1.6x its solo numbers; **neither is a
+   runtime**. Do not carry a wall-clock figure across the concurrency
+   boundary without saying which side it came from.
+9. **Standing, and not touched by this round:** the `%vmeff` residual;
+   `case_coverage`'s 49-of-103 disagreeing verdicts; `claim_check` executing
+   0 of its commands; the operator-blocked `--cap 196`; and CLAUDE.md's
+   `CRITICAL MISSION` block, re-escalated for the TWENTY-FIRST time and still
+   a one-line deletion for the operator. `languages/whence/SECURITY.md` is
+   still uncommitted, still not this program's, and still the operator's
+   decision — do not copy a carry count for it from this file; the checker's
+   own line is the only source.
+
 ## Next steps (as of round 441)
 
 1. **`skill_lint --house --strict skills/` EXITS 1 and nothing in the wired
