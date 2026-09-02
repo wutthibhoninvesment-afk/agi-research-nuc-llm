@@ -368,13 +368,33 @@ def capture_plan(audit_result: dict, capture_dir: str = "state/nuc-capture-rNNN"
         'ssh -i "$KEY" "$NUC" \'journalctl -o short-iso --no-pager _PID=1\' \\',
         '  > "$OUT/journal-pid1-full.txt"',
         '',
-        '# 3b. The boot table, so the next round can tell a reboot from a resume,',
-        '#     and the USER manager, which owns the engine. `_PID=1` is the SYSTEM',
-        '#     manager only -- which is why the largest reclaim in the record, the',
-        '#     engine load, has never had a named fire.',
+        '# 3b. The boot table. `_PID=1` is the SYSTEM manager only, so the boot',
+        '#     table is what tells a reboot from a resume -- and, round 448, what',
+        '#     turns a MISSING scheduled fire into "the box was down at it".',
         'ssh -i "$KEY" "$NUC" \'journalctl --list-boots --no-pager\' > "$OUT/journal-boots.txt"',
+        '',
+        '# 3c. The USER manager unit journals, one file per unit, self-labelling.',
+        '#     Round 436 opened `journal-user-full.txt` expecting the user',
+        '#     MANAGER and found 329 `coli[...]` engine lines, half of them a',
+        '#     duplicate of that same file unlabelled lead section under a',
+        '#     hand-written `### USER_MANAGER` header. Two causes, both fixed',
+        '#     here: the comment above the command named the manager while the',
+        '#     command named the engine UNIT (they are not the same journal), and',
+        '#     the command emitted NO `### ` marker, so a second view appended to',
+        '#     the same file was indistinguishable from the first. Every stream',
+        '#     below announces itself, exactly like step 2 and step 3d.',
+        '#     `qwen36-toolproxy` joins `qwen36-colibri`: round 436 found it has',
+        '#     its own `Consumed` records and 9 `Started` fires that appear in no',
+        '#     capture this program has ever taken.',
         'ssh -i "$KEY" "$NUC" \'journalctl _SYSTEMD_USER_UNIT=qwen36-colibri.service -o short-iso --no-pager\' \\',
-        '  > "$OUT/journal-user-full.txt"',
+        '  | { echo "### USER_UNIT_qwen36-colibri"; cat; } > "$OUT/journal-user-qwen36-colibri.txt"',
+        'ssh -i "$KEY" "$NUC" \'journalctl _SYSTEMD_USER_UNIT=qwen36-toolproxy.service -o short-iso --no-pager\' \\',
+        '  | { echo "### USER_UNIT_qwen36-toolproxy"; cat; } > "$OUT/journal-user-qwen36-toolproxy.txt"',
+        '# The user MANAGER itself (`systemd[<uid>]`), which is a DIFFERENT',
+        '# journal from any unit it owns and is where a user-unit start/stop is',
+        '# actually announced. Its own file, never concatenated with a unit one.',
+        'ssh -i "$KEY" "$NUC" \'journalctl --user -o short-iso --no-pager\' \\',
+        '  | { echo "### USER_MANAGER"; cat; } > "$OUT/journal-user-manager.txt"',
         '',
         '# 3d. What the COLLECTOR does to the numbers, banked as evidence rather',
         '#     than re-derived each round. `sadc` matches `pgsteal_` as a bare',
@@ -387,6 +407,24 @@ def capture_plan(audit_result: dict, capture_dir: str = "state/nuc-capture-rNNN"
         'grep -vE "^[[:space:]]*#|^[[:space:]]*$" /etc/sysstat/sysstat',
         'ls -l /var/log/sysstat/; systemctl list-timers sysstat-summary.timer --no-pager',
         'EV',
+        "",
+        '# 3e. `Persistent=` on the sweep timer -- round 448. This one setting',
+        '#     decides whether an outage SAVES a day file or merely delays its',
+        '#     death by a few hours, and it is the whole basis of',
+        '#     `capture_manifest.py retention --down-since`. Round 448 derived',
+        '#     the answer (not persistent) from the fires the box itself',
+        '#     missed and never re-ran',
+        '#     because no capture had ever taken the unit text. Capturing it',
+        '#     turns a two-trial inference into a read.',
+        'ssh -i "$KEY" "$NUC" \'bash -s\' > "$OUT/timer-units.txt" <<\'TMR\'',
+        'for t in sysstat-summary sysstat-collect; do',
+        '  echo "### TIMER_UNIT_$t"; systemctl cat "$t.timer" 2>&1 || true',
+        '  echo "### TIMER_SHOW_$t"',
+        '  systemctl show "$t.timer" -p Persistent -p OnCalendar -p RandomizedDelaySec \\',
+        '    -p AccuracySec -p NextElapseUSecRealtime -p LastTriggerUSec 2>&1 || true',
+        'done',
+        'TMR',
+        '',
         "",
         "# 4. Manifest the result before trusting it. Non-zero exit = still filtered.",
         'python3 nuc/capture_manifest.py audit --capture "$OUT" --strict',
@@ -411,6 +449,9 @@ def _read(path: str) -> str:
 # that is missing one FAILS instead of silently auditing half of itself.
 SAR_CANDIDATES = ("sar-all.txt", "sar.txt")
 JOURNAL_CANDIDATES = ("journal-pid1-full.txt", "unit-starts.txt", "journal.txt")
+# Round 448. The boot table is what turns "no `Starting` line" into "the box
+# was down", and it is the only file in the capture that carries it.
+BOOTS_CANDIDATES = ("journal-boots.txt",)
 # Round 424. `ls -l /var/log/sysstat` is the only record of a day file's
 # mtime, and mtime is the whole input to the retention sweep. Both the
 # dedicated evidence file and the head of `sar-all.txt` carry it.
@@ -458,8 +499,54 @@ def main(argv=None) -> int:
                     help="HISTORY from /etc/sysstat/sysstat")
     rp.add_argument("--strict", action="store_true",
                     help="exit 1 if the next sweep deletes anything")
+    # Round 448. A fire the box sleeps through deletes nothing and is not
+    # deferred, so a forecast that ignores the outage record over-reports
+    # loss -- in the direction that makes a later round give up on a file
+    # still sitting on disk.
+    rp.add_argument("--skipped-fire", action="append", default=[],
+                    metavar="UTC",
+                    help="a scheduled fire that provably did not run "
+                         "(repeatable); the forecast walks past it")
+    rp.add_argument("--down-since", metavar="UTC",
+                    help="box last seen alive at this instant; with "
+                         "--down-until, every fire in the window is skipped")
+    rp.add_argument("--down-until", metavar="UTC",
+                    help="latest instant the box is known to be STILL down "
+                         "(normally now)")
+    rp.add_argument("--period-days", type=int, default=1,
+                    help="sweep timer period (OnCalendar daily = 1)")
+
+    sw = sub.add_parser(
+        "sweeps",
+        help="did the sweep actually fire, and is a missed fire caught up? "
+             "(round 448)")
+    sw.add_argument("--capture", required=True)
+    sw.add_argument("--anchor", required=True,
+                    help="UTC of ONE fire, observed or announced, to fix the "
+                         "lattice; do not hardcode 00:07")
+    sw.add_argument("--unit", default=DEFAULT_SWEEP_UNIT)
+    sw.add_argument("--period-days", type=int, default=1)
+    sw.add_argument("--strict", action="store_true",
+                    help="exit 1 if the persistence verdict is unknown -- i.e. "
+                         "the box never ran the experiment and the deadline "
+                         "cannot be called conditional on evidence")
 
     args = p.parse_args(argv)
+    if args.mode == "sweeps":
+        try:
+            jrn = _read(_pick(args.capture, JOURNAL_CANDIDATES))
+            boots = _read(_pick(args.capture, BOOTS_CANDIDATES))
+            hist = sweep_history(jrn, boots, args.anchor, args.unit,
+                                 args.period_days)
+        except CaptureManifestError as exc:
+            print(f"capture-manifest ERROR: {exc}", file=sys.stderr)
+            return 2
+        out = dict(hist)
+        out["persistence"] = persistence_verdict(hist)
+        out["capture_dir"] = args.capture
+        print(json.dumps(out, indent=2))
+        return 1 if (args.strict
+                     and out["persistence"]["persistent"] == "unknown") else 0
     if args.mode == "retention":
         try:
             text = _read(_pick(args.capture, RETENTION_CANDIDATES))
@@ -471,7 +558,18 @@ def main(argv=None) -> int:
             print("capture-manifest ERROR: no `ls -l` lines found; retention "
                   "cannot be derived and must NOT be assumed", file=sys.stderr)
             return 2
-        out = retention_forecast(files, args.next_run, history_days=args.history)
+        skipped = list(args.skipped_fire)
+        if bool(args.down_since) != bool(args.down_until):
+            print("capture-manifest ERROR: --down-since and --down-until must "
+                  "be given together; one alone names no window",
+                  file=sys.stderr)
+            return 2
+        if args.down_since:
+            skipped += fires_lost_to_outage(args.next_run, args.down_since,
+                                            args.down_until, args.period_days)
+        out = retention_forecast(files, args.next_run, history_days=args.history,
+                                 skipped_fires=sorted(set(skipped)),
+                                 period_days=args.period_days)
         print(json.dumps(out, indent=2))
         return 1 if (args.strict and out["n_deleted_at_next_run"]) else 0
     try:
@@ -634,24 +732,43 @@ def find_mtime_matches(age_s: float, days: int) -> bool:
 
 
 def _next_sweep_at_or_after(stamp_utc: str, first_run: _dt.datetime,
-                            period_days: int = 1) -> _dt.datetime:
-    """The first `sysstat-summary` fire at or after `stamp_utc`.
+                            period_days: int = 1, skipped=()) -> _dt.datetime:
+    """The first `sysstat-summary` fire at or after `stamp_utc` that RUNS.
 
     The timer is `OnCalendar=*-*-* 00:07:00`, i.e. daily, so the fires are
     `first_run + k*period` for k >= 0. Derived from the one fire the caller
     passed rather than from a hardcoded 00:07, so a box whose timer moves does
-    not silently keep the old answer."""
+    not silently keep the old answer.
+
+    Round 448 adds `skipped`: a set of fire instants that provably do NOT run
+    because the box is down at them. A missed fire is not a delayed one on
+    this box -- see `persistence_verdict`, which derives that from the box's
+    own fire history rather than assuming it -- so a skipped fire deletes
+    nothing and the deadline moves a whole period to the right. `skipped` is
+    a set of aware datetimes; a lattice point in it is passed over.
+    """
     t = _dt.datetime.fromisoformat(stamp_utc.replace("Z", "+00:00"))
     if t <= first_run:
-        return first_run
-    k = math.ceil((t - first_run).total_seconds() / (period_days * 86400))
-    return first_run + _dt.timedelta(days=period_days * k)
+        cand = first_run
+    else:
+        k = math.ceil((t - first_run).total_seconds() / (period_days * 86400))
+        cand = first_run + _dt.timedelta(days=period_days * k)
+    # A bounded walk: `skipped` is finite, so at most len(skipped)+1 steps can
+    # be needed. Bounded explicitly rather than by `while True` so a caller
+    # that passes a generated infinite set gets an error, not a hang.
+    for _ in range(len(skipped) + 1):
+        if cand not in skipped:
+            return cand
+        cand = cand + _dt.timedelta(days=period_days)
+    return cand
 
 
 def retention_forecast(files, next_run_utc: str,
                        history_days: int = 7,
                        compress_after_days: int = 10,
-                       sweep_re=SA2_SWEEP_RE) -> dict:
+                       sweep_re=SA2_SWEEP_RE,
+                       skipped_fires=(),
+                       period_days: int = 1) -> dict:
     """What `sysstat-summary.service` deletes the next time it fires.
 
     Replaces the constant "sa23 is overwritten on 2026-09-23" that rounds
@@ -664,7 +781,20 @@ def retention_forecast(files, next_run_utc: str,
     files do not expire together, and the next sweep takes the two oldest
     while sparing the third by seventy minutes.
     """
-    run = _dt.datetime.fromisoformat(next_run_utc.replace("Z", "+00:00"))
+    requested = _dt.datetime.fromisoformat(next_run_utc.replace("Z", "+00:00"))
+    skipped = {_dt.datetime.fromisoformat(str(s).replace("Z", "+00:00"))
+               for s in skipped_fires}
+    # ROUND 448. `next_run_utc` was the deadline for four rounds and it was
+    # never a date -- it is a date CONDITIONAL on the box being up at it. The
+    # box's own journal proves the condition binds: of 9 scheduled fires in
+    # the round-424 capture's window, 2 (2026-08-30 and 2026-09-01) have no
+    # `Starting sysstat-summary.service` line at all, both fall inside a
+    # boot-table gap, and neither was caught up after the following boot. So
+    # a fire the box sleeps through deletes NOTHING and every doomed file
+    # lives another whole period. That is how `sa23` survived to be captured
+    # in the first place, which round 424 noticed and attributed to luck.
+    run = _next_sweep_at_or_after(next_run_utc, requested, period_days, skipped)
+    passed_over = sorted(f for f in skipped if requested <= f < run)
     doomed, spared, ignored = [], [], []
     for f in files:
         if not sweep_re.match(f["name"]):
@@ -701,7 +831,14 @@ def retention_forecast(files, next_run_utc: str,
             ).strftime("%Y-%m-%dT%H:%M:%SZ")
             spared.append(row)
     return {
-        "next_run_utc": next_run_utc,
+        "next_run_utc": _fmt_utc(run),
+        "requested_next_run_utc": next_run_utc,
+        # Non-empty means the answer above is NOT the fire the caller asked
+        # about: these fires are scheduled, are known not to run, and were
+        # walked past. Empty is the ordinary case and reads identically to
+        # every forecast this module produced before round 448.
+        "skipped_fires": [_fmt_utc(f) for f in sorted(skipped)],
+        "fires_passed_over": [_fmt_utc(f) for f in passed_over],
         "history_days": history_days,
         "compress_after_days": compress_after_days,
         "n_deleted_at_next_run": len(doomed),
@@ -710,9 +847,19 @@ def retention_forecast(files, next_run_utc: str,
         "not_swept": sorted(ignored),
         "earliest_sweepable_utc": min((r["sweepable_at_utc"] for r in spared),
                                       default=None),
-        # The number a capture deadline should actually be set from.
+        # The number a capture deadline should actually be set from -- and
+        # round 448's correction to what that number MEANS. It is the first
+        # fire at which loss becomes possible, not a wall clock. Every fire
+        # in `skipped_fires` has already been walked past; a fire AFTER the
+        # last known-down instant is still conditional on the box being up,
+        # and this module cannot know that. `earliest_loss_conditional` says
+        # so in the artefact instead of in a comment nobody reads.
         "earliest_loss_utc": min((r["deleted_at_utc"] for r in spared),
                                  default=None),
+        "earliest_loss_conditional": True,
+        "earliest_loss_condition": (
+            "the box is UP at that fire; a fire slept through deletes nothing "
+            "and is not deferred (see persistence_verdict)"),
         # A tie is the normal case -- `saNN` and `sarNN` are seventeen minutes
         # apart in mtime and land on the same 00:07 fire -- so this is a list.
         "next_files_lost": sorted(
@@ -720,6 +867,272 @@ def retention_forecast(files, next_run_utc: str,
             if r["deleted_at_utc"] == min((x["deleted_at_utc"]
                                            for x in spared), default=None)),
     }
+
+
+# ------------------------------------------------- sweep history (round 448)
+#
+# WHY THIS EXISTS. `retention_forecast` answers "when does the box delete
+# this file", and rounds 430-447 quoted its answer -- `2026-09-03T00:07:00Z`
+# next loss, `2026-09-10T00:07:00Z` deadline -- as a calendar date in
+# `state/research-state.md`'s standing next-steps item. It is not a calendar
+# date. `sysstat-summary.timer` deletes only when it FIRES, it fires only
+# when the box is up, and this box is up perhaps half the time: rounds 436,
+# 442 and 448 all opened to an unreachable box.
+#
+# The question that decides whether an outage SAVES a file or merely DELAYS
+# its death is one systemd setting, `Persistent=`. With it, a fire missed
+# while the box was off runs at the next boot and the file dies anyway, a few
+# hours late. Without it, the fire is simply lost and the file lives a whole
+# extra period. The capture plan has never captured that setting -- round 448
+# adds it -- but the answer was already in the banked journal, because the
+# box ran the experiment twice by itself:
+#
+#   9 fires scheduled at 00:07 in the round-424 capture's journal window
+#     (2026-08-23T14:02:08Z .. 2026-09-01T08:16:20Z)
+#   7 `Starting sysstat-summary.service` lines present
+#   2 MISSING: 2026-08-30T00:07 and 2026-09-01T00:07
+#
+# Both missing fires fall inside a gap in `journal --list-boots` (boot -2 ends
+# 2026-08-29T02:10:07Z, boot -1 starts 2026-08-30T00:32:32Z; boot -1 ends
+# 2026-08-31T16:28:00Z, boot 0 starts 2026-09-01T05:33:31Z), so the box was
+# down at both. And neither was caught up: boot -1 came up 25 minutes after
+# the fire it missed and logged no `sysstat-summary` run until the NEXT day's
+# scheduled 00:07. Two independent trials, both saying `Persistent=` is not in
+# effect. A slept-through sweep is LOST, not deferred.
+#
+# The absence argument is sound only because round 424 removed `-b` from the
+# capture's journalctl: an unfiltered `_PID=1` journal covering the window is
+# what makes "no line" mean "did not run" rather than "not captured". A
+# boot-scoped capture could not support any of this.
+
+_FIRE_LINE = re.compile(
+    r"^(\S+) \S+ systemd\[1\]: Starting (?P<unit>\S+?)(?: - |\.\.\.|\s*$)", re.M)
+
+_BOOT_ROW = re.compile(
+    r"^\s*(-?\d+)\s+([0-9a-f]{32})\s+"
+    r"\w{3}\s+(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s+UTC\s+"
+    r"\w{3}\s+(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s+UTC\s*$", re.M)
+
+DEFAULT_SWEEP_UNIT = "sysstat-summary.service"
+
+
+def _fmt_utc(t: _dt.datetime) -> str:
+    return t.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _parse_utc(s: str) -> _dt.datetime:
+    return _dt.datetime.fromisoformat(str(s).replace("Z", "+00:00"))
+
+
+def parse_service_fires(journal_text: str,
+                        unit: str = DEFAULT_SWEEP_UNIT) -> list:
+    """Every instant `unit` actually STARTED, from an unfiltered `_PID=1` journal.
+
+    Matches on `Starting <unit>`, which systemd emits for a oneshot; the
+    completion is `Finished`, never `Started`, and round 400 lost 92% of its
+    durations to exactly that distinction. Only the start is needed here --
+    the question is whether the sweep ran at all.
+    """
+    out = []
+    for m in _FIRE_LINE.finditer(journal_text):
+        if m.group("unit") != unit:
+            continue
+        try:
+            out.append(_fmt_utc(_parse_utc(m.group(1))))
+        except ValueError:
+            continue
+    return sorted(set(out))
+
+
+def parse_boot_table(text: str) -> list:
+    """`journalctl --list-boots --no-pager` -> [{index, boot_id, first, last}].
+
+    Only rows whose BOTH timestamps parse are returned; the capture file also
+    holds `### DISK` and `### CONF` sections appended after the table, and a
+    loose parser would happily read those as boots.
+    """
+    out = []
+    for m in _BOOT_ROW.finditer(text):
+        idx, boot_id, first, last = m.groups()
+        out.append({
+            "index": int(idx),
+            "boot_id": boot_id,
+            "first_entry_utc": _fmt_utc(_parse_utc(first.replace(" ", "T", 1) + "Z")),
+            "last_entry_utc": _fmt_utc(_parse_utc(last.replace(" ", "T", 1) + "Z")),
+        })
+    return sorted(out, key=lambda b: b["first_entry_utc"])
+
+
+def scheduled_fires(anchor_utc: str, lo_utc: str, hi_utc: str,
+                    period_days: int = 1) -> list:
+    """Every lattice point `anchor + k*period` inside [lo, hi], k any integer.
+
+    `anchor` is ONE observed or announced fire, not a hardcoded 00:07, for the
+    same reason `_next_sweep_at_or_after` takes one: a box whose timer moves
+    must not silently keep the old answer.
+    """
+    anchor, lo, hi = _parse_utc(anchor_utc), _parse_utc(lo_utc), _parse_utc(hi_utc)
+    step = _dt.timedelta(days=period_days)
+    k0 = math.ceil((lo - anchor) / step)
+    out, t = [], anchor + k0 * step
+    while t <= hi:
+        out.append(_fmt_utc(t))
+        t += step
+    return out
+
+
+def _covering_boot_gap(fire_utc: str, boots: list):
+    """The [last_entry, first_entry] window between two boots containing `fire`.
+
+    A fire inside such a gap happened while the box was, at best, not logging
+    -- and this box logs continuously while awake. Returns None when the fire
+    falls inside a boot rather than between two.
+    """
+    f = _parse_utc(fire_utc)
+    for earlier, later in zip(boots, boots[1:]):
+        if _parse_utc(earlier["last_entry_utc"]) < f < _parse_utc(later["first_entry_utc"]):
+            return {"after_boot": earlier["index"], "before_boot": later["index"],
+                    "down_from_utc": earlier["last_entry_utc"],
+                    "down_to_utc": later["first_entry_utc"]}
+    return None
+
+
+def sweep_history(journal_text: str, boots_text: str, anchor_utc: str,
+                  unit: str = DEFAULT_SWEEP_UNIT, period_days: int = 1,
+                  tolerance_s: int = 600) -> dict:
+    """Scheduled vs observed fires of `unit`, over the journal's own window.
+
+    The window is the journal's first and last timestamp, so the answer is
+    scoped to what the capture can actually witness. A scheduled fire is
+    matched to an observed one within `tolerance_s` -- systemd's own start
+    latency on this box ran 1-21 s over the seven observed fires, and
+    `RandomizedDelaySec` would widen it -- and an unmatched scheduled fire is
+    a fire that did not run.
+    """
+    fires = parse_service_fires(journal_text, unit)
+    boots = parse_boot_table(boots_text)
+    stamps = [m.group(1) for m in _FIRE_LINE.finditer(journal_text)]
+    all_ts = sorted(_fmt_utc(_parse_utc(s)) for s in _journal_timestamps(journal_text))
+    if not all_ts:
+        raise CaptureManifestError(
+            "no parseable timestamps in the journal; the sweep history cannot "
+            "be derived and must NOT be assumed")
+    lo, hi = all_ts[0], all_ts[-1]
+    sched = scheduled_fires(anchor_utc, lo, hi, period_days)
+    obs = [_parse_utc(f) for f in fires]
+    ran, missed = [], []
+    for s in sched:
+        sd = _parse_utc(s)
+        hit = [o for o in obs if abs((o - sd).total_seconds()) <= tolerance_s]
+        if hit:
+            ran.append({"scheduled_utc": s, "observed_utc": _fmt_utc(hit[0]),
+                        "latency_s": round((hit[0] - sd).total_seconds(), 1)})
+        else:
+            missed.append({"scheduled_utc": s,
+                           "boot_gap": _covering_boot_gap(s, boots)})
+    return {
+        "unit": unit,
+        "window_utc": [lo, hi],
+        "anchor_utc": anchor_utc,
+        "period_days": period_days,
+        "n_scheduled": len(sched),
+        "n_ran": len(ran),
+        "n_missed": len(missed),
+        "ran": ran,
+        "missed": missed,
+        "observed_unmatched": [f for f in fires
+                               if not any(r["observed_utc"] == f for r in ran)],
+        "boots": boots,
+    }
+
+
+def _journal_timestamps(journal_text: str, limit_probe: int = 4000) -> list:
+    """First and last parseable `-o short-iso` stamps, without parsing 1 MB.
+
+    Reads inward from both ends. `journal-pid1-full.txt` is a megabyte and the
+    only thing needed from it here is its span; parsing every line to learn two
+    values is the sort of cost that quietly makes a health check unaffordable.
+    """
+    lines = journal_text.splitlines()
+    out = []
+    for seq in (lines[:limit_probe], lines[-limit_probe:] if lines else []):
+        for line in seq:
+            head = line.split(" ", 1)[0]
+            try:
+                out.append(_parse_utc(head))
+            except ValueError:
+                continue
+    return out
+
+
+def persistence_verdict(history: dict, catchup_window_s: int = 3600) -> dict:
+    """Does a fire missed during an outage get caught up at the next boot?
+
+    That is `Persistent=` in `sysstat-summary.timer`, and it is the single bit
+    that decides whether an outage SAVES a day file or merely delays its
+    death. Derived from the box's own behaviour rather than read from a unit
+    file the capture never took.
+
+    Fails closed in the honest direction: `"unknown"` unless at least one
+    scheduled fire was missed inside a boot gap AND the box came back up
+    inside the journal window, because with no missed fire there is no
+    experiment and asserting either answer would be inventing one.
+    """
+    trials, caught = [], 0
+    # Round 448, found by its own negative control. This read `history["ran"]`
+    # first, which is the fires MATCHED to a scheduled slot -- and a catch-up
+    # run is by construction NOT at its scheduled slot, so the one event the
+    # verdict exists to detect was the one event excluded from its evidence.
+    # The verdict could only ever come back `False`. Every observed fire
+    # counts here, matched or not.
+    observed = sorted(
+        [_parse_utc(r["observed_utc"]) for r in history["ran"]]
+        + [_parse_utc(f) for f in history["observed_unmatched"]])
+    for m in history["missed"]:
+        gap = m.get("boot_gap")
+        if not gap:
+            continue
+        back = _parse_utc(gap["down_to_utc"])
+        window_end = back + _dt.timedelta(seconds=catchup_window_s)
+        hits = [o for o in observed if back <= o <= window_end]
+        if hits:
+            caught += 1
+        trials.append({
+            "missed_utc": m["scheduled_utc"],
+            "box_back_utc": gap["down_to_utc"],
+            "catchup_deadline_utc": _fmt_utc(window_end),
+            "caught_up": bool(hits),
+            "caught_up_at_utc": _fmt_utc(hits[0]) if hits else None,
+        })
+    if not trials:
+        return {"persistent": "unknown", "n_trials": 0, "n_caught_up": 0,
+                "trials": [],
+                "why": ("no scheduled fire was missed inside a boot gap in this "
+                        "window, so the box never ran the experiment")}
+    return {
+        "persistent": caught > 0,
+        "n_trials": len(trials),
+        "n_caught_up": caught,
+        "trials": trials,
+        "why": ("%d of %d fires missed during an outage were re-run within %d s "
+                "of the box coming back" % (caught, len(trials), catchup_window_s)),
+    }
+
+
+def fires_lost_to_outage(anchor_utc: str, down_from_utc: str, down_to_utc: str,
+                         period_days: int = 1) -> list:
+    """Scheduled fires inside a known outage -- the input to `skipped_fires`.
+
+    Half-open on the left and closed on the right is deliberate: a fire at the
+    exact instant the box was last seen alive is not evidence of a miss, and a
+    fire at the instant it came back is (the box was still down a moment
+    before, and systemd's own start latency is a second or more).
+    """
+    out = []
+    for f in scheduled_fires(anchor_utc, down_from_utc, down_to_utc, period_days):
+        if _parse_utc(down_from_utc) < _parse_utc(f) <= _parse_utc(down_to_utc):
+            out.append(f)
+    return out
 
 
 # The entry-point guard lives at the very END of the file, not after `main()`.

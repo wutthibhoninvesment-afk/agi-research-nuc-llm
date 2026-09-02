@@ -522,3 +522,260 @@ def test_the_live_capture_deadline_is_a_day_later_than_the_old_field_said():
     assert out["earliest_sweepable_utc"] == "2026-09-02T23:50:00Z"
     assert out["earliest_loss_utc"] == "2026-09-03T00:07:00Z"
     assert out["next_files_lost"] == ["sa25", "sar25"]
+
+
+# ------------------------------------------------- sweep history (round 448)
+#
+# The retention model computed a date. Rounds 430-447 quoted that date in
+# `state/research-state.md` as though a calendar were the mechanism. The
+# mechanism is a systemd timer on a box that is up perhaps half the time, and
+# these tests pin the difference against the box's own recorded behaviour.
+
+CAP424 = ROOT / "state" / "nuc-capture-r424"
+
+
+def _r424_journal():
+    return (CAP424 / "journal-pid1-full.txt").read_text(
+        encoding="utf-8", errors="replace")
+
+
+def _r424_ls():
+    """The real 17-file `ls -l /var/log/sysstat`. `R424_SAR` is a five-line
+    excerpt and its retention arithmetic is a different problem."""
+    return (CAP424 / "collector-evidence.txt").read_text(
+        encoding="utf-8", errors="replace")
+
+
+def _r424_boots():
+    return (CAP424 / "journal-boots.txt").read_text(
+        encoding="utf-8", errors="replace")
+
+
+def test_the_boot_table_parser_ignores_the_sections_appended_after_it():
+    """`journal-boots.txt` is the boot table PLUS `### DISK` and `### CONF`.
+    A loose parser reads those as boots and every gap analysis built on it is
+    then wrong at the edges."""
+    boots = cm.parse_boot_table(_r424_boots())
+    assert [b["index"] for b in boots] == [-6, -5, -4, -3, -2, -1, 0]
+    assert boots[0]["first_entry_utc"] == "2026-08-23T14:02:08Z"
+    assert boots[-1]["last_entry_utc"] == "2026-09-01T08:16:28Z"
+    assert "### DISK" in _r424_boots()  # the trap is really in the file
+
+
+def test_the_box_slept_through_two_of_its_own_nine_scheduled_sweeps():
+    """The whole of round 448 rests on this count. If the journal were boot-
+    scoped, or the fire regex matched `Finished` too, the missing fires would
+    not be derivable and none of the rest would be sound."""
+    hist = cm.sweep_history(_r424_journal(), _r424_boots(),
+                            "2026-09-02T00:07:00Z")
+    assert hist["window_utc"] == ["2026-08-23T14:02:08Z", "2026-09-01T08:16:20Z"]
+    assert (hist["n_scheduled"], hist["n_ran"], hist["n_missed"]) == (9, 7, 2)
+    assert [m["scheduled_utc"] for m in hist["missed"]] == [
+        "2026-08-30T00:07:00Z", "2026-09-01T00:07:00Z"]
+    # every missing fire is INSIDE a boot gap: the box was down, not merely
+    # quiet. This is what makes "no line" mean "did not run".
+    assert all(m["boot_gap"] for m in hist["missed"])
+    assert hist["missed"][0]["boot_gap"]["down_from_utc"] == "2026-08-29T02:10:07Z"
+    assert hist["missed"][0]["boot_gap"]["down_to_utc"] == "2026-08-30T00:32:32Z"
+    # and nothing observed went unmatched, so the lattice anchor is right
+    assert hist["observed_unmatched"] == []
+    # start latency stayed far inside the matching tolerance
+    assert max(r["latency_s"] for r in hist["ran"]) == 21.0
+
+
+def test_a_missed_sweep_is_lost_not_deferred_on_this_box():
+    """`Persistent=` decides whether an outage SAVES a day file or delays its
+    death by hours. No capture ever took the unit text, so the verdict is
+    derived from two natural experiments the box ran on itself: it came back
+    25 minutes after one missed fire and 5h26m after the other, and re-ran
+    neither."""
+    hist = cm.sweep_history(_r424_journal(), _r424_boots(),
+                            "2026-09-02T00:07:00Z")
+    v = cm.persistence_verdict(hist)
+    assert v["persistent"] is False
+    assert (v["n_trials"], v["n_caught_up"]) == (2, 0)
+    assert [t["box_back_utc"] for t in v["trials"]] == [
+        "2026-08-30T00:32:32Z", "2026-09-01T05:33:31Z"]
+
+
+def test_persistence_is_unknown_not_false_when_the_box_never_ran_the_trial():
+    """Fails closed. With no fire missed inside a boot gap there is no
+    experiment, and answering `False` there would be inventing evidence for
+    the more convenient of the two answers."""
+    journal = (
+        "2026-08-24T00:07:01+00:00 h systemd[1]: Starting sysstat-summary.service - x\n"
+        "2026-08-25T00:07:01+00:00 h systemd[1]: Starting sysstat-summary.service - x\n")
+    boots = (" -1 " + "a" * 32 + " Sun 2026-08-24 00:00:00 UTC "
+             "Mon 2026-08-25 01:00:00 UTC\n")
+    hist = cm.sweep_history(journal, boots, "2026-08-25T00:07:00Z")
+    assert hist["n_missed"] == 0
+    v = cm.persistence_verdict(hist)
+    assert v["persistent"] == "unknown"
+    assert v["n_trials"] == 0
+    assert "no scheduled fire was missed" in v["why"]
+
+
+def test_a_caught_up_fire_would_read_as_persistent():
+    """The negative control for the test above: the verdict is not hardwired
+    to False. A run inside the catch-up window after the box returns flips
+    it, which is what a box with `Persistent=true` would produce."""
+    journal = (
+        "2026-08-29T00:07:01+00:00 h systemd[1]: Starting sysstat-summary.service - x\n"
+        "2026-08-30T00:35:00+00:00 h systemd[1]: Starting sysstat-summary.service - x\n")
+    boots = (" -1 " + "a" * 32 + " Fri 2026-08-29 00:00:00 UTC "
+             "Sat 2026-08-29 02:10:07 UTC\n"
+             "  0 " + "b" * 32 + " Sun 2026-08-30 00:32:32 UTC "
+             "Sun 2026-08-30 12:00:00 UTC\n")
+    hist = cm.sweep_history(journal, boots, "2026-08-30T00:07:00Z")
+    assert [m["scheduled_utc"] for m in hist["missed"]] == ["2026-08-30T00:07:00Z"]
+    v = cm.persistence_verdict(hist)
+    assert v["persistent"] is True
+    assert v["trials"][0]["caught_up_at_utc"] == "2026-08-30T00:35:00Z"
+
+
+def test_a_forecast_with_no_skipped_fires_still_gives_the_old_answer():
+    """Backwards compatibility is the point: every forecast this module
+    produced before round 448 is the special case `skipped_fires=()`, and the
+    four numbers rounds 430-447 quoted must survive untouched."""
+    files = cm.parse_sysstat_ls(_r424_ls(), "2026-09-01T08:18:35Z")
+    out = cm.retention_forecast(files, "2026-09-02T00:07:00Z", history_days=7)
+    assert out["next_run_utc"] == "2026-09-02T00:07:00Z"
+    assert out["requested_next_run_utc"] == "2026-09-02T00:07:00Z"
+    assert out["skipped_fires"] == [] and out["fires_passed_over"] == []
+    assert out["n_deleted_at_next_run"] == 4
+    assert out["earliest_loss_utc"] == "2026-09-03T00:07:00Z"
+
+
+def test_a_slept_through_fire_moves_the_loss_a_whole_period_and_widens_it():
+    """The live correction. The box was last seen 2026-09-01T18:27:56Z and was
+    still down at 2026-09-02T06:32:13Z, so the 00:07 fire between them did not
+    run. `sa23`, `sa24`, `sar23` and `sar24` -- which the standing next-steps
+    item had already written off -- are still on disk, and now die together
+    with `sa25`/`sar25` at the NEXT fire instead."""
+    files = cm.parse_sysstat_ls(_r424_ls(), "2026-09-01T08:18:35Z")
+    out = cm.retention_forecast(
+        files, "2026-09-02T00:07:00Z", history_days=7,
+        skipped_fires=cm.fires_lost_to_outage(
+            "2026-09-02T00:07:00Z",
+            "2026-09-01T18:27:56Z", "2026-09-02T06:32:13Z"))
+    assert out["fires_passed_over"] == ["2026-09-02T00:07:00Z"]
+    assert out["next_run_utc"] == "2026-09-03T00:07:00Z"
+    assert out["requested_next_run_utc"] == "2026-09-02T00:07:00Z"
+    names = sorted(r["name"] for r in out["deleted_at_next_run"])
+    assert names == ["sa23", "sa24", "sa25", "sar23", "sar24", "sar25"]
+    assert out["earliest_loss_utc"] == "2026-09-04T00:07:00Z"
+    assert out["earliest_loss_conditional"] is True
+
+
+def test_two_consecutive_slept_through_fires_compose():
+    """Nothing about the model is special-cased to one missed fire; the walk
+    is over the lattice."""
+    files = cm.parse_sysstat_ls(_r424_ls(), "2026-09-01T08:18:35Z")
+    out = cm.retention_forecast(
+        files, "2026-09-02T00:07:00Z", history_days=7,
+        skipped_fires=["2026-09-02T00:07:00Z", "2026-09-03T00:07:00Z"])
+    assert out["next_run_utc"] == "2026-09-04T00:07:00Z"
+    assert out["fires_passed_over"] == [
+        "2026-09-02T00:07:00Z", "2026-09-03T00:07:00Z"]
+    assert sorted(r["name"] for r in out["deleted_at_next_run"]) == [
+        "sa23", "sa24", "sa25", "sa26", "sar23", "sar24", "sar25", "sar26"]
+
+
+def test_fires_lost_to_an_outage_are_half_open_on_the_left():
+    """A fire at the exact instant the box was last seen alive is not evidence
+    of a miss; a fire at the instant it came back is (the box was down a
+    moment before, and systemd's own start latency ran 1-21 s here)."""
+    assert cm.fires_lost_to_outage(
+        "2026-09-02T00:07:00Z", "2026-09-02T00:07:00Z",
+        "2026-09-02T12:00:00Z") == []
+    assert cm.fires_lost_to_outage(
+        "2026-09-02T00:07:00Z", "2026-09-01T23:00:00Z",
+        "2026-09-02T00:07:00Z") == ["2026-09-02T00:07:00Z"]
+
+
+def test_the_lattice_anchor_is_a_measured_fire_not_a_hardcoded_0007():
+    """A box whose timer moves must not silently keep the old answer."""
+    assert cm.scheduled_fires("2026-09-02T03:30:00Z", "2026-09-01T00:00:00Z",
+                              "2026-09-03T00:00:00Z") == [
+        "2026-09-01T03:30:00Z", "2026-09-02T03:30:00Z"]
+
+
+def test_cli_sweeps_reports_the_persistence_verdict_and_exits_zero(capsys):
+    rc = cm.main(["sweeps", "--capture", str(CAP424),
+                  "--anchor", "2026-09-02T00:07:00Z", "--strict"])
+    out = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert out["persistence"]["persistent"] is False
+    assert out["n_missed"] == 2
+
+
+def test_cli_sweeps_strict_exits_nonzero_when_the_verdict_is_unknown(tmp_path, capsys):
+    """An unknown verdict is not a pass: it means the deadline cannot be
+    called conditional on evidence, only on a guess."""
+    (tmp_path / "journal-pid1-full.txt").write_text(
+        "2026-08-24T00:07:01+00:00 h systemd[1]: Starting sysstat-summary.service - x\n")
+    (tmp_path / "journal-boots.txt").write_text(
+        " -1 " + "a" * 32 + " Sun 2026-08-24 00:00:00 UTC Sun 2026-08-24 12:00:00 UTC\n")
+    rc = cm.main(["sweeps", "--capture", str(tmp_path),
+                  "--anchor", "2026-08-24T00:07:00Z", "--strict"])
+    assert rc == 1
+    assert json.loads(capsys.readouterr().out)["persistence"]["persistent"] == "unknown"
+
+
+def test_retention_cli_refuses_a_half_specified_outage_window(tmp_path, capsys):
+    """`--down-since` alone names no window. Silently treating the missing end
+    as `now` would make the answer depend on when the command was run."""
+    (tmp_path / "collector-evidence.txt").write_text(_r424_ls())
+    rc = cm.main(["retention", "--capture", str(tmp_path),
+                  "--now", "2026-09-01T08:18:35Z",
+                  "--next-run", "2026-09-02T00:07:00Z",
+                  "--down-since", "2026-09-01T18:27:56Z"])
+    assert rc == 2
+    assert "must be given together" in capsys.readouterr().err
+
+
+# --------------------------------------------- the emitted plan (round 448)
+
+def test_the_emitted_plan_is_valid_bash():
+    """It is generated shell that a future round will paste into a live box in
+    its first thirty seconds. A quoting slip in it is a wasted up-window."""
+    plan = cm.capture_plan(cm.audit(R424_SAR, ""))
+    proc = subprocess.run([ "bash", "-n"], input=plan, text=True,
+                          capture_output=True)
+    assert proc.returncode == 0, proc.stderr
+
+
+def test_every_journal_stream_the_plan_writes_announces_itself():
+    """Round 436 spent a round discovering that `journal-user-full.txt` held
+    two views concatenated with only the second labelled. The cause was a
+    redirect with no `### ` marker, and this is the pin for it."""
+    plan = cm.capture_plan(cm.audit(R424_SAR, ""))
+    for line in plan.splitlines():
+        if '> "$OUT/journal-user' in line:
+            assert "### " in line, line
+
+
+def test_the_plan_no_longer_says_user_manager_over_a_unit_scoped_command():
+    """The comment and the command disagreed: `_SYSTEMD_USER_UNIT=...` is the
+    ENGINE's journal, not the user manager's. Both are now captured, each
+    under its own name, and neither claims to be the other."""
+    plan = cm.capture_plan(cm.audit(R424_SAR, ""))
+    block = plan[plan.index("# 3c."):plan.index("# 3d.")]
+    assert "journalctl --user " in block          # the manager, really
+    assert "_SYSTEMD_USER_UNIT=" in block          # the units, separately
+    assert "journal-user-manager.txt" in block
+    # The ambiguous name must be gone as a DESTINATION. It survives in the
+    # comment above, which is where the reason it was ambiguous is recorded --
+    # a bare `not in plan` would forbid the plan from explaining itself.
+    assert not [ln for ln in plan.splitlines()
+                if '> "$OUT/journal-user-full.txt"' in ln]
+
+
+def test_the_plan_captures_the_toolproxy_and_the_timer_persistence():
+    """Two gaps round 448 could only close by inference: `qwen36-toolproxy`
+    has never appeared in any capture, and `Persistent=` was derived from two
+    missed fires rather than read."""
+    plan = cm.capture_plan(cm.audit(R424_SAR, ""))
+    assert "qwen36-toolproxy" in plan
+    assert "systemctl cat" in plan and "-p Persistent" in plan
+    assert "timer-units.txt" in plan
