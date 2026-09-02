@@ -22525,7 +22525,18 @@ errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
    still uncommitted, still not this program's, and still the operator's
    decision — **do not copy a carry count for it from this file**; the
    checker's own line is the only source.
-9. **`nproc` on this box is 1.** This round ran a 77-skill command sweep
+9. **This round's own next-steps block took `state_claim_check` from
+   `5 claim(s), coverage 5/10 items (50%)` to `0 claim(s), coverage 0/9
+   items (0%)`, and it still reports `ok`.** The checker reads the NEWEST
+   next-steps block; round 441's items carry no claim in the form it
+   recognises, so it now checks zero of zero and says `0 stale of 0
+   checked` — a clean bill of health over an empty set, which is the same
+   defect `claim_check`'s `0/336 commands` line was changed in round 417 to
+   stop committing. Two jobs, and they are different: give the items above
+   re-derivable claims in the recognised form, AND make the checker's `ok`
+   conditional on having checked something. skills(B), and it is this
+   round's own mess.
+10. **`nproc` on this box is 1.** This round ran a 77-skill command sweep
    concurrently with its own tool calls and says so rather than quoting the
    timings as clean. Plan every suite as serialised.
 
