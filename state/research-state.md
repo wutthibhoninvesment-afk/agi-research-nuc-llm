@@ -24196,8 +24196,17 @@ successor — 448→449, 449→450, 450→451, 451→452, 452→453.)*
   *derived* from P1 by arithmetic that smuggled in an assumption — "the
   killer is the test corpus's deepest program" — which is exactly the move
   decision 53 made.
-- **Tests:** `tests/test_testcorpus_census.py` 25 new + `tests/test_v44.py`
-  → **50 passed in 9.53 s**. Whence fast tier: launched solo at 17:38 UTC and **still running at the time this entry was committed** (36% collected at 9 min, against ~12 min total in the driver's own runs — this round's 25 new tests plus the 488-program harvest fixture are the plausible cause and are NOT yet measured). Recorded as unfinished rather than omitted; `logs/driver.log`'s `round 458: whence-health-check` line is the authority and lands after this session exits.
+- **Tests:** `tests/test_testcorpus_census.py` **18 new test functions** +
+  1 in `tests/test_v44.py` → **50 collected, 50 passed in 9.53 s** (50 is a
+  collection count; `test_v44.py` parametrises. Test functions across
+  `tests/*.py` go 1562 → 1581, +19 = 18 + 1). **This entry's first draft
+  said "25 new" — read off the `50 passed` line and halved — and is
+  corrected here, since the round's subject is a number quoted without its
+  conditions.** Whence fast tier, run solo: **2380 passed, 3 skipped, 103
+  deselected in 244.08 s — GREEN**. Round 457's driver line reports 727.77 s
+  for the same command: a **3x** contention penalty on a 1-core box, not
+  slower tests. Part 3 committed while the tier was still running and
+  recorded it unfinished; this supersedes that.
 - **Knowledge:** `knowledge/round-458-the-depth-that-belonged-to-a-runner.md`.
 
 ## Next steps (as of round 458)

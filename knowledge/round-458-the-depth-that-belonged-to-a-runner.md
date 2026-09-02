@@ -272,11 +272,18 @@ fixture is excluded at harvest time and cannot show up as a failure.
 
 ## 4. Tests
 
-    tests/test_testcorpus_census.py    25 new
-    tests/test_v44.py                  25 (1 new, docstring corrected)
-    -> 50 passed in 9.53 s
+    tests/test_testcorpus_census.py    18 new test functions
+    tests/test_v44.py                   1 new, docstring corrected
+    -> 50 collected, 50 passed in 9.53 s
 
-Five of the 25 pin the FINDING rather than the code: the killer suite's
+(`50` is a collection count, not a function count: `test_v44.py` parametrises.
+Test FUNCTIONS across `tests/*.py` go 1562 -> 1581, +19, which is 18 + 1.
+This round's first draft of this section and of the research-state entry both
+said "25 new" -- read off a `50 passed` line and halved. Corrected here rather
+than left, because the round's whole subject is a number quoted without its
+conditions.)
+
+Five of the 18 pin the FINDING rather than the code: the killer suite's
 `max_depth=500` read straight off its AST; the 500-deep value; the
 20000-deep value at the default; the depth-tracks-the-cap relationship at
 three more points (7, 64, 501) so it is a law and not a coincidence; and
@@ -312,8 +319,17 @@ not bounded by a constant at all.
 
 ## 7. Fast tier
 
-The tier was launched solo at 17:38 UTC and was still running when this
-round committed; it is recorded as unfinished, not omitted. The authority is
-`logs/driver.log`'s `round 458: whence-health-check` line, written after this
-session exits. The two files this round touches were run directly and are
-green: 50 passed in 9.53 s.
+Run solo (`nproc` is 1): **2380 passed, 3 skipped, 103 deselected in
+244.08 s** — GREEN, no reds, nothing skipped that was not skipped before.
+Collected 2383 of 2486, against 2364 of 2467 at round 457's driver line
+(+19 collected against +19 test functions).
+
+The 244 s is worth recording next to the driver's own number for the same
+suite: round 457's `whence-health-check` line reports **727.77 s** for the
+same command. That is the 3x contention penalty this workspace has measured
+before on a 1-core box — the driver runs four health checks concurrently.
+The tests did not get slower; they got company.
+
+Part 3 of this round committed while this run was still in progress and
+recorded it as unfinished, which was the right call at the time and is now
+superseded by the number above.
