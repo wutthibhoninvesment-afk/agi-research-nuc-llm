@@ -319,12 +319,20 @@ def test_the_deepest_value_this_repo_builds_is_max_depth_not_fourteen():
     about `examples/`, and the tempting conclusion from it — that the bound
     could simply go away — is refuted by a program already in this tree.
 
-    `tests/test_generated_killers.py::test_kill_values_py_139_arith_120`
-    runs a runaway recursion whose unwind builds one record per frame, so
-    the value's depth is exactly DEFAULT_MAX_DEPTH. At 1 host frame per
+    A runaway recursion whose unwind builds one record per frame has a
+    value depth of exactly the `max_depth` it is RUN at. At 1 host frame per
     level an unbounded renderer needs 20000 frames — past CPython's default
-    1000 and past run.py's raised 6000. `max_depth` is the real upper bound
-    on value depth in Whence and it is 800x the new cap."""
+    1000 and past run.py's raised 6000.
+
+    Round 458 corrected two sentences that stood here, both about
+    attribution. This docstring named
+    `tests/test_generated_killers.py::test_kill_values_py_139_arith_120` as
+    the builder of the 20000-deep value; that file's `canonical()` defaults
+    to `max_depth=500`, so it builds a 500-deep one, and the test that
+    reaches 20000 is THIS one, which constructs its own `Interpreter()` at
+    the default two lines below. And "`max_depth` is the real upper bound on
+    value depth in Whence" is false — see the test underneath, and
+    SPEC.md § Decision 55."""
     src = ("fn wrap(n) { if n == 0 { @{v: 0} } else { @{v: wrap(n - 0)} } }\n"
            "let rec = wrap(1)\n")
     from whence.interp import Env
@@ -336,6 +344,23 @@ def test_the_deepest_value_this_repo_builds_is_max_depth_not_fourteen():
     assert r.depth_stopped is True
     assert r.text.count("@{") == FULL_SHOW_NEST + 2
     assert len(r.text) < 400, "the cap is what makes this printable at all"
+
+
+def test_max_depth_bounds_recursion_and_not_value_depth():
+    """Round 458. `max_depth` caps what a runaway RECURSION builds; ordinary
+    code then wraps the result and nothing stops it, so it is not a bound on
+    value depth at all. The repo already held the refutation:
+    `test_v04.py::test_deep_eq_is_iterative` asks `[rec] == [rec]` and so
+    builds a value `max_depth + 1` deep -- 20001 at the interpreter default,
+    one past FULL_SHOW_NODES."""
+    base = "fn wrap(n) { @{v: wrap(n)} }\nlet rec = wrap(1)\n"
+    seen = []
+    for tail in ("let result = rec", "let result = [rec]",
+                 "let result = [[rec]]", "let result = [[[[[rec]]]]]"):
+        it = Interpreter(out=lambda s: None, max_depth=300)
+        env = it.run(base + tail)
+        seen.append(DC.depth_of(env.vars["result"]))
+    assert seen == [300, 301, 302, 305]
 
 
 def test_the_budget_bounds_width_which_v043_did_not_bound_at_all():

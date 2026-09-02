@@ -73,6 +73,7 @@ and `deepest_at_budget` reports when a walk stopped early instead of
 returning a clean number it did not earn.
 """
 
+import ast
 import json
 import os
 import sys
@@ -82,6 +83,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from whence import interp as interp_mod                 # noqa: E402
 from whence.interp import Interpreter                   # noqa: E402
+from whence import parser as parse_mod                 # noqa: E402
 from whence.lexer import LexError                       # noqa: E402
 from whence.parser import ParseError                    # noqa: E402
 from whence import values as values_mod                 # noqa: E402
@@ -119,6 +121,12 @@ DEFAULT_MAX_ROOTS = 400000
 # frame budget from whatever is live. Mirrored here so the census evaluates
 # the same programs the same way the CLI does.
 CLI_RECURSION_LIMIT = 6000
+
+# The guest recursion cap the interpreter uses when a caller names none.
+# Read from the interpreter rather than written down, for the same reason
+# FULL_LEVELS is derived: decision 53's error was quoting a default as if it
+# were a measurement.
+DEFAULT_GUEST_MAX_DEPTH = Interpreter.DEFAULT_MAX_DEPTH
 
 # The two substrings `_show` emits when it stops at the nest cap.
 NEST_MARKERS = ("[…]", "@{…}")
@@ -263,16 +271,26 @@ class _Recorder(object):
 
 
 def census_program(path, roots="all", max_nodes=DEFAULT_MAX_NODES,
-                   max_roots=DEFAULT_MAX_ROOTS, alloc=True):
+                   max_roots=DEFAULT_MAX_ROOTS, alloc=True, src=None,
+                   max_depth=None):
     """Run one program and measure both depth populations.
 
     The interpreter is patched for the duration of the run and restored in a
     `finally`, because this module is imported by a test suite that runs in
     the same process as everything else.
+
+    `src` supplies the program text directly, for the test-corpus harvest,
+    where there is no file to read and `path` is a `file.py:line` label.
+    `max_depth` is the guest recursion cap to run it under; None means the
+    interpreter default. It is a PARAMETER and not a constant because the
+    depth a program is run at is a property of its runner -- see the
+    harvester section, and decision 53.
     """
     rec = _Recorder(max_roots)
     result = {
         "program": os.path.basename(path),
+        "max_depth": (DEFAULT_GUEST_MAX_DEPTH if max_depth is None
+                      else max_depth),
         "ok": True,
         "error": "",
         "built_depth": 0,
@@ -326,12 +344,13 @@ def census_program(path, roots="all", max_nodes=DEFAULT_MAX_NODES,
         "alloc_over_node_budget": False,
         "seconds": 0.0,
     }
-    try:
-        src = open(path).read()
-    except IOError as e:
-        result["ok"] = False
-        result["error"] = "read: %s" % e
-        return result
+    if src is None:
+        try:
+            src = open(path).read()
+        except IOError as e:
+            result["ok"] = False
+            result["error"] = "read: %s" % e
+            return result
 
     # v0.44 note, and a lesson this module paid for. The hook used to be on
     # `full_show`, and decision 53 moved `b_print` onto `full_show_named` —
@@ -368,7 +387,8 @@ def census_program(path, roots="all", max_nodes=DEFAULT_MAX_NODES,
         if alloc:
             _TRACKER = tracker
             saved_classes = _install_counting(*_counting_classes())
-        it = Interpreter(out=lambda _s: None, gc_relief=True)
+        it = Interpreter(out=lambda _s: None, gc_relief=True,
+                         max_depth=result["max_depth"])
         try:
             env = it.run(src)
         except (LexError, ParseError) as e:
@@ -809,6 +829,472 @@ def _payload_size(p):
         memo[nid] = tot
         alive.append(node)
     return memo[id(shim)]
+
+
+# ---------------------------------------------------------------------------
+# The TEST-corpus harvester (round 458). Closes round 452's own residual --
+# "a census over the test corpus has not been run" -- and round 456's
+# next-step 2, "the repo's true deepest value, 20 000, has never been
+# re-derived by anything".
+#
+# THE POPULATION, defined before it was taken. A HARVESTED PROGRAM is a
+# Python string constant in `tests/test_*.py` that
+#
+#   (1) sits in a RUNNER POSITION -- it is handed, directly or through one
+#       intra-scope assignment, to a callable this module has PROVED (by a
+#       fixed point over the module's own AST) executes guest source; and
+#   (2) lexes and parses as Whence with at least one statement.
+#
+# Gate (2) alone is worthless and the number says so: 7935 of the 11 990
+# string constants in this test tree parse as Whence, because `"ab"` and
+# most English sentences are legal Whence expressions. The population has to
+# be defined by what the SUITE DOES with a string, not by what the string
+# looks like.
+#
+# WHY A FIXED POINT AND NOT A LIST OF NAMES. Twenty-seven of these files
+# define their own local `run`/`val`/`run_src`/`canonical` helper and they do
+# not agree on the name, the parameter order, or the depth. Writing the list
+# by hand would make the census's population a function of what its author
+# remembered. Instead:
+#
+#   seed      a call is EXECUTING if its callee is `Interpreter` or an
+#             attribute call `.run` / `.exec_stmt` / `.exec_src` / `.eval_src`;
+#             a call is a SOURCE SINK if it is executing or an attribute or
+#             plain call named `parse` / `lex` / `tokens`.
+#   step      a function is a RUNNER on parameter `p` if `p` is passed to a
+#             source sink or to a known runner in that runner's own source
+#             position; it is EXECUTING if its body constructs an
+#             `Interpreter` or calls an executing runner.
+#   repeat    until nothing new is learned.
+#
+# Only EXECUTING runners harvest. A parse-only runner (`test_parser.py`'s
+# helpers) builds no values, so its strings are counted and excluded rather
+# than censused, and `harvest_stats()["parse_only_programs"]` reports how
+# many that is.
+#
+# THE DEPTH, which is the whole point of the exercise. `max_depth` is a
+# property of the RUNNER, not of the interpreter default, and this is the
+# thing decision 53 got wrong: it cites
+# `tests/test_generated_killers.py::test_kill_values_py_139_arith_120` for a
+# 20 000-deep value, but that file's `canonical()` takes `max_depth=500` and
+# `run()` passes no override, so the suite never builds the value it is
+# cited for. So each harvested program carries the max_depth the SUITE would
+# run it at, extracted from the `Interpreter(...)` call site inside its
+# runner (a `max_depth=` keyword whose value is a constant, or a parameter
+# whose default is a constant), overridable by a `max_depth=` keyword at the
+# harvest call site, and falling back to `Interpreter.DEFAULT_MAX_DEPTH`.
+# `census_tests(depth="default")` re-runs the same corpus at the interpreter
+# default so the two populations can be compared instead of conflated.
+#
+# WHAT IT DOES NOT REACH, stated rather than left to be found: a source
+# built by string formatting (`"let x = %d" % n`), one assembled across
+# scopes, and one supplied by `pytest.mark.parametrize`. Each is counted, in
+# `harvest_stats()["unresolved_args"]` and `["nonconstant_programs"]`; the
+# census reports those counts beside its answer instead of presenting a
+# harvest as exhaustive.
+
+TESTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tests")
+
+_EXEC_ATTRS = ("run", "exec_stmt", "exec_src", "eval_src")
+_PARSE_CALLS = ("parse", "lex", "tokens")
+_SRC_KEYWORDS = ("src", "source", "program", "code", "text")
+
+
+def _walk_scope(scope):
+    """Every node in `scope`, NOT descending into a nested function, lambda
+    or class.
+
+    `ast.walk` does descend, and using it for a scope's bindings is a real
+    defect this module shipped for one draft: the MODULE scope then held
+    every `src = "..."` assignment in every test function in the file, so a
+    runner call in function A resolved a name bound only in function B, and
+    the harvest attributed 400-odd generated-killer programs to the line of
+    the shared `run()` helper. The set it produced was nearly right and
+    every line number in it was wrong, which is the worst way to be nearly
+    right.
+    """
+    stack = [scope]
+    first = True
+    while stack:
+        node = stack.pop()
+        if not first and isinstance(node, (ast.FunctionDef,
+                                           ast.AsyncFunctionDef,
+                                           ast.Lambda, ast.ClassDef)):
+            continue
+        first = False
+        yield node
+        for child in ast.iter_child_nodes(node):
+            stack.append(child)
+
+
+def _callee(call):
+    f = call.func
+    if isinstance(f, ast.Name):
+        return ("name", f.id)
+    if isinstance(f, ast.Attribute):
+        return ("attr", f.attr)
+    return (None, None)
+
+
+def _const_str(node, env=None):
+    """The string a node denotes, or None.
+
+    Handles a literal, a `+` chain, and a name bound to a string earlier in
+    the same or the module scope -- `test_v03.py` writes
+    `src = LOOP + "let s = go(3, 0)\n..."` eighteen times, and a harvester
+    that stopped at literals reported that file at 18 programs where it
+    builds 86. Anything else is deliberately None so the caller can COUNT
+    it rather than guess at it."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    if isinstance(node, ast.Name) and env:
+        vals = env.get(node.id)
+        if vals and len(vals) == 1:
+            return vals[0]
+        return None
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        a = _const_str(node.left, env)
+        b = _const_str(node.right, env)
+        if a is not None and b is not None:
+            return a + b
+    return None
+
+
+def _param_order(fn):
+    a = fn.args
+    return ([p.arg for p in getattr(a, "posonlyargs", [])] +
+            [p.arg for p in a.args])
+
+
+def _param_default(fn, name):
+    """The constant default of `fn`'s parameter `name`, or None."""
+    order = _param_order(fn)
+    defaults = list(fn.args.defaults)
+    if defaults and name in order:
+        first = len(order) - len(defaults)
+        i = order.index(name)
+        if i >= first:
+            d = defaults[i - first]
+            if isinstance(d, ast.Constant) and isinstance(d.value, int):
+                return d.value
+    for kw, d in zip(fn.args.kwonlyargs, fn.args.kw_defaults):
+        if kw.arg == name and isinstance(d, ast.Constant) \
+                and isinstance(d.value, int):
+            return d.value
+    return None
+
+
+def _max_depth_of(fn, runners):
+    """The `max_depth` the suite would run this runner's program at."""
+    for node in ast.walk(fn):
+        if not isinstance(node, ast.Call):
+            continue
+        kind, nm = _callee(node)
+        if nm == "Interpreter":
+            for kw in node.keywords:
+                if kw.arg != "max_depth":
+                    continue
+                if isinstance(kw.value, ast.Constant) and \
+                        isinstance(kw.value.value, int):
+                    return kw.value.value
+                if isinstance(kw.value, ast.Name):
+                    d = _param_default(fn, kw.value.id)
+                    if d is not None:
+                        return d
+            return DEFAULT_GUEST_MAX_DEPTH
+        if kind == "name" and nm in runners and runners[nm]["executes"]:
+            for kw in node.keywords:
+                if kw.arg == "max_depth" and \
+                        isinstance(kw.value, ast.Constant) and \
+                        isinstance(kw.value.value, int):
+                    return kw.value.value
+            inner = runners[nm]["max_depth"]
+            if inner is not None:
+                return inner
+    return DEFAULT_GUEST_MAX_DEPTH
+
+
+def runners_in(tree):
+    """name -> {order, src_params, executes, max_depth} for every function
+    in this module that runs guest source. Fixed point; see the section
+    comment for the seed and the step."""
+    fns = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]
+    runners = {}
+    for _ in range(len(fns) + 2):
+        changed = False
+        for fn in fns:
+            order = _param_order(fn)
+            params = set(order) | set(p.arg for p in fn.args.kwonlyargs)
+            src_params = set()
+            executes = False
+            for node in ast.walk(fn):
+                if not isinstance(node, ast.Call):
+                    continue
+                kind, nm = _callee(node)
+                if nm == "Interpreter" or \
+                        (kind == "attr" and nm in _EXEC_ATTRS):
+                    executes = True
+                if kind == "name" and nm in runners:
+                    if runners[nm]["executes"]:
+                        executes = True
+                sink_order, sink_src = None, ()
+                if (kind == "attr" and nm in _EXEC_ATTRS) or \
+                        nm in _PARSE_CALLS:
+                    sink_order = ["<src>"]
+                elif kind == "name" and nm in runners and nm != fn.name:
+                    sink_order = runners[nm]["order"]
+                    sink_src = runners[nm]["src_params"]
+                if sink_order is None:
+                    continue
+                for i, a in enumerate(node.args):
+                    if not isinstance(a, ast.Name) or a.id not in params:
+                        continue
+                    if sink_order == ["<src>"]:
+                        if i == 0:
+                            src_params.add(a.id)
+                    elif i < len(sink_order) and sink_order[i] in sink_src:
+                        src_params.add(a.id)
+                for kw in node.keywords:
+                    if kw.arg in _SRC_KEYWORDS and \
+                            isinstance(kw.value, ast.Name) and \
+                            kw.value.id in params:
+                        src_params.add(kw.value.id)
+            if not src_params:
+                continue
+            prev = runners.get(fn.name)
+            entry = {"order": order, "src_params": src_params,
+                     "executes": executes, "max_depth": None}
+            if prev is None or prev["src_params"] != src_params or \
+                    prev["executes"] != executes:
+                runners[fn.name] = entry
+                changed = True
+        if not changed:
+            break
+    for fn in fns:
+        if fn.name in runners:
+            runners[fn.name]["max_depth"] = _max_depth_of(fn, runners)
+    return runners
+
+
+def harvest_file(path):
+    """(programs, stats) for one test module. A program is a dict with
+    `file`, `line`, `runner`, `max_depth` and `src`."""
+    text = open(path, encoding="utf-8").read()
+    tree = ast.parse(text)
+    runners = runners_in(tree)
+    stats = {"runners": sorted(runners),
+             "executing_runners": sorted(n for n in runners
+                                         if runners[n]["executes"]),
+             "calls": 0, "unresolved_args": 0, "forwarded_args": 0,
+             "nonconstant_programs": 0, "parse_only_programs": 0,
+             "unparsed_programs": 0, "ambiguous_scopes": 0}
+
+    scopes = [tree] + [n for n in ast.walk(tree)
+                       if isinstance(n, (ast.FunctionDef, ast.ClassDef))]
+    # Two passes. Pass A takes the literal bindings; pass B re-runs with
+    # pass A's names in scope so `LOOP + "..."` resolves. Repeated twice for
+    # a two-link chain; a longer chain is left unresolved and counted rather
+    # than iterated to a fixed point on data that does not need one.
+    bindings = {}
+    for sc in scopes:
+        bindings[id(sc)] = {}
+    for _pass in range(3):
+        for sc in scopes:
+            b = bindings[id(sc)]
+            env = dict(bindings[id(tree)])
+            env.update(b)
+            for node in _walk_scope(sc):
+                targets, value = None, None
+                if isinstance(node, ast.Assign):
+                    targets, value = node.targets, node.value
+                elif isinstance(node, ast.For) and \
+                        isinstance(node.iter, (ast.List, ast.Tuple)):
+                    # `for src in ["...", "..."]:` runs every element as a
+                    # program. Twelve of these files drive a table that way
+                    # and a harvester that only reads `=` cannot see them.
+                    for elt in node.iter.elts:
+                        v = _const_str(elt, env)
+                        if v is None or not isinstance(node.target, ast.Name):
+                            continue
+                        cur = b.setdefault(node.target.id, [])
+                        if v not in cur:
+                            cur.append(v)
+                    continue
+                else:
+                    continue
+                v = _const_str(value, env)
+                if v is None:
+                    continue
+                for t in targets:
+                    if isinstance(t, ast.Name):
+                        cur = b.setdefault(t.id, [])
+                        if v not in cur:
+                            cur.append(v)
+    module_b = bindings[id(tree)]
+
+    out = []
+    seen = set()
+    for sc in scopes:
+        b = bindings[id(sc)]
+        env = dict(module_b)
+        env.update(b)
+        params = set()
+        if isinstance(sc, ast.FunctionDef):
+            params = set(_param_order(sc)) | \
+                set(p.arg for p in sc.args.kwonlyargs)
+        # The depth a bare `interp.run(...)` in this scope would use: the
+        # nearest `Interpreter(max_depth=<const>)` built in the same scope.
+        # Stated rather than assumed -- a scope with two interpreters at
+        # different depths resolves to the first, and `ambiguous_scopes`
+        # counts those instead of hiding them.
+        scope_depth, n_interp = DEFAULT_GUEST_MAX_DEPTH, 0
+        for node in _walk_scope(sc):
+            if isinstance(node, ast.Call) and _callee(node)[1] == "Interpreter":
+                n_interp += 1
+                for kw in node.keywords:
+                    if kw.arg == "max_depth" and \
+                            isinstance(kw.value, ast.Constant) and \
+                            isinstance(kw.value.value, int) and n_interp == 1:
+                        scope_depth = kw.value.value
+        if n_interp > 1:
+            stats["ambiguous_scopes"] += 1
+        for node in _walk_scope(sc):
+            if not isinstance(node, ast.Call):
+                continue
+            kind, nm = _callee(node)
+            executes = True
+            if kind == "name" and nm in runners:
+                r = runners[nm]
+                executes = r["executes"]
+                cands = []
+                for i, a in enumerate(node.args):
+                    if i < len(r["order"]) and \
+                            r["order"][i] in r["src_params"]:
+                        cands.append(a)
+                for kw in node.keywords:
+                    if kw.arg in r["src_params"]:
+                        cands.append(kw.value)
+                depth = r["max_depth"]
+                label = nm
+            elif kind == "attr" and nm in _EXEC_ATTRS and node.args:
+                # A test that skips the file's helper and drives the
+                # interpreter itself: `interp.run("let x = 1")`. Missing
+                # this class cost `test_v03.py` alone 5 programs on the
+                # first harvest, and there is no reason a direct driver is
+                # less a program than an indirect one.
+                cands = [node.args[0]]
+                depth = scope_depth
+                label = "." + nm
+            else:
+                continue
+            stats["calls"] += 1
+            for kw in node.keywords:
+                if kw.arg == "max_depth" and \
+                        isinstance(kw.value, ast.Constant) and \
+                        isinstance(kw.value.value, int):
+                    depth = kw.value.value
+            for a in cands:
+                srcs = []
+                lit = _const_str(a, env)
+                if lit is not None:
+                    srcs = [lit]
+                elif isinstance(a, ast.Name):
+                    srcs = env.get(a.id) or []
+                    if not srcs:
+                        # A parameter forwarded from this scope's own caller
+                        # is not a missed program -- the program arrives at
+                        # the CALL SITE, which this walk also visits.
+                        if a.id in params:
+                            stats["forwarded_args"] += 1
+                        else:
+                            stats["unresolved_args"] += 1
+                else:
+                    stats["nonconstant_programs"] += 1
+                for s in srcs:
+                    if not executes:
+                        stats["parse_only_programs"] += 1
+                        continue
+                    key = (s, depth)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    try:
+                        prog = parse_mod.parse(s)
+                    except Exception:            # noqa: BLE001
+                        stats["unparsed_programs"] += 1
+                        continue
+                    if not getattr(prog, "stmts", None):
+                        stats["unparsed_programs"] += 1
+                        continue
+                    out.append({"file": os.path.basename(path),
+                                "line": node.lineno, "runner": label,
+                                "max_depth": depth, "src": s})
+    return out, stats
+
+
+def harvest_tests(directory=None):
+    """(programs, stats) over every `tests/test_*.py`. Programs are
+    deduplicated on (source, max_depth) ACROSS files: the same one-liner
+    appears in several version files and censusing it twice would inflate
+    every count without adding a value the repo builds."""
+    directory = TESTS if directory is None else directory
+    stats = {"files": 0, "calls": 0, "unresolved_args": 0,
+             "forwarded_args": 0, "nonconstant_programs": 0,
+             "parse_only_programs": 0, "unparsed_programs": 0,
+             "ambiguous_scopes": 0, "programs_before_dedup": 0,
+             "executing_runners": 0, "parse_only_runners": 0}
+    progs = []
+    seen = set()
+    for f in sorted(os.listdir(directory)):
+        if not (f.startswith("test_") and f.endswith(".py")):
+            continue
+        stats["files"] += 1
+        rows, s = harvest_file(os.path.join(directory, f))
+        for k in ("calls", "unresolved_args", "forwarded_args",
+                  "nonconstant_programs", "parse_only_programs",
+                  "unparsed_programs", "ambiguous_scopes"):
+            stats[k] += s[k]
+        stats["executing_runners"] += len(s["executing_runners"])
+        stats["parse_only_runners"] += (len(s["runners"]) -
+                                        len(s["executing_runners"]))
+        stats["programs_before_dedup"] += len(rows)
+        for r in rows:
+            key = (r["src"], r["max_depth"])
+            if key in seen:
+                continue
+            seen.add(key)
+            progs.append(r)
+    stats["programs"] = len(progs)
+    return progs, stats
+
+
+def census_tests(programs=None, depth="suite", alloc=True,
+                 max_nodes=DEFAULT_MAX_NODES, max_roots=DEFAULT_MAX_ROOTS,
+                 progress=None, limit=None):
+    """Census every harvested test program.
+
+    `depth="suite"` runs each program at the max_depth its own runner would
+    give it; `depth="default"` runs every program at
+    `Interpreter.DEFAULT_MAX_DEPTH`. The two answers differ and the
+    difference is decision 53's error, so the census refuses to have one
+    mode."""
+    if programs is None:
+        programs, _ = harvest_tests()
+    if limit is not None:
+        programs = programs[:limit]
+    rows = []
+    for i, p in enumerate(programs):
+        if progress:
+            progress(i, p)
+        md = (p["max_depth"] if depth == "suite"
+              else DEFAULT_GUEST_MAX_DEPTH)
+        r = census_program("%s:%d" % (p["file"], p["line"]), "all",
+                           max_nodes, max_roots, alloc,
+                           src=p["src"], max_depth=md)
+        r["runner"] = p["runner"]
+        r["src_len"] = len(p["src"])
+        rows.append(r)
+    return rows
 
 
 def corpus_paths(directory=EXAMPLES):

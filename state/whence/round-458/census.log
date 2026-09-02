@@ -1,0 +1,32 @@
+harvested 488 programs
+  suite 0/488  0.0s
+  suite 50/488  0.7s
+  suite 100/488  0.8s
+  suite 150/488  1.3s
+  suite 200/488  1.5s
+  suite 250/488  8.7s
+  SLOW   7.9s suite test_v03.py:203
+  suite 300/488  18.3s
+  suite 350/488  19.8s
+  SLOW  14.7s suite test_v26.py:69
+  SLOW  19.5s suite test_v26.py:126
+  suite 400/488  54.7s
+  SLOW  22.2s suite test_v27.py:515
+  suite 450/488  80.3s
+suite DONE 488 rows in 81.5s
+  default 0/488  0.0s
+  default 50/488  2.0s
+  default 100/488  3.2s
+  default 150/488  3.6s
+  default 200/488  3.6s
+  default 250/488  12.0s
+  SLOW   9.8s default test_v03.py:203
+  default 300/488  25.3s
+  default 350/488  25.5s
+  SLOW  14.4s default test_v26.py:69
+  SLOW  20.2s default test_v26.py:126
+  default 400/488  61.8s
+  SLOW  19.8s default test_v27.py:515
+  default 450/488  82.8s
+default DONE 488 rows in 84.2s
+ALL DONE

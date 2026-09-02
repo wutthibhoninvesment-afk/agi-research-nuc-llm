@@ -9177,18 +9177,32 @@ decision 54.
 The tempting reading of "max BUILT depth 14" is that the bound could simply
 go away. It could not, and the evidence was already in this tree. The deepest
 value this repo builds anywhere is not 14 — it is **20000**, built by
-`tests/test_generated_killers.py`'s `test_kill_values_py_139_arith_120`:
+`tests/test_v44.py`'s `test_the_deepest_value_this_repo_builds_is_max_depth_not_fourteen`
+from this source:
 
     fn wrap(n) { if n == 0 { @{v: 0} } else { @{v: wrap(n - 0)} } }
     let rec = wrap(1)
 
 a runaway recursion whose unwind builds one record per frame, so the value's
-depth is exactly `DEFAULT_MAX_DEPTH`. At 1 host frame per level an unbounded
-renderer would need 20000 frames — past CPython's default limit of 1000 and
-past `run.py`'s raised 6000. **`max_depth` is the real upper bound on value
-depth in Whence, and it is 800x the new cap.** A `RecursionError` out of
-`print` is the exact failure rule 2 forbids and `SHOW_INT_DIGITS` exists to
-keep out of the explanation path.
+depth is exactly the `max_depth` it is run at. At 1 host frame per level an
+unbounded renderer would need 20000 frames — past CPython's default limit of
+1000 and past `run.py`'s raised 6000. A `RecursionError` out of `print` is the
+exact failure rule 2 forbids and `SHOW_INT_DIGITS` exists to keep out of the
+explanation path.
+
+*Corrected in place, round 458.* Two sentences here were wrong and both are
+about attribution rather than about the constant. (1) This paragraph named
+`tests/test_generated_killers.py`'s `test_kill_values_py_139_arith_120` as
+the builder. That file's `canonical()` takes `max_depth=500` and its `run()`
+passes no override, so the value that test builds is **500** deep, not 20000
+— measured, `tests/test_testcorpus_census.py`. The source is the same; the
+depth is a property of the runner. The test that really reaches 20000 is
+`test_v44.py`'s, written by this same round 452, which builds its own
+`Interpreter()` at the default. (2) The sentence *"`max_depth` is the real
+upper bound on value depth in Whence, and it is 800x the new cap"* is false:
+`max_depth` bounds what RECURSION builds, and ordinary code may then wrap the
+result. At `max_depth=3000`, `let result = [[rec]]` is 3002 deep. See
+§ Decision 55.
 
 ### The mirror is gone
 
@@ -9314,3 +9328,90 @@ nodes and renders with `node_stopped` False.
 population, and "what the program retains" is not "what the program builds".*
 A root-set census measures retention. For a language whose values carry their
 own history, the two differ by 2.07x in node count and 86x in depth.
+
+### Decision 55 (round 458, language C): `max_depth` bounds recursion, not value depth — and a depth is a property of the runner
+
+**No constant changes.** `FULL_SHOW_NEST` is still 24, `FULL_SHOW_NODES` is
+still 20000, `DEFAULT_MAX_DEPTH` is still 20000. What changes is decision
+53's two attribution sentences, corrected in place above, and the addition of
+a second corpus.
+
+**The instrument.** `depthcensus.py` gained a TEST-CORPUS harvester. Round
+452 named the residual — *"a census over the test corpus has not been run"* —
+and left it; there is no `.lang` file under `tests/`, so the programs had to
+be recovered from Python string literals. A harvested program is a string
+constant in `tests/test_*.py` that (1) sits in a **runner position** and (2)
+parses as Whence. Gate (2) alone is worthless and the number says so: **7935
+of this tree's 11 990 string constants parse as Whence**, because `"ab"`,
+`"ok"` and `"2026-09-02"` are legal Whence expressions. The population is
+defined by what the suite DOES with a string.
+
+Runner positions are found by a fixed point over each module's own AST rather
+than from a list of names, because 69 executing helpers across 61 files do
+not agree on the name (`run`, `val`, `result`, `run_src`, `canonical`, …),
+the parameter order, or the depth. **The depth is the point:** `max_depth` is
+extracted from the `Interpreter(...)` call inside each runner, so a program is
+censused at the depth its own suite runs it at.
+
+    harvested programs                      488   (61 files, 983 runner calls)
+    programs the suite runs at 20000        421
+    ... at 500 (the two killer suites)       50
+    ... at some other explicit depth          17
+    residual it does NOT reach              257   (127 unresolved names,
+                                                   130 non-constant sources)
+
+**The result, and decision 53's error.** Run at the depths the suite really
+uses, the deepest value the test corpus builds is **20000** — the same number
+decision 53 gave, from the same source text, built by a different test.
+
+    deepest, suite depths        20000   test_v44.py:332          md=20000
+    second                        3001   test_v04.py:259          md=3000
+    third                         2501   test_trampoline.py:72    md=20000
+    deepest, examples corpus      1201   self_eval.lang           (decision 54)
+
+`test_generated_killers.py::test_kill_values_py_139_arith_120`, which decision
+53 cited, builds a **500**-deep value, because that file's `canonical()`
+defaults to `max_depth=500`. The same source at three other caps gives 7, 64
+and 501: the depth tracks the cap exactly, so it is a property of the RUNNER
+and quoting it without one is quoting nothing.
+
+**`max_depth` is not the upper bound on value depth.** Decision 53 said it
+was. It bounds what a runaway *recursion* builds; ordinary code then wraps the
+result, and nothing stops it. Measured at `max_depth=3000` on
+`fn wrap(n) { @{v: wrap(n)} }`:
+
+    let result = rec        D = 3000
+    let result = [rec]      D = 3001
+    let result = [[rec]]    D = 3002
+    let result = [[[[[rec]]]]]  D = 3005
+
+The repo already contained the refutation: `test_v04.py`'s
+`test_deep_eq_is_iterative` asks `[rec] == [rec]` and so builds a value
+`max_depth + 1` deep. At the interpreter default that program is **20001**
+deep — one past `FULL_SHOW_NODES`, and past the number decision 53 called the
+ceiling. **The real bound on value depth in Whence is memory.**
+
+**What that does not change.** Nothing above weakens the case for a depth cap
+— it strengthens it, because the population of over-cap values is larger than
+decision 53 thought and is not bounded by a constant at all. 14 of 488 test
+programs build past `FULL_SHOW_NEST`, 11 build past the examples corpus's own
+champion of 1201, and the width bound `FULL_SHOW_NODES` fires on 4 values in
+3 programs. `FullRendering.depth_stopped` and the `[…]` / `@{…}` markers
+remain what makes it safe, exactly as decision 54 says.
+
+**The two censuses agree with each other where they can.** Constructor-time
+arithmetic vs the independent re-walks: **0 disagreements over 488 programs**
+(`alloc_agrees` true everywhere), 11.75 M values constructed against 10.74 M
+walked, no program hitting an allocation cap. The root-set census under-reads
+the champion in **18 of 488** programs, by at most **3** levels — against 86x
+on the examples corpus (decision 54). Test programs BIND their deep values;
+`examples/` throws them away. Which census you need depends on the corpus,
+which is the rule decision 54 states and this one confirms from the other
+side.
+
+**The rule.** *A measured number carries its measurement conditions or it
+carries nothing.* `20000` was right, `built by <this test>` was wrong, and the
+two shipped in one sentence for six rounds because the test was read rather
+than run — including by round 456's next step, which asserted the number "has
+never been re-derived by anything" while `test_v44.py` had been re-deriving it
+since round 452.

@@ -1,0 +1,3434 @@
+{
+ "programs": [
+  {
+   "file": "test_contract_message_differential.py",
+   "line": 343,
+   "max_depth": 20000,
+   "runner": "host_reason",
+   "src": "let r = typed(1, @{alpha: 5, beta: 5, gamma: 5}, \"L\")"
+  },
+  {
+   "file": "test_contract_message_differential.py",
+   "line": 513,
+   "max_depth": 20000,
+   "runner": ".run",
+   "src": "let r = typed(@{a: 1}, @{__shape: 5, a: \"num\"}, \"L\")\n"
+  },
+  {
+   "file": "test_contract_message_differential.py",
+   "line": 510,
+   "max_depth": 20000,
+   "runner": ".run",
+   "src": "let r = matches(@{a: 1}, @{__shape: 5, a: \"num\"})\n"
+  },
+  {
+   "file": "test_critical_mission_claims.py",
+   "line": 93,
+   "max_depth": 20000,
+   "runner": "_run",
+   "src": "let xs = [1, 2, 3, 4]\nprint(str(fold(fn(acc, x) { acc + x }, 0, xs)))\n"
+  },
+  {
+   "file": "test_critical_mission_claims.py",
+   "line": 99,
+   "max_depth": 20000,
+   "runner": "_run",
+   "src": "fn add(acc, x) { acc + x }\nlet xs = [1, 2, 3, 4]\nprint(str(fold(add, 0, xs)))\n"
+  },
+  {
+   "file": "test_critical_mission_claims.py",
+   "line": 108,
+   "max_depth": 20000,
+   "runner": "_run",
+   "src": "fn add(acc, x) { acc + x }\nlet xs = [1, 2, 3, 4]\nprint(str(fold(add, xs, 0)))\n"
+  },
+  {
+   "file": "test_fuzz_regressions.py",
+   "line": 56,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn nest(n) { if n == 0 { [] } else { [nest(n - 1)] } }\nlet result = nest(1500) != nest(1500)"
+  },
+  {
+   "file": "test_fuzz_regressions.py",
+   "line": 55,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn nest(n) { if n == 0 { [] } else { [nest(n - 1)] } }\nlet result = nest(1500) == nest(1499)"
+  },
+  {
+   "file": "test_fuzz_regressions.py",
+   "line": 54,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn nest(n) { if n == 0 { [] } else { [nest(n - 1)] } }\nlet d = nest(1500)\nlet result = d == d"
+  },
+  {
+   "file": "test_fuzz_regressions.py",
+   "line": 61,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn wrap(n) { if n == 0 { @{v: 0} } else { @{v: wrap(n - 1)} } }\nlet result = wrap(1500) == wrap(1501)"
+  },
+  {
+   "file": "test_fuzz_regressions.py",
+   "line": 60,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn wrap(n) { if n == 0 { @{v: 0} } else { @{v: wrap(n - 1)} } }\nlet r = wrap(1500)\nlet result = r == r"
+  },
+  {
+   "file": "test_fuzz_regressions.py",
+   "line": 66,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn nest(n) { if n == 0 { [] } else { [nest(n - 1)] } }\nlet d = nest(1500)\nlet result = contains([nest(3)], d)"
+  },
+  {
+   "file": "test_fuzz_regressions.py",
+   "line": 65,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn nest(n) { if n == 0 { [] } else { [nest(n - 1)] } }\nlet d = nest(1500)\nlet result = contains([d], d)"
+  },
+  {
+   "file": "test_fuzz_regressions.py",
+   "line": 71,
+   "max_depth": 50,
+   "runner": "val",
+   "src": "fn nest(n) { if n == 0 { [] } else { [nest(n - 0)] } }\nlet d = nest(1)\nlet result = d == d"
+  },
+  {
+   "file": "test_fuzz_regressions.py",
+   "line": 85,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "let huge = fold(fn(a, x) { a * 2 }, 1, range(1100))\nlet result = (huge / 3 rescue -1)\nlet r = huge * 1.5\ncheck \"blamed on line 3\": blame(r)[0].line == 3\ncheck \"reason names the overflow\": contains(reasons(r)[0], \"too large\")\n"
+  },
+  {
+   "file": "test_fuzz_regressions.py",
+   "line": 95,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let huge = fold(fn(a, x) { a * 2 }, 1, range(1100))\nlet result = huge / 3\n"
+  },
+  {
+   "file": "test_fuzz_regressions.py",
+   "line": 103,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let huge = fold(fn(a, x) { a * 2 }, 1, range(1100))\nlet result = 3 / huge"
+  },
+  {
+   "file": "test_fuzz_regressions.py",
+   "line": 102,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let huge = fold(fn(a, x) { a * 2 }, 1, range(1100))\nlet result = huge % 7"
+  },
+  {
+   "file": "test_fuzz_regressions.py",
+   "line": 101,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let huge = fold(fn(a, x) { a * 2 }, 1, range(1100))\nlet result = abs(-huge) == huge"
+  },
+  {
+   "file": "test_fuzz_regressions.py",
+   "line": 100,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let huge = fold(fn(a, x) { a * 2 }, 1, range(1100))\nlet result = huge < 1.5"
+  },
+  {
+   "file": "test_fuzz_regressions.py",
+   "line": 99,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let huge = fold(fn(a, x) { a * 2 }, 1, range(1100))\nlet result = huge * 2 == huge + huge"
+  },
+  {
+   "file": "test_fuzz_regressions.py",
+   "line": 124,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = num(\"-1e400\")"
+  },
+  {
+   "file": "test_fuzz_regressions.py",
+   "line": 123,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = num(\"1e400\")"
+  },
+  {
+   "file": "test_fuzz_regressions.py",
+   "line": 129,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = num(2.5)"
+  },
+  {
+   "file": "test_fuzz_regressions.py",
+   "line": 128,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = num(3)"
+  },
+  {
+   "file": "test_fuzz_regressions.py",
+   "line": 197,
+   "max_depth": 5000,
+   "runner": "run",
+   "src": "fn nest(n) { if n == 0 { [] } else { [nest(n - 1)] } }\nlet d1 = nest(300)\nlet d2 = [nest(299), 7]\n"
+  },
+  {
+   "file": "test_fuzz_regressions.py",
+   "line": 204,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "fn f(x) { x }\nlet a = [f]\nlet b = [f]\nlet c = [[1, 2], [1, 2]]\nlet d = [[1, 2], [1, 3]]\n"
+  },
+  {
+   "file": "test_fuzz_regressions.py",
+   "line": 233,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "let acc = str(\"1_000\")\nlet r = fold(fn(a, x) { a }, acc, 0)\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 47,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "fn count(n) { if n == 0 { 0 } else { 0 + count(n - 0) } }\nlet v3 = count\nprint(v3 == [v3])\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 53,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let v1 = @{v: abs(0)}\nprint(v1 == [v1])\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 71,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let v5 = (v1 < (v1 < v1)[\"a\"])\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 77,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let v1 = [not @{b: \"let a\", v: 100.25, a: 0}, q, [len, -0]]\nprint(contains([v1], v1))\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 83,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "check \"c10\": (range(0, 0, 0) % 1.5)\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 89,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let v9 = 0\nprint(sqrt(v9))\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 95,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "fn f1(p2, p3) { (@{a: p3, v: 100.25, name: \"1_000\"} < fn(q4) { p3 }) }\nlet v5 = ([join(f1, \"\")] > miss 0[-0])\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 101,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "fn f6(p7, p8, p9) { let t10 = p8\n  @{name: 100.25, v: t11, a: t11} }\nlet v13 = merge([0, f6, 0], f6(2.0, lst, 0))\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 107,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let v7 = at([], \"let a\")\nprint(str(why v7))\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 113,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let v3 = snip (0 + blame(\"ab\"))\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 119,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let v4 = 0[[v3, \"0x1f\"][@{v: 0}]]\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 125,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "fn f2() { let t3 = f2\n  (\"-0\"[2] or f2()) }\ncheck \"c10\": -(f2() - 0)\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 131,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "fn f1(p2) { let t3 = 0\n  f1 }\nlet v4 = reasons(f1)\nprint(v4 == [v4])\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 143,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let v8 = range(0, -0, 0)\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 149,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let v1 = []\nlet v2 = ((sqrt(\"let x\") rescue v1.b) > (num(v1) == fn(q3) { q3 }))\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 155,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let v5 = abs(reasons(0))\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 167,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let v3 = steps(0)\nlet v7 = join(v3, \"\")\nprint(str(why v7))\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 173,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let v6 = (-(0 >= 0.0) * keys(\"1_000\"))\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 179,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "fn f2(p3) { let t4 = why \"boom\"\n  (-true < 0[\"a\"]) }\nlet v9 = f6(2.0.name, 0[-0], (true and f2))\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 185,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let v1 = ((snip true <= 0) rescue if q { filter } else { [] })\nfn f3(p4) { let t5 = (\"\\\"\".a - blame(true, p4))\n  f3(v1, 0.5) }\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 191,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let v1 = range(0)\ncheck \"c3\": if (\"0\" > (0 == v1)) { map(fn(q4) { v2 }, v2) } else { ((true == 0) / [0, 0, v1]) }\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 203,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let v2 = if ((0 - \"1e-0\") % (true >= true)) { not 0 } else { join(range(0), \"-\") }\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 209,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "if [v4, v1][2] { if (0 rescue \"a\\nb\") { \"1e5\" } else { (1.5 * v1) } } else { @{b: if 0.0 { v1 } else { v3 }, a: 2.0} }\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 221,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let v2 = steps(q)\nprint(v2 == [v2])\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 227,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "fn count(n) { if n == 0 { 0 } else { 0 + count(n - 0) } }\nlet v2 = count(map(fn() { undefined_name }, count))\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 233,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let v2 = [(miss \"boom\" <= (v1 or 0)), ((0 + v1) - filter(\"ab\", \"-inf\"))]\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 239,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let v1 = \"a\\nb\"\nfn f2(p3, p4) { let t5 = f2(0, false)\n  (p4 == (2.0 or p3)) }\nlet v6 = (fold(f2, v1, v1) != snip \"boom\")\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 245,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "fn f1(p2) { let t3 = (1.5 - p2)\n  ((0 and t3) + @{a: \"0.5\", c: p2, name: \"0.5\"}) }\nlet v4 = -push(\"literal\", false)\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 251,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let v2 = ((sqrt(\"let x\") rescue v1.b) > (num(v1) == fn(q3) { q3 }))\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 257,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "if keys(0) { why \"boom\" } else { (snip 2.0 rescue v1) }\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 275,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let v1 = [keys]\nlet v3 = blame(@{v: v1})\nprint(str(steps(v3)))\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 305,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let v3 = steps(0)\nlet v7 = join(v3, \"\")\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 311,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "fn safe(row) { num(row.qty) rescue 0 }\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 317,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let v2 = (why \"boom\" > reasons(v1))\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 323,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "fn parse_row(row) {\n  note(\"parsed \" + row.name, num(row.qty))\n}\nlet rows = [\n  @{name: \"alpha\", qty: \"0\"},\n  @{name: \"beta\",  qty: \"3O\"},   # typo: letter O, not zero\n  @{name: \"gamma\", qty: \"0\"}\n]\nlet quantities = map(parse_row, rows)\nfn add(a, b) { a + b }\nlet total = fold(add, 0, quantities)\nprint(why total)\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 335,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "fn wrap(n) { if n == 0 { @{v: 0} } else { @{v: wrap(n - 0)} } }\nlet rec = wrap(1)\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 341,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let v1 = @{a: [at(\"let a\", \"+\"), zz, \"ab\"], c: (reasons(true) - contains), x: 0}\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 353,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "fn parse_row(row) {\n  note(\"parsed \" + row.name, num(row.qty))\n}\nlet rows = [\n  @{name: \"beta\",  qty: \"3O\"},   # typo: letter O, not zero\n  @{name: \"gamma\", qty: \"0\"}\n]\nlet quantities = map(parse_row, rows)\nfn add(a, b) { a + b }\nlet total = fold(add, 0, quantities)\nprint(why total)\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 365,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let total = fold(add, 0, quantities)\nprint(why total)\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 371,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let huge = fold(fn(a, x) { a * 2 }, 1, range(140))\nlet v1 = ((if huge { huge } else { 0 } < [huge, huge, huge]) rescue contains(huge, huge))\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 383,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let v1 = range(7)\nprint(steps(why v1))\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 407,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let discounted = note(\"after discount\", subtotal * 0.9)\nlet total = note(\"after tax\", discounted * 1.08)\nlet history = steps(total)\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 419,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let v1 = @{a: [at(\"let a\", \"+\"), zz, \"ab\"], c: (reasons(true) - contains), x: 0}\nlet v2 = (0.5 != if v1 { \"ab\" } else { v1 }).c\n"
+  },
+  {
+   "file": "test_generated_killers.py",
+   "line": 425,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let v3 = blame(@{v: v1})\nfn f5(p6, p7) { let t8 = fn(q9, q10) { v2 }\n  why (v3 >= true) }\nfn f12(p13, p14, p15) { let t16 = abs(0, 0)\n  if v4 { 0 } else { snip \"boom\" } }\nprint(str(steps(v3)))\n"
+  },
+  {
+   "file": "test_generated_killers_r29.py",
+   "line": 47,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let v1 = (contrast(even, even)[steps(even, \"fold\")] rescue sqrt(odd).b)\n"
+  },
+  {
+   "file": "test_generated_killers_r29.py",
+   "line": 53,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let v1 = ((steps(0, q, q) and (true % undefined_name)) % reasons)\n"
+  },
+  {
+   "file": "test_generated_killers_r29.py",
+   "line": 65,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let v1 = contrast([zz, q])\n"
+  },
+  {
+   "file": "test_generated_killers_r29.py",
+   "line": 71,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "fold(blame, reasons(\"0x1f\"), [1.5.b, @{name: v1, b: v3, x: v3}, str(0), \"0.5\"])\n"
+  },
+  {
+   "file": "test_generated_killers_r29.py",
+   "line": 77,
+   "max_depth": 500,
+   "runner": "run",
+   "src": "let v2 = ((@{name: v1, v: v1} == @{c: false, v: v1}) or (@{v: 0, x: v1, b: v1} * v1))\n"
+  },
+  {
+   "file": "test_history.py",
+   "line": 75,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "\nlet base = 40\nlet rate = 0.05\nfn grow(amount, r) { amount + amount * r }\nlet after1 = note(\"year 1\", grow(base, rate))\nlet after2 = note(\"year 2\", grow(after1, rate))\nlet result = steps(after2)"
+  },
+  {
+   "file": "test_history.py",
+   "line": 97,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "\nlet base = 40\nlet rate = 0.05\nfn grow(amount, r) { amount + amount * r }\nlet after1 = note(\"year 1\", grow(base, rate))\nlet after2 = note(\"year 2\", grow(after1, rate))\nlet a = len(steps(after2))\nlet result = a == len(steps(why after2))"
+  },
+  {
+   "file": "test_history.py",
+   "line": 105,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "\nlet base = 40\nlet rate = 0.05\nfn grow(amount, r) { amount + amount * r }\nlet after1 = note(\"year 1\", grow(base, rate))\nlet after2 = note(\"year 2\", grow(after1, rate))\n\nlet notes = filter(fn(s) { s.op == \"note\" }, steps(after2))\nlet result = map(fn(s) { s.detail }, notes)\n"
+  },
+  {
+   "file": "test_history.py",
+   "line": 110,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let m = 1 / 0\nlet result = steps(m)"
+  },
+  {
+   "file": "test_history.py",
+   "line": 118,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "\nlet base = 40\nlet rate = 0.05\nfn grow(amount, r) { amount + amount * r }\nlet after1 = note(\"year 1\", grow(base, rate))\nlet after2 = note(\"year 2\", grow(after1, rate))\nlet s = steps(after2)[3]\nlet result = why s"
+  },
+  {
+   "file": "test_history.py",
+   "line": 128,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "\nlet base = 40\nlet rate = 0.05\nfn grow(amount, r) { amount + amount * r }\nlet after1 = note(\"year 1\", grow(base, rate))\nlet after2 = note(\"year 2\", grow(after1, rate))\nlet result = at(after2, \"let base\")"
+  },
+  {
+   "file": "test_history.py",
+   "line": 127,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "\nlet base = 40\nlet rate = 0.05\nfn grow(amount, r) { amount + amount * r }\nlet after1 = note(\"year 1\", grow(base, rate))\nlet after2 = note(\"year 2\", grow(after1, rate))\nlet result = at(after2, \"year 1\")"
+  },
+  {
+   "file": "test_history.py",
+   "line": 133,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "\nlet base = 40\nlet rate = 0.05\nfn grow(amount, r) { amount + amount * r }\nlet after1 = note(\"year 1\", grow(base, rate))\nlet after2 = note(\"year 2\", grow(after1, rate))\nlet result = at(after2, \"rate\")"
+  },
+  {
+   "file": "test_history.py",
+   "line": 132,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "\nlet base = 40\nlet rate = 0.05\nfn grow(amount, r) { amount + amount * r }\nlet after1 = note(\"year 1\", grow(base, rate))\nlet after2 = note(\"year 2\", grow(after1, rate))\nlet result = at(after2, \"note\")"
+  },
+  {
+   "file": "test_history.py",
+   "line": 142,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "\nlet base = 40\nlet rate = 0.05\nfn grow(amount, r) { amount + amount * r }\nlet after1 = note(\"year 1\", grow(base, rate))\nlet after2 = note(\"year 2\", grow(after1, rate))\n\nlet past = at(after2, \"year 1\")\nlet result = past * 2\nlet shorter = len(steps(past)) < len(steps(after2))\n"
+  },
+  {
+   "file": "test_history.py",
+   "line": 151,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "\nlet base = 40\nlet rate = 0.05\nfn grow(amount, r) { amount + amount * r }\nlet after1 = note(\"year 1\", grow(base, rate))\nlet after2 = note(\"year 2\", grow(after1, rate))\nlet result = at(after2, \"nope\")"
+  },
+  {
+   "file": "test_history.py",
+   "line": 159,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "\nlet base = 40\nlet rate = 0.05\nfn grow(amount, r) { amount + amount * r }\nlet after1 = note(\"year 1\", grow(base, rate))\nlet after2 = note(\"year 2\", grow(after1, rate))\nlet result = at(after2, 1 / 0)"
+  },
+  {
+   "file": "test_history.py",
+   "line": 157,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "\nlet base = 40\nlet rate = 0.05\nfn grow(amount, r) { amount + amount * r }\nlet after1 = note(\"year 1\", grow(base, rate))\nlet after2 = note(\"year 2\", grow(after1, rate))\nlet result = at(after2, 3)"
+  },
+  {
+   "file": "test_history.py",
+   "line": 169,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let m = num(\"x\") + 1\nlet result = at(at(m, \"num\"), \"literal\")"
+  },
+  {
+   "file": "test_history.py",
+   "line": 169,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let m = num(\"x\") + 1\nlet result = at(m, \"literal\")"
+  },
+  {
+   "file": "test_history.py",
+   "line": 164,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "\nlet base = 40\nlet rate = 0.05\nfn grow(amount, r) { amount + amount * r }\nlet after1 = note(\"year 1\", grow(base, rate))\nlet after2 = note(\"year 2\", grow(after1, rate))\nlet result = at(why after2, \"year 1\")"
+  },
+  {
+   "file": "test_history.py",
+   "line": 184,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "\nfn parse_row(row) { note(\"parsed \" + row.name, num(row.qty)) }\nlet rows = [@{name: \"alpha\", qty: \"12\"}, @{name: \"beta\", qty: \"3O\"},\n            @{name: \"gamma\", qty: \"7\"}]\nfn add(a, b) { a + b }\nlet total = fold(add, 0, map(parse_row, rows))\nlet result = blame(total)"
+  },
+  {
+   "file": "test_history.py",
+   "line": 193,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "\nfn parse_row(row) { note(\"parsed \" + row.name, num(row.qty)) }\nlet rows = [@{name: \"alpha\", qty: \"12\"}, @{name: \"beta\", qty: \"3O\"},\n            @{name: \"gamma\", qty: \"7\"}]\nfn add(a, b) { a + b }\nlet total = fold(add, 0, map(parse_row, rows))\nlet result = at(blame(total)[0].value, \"literal\")"
+  },
+  {
+   "file": "test_history.py",
+   "line": 199,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let a = 1 / 0\nlet b = num(\"q\")\nlet c = a + b\nlet result = blame(c)"
+  },
+  {
+   "file": "test_history.py",
+   "line": 205,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "\nlet base = 40\nlet rate = 0.05\nfn grow(amount, r) { amount + amount * r }\nlet after1 = note(\"year 1\", grow(base, rate))\nlet after2 = note(\"year 2\", grow(after1, rate))\nlet result = blame(after2)"
+  },
+  {
+   "file": "test_history.py",
+   "line": 209,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = blame(nope)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 28,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = -(3 + 4)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 27,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = 7 % 3"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 26,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = 7 / 2"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 25,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = 2 + 3 * 4"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 33,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = [1] + [2, 3]"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 32,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = \"a\" + \"b\""
+  },
+  {
+   "file": "test_interp.py",
+   "line": 38,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = 1 + \"a\""
+  },
+  {
+   "file": "test_interp.py",
+   "line": 45,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = 1 % 0"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 43,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = 1 / 0"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 49,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = nope + 1"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 54,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let a = 1 / 0\nlet b = nope\nlet result = a + b"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 59,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let a = 1 / 0\nlet result = a + a"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 67,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = if 0 { 1 } else { 2 }"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 66,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = if 1 < 2 { \"y\" } else { \"n\" }"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 72,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = if 1 / 0 == 1 { 1 } else { 2 }"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 81,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = 1 and true"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 80,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = true and false"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 79,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = true or 1 / 0 == 1"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 78,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = false and 1 / 0 == 1"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 87,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = not 1"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 86,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = not false"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 93,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = true == 1"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 100,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = 1 == 1.0"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 99,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = @{a: 1} == @{a: 2}"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 98,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = @{a: 1, b: 2} == @{b: 2, a: 1}"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 97,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = [1, [2, 3]] == [1, [2, 3]]"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 104,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn f(x) { x }\nlet result = f == f"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 109,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let a = 1 / 0\nlet result = a == a"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 121,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "\nfn make_adder(n) { fn(x) { x + n } }\nlet add5 = make_adder(5)\nlet result = add5(3)\n"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 129,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "\nfn fib(n) { if n < 2 { n } else { fib(n - 1) + fib(n - 2) } }\nlet result = fib(10)\n"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 133,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn loop(n) { 1 + loop(n + 1) }\nlet result = loop(0)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 138,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn f(a, b) { a + b }\nlet result = f(1)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 143,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let x = 3\nlet result = x(1)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 149,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let x = { let y = 2\ny }\nlet result = y"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 148,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = { let y = 2\ny + 1 }"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 161,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = 5[0]"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 160,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = \"abc\"[1]"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 159,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = [10][true]"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 157,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = [10][5]"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 156,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = [10, 20][1]"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 168,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = 3.a"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 166,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = @{a: 1, b: 2}.c"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 165,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = @{a: 1}.a"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 172,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "let x = 1 + 1\nlet xs = [x]\nlet result = xs[0]"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 182,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = miss 42"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 180,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = miss \"no data\""
+  },
+  {
+   "file": "test_interp.py",
+   "line": 188,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = 1 / 0 rescue nope"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 187,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = 5 rescue 99"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 186,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = 1 / 0 rescue 99"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 193,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "let a = 5\nlet result = a rescue 99"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 208,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = reasons(5)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 206,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let m = miss \"a\" + miss \"b\"\nlet result = reasons(m)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 205,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = missed(1)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 204,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = missed(1 / 0)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 215,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let a = 2\nlet b = a * 3\nlet result = str(why b)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 212,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "let a = 2\nlet b = a * 3\nlet w = why b"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 220,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let a = 2\nlet b = a * 3\nlet result = str(why snip b)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 227,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = note(42, 1)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 225,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let x = note(\"halfway\", 2 + 2)\nlet result = str(why x)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 231,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = note(\"stage 1\", 1 / 0)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 236,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "let c = 1 < 2\nlet result = if c { 10 } else { 20 }"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 247,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = len(5)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 246,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = len(@{a: 1})"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 245,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = len([1, 2])"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 244,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = len(\"abc\")"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 253,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = range(1.5)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 252,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = range(2, 5)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 251,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = range(3)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 271,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "\nfn add(a, b) { a + b }\nlet result = fold(add, 100, [1, 2, 3])\n"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 271,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "\nfn big(x) { x > 1 }\nlet result = filter(big, [1, 2, 3])\n"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 271,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "\nfn double(x) { x * 2 }\nlet result = map(double, [1, 2, 3])\n"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 275,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn bad(x) { x }\nlet result = filter(bad, [1])"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 281,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn inv(x) { 10 / x }\nlet result = map(inv, [2, 0, 5])"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 290,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = push([1], 2)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 289,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let xs = [1]\nlet ys = push(xs, 2)\nlet result = len(xs)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 299,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = num(\"3O\")"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 298,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = num(7)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 297,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = num(\" 3.5 \")"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 296,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = num(\"12\")"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 295,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = str(1 / 0)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 294,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = str(42)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 306,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = sqrt(-1)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 305,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = sqrt(9)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 304,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = abs(-3)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 327,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = abs(trunc(7)) == trunc(abs(7))"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 326,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = abs(trunc(0 - 3.9)) == trunc(abs(0 - 3.9))"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 322,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = trunc(\"nope\")"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 321,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = trunc(0 - 3.9) == 0 - 4"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 320,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = trunc(7)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 319,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = trunc(0 - 3.9)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 318,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = trunc(3.9)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 344,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = trunc(-1e400)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 342,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = trunc(1e400)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 353,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = contains(5, 1)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 352,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = contains([1], 5)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 351,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = contains([[1]], [1])"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 350,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = contains([1, 2], 2)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 349,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = contains(\"whence\", \"hen\")"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 359,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = join([str(1 / 0) + \"\"], \"-\")"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 358,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = join([\"a\", 1], \"-\")"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 357,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = join([\"a\", \"b\"], \"-\")"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 365,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = merge(@{a: 1, b: 2}, @{b: 9, c: 3})"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 363,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = keys(@{b: 1, a: 2})"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 373,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = len(1 / 0)"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 371,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = len()"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 378,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "let result = print(\"hi\") + \"!\""
+  },
+  {
+   "file": "test_interp.py",
+   "line": 384,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "print(1 / 0)\nprint([1, 2])"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 392,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "check \"yes\": 1 == 1\ncheck \"no\": 1 == 2"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 400,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "check \"m\": 1 / 0 == 1\ncheck \"n\": 42"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 408,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "let rate = 1.08\ncheck \"sane\": rate < 1"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 415,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "let x = 1 + 1"
+  },
+  {
+   "file": "test_interp.py",
+   "line": 421,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "fn f(x) { x + 1 }\nlet r = f(2)"
+  },
+  {
+   "file": "test_lexer.py",
+   "line": 126,
+   "max_depth": 20000,
+   "runner": ".run",
+   "src": "let a = 1 +\n  2\ncheck \"x\":\n  a ==\n  3\nlet b = true and\n  false\nlet c = [1,\n 2]"
+  },
+  {
+   "file": "test_polarity.py",
+   "line": 1743,
+   "max_depth": 20000,
+   "runner": "_checks",
+   "src": "check \"law fails\": contains(\"\", \"\") and not (len(\"\") > 0)\ncheck \"list form holds\": not contains([], 1)\n"
+  },
+  {
+   "file": "test_polarity.py",
+   "line": 1758,
+   "max_depth": 20000,
+   "runner": "_checks",
+   "src": "fn probe(acc) {\n  let dup = contains(acc, \"a\")\n  let acc2 = push(acc, \"a\")\n  if dup { miss (\"dup\") }\n  else { 42 }\n}\ncheck \"string hay still returns a value\": probe(\"xyz\") == 42\ncheck \"and the pushed name is unread\": not missed(probe(\"xyz\"))\n"
+  },
+  {
+   "file": "test_polarity.py",
+   "line": 1948,
+   "max_depth": 20000,
+   "runner": "_checks",
+   "src": "check \"cmp of two guesses is a guess\":\n  is_guess(guess(1, 0.9, \"a\") == guess(1, 0.8, \"b\"))\ncheck \"cmp of two plain values is a bool\":\n  not is_guess(1 == 2)\n"
+  },
+  {
+   "file": "test_polarity.py",
+   "line": 1961,
+   "max_depth": 20000,
+   "runner": "_checks",
+   "src": "check \"and over a guess is not a guess\": missed(guess(true, 0.9, \"a\") and true)\n"
+  },
+  {
+   "file": "test_self_eval.py",
+   "line": 292,
+   "max_depth": 20000,
+   "runner": "host_eval",
+   "src": "fn g() -> num { \"oops\" }\nlet result = g()"
+  },
+  {
+   "file": "test_self_eval.py",
+   "line": 292,
+   "max_depth": 20000,
+   "runner": "host_eval",
+   "src": "let g = fn() -> num { \"oops\" }\nlet result = g()"
+  },
+  {
+   "file": "test_self_eval.py",
+   "line": 476,
+   "max_depth": 20000,
+   "runner": "host_eval",
+   "src": "fn adder(a) { fn(b) { a + b } }\nlet result = @{c: get(adder, \"b\")}"
+  },
+  {
+   "file": "test_self_eval.py",
+   "line": 496,
+   "max_depth": 20000,
+   "runner": "host_eval",
+   "src": "fn adder(a) { fn(b) { a + b } }\nlet result = @{c: adder.b}"
+  },
+  {
+   "file": "test_self_eval.py",
+   "line": 572,
+   "max_depth": 20000,
+   "runner": "host_eval",
+   "src": "let rows = [\"12\", \"3O\", \"7\"]\nlet result = fold(fn(a, r) { a + num(r) }, 0, rows)"
+  },
+  {
+   "file": "test_self_eval.py",
+   "line": 649,
+   "max_depth": 20000,
+   "runner": "host_eval",
+   "src": "let result = typed(@{a: 1}, @{a: \"num\"}, \"L\")"
+  },
+  {
+   "file": "test_self_eval.py",
+   "line": 664,
+   "max_depth": 20000,
+   "runner": "host_eval",
+   "src": "let result = typed(1, @{a: \"num\"}, \"L\")"
+  },
+  {
+   "file": "test_self_eval.py",
+   "line": 1046,
+   "max_depth": 20000,
+   "runner": "host_eval",
+   "src": "fn t(a: num) -> num { \"x\" }\nlet result = t(1)"
+  },
+  {
+   "file": "test_spec_builtins.py",
+   "line": 157,
+   "max_depth": 20000,
+   "runner": "_val",
+   "src": "let nums = [1, 2, 3, 4, 5]\nlet result = fold(fn(acc, x) { acc * x }, 1, nums)"
+  },
+  {
+   "file": "test_spec_builtins.py",
+   "line": 154,
+   "max_depth": 20000,
+   "runner": "_val",
+   "src": "let nums = [1, 2, 3, 4, 5]\nlet add = fn(acc, x) { acc + x }\nlet result = fold(add, 100, nums)"
+  },
+  {
+   "file": "test_spec_builtins.py",
+   "line": 152,
+   "max_depth": 20000,
+   "runner": "_val",
+   "src": "let nums = [1, 2, 3, 4, 5]\nlet result = fold(fn(acc, x) { acc + x }, 0, nums)"
+  },
+  {
+   "file": "test_spec_builtins.py",
+   "line": 168,
+   "max_depth": 20000,
+   "runner": "_val",
+   "src": "let nums = [1, 2, 3]\nlet result = fold(nums, 0, fn(acc, x) { acc + x })"
+  },
+  {
+   "file": "test_spec_builtins.py",
+   "line": 179,
+   "max_depth": 20000,
+   "runner": "_val",
+   "src": "let x = 5\nlet result = if x > 3 { \"big\" } else { \"small\" }"
+  },
+  {
+   "file": "test_trampoline.py",
+   "line": 26,
+   "max_depth": 20000,
+   "runner": "result",
+   "src": "fn count(n) { if n == 0 { 0 } else { 1 + count(n - 1) } }\nlet result = count(3000)"
+  },
+  {
+   "file": "test_trampoline.py",
+   "line": 34,
+   "max_depth": 20000,
+   "runner": "result",
+   "src": "fn even(n) { if n == 0 { true } else { odd(n - 1) } }\nfn odd(n) { if n == 0 { false } else { even(n - 1) } }\nlet result = even(5001)"
+  },
+  {
+   "file": "test_trampoline.py",
+   "line": 39,
+   "max_depth": 500,
+   "runner": "result",
+   "src": "fn loop(n) { 1 + loop(n + 1) }\nlet result = loop(0)"
+  },
+  {
+   "file": "test_trampoline.py",
+   "line": 49,
+   "max_depth": 50,
+   "runner": "result",
+   "src": "let f = fn(n) { 1 + f(n + 1) }\nlet result = f(0)"
+  },
+  {
+   "file": "test_trampoline.py",
+   "line": 56,
+   "max_depth": 300,
+   "runner": "result",
+   "src": "fn loop(n) { 1 + loop(n + 1) }\nlet bad = loop(0)\nfn count(n) { if n == 0 { 0 } else { 1 + count(n - 1) } }\nlet result = count(100)"
+  },
+  {
+   "file": "test_trampoline.py",
+   "line": 61,
+   "max_depth": 20000,
+   "runner": "result",
+   "src": "fn count(n) { if n == 0 { 0 } else { 1 + count(n - 1) } }\nlet result = count(50)"
+  },
+  {
+   "file": "test_trampoline.py",
+   "line": 72,
+   "max_depth": 20000,
+   "runner": "result",
+   "src": "fn tree(n) { if n == 0 { [] } else { map(tree, [n - 1]) } }\nlet result = len(tree(2500))"
+  },
+  {
+   "file": "test_trampoline.py",
+   "line": 82,
+   "max_depth": 20000,
+   "runner": "result",
+   "src": "fn add(a, b) { a + b }\nfn small(x) { x < 5 }\nlet result = fold(add, 0, filter(small, range(100)))"
+  },
+  {
+   "file": "test_trampoline.py",
+   "line": 88,
+   "max_depth": 20000,
+   "runner": ".run",
+   "src": "fn double(x) { x * 2 }"
+  },
+  {
+   "file": "test_v03.py",
+   "line": 73,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let xs = [1]\nlet a = push(xs, 2)\nlet b = push(xs, 3)\nlet result = [xs, a, b, xs[0], len(xs)]"
+  },
+  {
+   "file": "test_v03.py",
+   "line": 84,
+   "max_depth": 20000,
+   "runner": "result",
+   "src": "fn step(acc, x) { push(acc, x) }\nlet result = fold(step, [], range(2000))"
+  },
+  {
+   "file": "test_v03.py",
+   "line": 103,
+   "max_depth": 20000,
+   "runner": "result",
+   "src": "fn add(a, b) { a + b }\nlet result = fold(add, 0, [1, 2, 3])"
+  },
+  {
+   "file": "test_v03.py",
+   "line": 112,
+   "max_depth": 20000,
+   "runner": "result",
+   "src": "fn add(a, b) { a + b }\nlet result = fold(add, 7, [])"
+  },
+  {
+   "file": "test_v03.py",
+   "line": 120,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn add(a, b) { a + b }\nlet total = fold(add, 0, [1, 2, 3])\nlet result = [at(total, \"fold\"), len(steps(total, \"call add\")), len(steps(total, \"call\")), len(steps(total, \"nope\"))]"
+  },
+  {
+   "file": "test_v03.py",
+   "line": 125,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = steps(1, 2)"
+  },
+  {
+   "file": "test_v03.py",
+   "line": 136,
+   "max_depth": 50,
+   "runner": "result",
+   "src": "fn go(i, acc) { if i == 0 { acc } else { go(i - 1, acc + i) } }\nlet result = go(100000, 0)"
+  },
+  {
+   "file": "test_v03.py",
+   "line": 143,
+   "max_depth": 20000,
+   "runner": "result",
+   "src": "fn go(i, acc) { if i == 0 { acc } else { go(i - 1, acc + i) } }\nlet result = go(5, 0)"
+  },
+  {
+   "file": "test_v03.py",
+   "line": 161,
+   "max_depth": 20000,
+   "runner": ".run",
+   "src": "fn go(i, acc) { if i == 0 { acc } else { go(i - 1, acc + i) } }\nlet s = go(3, 0)\nprint(why s)"
+  },
+  {
+   "file": "test_v03.py",
+   "line": 159,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn go(i, acc) { if i == 0 { acc } else { go(i - 1, acc + i) } }\nlet s = go(3, 0)\nlet result = steps(s, \"call go\")[0].count"
+  },
+  {
+   "file": "test_v03.py",
+   "line": 167,
+   "max_depth": 20000,
+   "runner": "result",
+   "src": "fn count(n) { if n == 0 { 0 } else { 1 + count(n - 1) } }\nlet result = count(3)"
+  },
+  {
+   "file": "test_v03.py",
+   "line": 177,
+   "max_depth": 10,
+   "runner": "result",
+   "src": "fn even(n) { if n == 0 { true } else { odd(n - 1) } }\nfn odd(n) { if n == 0 { false } else { even(n - 1) } }\nlet result = even(100001)"
+  },
+  {
+   "file": "test_v03.py",
+   "line": 186,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn a(xs) { len(xs) }\nfn b() { 3(1) }\nfn c(n) { c(n, n) }\nlet result = [a([1, 2]), b(), c(1)]"
+  },
+  {
+   "file": "test_v03.py",
+   "line": 196,
+   "max_depth": 20000,
+   "runner": "result",
+   "src": "fn f(n) { let m = f2(n)\n m + 1 }\nfn f2(n) { n }\nfn g(n) { g2(n) rescue 0 }\nfn g2(n) { n }\nlet result = [f(1), g(2)]"
+  },
+  {
+   "file": "test_v03.py",
+   "line": 203,
+   "max_depth": 20000,
+   "runner": "result",
+   "src": "fn spin(n) { spin(n + 1) }\nlet result = spin(0)"
+  },
+  {
+   "file": "test_v03.py",
+   "line": 211,
+   "max_depth": 100,
+   "runner": "result",
+   "src": "fn spin(n) { 1 + spin(n + 1) }\nlet result = spin(0)"
+  },
+  {
+   "file": "test_v03.py",
+   "line": 218,
+   "max_depth": 2,
+   "runner": "result",
+   "src": "fn f(n) { if n == 0 { \"zero\" } else if n == 1 { f(0) } else { f(n - 1) } }\nlet result = f(4)"
+  },
+  {
+   "file": "test_v03.py",
+   "line": 259,
+   "max_depth": 50,
+   "runner": "result",
+   "src": "let go = fn(i, acc) { if i == 0 { acc } else { go(i - 1, acc + i) } }\nlet result = go(300, 0)"
+  },
+  {
+   "file": "test_v03.py",
+   "line": 283,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn total(rows) { fold(fn(a, r) { a + num(r.qty) }, 0, rows) }\nlet good = total([@{qty: \"30\"}, @{qty: \"12\"}])\nlet bad  = total([@{qty: \"3O\"}, @{qty: \"12\"}])\nlet result = diverge(good, bad)"
+  },
+  {
+   "file": "test_v03.py",
+   "line": 295,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn f(x) { x * 2 }\nlet a = f(3)\nlet b = f(3)\nlet result = diverge(a, b)"
+  },
+  {
+   "file": "test_v03.py",
+   "line": 293,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn total(rows) { fold(fn(a, r) { a + num(r.qty) }, 0, rows) }\nlet good = total([@{qty: \"30\"}, @{qty: \"12\"}])\nlet bad  = total([@{qty: \"3O\"}, @{qty: \"12\"}])\nlet result = diverge(good, good)"
+  },
+  {
+   "file": "test_v03.py",
+   "line": 301,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn f(x) { if x > 0 { x } else { [x] } }\nlet a = f(1)\nlet b = f(0)\nlet result = diverge(why a, why b)"
+  },
+  {
+   "file": "test_v03.py",
+   "line": 312,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn f(s) { num(s) }\nlet a = f(\"x\")\nlet b = f(\"x\")\nlet c = f(\"y\")\nlet result = [len(diverge(a, b)), len(diverge(a, c))]"
+  },
+  {
+   "file": "test_v03.py",
+   "line": 318,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn count(n) { if n == 0 { 0 } else { 1 + count(n - 1) } }\nlet a = count(3000)\nlet b = count(3000)\nlet result = diverge(a, b)"
+  },
+  {
+   "file": "test_v04.py",
+   "line": 31,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = 1 + 2"
+  },
+  {
+   "file": "test_v04.py",
+   "line": 47,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "let xs = [1, 2]\nlet result = xs[1]"
+  },
+  {
+   "file": "test_v04.py",
+   "line": 55,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn go(i, acc) { if i == 0 { acc } else { go(i - 1, acc + i) } }\nlet s = go(5, 0)\nlet result = len(steps(s, \"literal\"))"
+  },
+  {
+   "file": "test_v04.py",
+   "line": 61,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "fn one() { 1 }\nlet a = one()\nlet b = one()"
+  },
+  {
+   "file": "test_v04.py",
+   "line": 72,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = 2 + 2"
+  },
+  {
+   "file": "test_v04.py",
+   "line": 68,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let x = 1\nlet result = x + x"
+  },
+  {
+   "file": "test_v04.py",
+   "line": 79,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "fn go(i, acc) { if i == 0 { acc } else { go(i - 1, acc + i) } }\nlet s = go(5, 0)"
+  },
+  {
+   "file": "test_v04.py",
+   "line": 98,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn go(i, acc) { if i == 0 { acc } else { go(i - 1, acc + i) } }\nlet s = go(5, 0)\nlet result = map(fn(s) { [s.detail, s.count, s.inputs] }, steps(s, \"if\"))"
+  },
+  {
+   "file": "test_v04.py",
+   "line": 108,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn z(n, acc) { if n == 0 { acc } else if n % 2 == 0 { z(n - 1, acc + 1) } else { z(n - 1, acc) } }\nlet s = z(4, 0)\nlet result = map(fn(s) { s.count }, steps(s, \"if\"))"
+  },
+  {
+   "file": "test_v04.py",
+   "line": 117,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "fn go(i, acc) { if i == 0 { acc } else { go(i - 1, acc + i) } }\nlet s = go(3, 0)"
+  },
+  {
+   "file": "test_v04.py",
+   "line": 204,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "fn f(x) { x + 1 }\nlet a = f(1) + f(2)\nlet b = 1 + 2"
+  },
+  {
+   "file": "test_v04.py",
+   "line": 218,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "let r = { check \"inner\": 1 == 2\n 5 }"
+  },
+  {
+   "file": "test_v04.py",
+   "line": 264,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn nest(n) { if n == 0 { [] } else { [nest(n - 1)] } }\nlet result = nest(2500) == nest(2500)"
+  },
+  {
+   "file": "test_v04.py",
+   "line": 259,
+   "max_depth": 3000,
+   "runner": "val",
+   "src": "fn wrap(n) { @{v: wrap(n)} }\nlet rec = wrap(1)\nlet result = [rec == rec, rec == @{v: 1}, [rec] == [rec]]"
+  },
+  {
+   "file": "test_v04.py",
+   "line": 285,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn mk(a) { fn(b) { a + b } }\nlet result = mk(1)(2) + mk(10)(20)"
+  },
+  {
+   "file": "test_v04.py",
+   "line": 318,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn even(n) { if n == 0 { true } else { odd(n - 1) } }\nfn odd(n) { if n == 0 { false } else { even(n - 1) } }\nlet e = even(7)\nlet result = [steps(e, \"call even\")[0].count, steps(e, \"call odd\")[0].count, len(steps(e, \"call odd\")), missed(at(e, \"call nope\")), at(e, \"call even\")]"
+  },
+  {
+   "file": "test_v04.py",
+   "line": 325,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn even(n) { if n == 0 { true } else { odd(n - 1) } }\nfn odd(n) { if n == 0 { false } else { even(n - 1) } }\nlet e = even(3)\nlet result = [missed(at(e, \"even\")), steps(e, \"even/odd\")[0].op, missed(at(e, \"eve\"))]"
+  },
+  {
+   "file": "test_v04.py",
+   "line": 341,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn parse_qty(row) { note(\"qty of \" + row.name, num(row.qty)) }\nfn add(a, b) { a + b }\nfn report(rows) { fold(add, 0, map(parse_qty, rows)) }\nlet monday = report([@{name: \"alpha\", qty: \"10\"}, @{name: \"beta\", qty: \"30\"}])\nlet tuesday = report([@{name: \"alpha\", qty: \"10\"}, @{name: \"beta\", qty: \"3O\"}])\nlet result = contrast(monday, tuesday)"
+  },
+  {
+   "file": "test_v04.py",
+   "line": 354,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn parse_qty(row) { note(\"qty of \" + row.name, num(row.qty)) }\nfn add(a, b) { a + b }\nfn report(rows) { fold(add, 0, map(parse_qty, rows)) }\nlet monday = report([@{name: \"alpha\", qty: \"10\"}, @{name: \"beta\", qty: \"30\"}])\nlet tuesday = report([@{name: \"alpha\", qty: \"10\"}, @{name: \"beta\", qty: \"3O\"}])\nlet result = contrast(monday, monday)"
+  },
+  {
+   "file": "test_v04.py",
+   "line": 359,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let a = num(\"x\")\nlet b = num(\"y\")\nlet result = contrast(why a, b)"
+  },
+  {
+   "file": "test_v04.py",
+   "line": 369,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn parse_qty(row) { note(\"qty of \" + row.name, num(row.qty)) }\nfn add(a, b) { a + b }\nfn report(rows) { fold(add, 0, map(parse_qty, rows)) }\nlet monday = report([@{name: \"alpha\", qty: \"10\"}, @{name: \"beta\", qty: \"30\"}])\nlet tuesday = report([@{name: \"alpha\", qty: \"10\"}, @{name: \"beta\", qty: \"3O\"}])\nlet wednesday = report([@{name: \"alpha\", qty: \"10\"}, @{name: \"beta\", qty: \"30\"}])\nlet d = diverge([monday, tuesday, wednesday])\nlet result = [len(d), d[0].which, d[0].kind, d[0].b.value]"
+  },
+  {
+   "file": "test_v04.py",
+   "line": 376,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = diverge([1, 2])[0].which"
+  },
+  {
+   "file": "test_v04.py",
+   "line": 374,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = [len(diverge([1])), len(diverge([])), missed(diverge(5)), missed(diverge([1, 2]))]"
+  },
+  {
+   "file": "test_v04.py",
+   "line": 385,
+   "max_depth": 20000,
+   "runner": ".run",
+   "src": "let x = 1"
+  },
+  {
+   "file": "test_v04.py",
+   "line": 301,
+   "max_depth": 20000,
+   "runner": ".run",
+   "src": "fn go(i, acc) { if i == 0 { acc } else { go(i - 1, acc + i) } }\nlet s = go(20000, 0)"
+  },
+  {
+   "file": "test_v05.py",
+   "line": 36,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let r = @{a: 1, b: 2}\nlet result = get(r, \"b\")"
+  },
+  {
+   "file": "test_v05.py",
+   "line": 44,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "let r = @{a: 1 + 2}\nlet via_get = get(r, \"a\")\nlet via_dot = r.a"
+  },
+  {
+   "file": "test_v05.py",
+   "line": 50,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = get(@{a: 1}, \"z\")"
+  },
+  {
+   "file": "test_v05.py",
+   "line": 56,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = get([1, 2], \"a\")"
+  },
+  {
+   "file": "test_v05.py",
+   "line": 62,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = get(@{a: 1}, 3)"
+  },
+  {
+   "file": "test_v05.py",
+   "line": 68,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let bad = num(\"3O\")\nlet result = get(bad, \"a\")"
+  },
+  {
+   "file": "test_v05.py",
+   "line": 74,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = get(@{a: 1}, num(\"x\"))"
+  },
+  {
+   "file": "test_v05.py",
+   "line": 80,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let r = @{a: num(\"3O\")}\nlet result = get(r, \"a\")"
+  },
+  {
+   "file": "test_v05.py",
+   "line": 88,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = put(@{a: 1}, \"b\", 2)"
+  },
+  {
+   "file": "test_v05.py",
+   "line": 95,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = (put(@{a: 1}, \"a\", 9)).a"
+  },
+  {
+   "file": "test_v05.py",
+   "line": 100,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "let r = @{a: 1}\nlet r2 = put(r, \"a\", 9)\nlet old = r.a"
+  },
+  {
+   "file": "test_v05.py",
+   "line": 107,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let r = @{a: 1}\nlet result = put(r, \"b\", 5)"
+  },
+  {
+   "file": "test_v05.py",
+   "line": 116,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = (put(@{}, \"x\", 1)).x"
+  },
+  {
+   "file": "test_v05.py",
+   "line": 122,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = get(put(@{}, \"x\", num(\"3O\")), \"x\")"
+  },
+  {
+   "file": "test_v05.py",
+   "line": 128,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = put([1], \"a\", 2)"
+  },
+  {
+   "file": "test_v05.py",
+   "line": 134,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = put(@{}, 1, 2)"
+  },
+  {
+   "file": "test_v05.py",
+   "line": 140,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "let a = put(@{x: 1}, \"y\", 2)\nlet b = merge(@{x: 1}, @{y: 2})\nlet result = a == b"
+  },
+  {
+   "file": "test_v05.py",
+   "line": 149,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = find(fn(x) { x > 2 }, [1, 2, 3, 4])"
+  },
+  {
+   "file": "test_v05.py",
+   "line": 155,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "let xs = [1 + 1, 2 + 2]\nlet direct = xs[1]\nlet found = find(fn(x) { x == 4 }, xs)"
+  },
+  {
+   "file": "test_v05.py",
+   "line": 162,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = find(fn(x) { x > 99 }, [1, 2])"
+  },
+  {
+   "file": "test_v05.py",
+   "line": 168,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = find(fn(x) { true }, [])"
+  },
+  {
+   "file": "test_v05.py",
+   "line": 173,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = find(fn(x) { x }, [1])"
+  },
+  {
+   "file": "test_v05.py",
+   "line": 181,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = find(fn(x) { x + num(\"q\") > 0 }, [1])"
+  },
+  {
+   "file": "test_v05.py",
+   "line": 188,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = find(fn(x) { true }, \"abc\")"
+  },
+  {
+   "file": "test_v05.py",
+   "line": 194,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let xs = [1, num(\"3O\"), 3]\nlet result = find(missed, xs)"
+  },
+  {
+   "file": "test_v05.py",
+   "line": 201,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = find(fn(x) { true }, num(\"3O\"))"
+  },
+  {
+   "file": "test_v05.py",
+   "line": 208,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let xs = [1, 5, num(\"3O\")]\nlet result = find(fn(x) { x > 2 }, xs)"
+  },
+  {
+   "file": "test_v06.py",
+   "line": 40,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let r = @{a: 1}\nlet result = [has(r, \"a\"), has(r, \"b\")]"
+  },
+  {
+   "file": "test_v06.py",
+   "line": 46,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let r = @{a: miss \"gone\"}\nlet result = has(r, \"a\")"
+  },
+  {
+   "file": "test_v06.py",
+   "line": 51,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let r = @{x: 1, y: 2}\nlet result = has(r, \"y\") == contains(keys(r), \"y\")"
+  },
+  {
+   "file": "test_v06.py",
+   "line": 59,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = has(@{a: 1}, miss \"no name\")"
+  },
+  {
+   "file": "test_v06.py",
+   "line": 57,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = has(miss \"no record\", \"a\")"
+  },
+  {
+   "file": "test_v06.py",
+   "line": 66,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = has(@{a: 1}, 3)"
+  },
+  {
+   "file": "test_v06.py",
+   "line": 64,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = has([1], \"a\")"
+  },
+  {
+   "file": "test_v06.py",
+   "line": 71,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let r = @{a: 1}\nlet result = has(r, \"a\")"
+  },
+  {
+   "file": "test_v06.py",
+   "line": 79,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = [\"b\" > \"a\", \"a\" >= \"b\", \"x\" < \"y\", \"y\" <= \"x\", \"a\" == \"a\", \"a\" != \"a\"]"
+  },
+  {
+   "file": "test_v06.py",
+   "line": 87,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = \"ab\" == \"ab\""
+  },
+  {
+   "file": "test_v06.py",
+   "line": 101,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = \"a%s\" % \"b\""
+  },
+  {
+   "file": "test_v06.py",
+   "line": 130,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "\nfn add(a, b) { a + b }\nfn twice(f, x) { f(f(x, x), f(x, x)) }\nfn fib(n) { if n < 2 { n } else { fib(n - 1) + fib(n - 2) } }\nlet r1 = twice(add, 3)\nlet r2 = fib(10)\nlet r3 = len([1, 2, 3])\nlet r4 = num(\"41\") + 1\nlet r5 = add(1, miss \"bad arg\")\nlet result = [r1, r2, r3, r4]\n"
+  },
+  {
+   "file": "test_v06.py",
+   "line": 138,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = len(1, 2)"
+  },
+  {
+   "file": "test_v06.py",
+   "line": 144,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let f = miss \"no fn\"\nlet result = f(1)"
+  },
+  {
+   "file": "test_v06.py",
+   "line": 149,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = 3(1)"
+  },
+  {
+   "file": "test_v06.py",
+   "line": 156,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "\nfn even(n) { if n == 0 { true } else { odd(n - 1) } }\nfn odd(n) { if n == 0 { false } else { even(n - 1) } }\nlet result = even(6)\n"
+  },
+  {
+   "file": "test_v06.py",
+   "line": 167,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn inc(x) { x + 1 }\nlet result = inc(4)"
+  },
+  {
+   "file": "test_v06.py",
+   "line": 191,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "fn go(i) { if i == 0 { 0 } else { go(i - 1) } }\nlet result = go(5)"
+  },
+  {
+   "file": "test_v06.py",
+   "line": 208,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = not true"
+  },
+  {
+   "file": "test_v06.py",
+   "line": 217,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = 5"
+  },
+  {
+   "file": "test_v06.py",
+   "line": 238,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "\nfn tally(rate) {\n  let base = 200\n  let fee = base * rate\n  base + fee\n}\nlet r0 = tally(0.1)\nlet r1 = tally(0.1)\nlet r2 = tally(0.3)\nlet result = contrast([r0, r1, r2])\n"
+  },
+  {
+   "file": "test_v06.py",
+   "line": 246,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let a = 1 + 1\nlet b = 1 + 1\nlet result = contrast([a, b])"
+  },
+  {
+   "file": "test_v06.py",
+   "line": 252,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = contrast([42])"
+  },
+  {
+   "file": "test_v06.py",
+   "line": 251,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = contrast([])"
+  },
+  {
+   "file": "test_v06.py",
+   "line": 258,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = contrast(miss \"gone\")"
+  },
+  {
+   "file": "test_v06.py",
+   "line": 256,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = contrast(5)"
+  },
+  {
+   "file": "test_v06.py",
+   "line": 263,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let a = 1 + 1\nlet b = 1 + 2\nlet result = contrast(a, b)"
+  },
+  {
+   "file": "test_v06.py",
+   "line": 268,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "let a = 2 + 2\nlet b = 2 + 3\ncheck \"same\": a == b"
+  },
+  {
+   "file": "test_v06.py",
+   "line": 277,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "check \"same\": 1 == 1"
+  },
+  {
+   "file": "test_v06.py",
+   "line": 283,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "check \"differ\": 1 != 1"
+  },
+  {
+   "file": "test_v06.py",
+   "line": 289,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "check \"m\": (miss \"gone\") == 1"
+  },
+  {
+   "file": "test_v07.py",
+   "line": 51,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "let result = len([1, 2, 3]) + 1"
+  },
+  {
+   "file": "test_v07.py",
+   "line": 57,
+   "max_depth": 20000,
+   "runner": "assert_modes_agree",
+   "src": "let a = len([1, 2]) + len(\"xyz\")\nlet b = contains(\"abc\", \"b\")\nlet c = num(\"41\") + abs(0 - 1)\nlet d = put(@{x: 1}, \"y\", get(@{x: 1}, \"x\"))\nlet e = has(@{k: 1}, \"k\")\n"
+  },
+  {
+   "file": "test_v07.py",
+   "line": 67,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = contains(\"a\")"
+  },
+  {
+   "file": "test_v07.py",
+   "line": 81,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "let result = fold(fn(a, x) { a + x }, 0, range(5))"
+  },
+  {
+   "file": "test_v07.py",
+   "line": 92,
+   "max_depth": 20000,
+   "runner": "assert_modes_agree",
+   "src": "fn f(s) { len(s) }\nfn len(x) { 42 }\nlet result = f(\"abc\")\n"
+  },
+  {
+   "file": "test_v07.py",
+   "line": 97,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn g(len) { len(3) }\nlet result = g(5)"
+  },
+  {
+   "file": "test_v07.py",
+   "line": 138,
+   "max_depth": 20000,
+   "runner": "assert_modes_agree",
+   "src": "fn add(a, b) { a + b }\nfn pick(r) { if r.x > 1 { r.x } else { 0 - r.x } }\nlet a = add(1, 2)\nlet b = add(add(1, 1), add(2, 2))\nlet c = pick(@{x: 5}) + pick(@{x: 1})\n"
+  },
+  {
+   "file": "test_v07.py",
+   "line": 147,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn add(a, b) { a + b }\nlet result = add(1, 2)"
+  },
+  {
+   "file": "test_v07.py",
+   "line": 159,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn add(a, b) { a + b }\nlet result = add(1)"
+  },
+  {
+   "file": "test_v07.py",
+   "line": 171,
+   "max_depth": 1,
+   "runner": "val",
+   "src": "fn one(x) { x + 1 }\nfn outer(y) { one(y) + 0 }\nlet result = outer(1)\n"
+  },
+  {
+   "file": "test_v07.py",
+   "line": 183,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn one(x) { x + 1 }\nfn two(y) { one(y) + 1 }\nlet result = two(3)\n"
+  },
+  {
+   "file": "test_v07.py",
+   "line": 192,
+   "max_depth": 20000,
+   "runner": "assert_modes_agree",
+   "src": "let result = fold(fn(a, x) { a + x }, 0, range(100))"
+  },
+  {
+   "file": "test_v07.py",
+   "line": 210,
+   "max_depth": 20000,
+   "runner": "assert_modes_agree",
+   "src": "fn lookup(env, name) {\n  if has(env, name) { get(env, name) }\n  else { miss (\"unbound \" + name) }\n}\nlet e = @{a: 1, b: 2}\nlet hit = lookup(e, \"b\")\nlet mv = lookup(e, \"zz\")\n"
+  },
+  {
+   "file": "test_v07.py",
+   "line": 215,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn add(a, b) { a + b }\nlet result = add(1, miss \"bad\")"
+  },
+  {
+   "file": "test_v07.py",
+   "line": 224,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn fib(n) { if n < 2 { n } else { fib(n - 1) + fib(n - 2) } }\nlet result = fib(12)"
+  },
+  {
+   "file": "test_v07.py",
+   "line": 241,
+   "max_depth": 20000,
+   "runner": "assert_modes_agree",
+   "src": "fn f(x) { if x > 0 { len(\"ab\") } else { 0 } }\nlet result = f(1)\n"
+  },
+  {
+   "file": "test_v07.py",
+   "line": 251,
+   "max_depth": 20000,
+   "runner": "assert_modes_agree",
+   "src": "fn go(i, acc) { if i == 0 { acc } else { go(i - 1, acc + i) } }\nlet result = go(6, 0)"
+  },
+  {
+   "file": "test_v08.py",
+   "line": 61,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "fn kindof(k) {\n  if k == \"a\" { 1 }\n  else if k == \"b\" { 2 }\n  else if k == \"c\" { 3 }\n  else if k == \"d\" { 4 }\n  else { 0 }\n}\nlet a = kindof(\"a\")\nlet b = kindof(\"b\")\nlet c = kindof(\"c\")\nlet d = kindof(\"d\")\nlet e = kindof(\"x\")\n"
+  },
+  {
+   "file": "test_v08.py",
+   "line": 67,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "fn kindof(k) {\n  if k == \"a\" { 1 }\n  else if k == \"b\" { 2 }\n  else if k == \"c\" { 3 }\n  else if k == \"d\" { 4 }\n  else { 0 }\n}\nlet result = kindof(\"c\")\n"
+  },
+  {
+   "file": "test_v08.py",
+   "line": 83,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn double(x) { x + x }\nfn pick(k) {\n  if k == \"a\" { 1 }\n  else if k == \"b\" { double(21) }\n  else { 0 }\n}\nlet result = pick(\"b\")\nlet other = pick(\"z\")\n"
+  },
+  {
+   "file": "test_v08.py",
+   "line": 98,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn f(k) {\n  if k == \"a\" { 1 }\n  else if k == \"b\" {\n    let t = k + k\n    len(t)\n  }\n  else { 0 }\n}\nlet result = f(\"b\")\n"
+  },
+  {
+   "file": "test_v08.py",
+   "line": 113,
+   "max_depth": 20000,
+   "runner": "assert_trees_identical",
+   "src": "fn f(x) {\n  if x == \"nope\" { 1 }\n  else if x < 3 { 2 }\n  else { 3 }\n}\nlet result = f(@{a: 1})\n"
+  },
+  {
+   "file": "test_v08.py",
+   "line": 127,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn spin(n, acc) {\n  if n == 0 { acc }\n  else if n % 2 == 0 { spin(n - 1, acc + 2) }\n  else { spin(n - 1, acc + 1) }\n}\nlet result = spin(6, 0)\n"
+  },
+  {
+   "file": "test_v08.py",
+   "line": 141,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn f(k, xs) {\n  if k == \"len\" { len(xs) }\n  else if k == \"head\" { xs[0] }\n  else { 0 }\n}\nlet result = f(\"len\", [1, 2, 3])\n"
+  },
+  {
+   "file": "test_v08.py",
+   "line": 160,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn fib(n) { if n < 2 { n } else { fib(n - 1) + fib(n - 2) } }\nlet result = fib(10)\n"
+  },
+  {
+   "file": "test_v08.py",
+   "line": 174,
+   "max_depth": 20000,
+   "runner": "val",
+   "src": "fn f(x) {\n  let a = x + 1\n  let b = f2(a)\n  a + b\n}\nfn f2(y) { y * 2 }\nlet result = f(3)\n"
+  },
+  {
+   "file": "test_v08.py",
+   "line": 190,
+   "max_depth": 20000,
+   "runner": "assert_trees_identical",
+   "src": "fn outer(x) {\n  check \"inside\": x > 0\n  fn inner(y) { y + x }\n  inner(10)\n}\nlet result = outer(5)\n"
+  },
+  {
+   "file": "test_v08.py",
+   "line": 200,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "fn f(x) {\n  check \"boom\": x > 100\n  x\n}\nlet result = f(1)\n"
+  },
+  {
+   "file": "test_v09.py",
+   "line": 87,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "fn fib(n) { if n < 2 { n } else { fib(n - 1) + fib(n - 2) } }\nlet result = fib(12)\n"
+  },
+  {
+   "file": "test_v09.py",
+   "line": 166,
+   "max_depth": 60,
+   "runner": "assert_three_way",
+   "src": "fn loop(n) { 1 + loop(n + 1) }\nlet result = loop(0)\nfn count(n) { if n == 0 { 0 } else { 1 + count(n - 1) } }\nlet after = count(20)\n"
+  },
+  {
+   "file": "test_v09.py",
+   "line": 216,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "fn count(n) { if n == 0 { 0 } else { 1 + count(n - 1) } }\nlet result = count(15000)\n"
+  },
+  {
+   "file": "test_v09.py",
+   "line": 233,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "fn count(n) { if n == 0 { 0 } else { 1 + count(n - 1) } }\nlet result = count(5000)\n"
+  },
+  {
+   "file": "test_v09.py",
+   "line": 263,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "fn count(n) { if n == 0 { 0 } else { 1 + count(n - 1) } }\nlet result = count(2000)\n"
+  },
+  {
+   "file": "test_v09.py",
+   "line": 296,
+   "max_depth": 20000,
+   "runner": "assert_three_way",
+   "src": "fn even(n) { if n == 0 { true } else { odd(n - 1) } }\nfn odd(n) {\n  let m = n - 1\n  if m < 0 { false } else { if m == 0 { false } else { even(m) } }\n}\nlet result = even(2001)\n"
+  },
+  {
+   "file": "test_v09.py",
+   "line": 336,
+   "max_depth": 20000,
+   "runner": "peak_frames",
+   "src": "fn count(n) { if n == 0 { 0 } else { 1 + count(n - 1) } }\nlet result = count(60)\n"
+  },
+  {
+   "file": "test_v09.py",
+   "line": 335,
+   "max_depth": 20000,
+   "runner": "peak_frames",
+   "src": "fn count(n) { if n == 0 { 0 } else { 1 + count(n - 1) } }\nlet result = count(30)\n"
+  },
+  {
+   "file": "test_v09.py",
+   "line": 358,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "fn fib(n) { if n < 2 { n } else { fib(n - 1) + fib(n - 2) } }\nfn noisy(n) { print(\"n=\" + str(n))\n check \"inner\": fib(n) > 0\n fib(n) }\nlet result = noisy(6)\n"
+  },
+  {
+   "file": "test_v09.py",
+   "line": 372,
+   "max_depth": 20000,
+   "runner": ".run",
+   "src": "fn fib(n) { if n < 2 { n } else { fib(n - 1) + fib(n - 2) } }\n"
+  },
+  {
+   "file": "test_v11.py",
+   "line": 61,
+   "max_depth": 20000,
+   "runner": "run_ast",
+   "src": "fn f(x) { x + 1 }\nfn g(x) { f(x) + f(x) }\nlet result = g(1)\n"
+  },
+  {
+   "file": "test_v14.py",
+   "line": 1182,
+   "max_depth": 20000,
+   "runner": ".run",
+   "src": "let a = rand()\n"
+  },
+  {
+   "file": "test_v14.py",
+   "line": 1169,
+   "max_depth": 20000,
+   "runner": ".run",
+   "src": "let a = rand()\nlet b = rand()\nlet c = rand()\n"
+  },
+  {
+   "file": "test_v20.py",
+   "line": 186,
+   "max_depth": 20000,
+   "runner": "host_reason",
+   "src": "shape P = @{b: num, a: num}\nfn f(p: P) { p }\nlet result = f(@{b: \"s\", a: \"s\"})"
+  },
+  {
+   "file": "test_v20.py",
+   "line": 194,
+   "max_depth": 20000,
+   "runner": ".run",
+   "src": "shape P = @{x: num}\nfn f(p: P) { p }\nlet result = f(@{x: 1})"
+  },
+  {
+   "file": "test_v20.py",
+   "line": 231,
+   "max_depth": 20000,
+   "runner": ".run",
+   "src": "shape P = @{x: num}\nlet result = @{x: 1}\nlet spec = P"
+  },
+  {
+   "file": "test_v20.py",
+   "line": 384,
+   "max_depth": 20000,
+   "runner": "host_reason",
+   "src": "fn c() -> bool { 1 }\nfn b() -> str { c() }\nfn a() -> list { b() }\nlet result = a()"
+  },
+  {
+   "file": "test_v20.py",
+   "line": 377,
+   "max_depth": 20000,
+   "runner": "host_reason",
+   "src": "fn a(n: num) { if n <= 0 { \"done\" } else { b(n - 1) } }\nfn b(n: str) { a(n) }\nlet result = a(3)"
+  },
+  {
+   "file": "test_v20.py",
+   "line": 391,
+   "max_depth": 20000,
+   "runner": ".run",
+   "src": "fn f(p: num) { 42 }\nlet result = f(\"s\")"
+  },
+  {
+   "file": "test_v20.py",
+   "line": 462,
+   "max_depth": 20000,
+   "runner": "host_reason",
+   "src": "shape S = @{a: num}\nfn h() { let S = @{y: str}\n  fn g(p: S) { p }\n  g(@{x: 1}) }\nlet result = h()"
+  },
+  {
+   "file": "test_v22.py",
+   "line": 209,
+   "max_depth": 20000,
+   "runner": "host_reason",
+   "src": "let result = guess(\"s\", 1, 2)"
+  },
+  {
+   "file": "test_v22.py",
+   "line": 247,
+   "max_depth": 20000,
+   "runner": ".run",
+   "src": "let nums = [1, 2, 3]\nlet result = fold(nums, 0, fn(a, x) { a + x })"
+  },
+  {
+   "file": "test_v22.py",
+   "line": 681,
+   "max_depth": 20000,
+   "runner": "host_reason",
+   "src": "let result = typed(@{a: 1}, true, \"l\")"
+  },
+  {
+   "file": "test_v26.py",
+   "line": 69,
+   "max_depth": 20000,
+   "runner": "result",
+   "src": "fn tl3(p4) { if p4 == 0 { 0.5 } else { tl3(p4 - 1) } }\nlet result = tl3(0.5)\n"
+  },
+  {
+   "file": "test_v26.py",
+   "line": 85,
+   "max_depth": 600,
+   "runner": "result",
+   "src": "fn tl3(p4) {\n  if p4 == 0 { 0.5 } else {\n    let r = tl3(p4 - 1)\n    r\n  }\n}\nlet result = tl3(0.5)\n"
+  },
+  {
+   "file": "test_v26.py",
+   "line": 126,
+   "max_depth": 20000,
+   "runner": "result",
+   "src": "fn even(n) { if n == 0 { true } else { odd(n - 1) } }\nfn odd(n) { if n == 0 { false } else { even(n - 1) } }\nlet result = odd(-100)\n"
+  },
+  {
+   "file": "test_v26.py",
+   "line": 145,
+   "max_depth": 20000,
+   "runner": "result",
+   "src": "fn go(i, acc) { if i == 0 { acc } else { go(i - 1, acc + i) } }\nlet a = go(300, 0)\nlet b = go(300, 0)\nlet result = a + b\n"
+  },
+  {
+   "file": "test_v26.py",
+   "line": 152,
+   "max_depth": 20000,
+   "runner": "result",
+   "src": "fn f(x) { x + 1 }\nlet result = f(1)\n"
+  },
+  {
+   "file": "test_v27.py",
+   "line": 215,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "fn sq(n, x) { if n <= 0 { x } else { sq(n - 1, x * x) } }\nlet big = sq(15, 3)\nprint(big)\n"
+  },
+  {
+   "file": "test_v27.py",
+   "line": 223,
+   "max_depth": 20000,
+   "runner": "payload",
+   "src": "fn sq(n, x) { if n <= 0 { x } else { sq(n - 1, x * x) } }\nlet big = sq(15, 3)\nlet result = big + \"x\"\n"
+  },
+  {
+   "file": "test_v27.py",
+   "line": 229,
+   "max_depth": 20000,
+   "runner": ".run",
+   "src": "fn sq(n, x) { if n <= 0 { x } else { sq(n - 1, x * x) } }\nlet big = sq(15, 3)\ncheck \"big is small\": big < 10\n"
+  },
+  {
+   "file": "test_v27.py",
+   "line": 239,
+   "max_depth": 20000,
+   "runner": "payload",
+   "src": "fn sq(n, x) { if n <= 0 { x } else { sq(n - 1, x * x) } }\nlet big = sq(15, 3)\nlet result = range(big, big + 2)\n"
+  },
+  {
+   "file": "test_v27.py",
+   "line": 248,
+   "max_depth": 20000,
+   "runner": "payload",
+   "src": "fn dbl(n, s) { if n <= 0 { s } else { dbl(n - 1, s + s) } }\nlet digits = dbl(13, \"1234\")\nlet result = num(digits)\n"
+  },
+  {
+   "file": "test_v27.py",
+   "line": 256,
+   "max_depth": 20000,
+   "runner": "payload",
+   "src": "fn sq(n, x) { if n <= 0 { x } else { sq(n - 1, x * x) } }\nlet big = sq(15, 3)\nlet result = range(1, big)\n"
+  },
+  {
+   "file": "test_v27.py",
+   "line": 261,
+   "max_depth": 20000,
+   "runner": "payload",
+   "src": "fn sq(n, x) { if n <= 0 { x } else { sq(n - 1, x * x) } }\nlet big = sq(15, 3)\nlet result = [1, 2, 3][big]\n"
+  },
+  {
+   "file": "test_v27.py",
+   "line": 394,
+   "max_depth": 20000,
+   "runner": "payload",
+   "src": "fn go(n, s) { if n <= 0 { s } else { go(n - 1, s + s) } }\nlet result = go(60, \"ab\")\n"
+  },
+  {
+   "file": "test_v27.py",
+   "line": 402,
+   "max_depth": 20000,
+   "runner": "payload",
+   "src": "fn go(n, x) { if n <= 0 { x } else { go(n - 1, x * x) } }\nlet result = go(60, 3)\n"
+  },
+  {
+   "file": "test_v27.py",
+   "line": 408,
+   "max_depth": 20000,
+   "runner": "payload",
+   "src": "let result = range(100000000000)\n"
+  },
+  {
+   "file": "test_v27.py",
+   "line": 506,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "let result = 1 + 1\n"
+  },
+  {
+   "file": "test_v27.py",
+   "line": 504,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "fn sq(n, x) { if n <= 0 { x } else { sq(n - 1, x * x) } }\nlet big = sq(15, 3)\n"
+  },
+  {
+   "file": "test_v27.py",
+   "line": 502,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "let result = range(100)\n"
+  },
+  {
+   "file": "test_v27.py",
+   "line": 515,
+   "max_depth": 20000,
+   "runner": ".run",
+   "src": "let result = range(1000000)\n"
+  },
+  {
+   "file": "test_v29.py",
+   "line": 461,
+   "max_depth": 20000,
+   "runner": ".run",
+   "src": "let x = 1 / 0\nlet r = len(blame(x))\n"
+  },
+  {
+   "file": "test_v29.py",
+   "line": 459,
+   "max_depth": 20000,
+   "runner": ".run",
+   "src": "let x = 1 + 2\nlet r = len(steps(x))\n"
+  },
+  {
+   "file": "test_v30.py",
+   "line": 239,
+   "max_depth": 20000,
+   "runner": ".run",
+   "src": "let a = 1 + 2\nlet b = a * 10\nlet r = b - 1"
+  },
+  {
+   "file": "test_v30.py",
+   "line": 239,
+   "max_depth": 20000,
+   "runner": ".run",
+   "src": "fn f(n) { if n < 2 { n } else { f(n - 1) } }\nlet r = f(3)"
+  },
+  {
+   "file": "test_v30.py",
+   "line": 239,
+   "max_depth": 20000,
+   "runner": ".run",
+   "src": "let r = len([1, 2]) + (@{a: 1}).a + [3, 4][0]"
+  },
+  {
+   "file": "test_v30.py",
+   "line": 239,
+   "max_depth": 20000,
+   "runner": ".run",
+   "src": "let r = (1 / 0) rescue 9"
+  },
+  {
+   "file": "test_v30.py",
+   "line": 321,
+   "max_depth": 20000,
+   "runner": "host",
+   "src": "let a = 1\nlet b = 2\nlet c = a + b\nlet r = map(fn(s) { s.line }, steps(c))"
+  },
+  {
+   "file": "test_v30.py",
+   "line": 333,
+   "max_depth": 20000,
+   "runner": "host",
+   "src": "fn g(n) { if n == 0 { 0 } else { g(n - 1) } }\nlet y = g(4)\nlet r = map(fn(s) { s.count }, steps(y))"
+  },
+  {
+   "file": "test_v30.py",
+   "line": 373,
+   "max_depth": 20000,
+   "runner": "host",
+   "src": "let x = 1 + 2\nlet y = 1 + 3\nlet r = contrast(x, y)"
+  },
+  {
+   "file": "test_v31.py",
+   "line": 624,
+   "max_depth": 20000,
+   "runner": "host_value",
+   "src": "fn go(i, a) { if i == 0 { a } else { go(i - 1, a + 1) } }\nlet x = go(5, 0)\nlet y = go(7, 0)\nlet r = len(diverge(x, y))"
+  },
+  {
+   "file": "test_v31.py",
+   "line": 639,
+   "max_depth": 20000,
+   "runner": "host_value",
+   "src": "fn go(i, a) { if i == 0 { a } else { go(i - 1, a + 1) } }\nlet x = go(5, 0)\nlet r = map(fn(s) { s.count }, steps(x))"
+  },
+  {
+   "file": "test_v31.py",
+   "line": 657,
+   "max_depth": 20000,
+   "runner": "host_value",
+   "src": "let a = 1 + 2\nlet b = a + (a + a)\nlet c = 1 + 3\nlet d = c + (c + c)\nlet r = contrast(b, d)"
+  },
+  {
+   "file": "test_v31.py",
+   "line": 678,
+   "max_depth": 20000,
+   "runner": "host_value",
+   "src": "let a = 1 + 2\nlet b = a + a\nlet c = 1 + 3\nlet d = c + c\nlet r = len(diverge(b, d))"
+  },
+  {
+   "file": "test_v32.py",
+   "line": 68,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "nosuch(1)\n"
+  },
+  {
+   "file": "test_v32.py",
+   "line": 79,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "let total = fold([1.0], 0.0, fn(a, x) { a + x })\ntotal\n"
+  },
+  {
+   "file": "test_v32.py",
+   "line": 90,
+   "max_depth": 20000,
+   "runner": "drops",
+   "src": "check \"c\": nosuch(1) == 1\n"
+  },
+  {
+   "file": "test_v32.py",
+   "line": 89,
+   "max_depth": 20000,
+   "runner": "drops",
+   "src": "let x = nosuch(1)\n"
+  },
+  {
+   "file": "test_v32.py",
+   "line": 95,
+   "max_depth": 20000,
+   "runner": "drops",
+   "src": "fn f(n) { nosuch(n)\n n }\nlet r = f(1)\n"
+  },
+  {
+   "file": "test_v32.py",
+   "line": 100,
+   "max_depth": 20000,
+   "runner": "drops",
+   "src": "fn f(n) { nosuch(n) }\nlet r = f(1)\n"
+  },
+  {
+   "file": "test_v32.py",
+   "line": 114,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "fn f(n) { if n == 0 { 0 } else { nosuch(n)\n f(n - 1) } }\nlet r = f(20)\n"
+  },
+  {
+   "file": "test_v32.py",
+   "line": 135,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "print(nosuch(1))\n"
+  },
+  {
+   "file": "test_v32.py",
+   "line": 142,
+   "max_depth": 20000,
+   "runner": "drops",
+   "src": "fn f(n) { print(nosuch(n))\n n }\nlet r = f(1)\n"
+  },
+  {
+   "file": "test_v32.py",
+   "line": 148,
+   "max_depth": 20000,
+   "runner": "drops",
+   "src": "1 + print(nosuch(1))\n"
+  },
+  {
+   "file": "test_v32.py",
+   "line": 152,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "print(1)\nprint(\"x\")\n"
+  },
+  {
+   "file": "test_v32.py",
+   "line": 185,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "println(1)\n"
+  },
+  {
+   "file": "test_v32.py",
+   "line": 261,
+   "max_depth": 20000,
+   "runner": ".run",
+   "src": "nosuch(1)\nlet b = 2 + 3\n"
+  },
+  {
+   "file": "test_v32.py",
+   "line": 257,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "let a = nosuch(1)\nnosuch(1)\nlet b = 1 + 1\n"
+  },
+  {
+   "file": "test_v32.py",
+   "line": 269,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "fn f(n) { if n == 0 { 0 } else { nosuch(n)\n f(n - 1) } }\nlet r = f(3)\n"
+  },
+  {
+   "file": "test_v33.py",
+   "line": 243,
+   "max_depth": 20000,
+   "runner": "run_src",
+   "src": "fn f() { miss DEPT_NOT_APPROVED }\nlet r = f()\nprint(str(r))\nr\n"
+  },
+  {
+   "file": "test_v33.py",
+   "line": 254,
+   "max_depth": 20000,
+   "runner": "run_src",
+   "src": "let reason = \"nope\"\nfn f() { miss reason }\nlet r = f()\nprint(str(r))\nr\n"
+  },
+  {
+   "file": "test_v33.py",
+   "line": 267,
+   "max_depth": 20000,
+   "runner": "run_src",
+   "src": "fn f() { miss null }\nlet r = f()\nprint(str(r))\nr\n"
+  },
+  {
+   "file": "test_v41.py",
+   "line": 106,
+   "max_depth": 20000,
+   "runner": ".run",
+   "src": "check \"sees the tab\": \"a\\tb\" == \"nope\"\n"
+  },
+  {
+   "file": "test_v41.py",
+   "line": 100,
+   "max_depth": 20000,
+   "runner": ".run",
+   "src": "print(\"a\\tb\")\n"
+  },
+  {
+   "file": "test_v41.py",
+   "line": 97,
+   "max_depth": 20000,
+   "runner": ".run",
+   "src": "check \"tab\": true\n"
+  },
+  {
+   "file": "test_v42.py",
+   "line": 63,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "[nosuch(1)]\n"
+  },
+  {
+   "file": "test_v42.py",
+   "line": 74,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "let xs = [1, 2, 3]\nmap(fn(x) { nosuch(x) }, xs)\n"
+  },
+  {
+   "file": "test_v42.py",
+   "line": 82,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "@{a: nosuch(1)}\n"
+  },
+  {
+   "file": "test_v42.py",
+   "line": 90,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "[@{a: nosuch(1)}, @{a: nosuch(2)}]\n"
+  },
+  {
+   "file": "test_v42.py",
+   "line": 89,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "@{a: [@{b: nosuch(1)}]}\n"
+  },
+  {
+   "file": "test_v42.py",
+   "line": 88,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "[[nosuch(1)]]\n"
+  },
+  {
+   "file": "test_v42.py",
+   "line": 98,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "let xs = [nosuch(1)]\nxs\n"
+  },
+  {
+   "file": "test_v42.py",
+   "line": 106,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "map(fn(x) { x + 1 }, [1, 2])\n"
+  },
+  {
+   "file": "test_v42.py",
+   "line": 105,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "@{a: 1, b: \"x\"}\n"
+  },
+  {
+   "file": "test_v42.py",
+   "line": 104,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "[1, 2, 3]\n"
+  },
+  {
+   "file": "test_v42.py",
+   "line": 114,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "check \"c\": len([nosuch(1)]) == 1\n"
+  },
+  {
+   "file": "test_v42.py",
+   "line": 113,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "let r = [nosuch(1)]\n"
+  },
+  {
+   "file": "test_v42.py",
+   "line": 112,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "fn f(n) { [nosuch(n)] }\nlet r = f(1)\n"
+  },
+  {
+   "file": "test_v42.py",
+   "line": 121,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "let xs = [1, 2]\nmap(fn(x) { nosuch(x) }, xs)\n"
+  },
+  {
+   "file": "test_v42.py",
+   "line": 135,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "print(map(fn(x) { nosuch(x) }, [1, 2]))\n"
+  },
+  {
+   "file": "test_v42.py",
+   "line": 134,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "print(@{a: nosuch(1)})\n"
+  },
+  {
+   "file": "test_v42.py",
+   "line": 133,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "print([nosuch(1)])\n"
+  },
+  {
+   "file": "test_v42.py",
+   "line": 140,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "[print(nosuch(1)), 1]\n"
+  },
+  {
+   "file": "test_v42.py",
+   "line": 170,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "print(nosuch(1)) + 1\n"
+  },
+  {
+   "file": "test_v42.py",
+   "line": 167,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "print([nosuch(1)]) + [2]\n"
+  },
+  {
+   "file": "test_v42.py",
+   "line": 252,
+   "max_depth": 20000,
+   "runner": ".run",
+   "src": "[1, 2, 3, 4, 5, 6, 7, 8]\n"
+  },
+  {
+   "file": "test_v42.py",
+   "line": 267,
+   "max_depth": 20000,
+   "runner": ".run",
+   "src": "[1, 2, 3, 4]\n"
+  },
+  {
+   "file": "test_v42.py",
+   "line": 277,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "map(fn(x) { x + 1 }, range(20000))\n"
+  },
+  {
+   "file": "test_v43.py",
+   "line": 105,
+   "max_depth": 20000,
+   "runner": "printed",
+   "src": "print(guess([nosuch(1)], 0.5, \"s\"))\n"
+  },
+  {
+   "file": "test_v43.py",
+   "line": 103,
+   "max_depth": 20000,
+   "runner": "printed",
+   "src": "print(@{v: nosuch(1)})\n"
+  },
+  {
+   "file": "test_v43.py",
+   "line": 122,
+   "max_depth": 20000,
+   "runner": "printed",
+   "src": "print(show([nosuch(1)]))\n"
+  },
+  {
+   "file": "test_v43.py",
+   "line": 131,
+   "max_depth": 20000,
+   "runner": "printed",
+   "src": "let v1 = @{a: [nosuch(1)], c: 0}\nprint(if v1 { 1 } else { 2 })\n"
+  },
+  {
+   "file": "test_v43.py",
+   "line": 143,
+   "max_depth": 20000,
+   "runner": "printed",
+   "src": "print([if [1] { 1 } else { 2 }])\n"
+  },
+  {
+   "file": "test_v43.py",
+   "line": 164,
+   "max_depth": 20000,
+   "runner": "printed",
+   "src": "print(@{a: miss \"gone\"})\n"
+  },
+  {
+   "file": "test_v43.py",
+   "line": 163,
+   "max_depth": 20000,
+   "runner": "printed",
+   "src": "print([miss \"gone\"])\n"
+  },
+  {
+   "file": "test_v43.py",
+   "line": 168,
+   "max_depth": 20000,
+   "runner": "printed",
+   "src": "print([num(\"3O\")])\n"
+  },
+  {
+   "file": "test_v43.py",
+   "line": 407,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "print([nosuch(1)])\n[nosuch(1)]\n"
+  },
+  {
+   "file": "test_v43.py",
+   "line": 416,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "let m = nosuch(1)\nprint([m])\nm\n"
+  },
+  {
+   "file": "test_v43.py",
+   "line": 444,
+   "max_depth": 20000,
+   "runner": "value_of",
+   "src": "guess(1, 0.5, \"s\")\n"
+  },
+  {
+   "file": "test_v43.py",
+   "line": 443,
+   "max_depth": 20000,
+   "runner": "value_of",
+   "src": "guess(nosuch(1), 0.5, \"s\")\n"
+  },
+  {
+   "file": "test_v43.py",
+   "line": 437,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "guess(nosuch(1), 0.5, [])\n"
+  },
+  {
+   "file": "test_v43.py",
+   "line": 451,
+   "max_depth": 20000,
+   "runner": "value_of",
+   "src": "guess([nosuch(1)], 0.5, \"s\")\n"
+  },
+  {
+   "file": "test_v43.py",
+   "line": 468,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "[guess([nosuch(1)], 0.5, \"s\")]\n"
+  },
+  {
+   "file": "test_v44.py",
+   "line": 332,
+   "max_depth": 20000,
+   "runner": ".run",
+   "src": "fn wrap(n) { if n == 0 { @{v: 0} } else { @{v: wrap(n - 0)} } }\nlet rec = wrap(1)\n"
+  },
+  {
+   "file": "test_v44.py",
+   "line": 408,
+   "max_depth": 20000,
+   "runner": "run",
+   "src": "print([1, [2, [3]]])\n"
+  }
+ ],
+ "stats": {
+  "ambiguous_scopes": 22,
+  "calls": 983,
+  "executing_runners": 69,
+  "files": 61,
+  "forwarded_args": 81,
+  "nonconstant_programs": 130,
+  "parse_only_programs": 73,
+  "parse_only_runners": 29,
+  "programs": 488,
+  "programs_before_dedup": 498,
+  "unparsed_programs": 3,
+  "unresolved_args": 127
+ }
+}
