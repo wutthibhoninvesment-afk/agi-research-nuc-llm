@@ -620,7 +620,7 @@ class TestCheckByRunning(unittest.TestCase):
         cmds = parse(*lines)
         for c in cmds:
             c.kind, c.reason = claim_check.classify(c.command)
-        return claim_check.check_by_running(cmds, self.tmp, 60)
+        return claim_check.check_by_running(cmds, self.tmp, 60)[0]
 
     def test_matching_claim_produces_no_finding(self):
         findings = self.run_block("grep -c x /dev/null   # expected: exit 1")
@@ -694,7 +694,7 @@ class TestCheckByRunning(unittest.TestCase):
         cmds = parse("python3 -m pytest --version  # expected: 3 passed")
         for c in cmds:
             c.kind, c.reason = claim_check.classify(c.command)
-        findings = claim_check.check_by_running(cmds, self.tmp, 0)
+        findings, _ = claim_check.check_by_running(cmds, self.tmp, 0)
         self.assertEqual(codes(findings), ["C002"])
 
     def test_cd_and_prefix_moves_cwd_for_later_commands(self):

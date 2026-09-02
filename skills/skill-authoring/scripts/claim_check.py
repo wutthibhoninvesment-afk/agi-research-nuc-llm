@@ -56,6 +56,7 @@ Exit codes: 0 = no stale claims, 1 = at least one, 2 = usage/IO problem.
 import argparse
 import os
 import re
+import shlex
 import signal
 import subprocess
 import sys
@@ -163,13 +164,25 @@ def _unbalanced_quotes(text):
     return sq or dq
 
 
+#: A shell PROMPT, not part of the command. Round 441 measured 23 commands
+#: in this corpus written `$ python3 -m pytest …`; under the pre-441
+#: whole-line allowlist two of them scraped into `auto` on a substring and
+#: the other 21 landed in the single `unknown program` bucket — pooled with
+#: the 120 commands that really do invoke un-allowlisted tools, so a
+#: systematic and one-line-fixable cause was indistinguishable from the
+#: irreducible remainder. Stripped here, at the ONE place both construction
+#: sites pass through, so classification, `path_tokens`, the `cd` tracker and
+#: the executor all see the same runnable text.
+PROMPT_RE = re.compile(r"^\s*\$ +")
+
+
 class Command:
     """One executable line from a Verification block, with its claim."""
 
     def __init__(self, path, line_no, command, claim):
         self.path = path
         self.line_no = line_no
-        self.command = command
+        self.command = PROMPT_RE.sub("", command)
         self.claim = claim
         self.kind = None            # "auto" | "manual"
         self.reason = None          # why it is manual (None when auto)
@@ -288,6 +301,16 @@ MANUAL_PATTERNS = [
     (r"\bswe\.(campaign|loop|mutation|fuzz|oracles|coverage|oraclekill|triage)\b"
      r"|--workers\b|\bbench_\w+\.py\b|\bdemo\.py\b", "expensive",
      "long-running campaign/benchmark"),
+    # Round 441. `pytest -k 'no_decider'` with no path collects the WHOLE
+    # rootdir. Seven such commands sit in one skill's block, invisible until
+    # PROMPT_RE stopped the `$ ` prefix from demoting them to "unknown
+    # program"; promoting them to `auto` without this would have turned a
+    # 336-command sweep into seven full-repo collections.
+    # `--version`/`--help` never collect anything, so they are not expensive
+    # and the corpus uses `pytest --version` as its cheapest smoke command.
+    (r"^\s*(python3?\s+-m\s+)?pytest\b(?!.*--(?:version|help)\b)"
+     r"(?!.*(?:[\w./-]+\.py|\b\w[\w./-]*/))",
+     "expensive", "pytest with no test path: collects the whole rootdir"),
     # -- answer depends on the machine, not the repo -----------------------
     (r"^\s*(ps|pgrep|find|uptime|free|df|dmesg)\b|\|\s*(ps|pgrep)\b",
      "environment", "reports live machine state, not a repo fact"),
@@ -296,28 +319,150 @@ MANUAL_PATTERNS = [
      "shell construct, not a single checkable command"),
 ]
 
-AUTO_PATTERNS = [
-    r"\bpython3?\s+-m\s+(pytest|unittest)\b",
-    r"^\s*pytest\b",
-    r"\bskill_lint\.py\b",
-    r"\bcheck_round_recorded\.py\b",
-    r"\btrigger_eval\.py\b.*--audit\b",
-    r"\bclaim_check\.py\b",
-    r"\bstate_claim_check\.py\b(?!.*--run\b)",   # --run would nest executors
-    r"\bcase_coverage\.py\b",   # offline: reads the case file + report dir
+# Round 441. Every rule below matches the PROGRAM POSITION of a shell
+# segment, never the raw command string.
+#
+# Until this round the eight script-named entries were plain `\bname\.py\b`
+# searches over the whole line, so the allowlist licensed a FILENAME rather
+# than a program. Measured at HEAD, with the file's own `classify()`:
+#
+#     sed -i 's/a/b/' claim_check.py        -> auto      <-- edits this file
+#     sed -i 's/a/b/' somewhere_else.py     -> manual
+#     vim claim_check.py                    -> auto
+#     chmod 777 skill_lint.py               -> auto
+#
+# The first of those is not hypothetical: it is
+# `skills/second-door-skips-the-gate/SKILL.md:224` verbatim, a deliberate
+# break-it-and-see step whose very next line is `git checkout claim_check.py`
+# (correctly `manual`, so the undo would have been skipped). The module
+# docstring's promise -- "An allowlist can only ever fail by declining to
+# check something" -- was false for those eight entries for as long as they
+# existed, and nothing noticed because `corpus_check.py` never passes
+# `--run`, so the published coverage was `0/336 commands` every round.
+#
+# Each rule is (program regex, `require` or None, `forbid` or None). The
+# program regex is matched against `program_of(segment)`, which is fully
+# anchored; `require`/`forbid` are searched against the WHOLE command, and
+# exist only to keep the three flag-qualified entries as narrow as they were.
+AUTO_RULES = [
+    (r"^python -m (pytest|unittest)$", None, None),
+    (r"^pytest$", None, None),
+    (r"^skill_lint\.py$", None, None),
+    (r"^check_round_recorded\.py$", None, None),
+    (r"^trigger_eval\.py$", r"--audit\b", None),
+    (r"^claim_check\.py$", None, None),
+    # --run would nest executors
+    (r"^state_claim_check\.py$", None, r"--run\b"),
+    # offline: reads the case file + report dir
+    (r"^case_coverage\.py$", None, None),
     # Round 429. Only the READ-ONLY subcommands. `check` and `baseline` run
     # whole suites in a fresh worktree (minutes) and append to
     # state/pristine-check-ledger.jsonl, so they must stay manual; naming the
     # four verbs explicitly is what keeps them there when a fifth is added.
     # `(?![\w.-])` and not `\b`: `\b` matches before a hyphen, so a future
     # `suites-and-write` verb would have inherited `suites`'s auto verdict.
-    r"\bpristine_check\.py\s+(suites|status|baseline-status|dirt)(?![\w.-])",
-    r"^\s*(wc|head|tail|cat|ls|grep)\b",
-    r"^\s*git\s+(status|log|diff|show)\b",
+    (r"^pristine_check\.py$",
+     r"\bpristine_check\.py\s+(suites|status|baseline-status|dirt)(?![\w.-])",
+     None),
+    (r"^(wc|head|tail|cat|ls|grep)$", None, None),
+    (r"^git$", r"^\s*git\s+(status|log|diff|show)\b", None),
 ]
 
 MANUAL_COMPILED = [(re.compile(p), c, r) for p, c, r in MANUAL_PATTERNS]
-AUTO_COMPILED = [re.compile(p) for p in AUTO_PATTERNS]
+AUTO_COMPILED = [(re.compile(p),
+                  re.compile(q) if q else None,
+                  re.compile(f) if f else None) for p, q, f in AUTO_RULES]
+
+# `perl -e 'alarm N; exec @ARGV' REAL COMMAND` -- this repo's documented
+# timeout wrapper (`preflight-priced-task-scripts`, `colocated-model-lane`,
+# `self-updating-driver-loop`). The program to classify is the one after it.
+EXEC_WRAPPER_RE = re.compile(
+    r"^\s*perl\s+-e\s+(?P<q>['\"])[^'\"]*exec\s+@ARGV[^'\"]*(?P=q)\s+")
+
+#: `FOO=bar cmd` -- an assignment prefix is not the program.
+ENV_ASSIGN_RE = re.compile(r"^[A-Za-z_][A-Za-z_0-9]*=\S*$")
+
+_INTERPRETERS = ("python", "python3", "python2")
+
+
+def split_segments(command):
+    """Split on `&&`, `||`, `;` and `|` -- but never inside quotes.
+
+    A naive `re.split` cuts `python3 -c "import x; print(y)"` in half and
+    then classifies `print(y)"` as a program. Round 441: every segment of a
+    chained command runs, so every segment must classify `auto` for the line
+    to be `auto`. `ls -la /var/log/sysstat/ && journalctl --list-boots` was
+    `auto` on the strength of its FIRST word alone.
+    """
+    out, buf, i, sq, dq = [], [], 0, False, False
+    while i < len(command):
+        c = command[i]
+        if c == "\\" and i + 1 < len(command):
+            buf.append(command[i:i + 2])
+            i += 2
+            continue
+        if c == "'" and not dq:
+            sq = not sq
+        elif c == '"' and not sq:
+            dq = not dq
+        if not sq and not dq:
+            two = command[i:i + 2]
+            if two in ("&&", "||"):
+                out.append("".join(buf)); buf = []; i += 2; continue
+            if c in ";|":
+                out.append("".join(buf)); buf = []; i += 1; continue
+        buf.append(c)
+        i += 1
+    out.append("".join(buf))
+    return [s for s in out if s.strip()]
+
+
+def _tokens(segment):
+    try:
+        return shlex.split(segment)
+    except ValueError:                      # unbalanced quotes: best effort
+        return segment.split()
+
+
+def program_of(segment):
+    """The program a shell segment INVOKES, canonicalised, or "".
+
+    `python3 -m pytest ...` -> `python -m pytest`; `python3 foo/bar.py ...` ->
+    `bar.py`; `sed -i ... claim_check.py` -> `sed`. Basenamed so that
+    `skills/skill-authoring/scripts/case_coverage.py` and a bare
+    `case_coverage.py` are the same program.
+    """
+    segment = EXEC_WRAPPER_RE.sub("", segment)
+    toks = _tokens(segment)
+    while toks and ENV_ASSIGN_RE.match(toks[0]):
+        toks.pop(0)
+    if not toks:
+        return ""
+    head = os.path.basename(toks[0])
+    if head not in _INTERPRETERS:
+        return head
+    rest = toks[1:]
+    for i, t in enumerate(rest):
+        if t == "-m" and i + 1 < len(rest):
+            return "python -m %s" % rest[i + 1]
+        if t == "-c":
+            return "python -c"
+        if t.endswith(".py"):
+            return os.path.basename(t)
+    return "python"
+
+
+def _segment_is_auto(segment, whole):
+    prog = program_of(segment)
+    for prog_rx, require, forbid in AUTO_COMPILED:
+        if not prog_rx.match(prog):
+            continue
+        if require is not None and not require.search(whole):
+            continue
+        if forbid is not None and forbid.search(whole):
+            continue
+        return True
+    return False
 
 # `cd X && real_command` — classify (and time) the real command, not the cd.
 CD_PREFIX_RE = re.compile(r"^\s*cd\s+(\S+)\s*&&\s*")
@@ -333,10 +478,15 @@ def classify(command):
     for rx, category, reason in MANUAL_COMPILED:
         if rx.search(body):
             return "manual", "%s: %s" % (category, reason)
-    for rx in AUTO_COMPILED:
-        if rx.search(body):
-            return "auto", None
-    return "manual", "unknown program: allowlist has no entry (fails closed)"
+    segments = split_segments(body)
+    if not segments:
+        return "manual", "unknown program: empty command (fails closed)"
+    for seg in segments:
+        if not _segment_is_auto(seg, body):
+            return "manual", ("unknown program: allowlist has no entry for "
+                              "%r in command position (fails closed)"
+                              % (program_of(seg) or seg.strip()))
+    return "auto", None
 
 
 # --------------------------------------------------------------------------
@@ -618,8 +768,19 @@ def run_command(cmd, repo_root, cwd, timeout):
         return (out or "") + "\nclaim_check: TIMEOUT after %ss" % timeout, -1
 
 
-def check_by_running(commands, repo_root, timeout):
+def check_by_running(commands, repo_root, timeout, dry_run=False):
     """C002: run every `auto` command and diff its metrics against the claim.
+
+    Returns `(findings, n_executed)`. Round 441: the summary line used to
+    report `n_ran = n_auto if args.run else 0`, which over-counts, because an
+    `auto` command whose paths are absent from this checkout is reported C004
+    and never executed. The caller now gets the number that actually ran.
+
+    `dry_run=True` performs every step -- the `cd` tracking, the C004 gate,
+    the claim parse -- and prints the command and the directory it would run
+    in INSTEAD of executing it. That mode exists because this round found
+    `sed -i … claim_check.py` classified `auto`: the only safe way to ask
+    "what would this tier do to my tree" was a tier that does not do it.
 
     A Verification fence is read as ONE shell session, so any leading `cd`
     — bare or `cd X && real_command` — moves the working directory for every
@@ -629,6 +790,7 @@ def check_by_running(commands, repo_root, timeout):
     inside `harness/`.
     """
     findings = []
+    n_executed = 0
     cwd = repo_root
     for cmd in commands:
         m = re.match(r"^\s*cd\s+(\S+)", cmd.command)
@@ -672,7 +834,15 @@ def check_by_running(commands, repo_root, timeout):
                 cmd, "C003", "claim %r states no checkable number; ran it "
                              "anyway for the exit code only" % cmd.claim,
                 level="UNQUANTIFIED"))
+        if dry_run:
+            print("would run [%s]: %s"
+                  % (os.path.relpath(pending_cwd or cwd, repo_root),
+                     cmd.command.replace("\n", " ")))
+            if pending_cwd:
+                cwd = pending_cwd
+            continue
         output, rc = run_command(cmd, repo_root, cwd, timeout)
+        n_executed += 1
         got = observed_metrics(output, rc)
         for name, want in sorted(wanted.items()):
             if name not in got:
@@ -685,7 +855,7 @@ def check_by_running(commands, repo_root, timeout):
                     % (name, want, name, got[name])))
         if pending_cwd:
             cwd = pending_cwd
-    return findings
+    return findings, n_executed
 
 
 # --------------------------------------------------------------------------
@@ -744,6 +914,9 @@ def main(argv=None):
     ap.add_argument("--run", action="store_true",
                     help="execute `auto` commands and diff their real output "
                          "against the claim (never runs `manual` ones)")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="print what --run WOULD execute, and where, without "
+                         "executing anything")
     ap.add_argument("--timeout", type=int, default=300,
                     help="per-command timeout in seconds under --run")
     args = ap.parse_args(argv)
@@ -759,7 +932,7 @@ def main(argv=None):
 
     repo_root = os.path.abspath(args.repo_root)
     findings, n_auto, n_manual, reasons = [], 0, 0, {}
-    paths_checked = paths_skipped = 0
+    paths_checked = paths_skipped = n_executed = 0
     for md in md_paths:
         try:
             cmds = commands_for(md)
@@ -781,8 +954,11 @@ def main(argv=None):
         findings.extend(path_findings)
         paths_checked += checked
         paths_skipped += skipped
-        if args.run:
-            findings.extend(check_by_running(cmds, repo_root, args.timeout))
+        if args.run or args.dry_run:
+            run_findings, ran = check_by_running(
+                cmds, repo_root, args.timeout, dry_run=args.dry_run)
+            findings.extend(run_findings)
+            n_executed += ran
 
     for f in findings:
         print(f)
@@ -799,7 +975,7 @@ def main(argv=None):
     # and `commands` is 0 of 264 unless `--run` was passed -- so without
     # `--run` this tool's `0 stale` is zero-of-zero on the command tier, and
     # says so now instead of reading as a clean bill of health.
-    n_ran = n_auto if args.run else 0
+    n_ran = n_executed
     print("claim_check: %d path(s) resolved, %d unresolvable-by-design "
           "(scratch/placeholder/output/unanchored); %d stale claim(s) of %d "
           "checked; coverage %d/%d paths, %d/%d commands"
