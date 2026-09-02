@@ -109,6 +109,26 @@ deferred run, not a runner); the rule is documented but no tool implements it
     survive being reached through a test framework whose argv no caller
     controls.
 
+    **Then remember that the guard CHANGES WHAT THE CHECKER LIST IS**, and
+    that any test asserting a property of that list is, inside the runner,
+    asserting it against a different list. Measured: a suite of 11 new tests
+    over a checker table passed standalone and **5 failed under the runner**,
+    because the guard drops one row and the tests had been written against
+    the full table — `--only <dropped>` raised "unknown checker", the preset
+    selected everything, and the exclusion table "named a checker that does
+    not exist". Reproduce with one command:
+
+    ```bash
+    REENTRY_VAR=1 pytest -q path/to/test_runner.py -k <NewClass>
+    ```
+
+    Fix by CLEARING the variable in `setUp`, never by skipping under it — a
+    skip hides the tests from the only runner that executes them, which is
+    this skill's own defect in a different costume — and add one test
+    asserting the full table really is full, so a later `setUp` regression
+    cannot put every other test back on the short list silently. Subprocess
+    tests inherit the variable too; clean the env you pass.
+
 ### Find them by CLOSURE, not one at a time
 
 The steps above start from "you already suspect this checker is unrun". The
@@ -229,6 +249,51 @@ owner and a date, and only it can raise the age warning.
   unattributed untracked file and trips a different checker, and the
   cleanest new instrument's first act is a false alarm.
 
+## The runner you installed still has a floor of one
+
+Steps 8 and 9 get a runner installed and scheduled, and that is where this
+skill used to stop. It is not where the latency stops. A runner wired to fire
+**after** a unit of work — a post-commit job, a nightly, a per-round health
+check — cannot be seen by the change that broke the rule, because by the time
+it speaks, **the author is gone.** The latency does not go to zero; it goes to
+one unit of work and stays there.
+
+Measure that floor before deciding to accept it, by running step 6's episode
+analysis over the RUNNER'S OWN LOG instead of over git history. Measured on
+one repo across 89 consecutive runs of an eight-checker corpus check: **24 red
+runs (27%), 16 episodes, mean 1.50 units, longest 4** — and the rows that
+matter, **0 of 16 episodes opened by the track that owns the checkers**, **9
+of 15 (60%) closed by it**. Nobody who owns a checker breaks it. Every
+violation is introduced by someone working on something else, and most then
+wait for the owner to come back around.
+
+To get under the floor, do not add a checker and do not move the runner
+earlier — make the checkers that exist **runnable by the person about to
+commit**, which needs one property: fast enough that they will run it. Price
+them individually; cost is almost never evenly spread. In the measured case
+one checker was **79.6% of a 124.74s total**, and dropping it left **25.4s**
+that still caught **all 19** violations the last offending change shipped.
+
+Three rules make the subset trustworthy, and each is a real failure if
+skipped:
+
+* **Define the preset by what it EXCLUDES, never by an inclusion list.** An
+  inclusion list rots silently by omission — the same repo's docstring said
+  "five" checkers for two checkers' worth of drift. As an exclusion, a new
+  checker joins automatically and anyone removing one must give a *measured*
+  reason, enforced by a test.
+* **An unknown name must be an error, not an empty run**, and **a subset run
+  must not print a summary a full run could have printed** — carry the
+  skipped names in the line, and keep the clause empty for a full run so the
+  line stays byte-identical.
+* **Prove the flag moves the LIST, not a label** (see
+  `named-guardian-must-go-red`), and expect some findings to be structurally
+  un-catchable pre-commit because their evidence is written last.
+
+Full measurement, the cost table, the episode breakdown and the worked design:
+`references/detection-latency-floor.md`.
+
+
 ## Verification
 
 ```bash
@@ -252,7 +317,26 @@ owner and a date, and only it can raise the age warning.
 
 # 6. re-entry terminates
 <runner>                        # expect: finishes; no nested-process chain
+
+# 7. the author-runnable subset is real, fast, and honest about itself
+<runner> --list                 # expect: every checker; exclusions say WHY
+time <runner> --precommit | tail -1
+#    expect: "N checker(s); SUBSET, did NOT run: <names>, 0 error(s), ..."
+#    and a wall clock a person will pay before every commit (<60s)
+
+# 8. the preset is NOT vacuous -- the flag moves the list, not a label
+python3 -c "import sys,os; sys.path.insert(0,'skills/skill-authoring/scripts'); \
+import corpus_check as C; a=C.checks(os.getcwd()); \
+print([n for n,_ in C.select(a)[0]] != [n for n,_ in C.select(a,precommit=True)[0]])"
+#    expect: True
+
+# 9. a typo selects nothing and must FAIL, not print green
+<runner> --only nosuchchecker; echo "rc=$?"     # expect: rc=2, names knowns
 ```
+
+Round 453's numbers above, the 10-test suite behind the subset and the
+scored prediction bank:
+`knowledge/round-453-the-check-that-runs-after-you-are-gone.md`.
 
 Worked example, with every number and both misses:
 `knowledge/round-363-the-corpus-had-five-checkers-and-nothing-ran-them.md`.

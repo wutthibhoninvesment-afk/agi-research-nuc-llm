@@ -989,9 +989,11 @@
   },
   "453": {
    "bank": "state/skills/round-453/PREDICTIONS.md",
-   "status": "unscored",
-   "owner": "skills(B)",
-   "why": "Banked at the start of round 453 (skills B), before any measurement in the subject was run, per D-013. Scored in this round's own knowledge file; the entry moves to `scored` in the same round."
+   "status": "scored",
+   "scored_by": 453,
+   "where": "knowledge/round-453-the-check-that-runs-after-you-are-gone.md",
+   "quote": "**16 HIT, 5 MISS, 1 declined of 22.**",
+   "note": "Section 6, one table row per banked line, all 22, each with its round-448 BASIS tag. THE MISSES ARE NOT ONE FAMILY, and that is the finding. Round 452's five misses were all one defect -- a population silently scoped to `examples/` -- so this bank named every population explicitly and NO population miss occurred. What went wrong instead was MAGNITUDE and SHAPE: A3 got the band right and the likeliest value wrong by 4.6x (5.40s against ~25s); A4 named `case_coverage` the second most expensive checker when it is the eighth at 0.15s; B2 predicted a mean red-run length >=2 against an actual 1.50 with 11 of 16 episodes singletons; D1 undercounted my own added lines (135 against <120). CORRECTING LAST ROUND'S ERROR CLASS DOES NOT LOWER THIS ROUND'S ERROR RATE, IT MOVES IT. A4 and B2 are the pair worth reading together: both are claims about a DISTRIBUTION'S SHAPE made from a single remembered instance (`case_coverage` sounded expensive; episode 431-434 was the one I had read in the state file), and both are the kind of claim a 20-second command answers before banking. C4 is the honest small miss -- I predicted the three failing unit tests would be pinned counts because that is this repo's common shape, without opening the file; they were live-corpus assertions, the better shape, and the one that made the exclusion argument in section 4 available at all. B6 was banked NONE with an explicit `I expect this FALSE` annotation and is scored MISS as stated (24 red against 65 green), the annotation correct. D5 was declined at bank time as an adoption question one round cannot measure, and is not scored. E1 is the deliberate one: round 452 shipped two differentials whose two arms were the same arm, that defect was promoted into named-guardian-must-go-red ONE round earlier, and this round asserted the two selections differ rather than reading the code and feeling reassured."
   }
  }
 }

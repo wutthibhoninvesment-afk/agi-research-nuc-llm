@@ -128,6 +128,62 @@ def coverage_of(output):
 REENTRY_ENV = "SKILLS_CORPUS_CHECK_RUNNING"
 
 
+# ---------------------------------------------------------------- round 453
+# THE PRE-COMMIT SUBSET.
+#
+# `run_checks_fast.sh` (round 363) cut detection latency for a corpus
+# violation from "the rotation, up to six rounds" to one round, by running
+# this file after every round. Round 453 measured what one round has actually
+# cost, over all 89 `skills-check` lines in `logs/driver.log` (rounds
+# 364-452):
+#
+#   24 of 89 rounds (27%) ended with at least one ERROR
+#   16 episodes; mean 1.50 rounds long, longest 4 (rounds 419-422, 431-434)
+#   opened by: language(C) 7, SWE-loop(D) 6, harness(A) 2, NUC(E) 1
+#              -- and skills(B) ZERO, in the whole log
+#   closed by a skills(B) round in 9 of 15 (60%)
+#
+# So the rounds that break the corpus are never the round that owns it, and
+# the check that would have told them runs AFTER they exit. Round 452 is the
+# whole argument in one round: it shipped 18 dangling `decision 53` citations
+# and an uncommitted artefact path, was killed by the outer timeout, and
+# round 453 paid it.
+#
+# The fix is not another checker. It is making the ones that exist runnable
+# BY THE ROUND THAT IS ABOUT TO COMMIT, which needs one thing: to be fast
+# enough that a round will actually run it. Measured solo on this box
+# (`nproc` 1), all ten checkers:
+#
+#   unit_tests 99.83s | verb_audit 15.29s | xref_check 4.44s
+#   selfdesc_check 4.37s | carryforward 0.56s | skill_lint 0.21s
+#   placeholder_check 0.19s | case_coverage 0.15s | claim_check 0.13s
+#   state_claim_check 0.09s
+#
+# One checker is 80% of the cost. Dropping it leaves 25.4s -- and, measured
+# against round 452's own shipped tree, the remaining nine catch ALL 19
+# violations it shipped, because `unit_tests`'s three failures there were the
+# live-corpus MIRRORS of `xref_check`'s and `carryforward`'s findings.
+#
+# THE PRESET IS DEFINED BY WHAT IT EXCLUDES, NOT BY A NAME LIST. This file's
+# own history is the reason: `checks()`'s docstring said "five" checkers for
+# two checkers' worth of drift, and `run_checks_fast.sh`'s header said "six"
+# until round 429. A preset written as an inclusion list rots the same way --
+# silently, by omission, with the omitted checker never running and nothing
+# saying so. Written as an exclusion, a NEW checker joins the preset
+# automatically and anyone who wants it out must name it here with a reason,
+# which `test_corpus_check.py` enforces.
+PRECOMMIT_EXCLUDES = {
+    "unit_tests":
+        "99.83s solo, 80% of the whole check's cost, and the only checker "
+        "over 20s. Its live-corpus tests duplicate what xref_check, "
+        "carryforward and skill_lint already report, so excluding it costs "
+        "no error-detection power on the shipped-violation population "
+        "measured in round 453; it keeps its own unit coverage, which is "
+        "what the post-round run is for.",
+}
+
+
+
 def checks(root):
     """(name, argv). Order is cheapest-first so a broken tree fails fast.
 
@@ -395,6 +451,56 @@ def driver_line(label, log_path, rc):
     return "%s ERROR — corpus-check died (exit %s) — %s" % (label, rc, tail)
 
 
+def subset_clause(skipped):
+    """The summary-line clause naming what a partial run did NOT run.
+
+    Round 453. A SUBSET RUN MUST NOT LOOK LIKE A FULL ONE, and this is the
+    whole reason `select` returns `skipped` rather than just the selection.
+    Without it `--precommit` prints `corpus-check: 9 checker(s), 0 error(s)`
+    -- which is indistinguishable from a clean run of everything to
+    `run_driver.sh`, which greps this line, and to a future round quoting it.
+    Silent truncation reading as full coverage is the failure this whole
+    subset exists to avoid; reproducing it in the subset's own output would
+    be the joke writing itself.
+
+    Empty for a full run, so the line is byte-identical to what every round
+    before 453 logged.
+    """
+    return ("; SUBSET, did NOT run: " + ",".join(skipped)) if skipped else ""
+
+
+def select(all_checks, only=None, precommit=False):
+    """Filter `checks()`'s (name, argv) list. Returns (selected, skipped).
+
+    `only` is an explicit name list and wins over `precommit`. An unknown
+    name is an error rather than a silent no-op -- a typo'd `--only xref`
+    that quietly ran nothing would print a green line, which is the exact
+    failure this whole subset exists to avoid.
+
+    Round 453. Both results are returned because the CALLER MUST SAY WHAT IT
+    SKIPPED. A subset run that prints the same summary shape as a full run is
+    worse than no subset at all: `run_driver.sh` greps that line, this repo's
+    rounds quote it, and "corpus-check: 9 checker(s), 0 error(s)" is
+    indistinguishable from a clean full run unless the skipped names ride
+    along.
+    """
+    names = [n for n, _ in all_checks]
+    if only:
+        wanted = [w.strip() for w in only if w.strip()]
+        unknown = [w for w in wanted if w not in names]
+        if unknown:
+            raise ValueError("unknown checker(s): %s; known: %s"
+                             % (", ".join(sorted(unknown)), ", ".join(names)))
+        keep = set(wanted)
+    elif precommit:
+        keep = {n for n in names if n not in PRECOMMIT_EXCLUDES}
+    else:
+        return list(all_checks), []
+    selected = [(n, a) for n, a in all_checks if n in keep]
+    skipped = [n for n in names if n not in keep]
+    return selected, skipped
+
+
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv[:1] == ["--line"]:
@@ -411,10 +517,35 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--repo-root", default=DEFAULT_REPO)
     ap.add_argument("--json", default=None)
+    # Round 453. See PRECOMMIT_EXCLUDES for the measurement behind --precommit.
+    ap.add_argument("--precommit", action="store_true",
+                    help="run every checker except the ones named in "
+                         "PRECOMMIT_EXCLUDES (25.4s vs 125s); for a round to "
+                         "run on its own tree BEFORE its last commit")
+    ap.add_argument("--only", default=None,
+                    help="comma-separated checker names; see --list")
+    ap.add_argument("--list", action="store_true",
+                    help="print the checker names and exit")
     args = ap.parse_args(argv)
     root = os.path.abspath(args.repo_root)
 
-    results = [run_one(n, a, root) for n, a in checks(root)]
+    all_checks = checks(root)
+    if args.list:
+        for n, _ in all_checks:
+            print("%-18s %s" % (n, "EXCLUDED from --precommit: "
+                                + PRECOMMIT_EXCLUDES[n]
+                                if n in PRECOMMIT_EXCLUDES else ""))
+        return PASS
+    try:
+        selected, skipped = select(all_checks,
+                                   only=args.only.split(",") if args.only
+                                   else None,
+                                   precommit=args.precommit)
+    except ValueError as exc:
+        print("corpus_check: %s" % exc, file=sys.stderr)
+        return COULD_NOT_RUN
+
+    results = [run_one(n, a, root) for n, a in selected]
     for r in results:
         flag = ("ERROR " + ",".join(r["errors"])) if r["errors"] else (
             ("warn " + ",".join(r["warnings"])) if r["warnings"] else "ok")
@@ -435,9 +566,10 @@ def main(argv=None):
     # carries the whole verdict including the warning count.
     nested = " (nested: unit_tests skipped)" if os.environ.get(REENTRY_ENV) \
         else ""
+    subset = subset_clause(skipped)
     cov = [r for r in results if r.get("coverage")]
-    print("corpus-check: %d checker(s)%s, %d error(s), %d warning(s)%s%s%s%s"
-          % (len(results), nested, n_err, n_warn,
+    print("corpus-check: %d checker(s)%s%s, %d error(s), %d warning(s)%s%s%s%s"
+          % (len(results), nested, subset, n_err, n_warn,
              "; COULD NOT RUN: " + ",".join(broken) if broken else "",
              "; absent: " + ",".join(absent) if absent else "",
              ("; coverage: " + "; ".join("%s %s" % (r["check"], r["coverage"])

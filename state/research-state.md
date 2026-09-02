@@ -23808,6 +23808,217 @@ successor — 448→449, 449→450, 450→451, 451→452, 452→453.)*
   have left that test red; writing the entry is the fix, not an exemption.
 
 
+### Round 453 — skills(B) — 2026-09-02 — the check that runs after you are gone
+
+- **Landed round 452's whole orphaned diff and BACKFILLED its record**
+  (`f1edb2e`). Round 452 was killed by the outer 3300 s timeout after parts 0
+  and 1, leaving 14 paths uncommitted — the entire Whence v0.44
+  implementation, `depthcensus.py`, its knowledge file and two SKILL.md
+  upgrades — and leaving NO research-state entry at all. Verified before
+  landing, not taken on 452's narration: `test_v44.py test_depthcensus.py
+  test_v43.py` → **103 passed in 66.14 s**. The driver's own post-round
+  whence check had already run against that exact tree (`1 failed, 2343
+  passed, 3 skipped`) and **the single failure was `test_v22.py::
+  test_research_state_track_c_names_the_same_version_as_spec_md` — the
+  absence of 452's own state entry.** Writing the entry is the fix; exempting
+  the test would have deleted the only thing that noticed. Excluded
+  `SECURITY.md` (escalated, operator's) and `state/round_counter` (standing
+  dirty). **FIFTH consecutive round to land its predecessor's work**:
+  448→449, 449→450, 450→451, 451→452, 452→453.
+- **Closed the three corpus errors round 452 could not see** (`ad5cd59`).
+  452's `skills-check` reported 3 errors where 451's reported 0. (i)
+  `xref_check` X001: `decision 53` cited at **18** authoritative sites and
+  never written into SPEC.md's `## Anti-mainstream design decisions`
+  registry — 452 wrote the `## v0.44` narrative section and stopped. One
+  registry line cleared all 18, because the finding key is `CODE:identifier`
+  not `file:line`; the registry is now 40 entries. (ii) `xref_check` X004:
+  `values.py:533` cites `state/whence/round-452/depth-census.json` as "that
+  round's reading" and the file was never committed — fixed by **re-running
+  the instrument, not rewording the sentence**: `depthcensus.py` at HEAD
+  (33.9 s) reports max BUILT depth **14** (`self_host.lang`), max PRINTED
+  **2**, **3,587,551** nodes, matching 452's headline exactly. (iii)
+  `carryforward` K003: the ledger still said 452's bank was `unscored` while
+  its knowledge file carried the full 16-row scoring. The checker's own
+  words are the lesson — *an acknowledgement that outlives its debt is a mute
+  button* — and it is symmetric: the moment 452 moved to `scored`, K001 fired
+  demanding an entry for THIS round's bank, and later K003 fired again on this
+  round for the same reason.
+- **MEASURED, for the first time, what the post-round check actually costs.**
+  Round 363 built `run_checks_fast.sh` to cut a corpus violation's detection
+  latency from "the rotation, up to six rounds" to one round. Across all
+  **89** `skills-check` lines in `logs/driver.log` (rounds 364–452):
+  **24 red rounds of 89 (27%), 16 episodes, mean 1.50 rounds, longest 4**
+  (419–422 and 431–434); latency opened→closed mean **1.53**, median 1, max 4.
+  Opened by language(C) 7, SWE-loop(D) 6, harness(A) 2, NUC(E) 1 — and
+  **skills(B) ZERO, in the whole log** — while **9 of 15 (60%) were closed by
+  a skills(B) round.** The rounds that break the corpus are never the round
+  that owns it, and the check that would have told them runs after they exit.
+  **This refines round 435's carried reading** that the check "goes red at the
+  rate of the ROTATION, and the rotation is six rounds": the rotation does not
+  govern the DURATION (mean 1.50, median 1), it governs WHO CLOSES. Round 435
+  generalised from episode 431–434, one of only two length-4 episodes in the
+  log.
+- **A parsing failure that produced a plausible wrong answer first, recorded
+  because it nearly shipped.** `re.search(r"(\d+) error\(s\)", line)` reports
+  round 452 as `errors=0` — the line carries `selfdesc_check … 0 error(s)`
+  BEFORE the aggregate. Anchoring on `corpus-check: \d+ checker\(s\), (\d+)
+  error\(s\)` turns 28 "red" rounds into the true 24 and changes which rounds
+  they are. Caught only because a round I knew to be red parsed as green.
+  **A count extracted from a log line must anchor on the summary token, not
+  on the unit** — round 452's P13 in a different costume.
+- **Built `corpus_check.py --precommit`: the subset a round can run on its
+  OWN tree while still alive.** Every checker priced solo (`nproc` 1):
+  `unit_tests` 99.31 s, `verb_audit` 15.29 s, `xref_check` 4.44 s,
+  `selfdesc_check` 4.37 s, `carryforward` 0.56 s, `skill_lint` 0.21 s,
+  `placeholder_check` 0.19 s, `case_coverage` 0.15 s, `claim_check` 0.13 s,
+  `state_claim_check` 0.09 s — **TOTAL 124.74 s, one checker 79.6% of it.**
+  Dropping it leaves **25.95 s measured end-to-end, 0 errors**, and the
+  surviving nine catch **all 19** violations round 452 shipped, because
+  `unit_tests`' three failures there were the live-corpus MIRRORS of
+  `xref_check`'s and `carryforward`'s findings (measured, not assumed).
+  The prose costs already in `checks()` (`0.7 s`, `~2 s`, `~30 s`, `~37s`)
+  are stale in both directions.
+- **The design decision: the preset is defined by what it EXCLUDES.** This
+  file's own history is the argument — `checks()`'s docstring said "five"
+  checkers for two checkers' worth of drift and `run_checks_fast.sh`'s header
+  said "six" until round 429. An inclusion list rots silently by omission;
+  written as an exclusion, a new checker joins the preset automatically and
+  anyone who wants it out must name it with a **measured** reason. Enforced by
+  `test_the_exclusion_table_is_the_only_thing_keeping_a_checker_out`, its
+  mirror `test_no_exclusion_names_a_checker_that_no_longer_exists` (K003's
+  class applied to this table), and `test_every_exclusion_carries_a_measured_
+  reason`. Also: a subset run **must not print a summary a full run could have
+  printed** — `corpus-check: 9 checker(s); SUBSET, did NOT run: unit_tests,
+  …`, with `subset_clause([]) == ""` so a full run's line stays byte-identical
+  to every line before this round. A typo'd `--only xref` is `rc=2` naming the
+  known checkers, never an empty green run. **11 new tests**, all passing.
+- **Ran the non-vacuity check because a skill demanded it ONE ROUND ago.**
+  Round 452 shipped two differentials whose two arms were the same arm
+  (`full_show_named(node, cap=FULL_SHOW_NEST)` binds at definition time; both
+  tests passed against a completely unchanged renderer), and that defect was
+  promoted into `named-guardian-must-go-red` in the diff this round landed.
+  So: full 10 checkers / precommit 9 / only 1, asserted DIFFERENT before the
+  flag was trusted. HIT first try — `checks()` builds from a literal at call
+  time — **but the way you know that is by asserting it, not by reading the
+  code and feeling reassured.**
+- **The new tests passed standalone and FIVE of them failed under the only
+  runner that runs them.** `corpus_check.run_one` sets `REENTRY_ENV` for every
+  checker it spawns and `checks()` reads it and omits `unit_tests`, so inside
+  the corpus check the table is NINE rows and every assertion was silently
+  made against the wrong one: `--only unit_tests` raised `unknown checker`,
+  `--precommit` selected the whole list, `PRECOMMIT_EXCLUDES` named a checker
+  that "did not exist", and the subprocess test inherited the guard.
+  Reproduced in one command (`SKILLS_CORPUS_CHECK_RUNNING=1 pytest -k
+  Precommit` → `5 failed, 5 passed`). Fixed by CLEARING the variable in
+  `setUp`, not by skipping under it — a skip hides the tests from the runner
+  that matters, the same mistake in a different costume — plus a new
+  `test_the_full_table_includes_the_excluded_checker` guarding the fix.
+  **`--precommit` would NOT have caught this**, because it excludes
+  `unit_tests`, which is where these tests live: the honest cost of the
+  exclusion, incurred inside the round that made it.
+- **`skills/unrun-checker-latency/SKILL.md` 267 → 351 lines**, new section
+  *"The runner you installed still has a floor of one"* with the episode
+  table, the exclusion-not-inclusion rule and the three honesty properties;
+  a new consequence under step 10 (the re-entry guard CHANGES WHAT THE
+  CHECKER LIST IS, so tests of the list must clear it); and four new
+  Verification commands. The measurement and worked design were split into a
+  new `references/detection-latency-floor.md` (108 lines) when the body
+  crossed `skill_lint`'s B002 line, following rounds 285 and 315's precedent
+  — back to `0 error(s), 0 warning(s)` under `--house --strict`. The `description` frontmatter was deliberately NOT
+  changed — the material is inside its existing scope, and changing it would
+  invalidate the skill's probed trigger cases and add a fifteenth item to the
+  unpriced probe backlog.
+- **One Verification command was written unrunnable and caught by running
+  it**: `python3 -c "import corpus_check…"` is a `ModuleNotFoundError` from
+  the repo root without the `sys.path.insert`. Shipped only after being
+  executed as written.
+- **Predictions: 16 HIT, 5 MISS, 1 declined of 22** (`state/skills/round-453/
+  PREDICTIONS.md`, committed `afe52d6` before any measurement). **The misses
+  are NOT one family, and that is the finding.** Round 452's five misses were
+  all one defect (a population silently scoped to `examples/`), so this bank
+  named every population explicitly and no population miss occurred; what went
+  wrong instead was MAGNITUDE and SHAPE — A3 right band, likeliest value wrong
+  by 4.6x; A4 named the wrong checker as second-most-expensive (it is eighth);
+  B2 predicted mean episode length ≥2 against 1.50. **Correcting last round's
+  error class does not lower this round's error rate, it moves it.** A4 and B2
+  are one pair: both are claims about a DISTRIBUTION'S SHAPE made from a single
+  remembered instance, and both are answered by a 20-second command.
+- **Honest residual: the subset is BUILT and NOT WIRED**, which is this
+  round's own instance of the pitfall in the skill it upgrades. It must run
+  inside another round's session before that round's last commit, and the
+  harness has no hook that fires there; the driver can only run it after the
+  process exits, which is the latency being measured. `grep -c "precommit"
+  run_driver.sh` returns **0**, on purpose — if a future round wires it, that
+  number is the check. Also named, not decided: `verb_audit` is 60% of the
+  subset's cost and can never turn the corpus red (all findings WARN by
+  construction); on error-detection-power-per-second it is the next exclusion
+  candidate, the counter-argument being that it publishes coverage. And
+  `carryforward`'s K003 is structurally un-catchable before a commit — the
+  debt is discharged by a knowledge file written last — so the documented
+  order puts `--precommit` AFTER the knowledge file.
+
+## Next steps (as of round 453)
+
+1. **The pre-commit subset is BUILT and NOT WIRED, and only the harness can
+   wire it.** `bash skills/run_checks_fast.sh --precommit` is 25.95 s and
+   catches all 19 violations round 452 shipped, but it must run INSIDE a
+   round's session before that round's last commit and nothing fires there.
+   `grep -c "precommit" run_driver.sh` returns 0 — that is the check, and it
+   is 0 on purpose. The two candidate mechanisms are a `.claude/settings.json`
+   hook and a line in CLAUDE.md's round protocol (round 435's item 9 already
+   proposed the latter for a different reason). Neither is skills(B)'s to
+   install alone. harness(A).
+2. **`verb_audit` is 60% of the subset's cost and cannot turn the corpus
+   red** — every finding it emits is a WARN by construction. On the same
+   error-detection-power-per-second argument that excluded `unit_tests` it is
+   the next exclusion candidate; the counter-argument is that it publishes a
+   coverage clause into the summary line. **Named, not decided.** Whoever
+   decides it should run `--precommit` with and without it and report both
+   wall clocks. skills(B).
+3. **The 19-of-19 catch rate is measured on ONE shipped tree** (round 452's),
+   because that is the only one available at full fidelity. `corpus_history.py`
+   already replays commits against their own checkers; the same replay over
+   the 16 episodes would turn a single instance into a rate. skills(B).
+4. **27% red is a rate against this repo's own history and nothing else.**
+   There is no comparison corpus and the number is deliberately not offered as
+   a judgement. Do not quote it as "high" without one.
+5. **Round 435's items 2, 3 and 4 stand, UNTOUCHED by this round.** The J005
+   recall gap (a count claim whose noun is a per-element FIELD is invisible to
+   it); `selfdesc_check` sweeping TOP-LEVEL prose fields only — still **82 of
+   680** prose fields at HEAD, re-derived this round from the corpus-check
+   line, not copied; and the probe batch, still **fourteen** deep, still
+   needing operator authorisation and money. skills(B).
+6. **Landing a predecessor's orphan is now FIVE consecutive rounds**
+   (448→449→450→451→452→453) and twice it was the same file. Round 452 called
+   four "a pattern, not three coincidences". The driver-written
+   `slow-tier-ledger.jsonl` append is deterministic — it always lands after
+   the round's last commit — so that one is a step in the wrong order, not a
+   race. It is fixable in `run_driver.sh` and has not been. harness(A).
+7. **`carryforward`'s K003 is order-dependent and that is now confirmed
+   twice in one round** — it fired on round 452's bank, was fixed, then fired
+   on round 453's own bank the moment its knowledge file appeared. Any
+   documented pre-commit order must put the subset AFTER the knowledge file.
+   Do not "fix" this by weakening K003; the symmetry is why it works.
+8. **Carried from round 435 and NOT re-derived by this round:**
+   `polarity.py audit`'s 5 MISPOINTED against a registry whose header calls 0
+   its acceptance criterion (language C); the `%vmeff` residual;
+   `case_coverage`'s disagreeing verdicts; `claim_check` executing **0 of 398**
+   commands (the denominator moved from 394 this round, purely because this
+   round's own Verification block added four); and the NUC `retention
+   --strict` deadline. Re-derive before quoting — this round re-derived two
+   carried numbers (`nineteen`-style) and one, round 435's "red at the rate of
+   the rotation", turned out to describe the wrong quantity.
+9. **`nproc` on this box is 1 and the contention factor is 3.44x** (round
+   451, measured). Every number in this round is SOLO. The driver's own
+   post-round run of the same corpus check will be slower and that is
+   contention, not the checkers.
+10. **Standing, and not touched by this round:** CLAUDE.md's `CRITICAL
+   MISSION` block, re-escalated for the **NINETEENTH** time and still a
+   one-line deletion only the operator can make. `languages/whence/
+   SECURITY.md` is still uncommitted, still not this program's, and still the
+   operator's decision — **do not copy a carry count for it from this file**;
+   the checker's own line is the only source.
+
 ## Next steps (as of round 451)
 
 1. **The 3.44x contention factor is measured ONCE, on ONE suite, and then

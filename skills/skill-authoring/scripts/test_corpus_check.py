@@ -532,3 +532,214 @@ class TestNoCoveragePublishedSaysSo(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestPrecommitSubset(unittest.TestCase):
+    """Round 453. The subset a round can run on its OWN tree before its last
+    commit.
+
+    `run_checks_fast.sh` (round 363) cut a corpus violation's detection
+    latency from "the rotation, up to six rounds" to one round. Round 453
+    measured what one round has cost across all 89 `skills-check` lines in
+    `logs/driver.log`: 24 red rounds of 89, 16 episodes, mean 1.50 rounds,
+    longest 4 -- and **zero of the 16 episodes opened by a skills(B) round**,
+    while 9 of 15 were closed by one. The rounds that break the corpus are
+    never the round that owns it, and the check that would have told them
+    runs after they exit. One round is a floor, not a target, and the only
+    way under it is a check the author can run while still alive.
+    """
+
+    def setUp(self):
+        """Ask for the FULL checker table, whatever runner we are inside.
+
+        Round 453, and this was a real defect found by running the thing
+        rather than reasoning about it: these tests passed standalone (938
+        passed) and FIVE of them failed when the corpus check ran them, which
+        is the only way they actually run in this repo. `checks()` omits
+        `unit_tests` when REENTRY_ENV is set -- the re-entry guard, so a
+        runner that runs the suite that invokes the runner terminates -- so
+        every assertion here was silently made against a NINE-checker table
+        with the one excluded checker missing. `--only unit_tests` raised
+        ValueError, `--precommit` selected the whole list, and
+        PRECOMMIT_EXCLUDES named a checker that "did not exist".
+
+        The properties under test are about the COMPLETE table and the
+        selection logic over it; re-entry is a separate concern with its own
+        tests. So clear the variable rather than skipping under it -- a skip
+        would hide these from the runner that matters, which is the same
+        mistake in a different costume.
+        """
+        self._saved = os.environ.pop(corpus_check.REENTRY_ENV, None)
+        self.all = corpus_check.checks(ROOT)
+        self.names = [n for n, _ in self.all]
+
+    def tearDown(self):
+        if self._saved is not None:
+            os.environ[corpus_check.REENTRY_ENV] = self._saved
+
+    def test_the_full_table_includes_the_excluded_checker(self):
+        """The guard on setUp's own fix: if this goes red, every other test
+        in this class is asserting against the wrong table again."""
+        self.assertIn("unit_tests", self.names,
+                      "setUp did not clear %s, so checks() returned the "
+                      "re-entry table" % corpus_check.REENTRY_ENV)
+        self.assertEqual(len(self.names), 10)
+
+    def test_precommit_selects_a_strict_subset_and_not_the_whole_list(self):
+        """NON-VACUITY, and it is not ceremonial.
+
+        Round 452 shipped two configuration differentials whose two arms were
+        the same arm -- `full_show_named(node, cap=FULL_SHOW_NEST)` bound the
+        constant at DEFINITION time, so patching the module global compared
+        new against new and both tests passed against a completely unchanged
+        renderer. That defect was promoted into
+        `skills/named-guardian-must-go-red/SKILL.md` ONE ROUND before this
+        one. `checks()` builds its list at call time from a literal, so the
+        same trap is not available here -- but the way you know that is by
+        asserting the two selections differ, not by reading the code and
+        feeling reassured.
+        """
+        full, skipped_full = corpus_check.select(self.all)
+        pre, skipped_pre = corpus_check.select(self.all, precommit=True)
+        self.assertEqual(skipped_full, [], "a full run skips nothing")
+        self.assertNotEqual([n for n, _ in full], [n for n, _ in pre],
+                            "--precommit selected the same list as a full "
+                            "run: the flag is vacuous")
+        self.assertTrue(set(n for n, _ in pre) < set(n for n, _ in full))
+        self.assertEqual(sorted(skipped_pre),
+                         sorted(corpus_check.PRECOMMIT_EXCLUDES))
+
+    def test_the_exclusion_table_is_the_only_thing_keeping_a_checker_out(self):
+        """The anti-drift property, and the reason the preset is an
+        EXCLUSION list rather than an inclusion list.
+
+        This file's own history is the argument: `checks()`'s docstring said
+        "five" checkers for two checkers' worth of drift, and
+        `run_checks_fast.sh`'s header said "six" until round 429. An
+        inclusion list rots exactly that way -- silently, by omission, with
+        the omitted checker never running and nothing saying so. Written as
+        an exclusion, a NEW checker joins the preset automatically, and
+        anyone who wants it out has to name it and give a reason.
+        """
+        selected, _ = corpus_check.select(self.all, precommit=True)
+        for name in self.names:
+            if name in corpus_check.PRECOMMIT_EXCLUDES:
+                continue
+            self.assertIn(name, [n for n, _ in selected],
+                          "%s is in checks() but not in --precommit, and is "
+                          "not named in PRECOMMIT_EXCLUDES -- a checker fell "
+                          "out of the preset silently" % name)
+
+    def test_no_exclusion_names_a_checker_that_no_longer_exists(self):
+        """The mirror-image rot: an exclusion outliving its checker.
+
+        Same class as carryforward's K003 (`an acknowledgement that outlives
+        its debt is a mute button`), which is what caught round 452's own
+        unscored bank. A stale name here excludes nothing and reads as though
+        it does.
+        """
+        for name in corpus_check.PRECOMMIT_EXCLUDES:
+            self.assertIn(name, self.names,
+                          "PRECOMMIT_EXCLUDES names %r, which is not a "
+                          "checker in checks()" % name)
+
+    def test_every_exclusion_carries_a_measured_reason(self):
+        """A checker is excluded on a NUMBER or not at all.
+
+        `checks()` carries prose costs ("0.7 s", "~2 s", "~37s") that were
+        already stale when round 451 measured `unit_tests` at 162.34s and
+        round 453 at 99.83s. An exclusion justified by "it's slow" is the
+        same claim with nothing behind it.
+        """
+        for name, reason in corpus_check.PRECOMMIT_EXCLUDES.items():
+            self.assertGreater(len(reason), 80,
+                               "%s's exclusion reason is too short to carry "
+                               "a measurement" % name)
+            self.assertRegex(reason, r"\d",
+                             "%s's exclusion reason names no number" % name)
+
+    def test_an_unknown_only_name_is_an_error_not_a_silent_empty_run(self):
+        """A typo'd `--only xref` must not run nothing and print green.
+
+        This is the failure the whole subset exists to avoid, so it would be
+        a particularly bad one to ship inside it.
+        """
+        with self.assertRaises(ValueError) as caught:
+            corpus_check.select(self.all, only=["xref"])
+        self.assertIn("xref", str(caught.exception))
+        self.assertIn("xref_check", str(caught.exception),
+                      "the error should name the known checkers")
+
+    def test_only_wins_over_precommit(self):
+        selected, skipped = corpus_check.select(
+            self.all, only=["unit_tests"], precommit=True)
+        self.assertEqual([n for n, _ in selected], ["unit_tests"],
+                         "--only must be able to select a checker that "
+                         "--precommit excludes")
+        self.assertNotIn("unit_tests", skipped)
+
+    def test_a_subset_run_says_what_it_did_not_run(self):
+        self.assertEqual(corpus_check.subset_clause([]), "",
+                         "a full run's summary line must be byte-identical "
+                         "to what every round before 453 logged")
+        clause = corpus_check.subset_clause(["unit_tests", "verb_audit"])
+        self.assertIn("SUBSET", clause)
+        self.assertIn("unit_tests", clause)
+        self.assertIn("verb_audit", clause)
+
+    def test_end_to_end_the_summary_line_carries_the_subset_clause(self):
+        """Runs the real `main()` against the real repo, selecting the
+        cheapest checker (0.09s solo) so the assertion costs a second.
+
+        `subset_clause` being right in isolation does not prove `main`
+        calls it.
+        """
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = corpus_check.main(["--only", "state_claim_check",
+                                    "--repo-root", ROOT])
+        out = buf.getvalue()
+        summary = [l for l in out.splitlines() if l.startswith("corpus-check:")]
+        self.assertEqual(len(summary), 1, out)
+        self.assertIn("SUBSET, did NOT run:", summary[0])
+        self.assertIn("xref_check", summary[0])
+        self.assertIn("1 checker(s)", summary[0])
+        self.assertEqual(rc, corpus_check.PASS, out)
+
+    def test_list_mode_names_the_exclusions_and_runs_nothing(self):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = corpus_check.main(["--list", "--repo-root", ROOT])
+        out = buf.getvalue()
+        self.assertEqual(rc, corpus_check.PASS)
+        for name in self.names:
+            self.assertIn(name, out)
+        self.assertIn("EXCLUDED from --precommit", out)
+        self.assertNotIn("corpus-check:", out,
+                         "--list must not print a verdict line")
+
+    def test_the_documented_runner_forwards_the_flag(self):
+        """`skills/run_checks_fast.sh --precommit` is the ONE command this
+        round documents, so it gets a test rather than a promise.
+
+        The runner ends `exec python3 corpus_check.py "$@"`. Drop the `"$@"`
+        -- a plausible tidy-up, since no caller passed an argument before
+        round 453 -- and every documented invocation silently runs the FULL
+        check instead of the subset, taking 125s instead of 26s and giving
+        every future reader the impression the subset works. `named-is-not-
+        invoked`: the script being mentioned in the docs is not the script
+        receiving the argument.
+        """
+        runner = os.path.join(ROOT, "skills", "run_checks_fast.sh")
+        self.assertTrue(os.path.exists(runner), runner)
+        env = dict(os.environ)
+        # Same trap as setUp: a subprocess INHERITS the re-entry guard, and
+        # with it set `--list` never prints the excluded checker at all.
+        env.pop(corpus_check.REENTRY_ENV, None)
+        proc = subprocess.run(["bash", runner, "--list"], env=env,
+                              capture_output=True, text=True, timeout=120)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("EXCLUDED from --precommit", proc.stdout,
+                      "the runner did not forward --list to corpus_check.py")
+        self.assertNotIn("corpus-check:", proc.stdout,
+                         "the flag was swallowed and a full run happened")
