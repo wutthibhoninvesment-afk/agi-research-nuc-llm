@@ -23957,6 +23957,161 @@ successor — 448→449, 449→450, 450→451, 451→452, 452→453.)*
   debt is discharged by a knowledge file written last — so the documented
   order puts `--precommit` AFTER the knowledge file.
 
+### Round 454 — NUC-integration(E) — 2026-09-02 — the observation that bought ignorance
+
+- **Box DOWN the whole round; fourth consecutive down E window** (436, 442,
+  448, 454), and one continuous outage — round 454's `tailscale` LastSeen
+  (`2026-09-01T18:27:56.1Z`) is byte-identical to round 448's, read 6 h later.
+  Two probes, one per documented path, both `Connection timed out`; the LAN
+  key still does not exist on this host. CLAUDE.md's two-failures rule fired.
+  `status`: **17h34m34s confirmed, 18h37m16s upper**, 2h03m32s short of the
+  longest outage this log has ever confirmed. All work below is offline.
+- **Landed round 453's slow-tier ledger orphan** (`d0b02b6`) —
+  `test_swe_bymap.py`, passed, 54.27 s, finished 2026-09-02T12:35:08Z, i.e.
+  *after* round 453's last commit. **FIFTH consecutive round to land its
+  predecessor's ledger line** (448→449, 449→450, 451→452, 452→453, 453→454).
+  The driver's slow-tier instrument appends after the round's final commit by
+  construction, so this is structural, not negligence — and it now costs a
+  commit a round. harness(A) owns the fix.
+- **Headline: round 448's rule had EIGHT violations, not one** (`08a53e3`).
+  448 found round 442's missing reachability row, wrote "Every E round owes
+  this log one line, up or down", and pinned the one hole it knew. Counted:
+  55 E rounds in [124, 448], **47 with a row, 8 without** — 148, 190, 220,
+  226, 250, 280, 292, 442. Seven are recorded in `logs/driver.log` as
+  `track=NUC-integration(E)` + `success`.
+- **The evidence was in a source no round had read.** Round 310's backfill
+  derived rows from `state/nuc-missions.md` addenda; those seven rounds wrote
+  none, and **six of the seven have no knowledge file either**. Their probes
+  survive only in `logs/round-<N>.json` — the round's own transcript, with the
+  exact ssh command, the exact output, and a millisecond timestamp. New
+  `nuc/reachability_recover.py` derives a row from it. Recovered 190 down,
+  220/226/250/280/292 up, 442 down. Rounds 220/226/250 each ran `uptime -s` on
+  a different day and all three recover `2026-08-27T11:50:48Z`, the boot the
+  log's round-202-era rows already carry.
+  `test_every_recovered_row_in_the_live_log_still_re_derives` demands
+  byte-identical regeneration: a row that cannot be regenerated from its
+  stated evidence is a hand-written row wearing a provenance label.
+- **Second finding: the eight new observations made the instrument report MORE
+  ignorance** (`2099e31`). `unobserved_total_s` 108h02m03s → 117h47m57s. The
+  up side's +7455 s is real (round 292 extends its streak); the down side's
+  **+27699 s is a defect**. `_gap_witness` consulted only the *immediately
+  following* record's `tailscale_last_seen_utc`, so a fully-witnessed gap
+  split by a recovered row — which has none — lost its witness outright
+  (184→196 by r190: 8223 s; 436→448 by r442: 19476 s; sums exactly). A reading
+  at R saying "last seen S" proves the peer was off the tailnet in (S, R],
+  covering **every** gap of the streak in that span. It now looks forward,
+  inherits round 448's dispute rule unchanged, and **may witness but may not
+  accuse**. Down-side ignorance back to 0.0; the six interior insertions now
+  move the total by **exactly zero**, pinned as an invariant rather than a
+  number. Also fixed: `gap_continuity` built the witness twice per gap from
+  independently-assembled arguments, so adding a parameter to one call site
+  and not the other would have made gap and excursion disagree in silence.
+- **Third: `coverage`, the enforcer the rule never had.** Population is
+  `logs/driver.log`, **not** `N mod 6 == 4` — they disagree, and round 220 is
+  the instance (research-state heading says SWE-loop(D), driver says E, and
+  that round's transcript contains live NUC ssh probes). The highest E round
+  is exempt by default because the driver writes `start` before the round
+  runs; without that the check is red for the whole of every E round and green
+  only between them — round 453's own failure shape, from the other side.
+  Live: **50 of 50 owed rounds covered, `--strict` exit 0**.
+  `state/nuc-reachability-declared-holes.json` ships **empty**: round 454 first
+  declared round 148 in it and the registry's own `declared_but_not_missing`
+  field caught that as a dead acknowledgement, because 148 is outside the
+  population and the declaration suppressed nothing.
+- **Two brittle tests rewritten, both the same species.** One asserted
+  `end_round == 448` on the drift streak — a field that advances every time an
+  E round appends, for a reason unrelated to drift. The other asserted
+  `442 not in rounds`, which **pinned the hole open**: round 448's prose
+  wanted 442 recovered and the test it shipped in the same commit made
+  recovering it a failure. Both now pin what they are actually about.
+- **One latent bug exposed rather than caused.** A test fixture derived its
+  window from `recs[0]`/`recs[-1]`; `load_log` returns FILE order and promises
+  nothing else. Appending recovered rows is exactly what breaks that, and the
+  log will never be chronological again. Fixed to min/max, pinned by an
+  order-insensitivity test that first asserts the file is *not* sorted so it
+  cannot go vacuous.
+- **Round 448's standing action, run.** `sweeps --strict` 9/7/2,
+  `persistence FALSE`, exit 0. `retention --strict` with the live down window:
+  `skipped_fires ["2026-09-02T00:07:00Z"]`, **6 doomed** (sa23/24/25,
+  sar23/24/25), `earliest_loss_utc 2026-09-04T00:07:00Z`,
+  `earliest_loss_conditional true`. Round 448's forecast is HOLDING — and is
+  still a forecast: nothing has re-read the box's directory since round 424,
+  so the scoring belongs to the first up round and is 448's to claim, not
+  454's.
+- **Round 448's item 6 discharged: round 370's item 3 is RETIRED** after
+  thirteen E rounds. Round 424 established the journal holds the load
+  retrospectively and that there are **no `unpacking to int8 in slot` lines at
+  all** on that boot (9 journal lines; model dir `qwen36_i4_gs64`) — the item
+  names a log line this configuration does not emit — and its other half (the
+  `memory.current` trajectory) is permanently gone. Reopen only if the model
+  directory changes.
+- **Predictions (D-013):** `nuc/predictions-e-round454.md`, banked after the
+  probes and before any test was run or any transcript opened. **6 HIT, 1
+  PARTIAL, 2 MISS of 9**, registered in `state/prediction-bank-ledger.json`.
+  Both misses share ONE cause and it is this round's own lesson: the bank
+  predicted from `state/research-state.md` hit counts, guessed 5 of 7 rounds
+  would have a knowledge file (actual: **1**) and 4 of 7 would be recoverable
+  (actual: **6**), and was wrong both ways because it had the wrong inventory
+  of places evidence can live. P4 is scored PARTIAL and explicitly declines to
+  claim a hit for a mechanism that did show up one stage later.
+- **Tests:** `nuc/tests` **828 → 869, all green** (96.04 s); `nuc-checks PASS`,
+  **eight** consecutive (442-454). Every new pin falsified by reverting the fix
+  it guards — five falsifiers, 8/2/2/2 tests red respectively, and the
+  re-derive pin caught two of them by itself.
+- **Knowledge:** `knowledge/round-454-the-observation-that-bought-ignorance.md`.
+
+## Next steps (as of round 454)
+
+1. **`coverage --strict` is now the first command of every E round.** It goes
+   red the round after an E round appends nothing to
+   `state/nuc-reachability-log.jsonl`, and exempts only the round in flight. A
+   hole is closed with `nuc/reachability_recover.py` from `logs/round-N.json`
+   before anyone writes prose about it. NUC-integration(E).
+2. **`logs/round-*.json` is a source this program has barely used.** It holds
+   every command every round ran, with timestamps and full output. Round 454
+   used it to recover seven reachability observations, **six of which belong to
+   rounds that left no knowledge file at all**. Any claim whose round left no
+   durable record is re-datable from it. skills(B) or harness(A).
+3. **The up side of round 454's witness bug is latent and deliberately
+   unbuilt.** A `BOUNDED` gap split by a record with no `boot_utc` regresses
+   exactly as the down side did; there is no live instance (`bounded_gap_count`
+   is 0 without a journal capture), and building against a case that cannot be
+   exhibited is how untestable code gets written. A round that supplies a
+   capture creates one. NUC-integration(E).
+4. **If the box is up: `sa23`/`sa24`/`sar23`/`sar24` FIRST**, then the current
+   `capture_plan`. Round 448's items 1-3 all still need a reachable box, and
+   the one that matters is reading `Persistent=` — **if it says `true`, round
+   448's §2 correction is wrong in the dangerous direction and must be
+   withdrawn loudly.** NUC-integration(E).
+5. **The slow-tier ledger orphan is now a five-round pattern, not an
+   accident.** The driver's instrument appends after the round's final commit
+   by construction, so every round lands its predecessor's line and spends a
+   commit doing it. Either the driver appends before the round's window closes,
+   or `state/known-standing-dirty-paths.json` grows a *content*-scoped rule
+   rather than a path-scoped one. harness(A).
+6. **Round 448's item 4 stands untouched** (round 436's items 4-6 and 9): the
+   `commit` channel vs the 9.25 GB weights load, `Consumed` as a channel in its
+   own right (coverage 4 of 26 units — establish which have
+   `MemoryAccounting=`), the 13 costly buckets named by no fire, and the
+   separability route nobody has walked. NUC-integration(E).
+7. **Round 453's items 1-2 and rounds 434/433's carried items are untouched by
+   this round** and stand because nothing checked them, not because anything
+   confirmed them. Re-derive before quoting: this round re-derived one carried
+   number (round 448's "eight consecutive `nuc-checks PASS`") and found it
+   right, and re-derived round 448's claim that round 442 was *the* hole and
+   found it wrong by a factor of eight.
+8. **`nproc` on this box is 1.** Round 454 ran one pytest at a time; `nuc/tests`
+   took 96 s solo. Plan every suite as serialised.
+9. **Standing, and not touched by this round:** `case_coverage`'s disagreeing
+   verdicts; `claim_check` executing 0 of 398 commands; the `%vmeff` residual
+   (**CLOSED** by round 448's written decision — do not re-open without a
+   capture showing a non-zero `pgsteal_*`); and CLAUDE.md's `CRITICAL MISSION`
+   block, re-escalated for the **nineteenth** time and still a one-line
+   deletion for the operator. `languages/whence/SECURITY.md` is still
+   uncommitted, still not this program's, and still the operator's decision —
+   **do not copy a carry count for it from this file**; the record-gap
+   checker's own line is the only source.
+
 ## Next steps (as of round 453)
 
 1. **The pre-commit subset is BUILT and NOT WIRED, and only the harness can

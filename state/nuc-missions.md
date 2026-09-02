@@ -2508,3 +2508,127 @@ unprobed — batch is now **27**, so round 447's priced 26 is one round stale).
    unchanged) and the E3 A/B with its full six-gate table.
 6. Retire round 370's item 3 (names a log line this config does not emit) —
    carried untouched for thirteen E rounds, untouched again here.
+
+## Round 454 (NUC-integration E) — 2026-09-02, box **DOWN** the whole round; FOURTH consecutive down window (436, 442, 448, 454), one continuous outage
+
+**Reachability.** Two attempts, one per documented path, both failed;
+CLAUDE.md's two-failures rule fired after the second.
+
+- tailnet `ssh -o ConnectTimeout=15 -i ~/.ssh/id_ed25519 jab@100.78.44.111`
+  at 2026-09-02T12:36:41Z -> `Connection timed out`, rc 255.
+- LAN `ssh -i ~/.ssh/id_ed25519_nuc jab@192.168.1.37` at 12:37:02Z -> same,
+  **and the key still does not exist on this host**.
+- `tailscale status --json` at 12:37:51Z: `Online false`,
+  `LastSeen 2026-09-01T18:27:56.1Z` — **byte-identical to round 448's**, so
+  436/442/448/454 are one outage. `status`: 17h34m34s confirmed, upper bracket
+  18h37m16s, **2h03m32s short of the longest outage this log has confirmed**.
+  Round 454's row appended as `live-replay-r454`.
+
+**Headline: round 448's rule had EIGHT violations, not one, and the evidence
+for seven of them was in a file no round had ever opened.** Round 448 found
+round 442's missing row and wrote "Every E round owes this log one line, up or
+down". Nobody counted. Counted: 55 E rounds in [124, 448], **47 with a row,
+eight without** — 148, 190, 220, 226, 250, 280, 292, 442. `logs/driver.log`
+records seven of the eight as `track=NUC-integration(E)` + `success`.
+
+Round 310's prose backfill missed seven of them because it read
+`state/nuc-missions.md`'s addenda and those rounds wrote none. **Six of the
+seven have no `knowledge/round-N-*.md` file either.** Their probes survive in
+exactly one place: `logs/round-<N>.json`, the round's own transcript, with the
+exact ssh command, the exact output and a millisecond timestamp.
+
+**Recovered, and re-derivable:** 190 down, 220/226/250/280/292 up, 442 down.
+New `nuc/reachability_recover.py`; unlike the one-shot backfill it reads files
+rather than a hardcoded list, refuses to duplicate an existing row, returns
+`conflict` rather than guessing when a probe carries both signals, picks the
+last **tailnet** failure (not the last failure — the LAN path is unusable from
+here, so its timeout means nothing), and emits `boot_utc` only from an absolute
+`uptime -s` line. Rounds 220/226/250 read `uptime -s` on three different days
+and all recover `2026-08-27T11:50:48Z`, the boot the log's round-202-era rows
+already carry. `test_every_recovered_row_in_the_live_log_still_re_derives`
+demands byte-identical regeneration from the transcripts.
+
+**Second finding: eight observations made the instrument report MORE
+ignorance.** `unobserved_total_s` went 108h02m03s -> 117h47m57s. Split: the up
+side's +7455 s is real (round 292 extends its streak), the down side's
+**+27699 s is a defect**. `_gap_witness` consulted only the immediately-
+following record's `tailscale_last_seen_utc`, so a fully-witnessed gap split by
+a recovered row — which has no LastSeen — lost the witness entirely (184->196
+by round 190: 8223 s; 436->448 by round 442: 19476 s; 8223+19476 = 27699). But a
+reading at R saying "last seen S" proves the peer was off the tailnet in (S, R]
+— covering **every** gap of the streak in that span. `_gap_witness` now looks
+forward, inherits round 448's dispute rule, and **may witness but may not
+accuse**. Down-side ignorance back to 0.0; interior insertions now move the
+total by exactly zero, pinned as an invariant.
+
+**Third: `coverage`, the enforcer the rule never had.** Population is
+`logs/driver.log`, NOT `N mod 6 == 4` (they disagree: round 220's
+research-state heading says SWE-loop(D), the driver says E, and that round's
+transcript has live NUC probes). The highest E round is exempt by default —
+the driver writes `start` before the round runs, so without that the check is
+red for the whole of every E round. Live: **50 of 50 owed rounds covered,
+`--strict` exit 0**. `state/nuc-reachability-declared-holes.json` ships EMPTY;
+round 454 first declared round 148 in it and the registry's own
+`declared_but_not_missing` field caught that as a dead acknowledgement.
+
+**Two brittle tests rewritten.** One asserted `end_round == 448` on the drift
+streak — guaranteed to break on the next down round, for a reason unrelated to
+drift. The other asserted `442 not in rounds`, pinning the hole OPEN: round
+448's prose wanted 442 recovered and the test it shipped alongside made
+recovering it a failure. Both now pin what they are about.
+
+**One latent bug exposed, not caused:** a fixture derived its window from
+`recs[0]`/`recs[-1]`. `load_log` returns FILE order; appending recovered rows
+is exactly what breaks that, and the log will never be chronological again.
+Fixed to min/max and pinned by an order-insensitivity test.
+
+**Round 448's standing action, run.** `sweeps --strict`: 9 scheduled, 7 ran,
+2 missed, `persistence FALSE`, exit 0. `retention --strict` with the current
+down window: `skipped_fires ["2026-09-02T00:07:00Z"]`, **6 doomed**
+(sa23/24/25 + sar23/24/25), `earliest_loss_utc 2026-09-04T00:07:00Z`,
+`earliest_loss_conditional true`. Round 448's forecast is HOLDING but is still
+a forecast — nothing has re-read the box's directory since round 424.
+
+**Round 448's item 6 done: round 370's item 3 is RETIRED.** Round 424 found the
+journal holds the load retrospectively and that there are **no `unpacking to
+int8 in slot` lines at all** on that boot (9 journal lines; model dir
+`qwen36_i4_gs64`). The item names a log line this config does not emit, and its
+other half (the `memory.current` trajectory) is permanently gone. Reopen only
+if the model directory changes.
+
+**Predictions (D-013):** `nuc/predictions-e-round454.md`, banked before any
+test was run and before any transcript was opened. **6 HIT, 1 PARTIAL, 2 MISS
+of 9.** Both misses share one cause and it is the round's own lesson: the bank
+predicted from `state/research-state.md` hit counts and never considered
+`logs/round-N.json` — it had the wrong inventory of places evidence can live.
+
+**Tests:** `nuc/tests` **828 -> 869, all green** (96.04 s); `nuc-checks PASS`
+(**eight** consecutive, 442-454). Every new pin falsified by reverting the fix
+it guards (5 falsifiers, 8/2/2/2 tests red respectively).
+
+**E-mission status: E1-E5 all still DONE; nothing new unchecked.**
+
+**Next E round, in order:**
+1. **`coverage --strict` FIRST**, before anything else. If it is red, close the
+   hole with `reachability_recover.py` from `logs/round-N.json` before writing
+   prose about it.
+2. **If the box is up, capture `sa23`/`sa24`/`sar23`/`sar24` BEFORE anything
+   else**, then the current `capture_plan`. Round 448's items 1-3 all still
+   need a reachable box; in particular READ `Persistent=` — if it says `true`,
+   round 448's §2 correction is wrong in the dangerous direction and must be
+   withdrawn loudly.
+3. **The up side of the witness bug is latent and unexhibited.** A `BOUNDED`
+   gap split by a record with no `boot_utc` regresses the same way. No live
+   instance exists, so it is deliberately unbuilt; supplying a journal capture
+   that makes `bounded_gap_count > 0` creates one.
+4. **The recovered rows have no `tailscale_last_seen_utc` and could.** Round
+   190's transcript has `offline, last seen 3h ago` — coarse, and deliberately
+   NOT converted, because an hour-derived LastSeen is exactly the "rounded value
+   walks into a gap" hazard round 448 found. The honest route is a
+   precision-aware LastSeen, not a division.
+5. Round 448's item 4 (round 436's items 4-6 and 9) stands **untouched**: the
+   `commit` channel vs the 9.25 GB load, `Consumed` coverage at 4 of 26 units,
+   the 13 costly buckets named by no fire, and the separability route.
+6. **Still blocked on the operator:** `--cap 196` (band [129, 204],
+   `bounded_by: engine_lru`, 1.096 GB margin — **twenty-third** round
+   unchanged) and the E3 A/B with its full six-gate table.
