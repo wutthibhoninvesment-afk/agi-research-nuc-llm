@@ -706,6 +706,83 @@ _LAST_SEEN_BOUNDS_START = ("down", "ambiguous")
 # under-reporting how long the box has been away.
 
 
+DRIVER_E_ROUND_RE = re.compile(
+    r"^\[[^\]]*\]\s+round (\d+) track=NUC-integration\(E\) start", re.M)
+DEFAULT_DECLARED_HOLES = "state/nuc-reachability-declared-holes.json"
+
+
+def driver_e_rounds(driver_log_text: str) -> list:
+    """Every round the DRIVER assigned to track E, oldest first.
+
+    The population is taken from `logs/driver.log` rather than from
+    `round % 6 == 4` arithmetic on purpose. The rotation is what CLAUDE.md
+    intends; the driver log is what actually happened, and the two have
+    disagreed (round 220's `state/research-state.md` heading calls it
+    SWE-loop(D) while the driver line says NUC-integration(E) -- and the
+    round's transcript contains live NUC ssh probes, so the driver line is
+    the one that matches the evidence).
+
+    Pure: text in, list out.
+    """
+    return sorted({int(m) for m in DRIVER_E_ROUND_RE.findall(driver_log_text)})
+
+
+def load_declared_holes(path: str = DEFAULT_DECLARED_HOLES) -> dict:
+    p = Path(path)
+    if not p.exists():
+        return {}
+    data = json.loads(p.read_text())
+    return {int(k): v for k, v in data.get("holes", {}).items()}
+
+
+def log_coverage(records: list, e_rounds: list, declared: dict | None = None,
+                 allow_in_flight: bool = True) -> dict:
+    """Which E rounds owe this log a row and have not paid.
+
+    ROUND 454. Round 448 wrote the rule -- "Every E round owes this log one
+    line, up or down" -- in prose, after finding that round 442 had left a
+    hole, and pinned the one instance it knew about. Nothing measured the
+    rule and nothing enforced it. Measured: EIGHT E rounds had no row
+    (148, 190, 220, 226, 250, 280, 292, 442), not one. Seven were
+    recoverable from their own transcripts; this function is what stops a
+    ninth.
+
+    `allow_in_flight` exempts the HIGHEST E round in the population, which
+    is the round currently running -- the driver writes its `start` line
+    before the round does any work, so a check that did not exempt it would
+    be red for the whole of every E round and green only in between. That is
+    round 453's "check that runs after you are gone" failure mode, and it is
+    why the exemption is on by default and named rather than silent.
+    Pass `allow_in_flight=False` for a post-hoc audit.
+    """
+    declared = declared or {}
+    logged = {r.get("round") for r in records if r.get("round") is not None}
+    population = list(e_rounds)
+    in_flight = population[-1] if (allow_in_flight and population) else None
+    owed = [n for n in population if n != in_flight]
+    missing = [n for n in owed if n not in logged]
+    return {
+        "n_e_rounds": len(population),
+        "first_visible_round": population[0] if population else None,
+        "in_flight_round": in_flight,
+        "n_owed": len(owed),
+        "n_covered": len([n for n in owed if n in logged]),
+        "missing": [n for n in missing if n not in declared],
+        "missing_declared": {n: declared[n] for n in missing if n in declared},
+        # An acknowledgement that suppresses nothing reads as coverage. A
+        # declared hole that is no longer missing -- because someone finally
+        # recovered it -- must be DELETED from the registry, so it is
+        # reported rather than quietly ignored.
+        "declared_but_not_missing": {n: r for n, r in declared.items()
+                                     if n not in missing},
+        "logged_outside_population": sorted(n for n in logged
+                                            if n not in population),
+        "note": ("population is `round N track=NUC-integration(E) start` in "
+                 "logs/driver.log, NOT `N mod 6 == 4`; rounds before the driver "
+                 "log's own first line (round 152) are invisible to this check"),
+    }
+
+
 def lastseen_drift(records: list) -> dict:
     """Every streak whose members disagree about when the peer was last alive.
 
@@ -1015,7 +1092,7 @@ _BOUNDED_WITNESS_NOTE = (
 
 def _gap_witness(verdict: str, earlier: dict, later: dict,
                  t1: datetime, t2: datetime, boots: list | None = None,
-                 silence=None, streak_lastseen=()) -> dict:
+                 silence=None, streak_lastseen=(), forward_lastseen=()) -> dict:
     """Classify ONE gap between two adjacent same-verdict records.
 
     Returns `{strength, source, note, missed_excursion}` where
@@ -1032,8 +1109,47 @@ def _gap_witness(verdict: str, earlier: dict, later: dict,
     if verdict in _LAST_SEEN_WITNESSES_GAP:
         last_seen = later.get("tailscale_last_seen_utc")
         if not last_seen:
-            return {"strength": WITNESS_NONE, "source": None,
-                    "note": "no tailscale_last_seen_utc on the later record",
+            # ROUND 454. Before this branch existed, a gap whose LATER record
+            # carried no LastSeen was scored WITNESS_NONE outright -- and that
+            # made `unobserved_total_s` NON-MONOTONE in the number of
+            # observations. Round 454 recovered eight missing rows from the
+            # rounds' own transcripts and watched the log's total ignorance go
+            # UP by 7h41m on the down side alone: inserting round 442 split the
+            # fully-witnessed 436->448 gap in two, and the first half lost the
+            # witness because 442's recovered record has no LastSeen of its own.
+            # The witness had not gone anywhere. A reading taken at R reporting
+            # the peer last seen at S proves the peer was not on the tailnet in
+            # (S, R] -- which covers EVERY gap of the streak inside that span,
+            # not merely the one ending at R. So look forward in the same
+            # streak for a reading that qualifies.
+            #
+            # `forward_lastseen` holds only records strictly AFTER `later`, so
+            # every read time is >= t2 by construction and the interval
+            # argument holds. Fails closed on the same dispute rule as the
+            # direct path, and never manufactures a `missed_excursion` --
+            # a forward reading may witness, it may not accuse.
+            inside = [v for v in streak_lastseen if t1 < _parse_ts(v) < t2]
+            qualifying = [(r, v) for r, v in forward_lastseen
+                          if _parse_ts(v) <= t1]
+            if qualifying and not inside:
+                read_at, val = qualifying[0]
+                return {"strength": WITNESS_FULL,
+                        "source": "tailscale_last_seen_forward",
+                        "note": ("no tailscale_last_seen_utc on the later record, "
+                                 "but a later check in the same streak (%s) reports "
+                                 "the peer last seen %s, at or before the earlier "
+                                 "check %s => not seen on the tailnet during the gap"
+                                 % (read_at, val, _fmt_ts(t1))),
+                        "missed_excursion": None}
+            note = "no tailscale_last_seen_utc on the later record"
+            if inside and qualifying:
+                note += (" ; a forward reading would have witnessed it, but the "
+                         "streak also reports %s INSIDE this gap -- disputed, so "
+                         "neither reading is evidence" % inside[-1])
+            elif not qualifying and forward_lastseen:
+                note += (" and no later reading in this streak puts the peer's "
+                         "last sighting at or before the earlier check")
+            return {"strength": WITNESS_NONE, "source": None, "note": note,
                     "missed_excursion": None}
         seen_dt = _parse_ts(last_seen)
         if seen_dt <= t1:
@@ -1782,11 +1898,22 @@ def gap_continuity(records: list, boots: list | None = None,
     for s in streaks:
         recs = s["records"]
         gaps = []
-        for earlier, later in zip(recs, recs[1:]):
+        # Round 454: computed ONCE per gap and reused for `missed_excursions`
+        # below. The two call sites used to build their own witness
+        # independently, which meant any argument added to one and not the
+        # other -- `forward_lastseen` being exactly that -- would silently make
+        # the reported gap and the reported excursion disagree.
+        witnesses = []
+        for i, (earlier, later) in enumerate(zip(recs, recs[1:])):
             t1, t2 = _parse_ts(earlier["checked_at_utc"]), _parse_ts(later["checked_at_utc"])
             gap_s = (t2 - t1).total_seconds()
+            forward = [(r["checked_at_utc"], r["tailscale_last_seen_utc"])
+                       for r in recs[i + 2:]
+                       if r.get("tailscale_last_seen_utc")
+                       and not r["tailscale_last_seen_utc"].startswith("0001-01-01")]
             w = _gap_witness(s["verdict"], earlier, later, t1, t2, boots,
-                             silence, _streak_lastseen_values(s))
+                             silence, _streak_lastseen_values(s), forward)
+            witnesses.append(w)
             gaps.append({
                 "from_round": earlier.get("round"),
                 "to_round": later.get("round"),
@@ -1839,15 +1966,8 @@ def gap_continuity(records: list, boots: list | None = None,
             "max_unobserved_gap_human": (None if worst_unobs is None
                                          else worst_unobs["unobserved_human"]),
             "continuous_confirmed": len(unwitnessed) == 0,
-            "missed_excursions": [w for w in
-                                  (_gap_witness(s["verdict"], e, l,
-                                                _parse_ts(e["checked_at_utc"]),
-                                                _parse_ts(l["checked_at_utc"]),
-                                                boots, silence,
-                                                _streak_lastseen_values(s)
-                                                )["missed_excursion"]
-                                   for e, l in zip(recs, recs[1:]))
-                                  if w is not None],
+            "missed_excursions": [w["missed_excursion"] for w in witnesses
+                                  if w["missed_excursion"] is not None],
             "gaps": gaps,
         })
     return out
@@ -2234,6 +2354,18 @@ def main(argv=None) -> int:
                          "independent uptime witness; every probe gap it covers "
                          "end-to-end is reported closed.")
 
+    cv = sub.add_parser("coverage",
+                        help="round 454: which E rounds owe this log a row and "
+                             "have not paid")
+    cv.add_argument("--log-path", default=DEFAULT_LOG_PATH)
+    cv.add_argument("--driver-log", default="logs/driver.log")
+    cv.add_argument("--declared", default=DEFAULT_DECLARED_HOLES)
+    cv.add_argument("--no-allow-in-flight", dest="allow_in_flight",
+                    action="store_false", default=True,
+                    help="do NOT exempt the round currently running")
+    cv.add_argument("--strict", action="store_true",
+                    help="exit 1 if any undeclared hole, or any dead declaration")
+
     ap = sub.add_parser("suspend-audit",
                         help="round 370: did this box ever sleep? Answers from "
                              "LOCAL cached data only -- no ssh, no cost.")
@@ -2270,6 +2402,15 @@ def main(argv=None) -> int:
             bounds = [b for b in bounds if b["verdict"] == args.verdict]
         print(json.dumps({"n_streaks": len(bounds), "streaks": bounds}, indent=2))
         return 0
+
+    if args.mode == "coverage":
+        cov = log_coverage(load_log(args.log_path),
+                           driver_e_rounds(Path(args.driver_log).read_text()),
+                           load_declared_holes(args.declared),
+                           allow_in_flight=args.allow_in_flight)
+        print(json.dumps(cov, indent=2))
+        bad = bool(cov["missing"]) or bool(cov["declared_but_not_missing"])
+        return 1 if (args.strict and bad) else 0
 
     if args.mode == "lastseen-drift":
         drift = lastseen_drift(load_log(args.log_path))

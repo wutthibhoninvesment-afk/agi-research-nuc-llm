@@ -1037,11 +1037,21 @@ def test_streak_bounds_mid_streak_boot_utc_is_not_read():
 def test_real_log_up_streak_after_the_reboot_starts_at_the_boot_not_the_check():
     """Round 202's boot time bounds BOTH sides of the transition it
     straddles: it closes outage 1 and opens the 202-286 up streak."""
+    # ROUND 454: `end_round` moved 286 -> 292 because round 292 -- an E round
+    # that probed the box twice, found it up, and then died without writing
+    # anything -- was recovered from its own transcript and is now the last
+    # record of this streak. The streak did not change; the log's knowledge
+    # of it did.
     up = [b for b in rc.streak_bounds(_real_log_records()) if b["verdict"] == "up"][1]
-    assert (up["start_round"], up["end_round"]) == (202, 286)
+    assert (up["start_round"], up["end_round"]) == (202, 292)
     assert up["earliest_possible_start_utc"] == "2026-08-27T11:50:48Z"
     assert up["earliest_possible_start_source"] == "boot_utc"
-    assert up["confirmed_span_human"] == "32h23m22s"
+    # ROUND 454: 32h23m22s -> 34h27m37s, i.e. +7455 s exactly. The streak's
+    # confirmed span now runs to round 292's check instead of round 286's,
+    # and 7455 s is the interval between those two checks. Same number, same
+    # cause, as the +7455 s in `test_real_log_two_thirds_of_the_span_is_
+    # unwitnessed` -- one recovered observation extending one streak.
+    assert up["confirmed_span_human"] == "34h27m37s"
     assert up["max_possible_span_human"] == "38h22m19s"
 
 
@@ -1448,7 +1458,13 @@ def test_real_log_neither_up_streak_is_provably_continuous():
            if s["verdict"] == "up"]
     assert [s["start_round"] for s in ups] == [124, 202]
     assert not any(s["continuous_confirmed"] for s in ups)
-    assert [s["max_unwitnessed_gap_human"] for s in ups] == ["14h00m00s", "8h01m00s"]
+    # ROUND 454: the second streak's worst blind spot fell 8h01m00s ->
+    # 3h07m22s. That is the recovery paying for itself: rounds 220, 226, 250
+    # and 280 all landed INSIDE this streak, splitting its longest gaps. The
+    # first streak is unmoved at 14h00m00s because no round was recovered
+    # inside it -- round 190 is a `down` round, and it landed in the 184/196
+    # outage instead.
+    assert [s["max_unwitnessed_gap_human"] for s in ups] == ["14h00m00s", "3h07m22s"]
 
 
 def test_real_log_worst_blind_spot_is_the_r142_to_r154_gap():
@@ -1462,20 +1478,38 @@ def test_real_log_worst_blind_spot_is_the_r142_to_r154_gap():
         "from_round": 142, "to_round": 154,
         "from_utc": "2026-08-26T03:19:00Z", "to_utc": "2026-08-26T17:19:00Z",
     }
-    # Against the live log the bound can only ever grow (a new up gap could
-    # be worse; an old one cannot shrink). A future round that finds this
-    # number has gone UP has found a new worst blind spot and owes the
-    # `definitely_longest_including_unobserved` claim a re-check.
+    # Against the live log the bound can grow (a new up gap could be worse).
+    # A future round that finds this number has gone UP has found a new worst
+    # blind spot and owes the `definitely_longest_including_unobserved` claim
+    # a re-check.
+    #
+    # ROUND 454 struck the parenthetical that used to say "an old one cannot
+    # shrink". An old gap shrinks the moment an observation is recovered
+    # INSIDE it, and round 454 recovered four such observations: the second
+    # up streak's worst gap went 8h01m00s -> 3h07m22s in the test above. The
+    # assertion below still holds only because none of the recovered rounds
+    # fell inside the r142->r154 window, which is luck, not an invariant.
     live = rc.continuity_report(_real_log_records())
     assert live["max_unobserved_outage_s"] >= 50400.0
 
 
 def test_real_log_two_thirds_of_the_span_is_unwitnessed():
+    # ROUND 454: 29 -> 35 gaps, because six recovered rounds (190, 220, 226,
+    # 250, 280, 292) fall at or below round 340 and each one splits a gap in
+    # two. The unwitnessed total moved 67h26m22s -> 69h30m37s, and the whole
+    # of that +7455 s is ONE new gap, r286->r292: round 292 extends the up
+    # streak past where the log used to end, so that interval is genuinely
+    # new interior time rather than ignorance the recovery invented. The
+    # five INTERIOR insertions contribute zero between them -- they split
+    # gaps that were already unwitnessed in full, and round 190's half keeps
+    # its witness through the forward-LastSeen rule this round added. That
+    # zero is the point, and `test_inserting_an_interior_check_never_
+    # increases_unobserved_total` states it directly.
     rep = rc.continuity_report(_real_log_through_round(340))
-    assert rep["n_gaps"] == 29
-    assert (rep["witnessed_gap_count"], rep["unwitnessed_gap_count"]) == (11, 18)
-    assert rep["unwitnessed_total_human"] == "67h26m22s"
-    assert 0.68 < rep["unwitnessed_fraction"] < 0.71
+    assert rep["n_gaps"] == 35
+    assert (rep["witnessed_gap_count"], rep["unwitnessed_gap_count"]) == (12, 23)
+    assert rep["unwitnessed_total_human"] == "69h30m37s"
+    assert 0.68 < rep["unwitnessed_fraction"] < 0.72
 
 
 def test_real_log_has_no_detected_missed_excursions():
@@ -2070,9 +2104,21 @@ def _covers_the_whole_live_log(margin_s=3600, step_s=300):
     nobody chose, for a reason that reads like an instrument regression.
     Derive the window from the data instead.
     """
+    ROUND_454 = """The window is now min/max over the whole log, not
+    recs[0]/recs[-1]. `load_log` returns FILE order and promises nothing
+    else; every real consumer in the module sorts through `_sort_key`
+    first, and this helper was the one place that did not. Round 454
+    recovered eight missing rows and appended them, so the file stopped
+    being chronological -- `recs[-1]` became round 292's 2026-08-28 record
+    and the derived window ended four days before the log did. The symptom
+    was `max_unobserved_outage_s` 20536.0 against a ceiling of 301, i.e.
+    exactly the expired-window failure the test below exists to describe,
+    arriving from a direction round 382 did not consider: not the clock
+    walking past a fixed window, but an append landing out of order."""
     recs = rc.load_log(str(REAL_LOG))
-    lo = rc._parse_ts(recs[0]["checked_at_utc"]).timestamp() - margin_s
-    hi = rc._parse_ts(recs[-1]["checked_at_utc"]).timestamp() + margin_s
+    stamps = [rc._parse_ts(r["checked_at_utc"]).timestamp() for r in recs]
+    lo = min(stamps) - margin_s
+    hi = max(stamps) + margin_s
     lo_iso = rc._fmt_ts(datetime.fromtimestamp(lo, timezone.utc))
     hi_iso = rc._fmt_ts(datetime.fromtimestamp(hi, timezone.utc))
     n = int((hi - lo) // step_s) + 1
@@ -3077,21 +3123,235 @@ def test_an_undisputed_lastseen_inside_a_gap_is_still_reported():
 def test_the_live_log_has_exactly_one_drifting_streak_and_it_is_this_outage():
     """Read against the real log, not a fixture. If a later round's record
     makes this two, that is a second measurement of the same instability and
-    should be written down, not asserted away."""
+    should be written down, not asserted away.
+
+    ROUND 454 rewrote the third assertion. It used to read
+    `d["streaks"][0]["end_round"] == 448`, and `end_round` is the LAST
+    record of the streak -- so it advanced to 454 the moment round 454
+    appended its own row, a row that read the SAME LastSeen round 448 did
+    and therefore said nothing at all about drift. A test that is
+    guaranteed to go red on the next down round, on a field that is not the
+    one under test, teaches the next round to edit the number rather than
+    look at it. The drift itself is what is pinned now: two distinct values,
+    124.0 s apart, in the outage that began at round 436. All three survive
+    any number of further readings of a value already in the set."""
     recs = rc.load_log(str(REAL_LOG))
     d = rc.lastseen_drift(recs)
     assert d["n_drifting_streaks"] == 1
-    assert d["streaks"][0]["spread_s"] == 124.0
-    assert d["streaks"][0]["end_round"] == 448
+    streak = d["streaks"][0]
+    assert streak["spread_s"] == 124.0
+    assert streak["n_distinct"] == 2
+    assert streak["distinct_values"] == ["2026-09-01T18:27:56.1Z",
+                                         "2026-09-01T18:30:00.1Z"]
+    assert streak["start_round"] == 436
+    assert streak["verdict"] == "down"
 
 
-def test_round_448_is_in_the_log_because_round_442_left_a_hole():
+def test_round_442s_hole_was_closed_by_recovery_not_by_a_live_check():
     """Round 442 probed twice, recorded the failure in prose, and appended
-    nothing. The log is the durable record and prose is what it replaced."""
+    nothing; round 448 found the hole and replayed its OWN probes into the
+    log rather than opening a third connection.
+
+    ROUND 454 rewrote this test. Its first assertion used to be
+    `448 in rounds and 442 not in rounds` -- which pinned the hole OPEN.
+    Round 448's own prose called the hole a gap it had closed "by one round,
+    not two", i.e. it wanted 442 recovered; the test it shipped in the same
+    commit made recovering 442 a test failure. What is worth pinning is not
+    that the hole persists but HOW each round's row got there: 448's by
+    replay of its own probes, 442's by recovery from its transcript, which
+    is a different and weaker provenance and must stay visibly so."""
     recs = rc.load_log(str(REAL_LOG))
-    rounds = [r.get("round") for r in recs]
-    assert 448 in rounds and 442 not in rounds
-    r448 = [r for r in recs if r.get("round") == 448][0]
+    by_round = {r.get("round"): r for r in recs}
+    assert 448 in by_round and 442 in by_round
+
+    r448 = by_round[448]
     assert r448["verdict"] == "down"
     assert r448["source"] == "live-replay-r448"
     assert "two-failures rule" in r448["notes"]
+
+    r442 = by_round[442]
+    assert r442["verdict"] == "down"
+    assert r442["source"] == "transcript-r442"
+    assert r442["source"] != "live", "a recovered row must never claim to be live"
+    assert "logs/round-442.json" in r442["notes"]
+
+
+# --- round 454: the forward LastSeen witness -------------------------------
+#
+# `unobserved_total_s` was NON-MONOTONE in the number of observations. A gap
+# whose later record carried no LastSeen scored WITNESS_NONE even when a
+# still-later record in the same streak proved the peer had not been on the
+# tailnet across the whole span -- so inserting a recovered row SPLIT a
+# fully-witnessed gap and charged the log for the half that lost the witness.
+
+def _down(at, round_, last_seen=None):
+    r = {"checked_at_utc": at, "round": round_, "verdict": "down"}
+    if last_seen is not None:
+        r["tailscale_last_seen_utc"] = last_seen
+    return r
+
+
+def test_a_forward_lastseen_witnesses_a_gap_its_own_later_record_cannot():
+    recs = [_down("2026-09-01T20:00:00Z", 1),
+            _down("2026-09-01T22:00:00Z", 2),                      # no LastSeen
+            _down("2026-09-02T00:00:00Z", 3, "2026-09-01T18:00:00Z")]
+    gaps = rc.gap_continuity(recs)[0]["gaps"]
+    assert gaps[0]["witnessed"] is True
+    assert gaps[0]["witness_source"] == "tailscale_last_seen_forward"
+    assert gaps[0]["unobserved_s"] == 0.0
+    assert "2026-09-02T00:00:00Z" in gaps[0]["witness_note"]
+    assert gaps[1]["witness_source"] == "tailscale_last_seen"
+
+
+def test_the_forward_witness_fails_closed_when_the_streak_disputes_it():
+    """Negative control. A reading INSIDE the gap contradicts the forward
+    one; round 448 established that a disputed field is evidence of
+    nothing, and the forward path must inherit that, not route around it."""
+    recs = [_down("2026-09-01T20:00:00Z", 1),
+            _down("2026-09-01T22:00:00Z", 2),
+            _down("2026-09-02T00:00:00Z", 3, "2026-09-01T18:00:00Z"),
+            _down("2026-09-02T02:00:00Z", 4, "2026-09-01T21:00:00Z")]
+    gaps = rc.gap_continuity(recs)[0]["gaps"]
+    assert gaps[0]["witnessed"] is False
+    assert gaps[0]["witness_source"] is None
+    assert "disputed" in gaps[0]["witness_note"]
+
+
+def test_a_forward_reading_that_does_not_qualify_leaves_the_gap_unwitnessed():
+    """The other negative control: a forward reading exists but puts the
+    peer alive AFTER the earlier check, so it proves nothing about the gap
+    and must not be used."""
+    recs = [_down("2026-09-01T20:00:00Z", 1),
+            _down("2026-09-01T22:00:00Z", 2),
+            _down("2026-09-02T00:00:00Z", 3, "2026-09-02T00:00:00Z")]
+    gaps = rc.gap_continuity(recs)[0]["gaps"]
+    assert gaps[0]["witnessed"] is False
+    assert "no later reading in this streak" in gaps[0]["witness_note"]
+
+
+def test_the_forward_witness_never_manufactures_a_missed_excursion():
+    """A forward reading may witness; it may not accuse. The excursion
+    claim stays with the record that made the reading."""
+    recs = [_down("2026-09-01T20:00:00Z", 1),
+            _down("2026-09-01T22:00:00Z", 2),
+            _down("2026-09-02T00:00:00Z", 3, "2026-09-01T18:00:00Z")]
+    c = rc.gap_continuity(recs)[0]
+    assert c["missed_excursions"] == []
+
+
+def test_inserting_an_interior_check_never_increases_unobserved_total():
+    """The invariant the bug broke, measured on the REAL log.
+
+    Rounds 190/220/226/250/280/442 were recovered by round 454 and every one
+    of them falls strictly INSIDE a streak that already existed. Removing
+    them must leave `unobserved_total_s` exactly where it is -- an
+    observation cannot buy ignorance. (292 and 454 are excluded because they
+    EXTEND their streaks' spans, which creates genuinely new interior time:
+    +7455 s, real and correctly charged.)"""
+    recs = rc.load_log(str(REAL_LOG))
+    interior = {190, 220, 226, 250, 280, 442}
+    without = [r for r in recs if r.get("round") not in interior | {292, 454}]
+    with_interior = [r for r in recs if r.get("round") not in {292, 454}]
+    assert {r.get("round") for r in with_interior} - {r.get("round") for r in without} == interior
+    assert (rc.continuity_report(with_interior)["unobserved_total_s"]
+            == rc.continuity_report(without)["unobserved_total_s"])
+
+
+def test_the_live_log_has_no_unobserved_down_time_at_all():
+    """Every down streak in the log is fully witnessed. This was true before
+    round 454's recovery, became FALSE when the recovered rows landed
+    (+27699 s of down-side ignorance out of nowhere), and is true again."""
+    recs = rc.load_log(str(REAL_LOG))
+    per_verdict = {}
+    for s in rc.gap_continuity(recs):
+        per_verdict[s["verdict"]] = per_verdict.get(s["verdict"], 0.0) + s["unobserved_total_s"]
+    assert per_verdict["down"] == 0.0
+
+
+# --- round 454: log coverage ----------------------------------------------
+
+DRIVER_LOG_SAMPLE = """\
+[2026-08-26 17:10:17] round 154 track=NUC-integration(E) start (driver_version=x) pid=1
+[2026-08-26 17:11:01] round 155 track=SWE-loop(D) start (driver_version=x) pid=1
+[2026-08-27 07:56:18] round 190 track=NUC-integration(E) start (driver_version=y) pid=2
+[2026-08-27 08:04:02] round 190: success
+[2026-08-27 21:49:35] round 196 track=NUC-integration(E) start (driver_version=y) pid=2
+"""
+
+
+def test_driver_e_rounds_reads_the_driver_log_not_the_rotation():
+    assert rc.driver_e_rounds(DRIVER_LOG_SAMPLE) == [154, 190, 196]
+
+
+def test_coverage_exempts_the_round_currently_in_flight():
+    """The driver writes a round's `start` line BEFORE the round runs, so a
+    check that demanded a row from it would be red for the whole of every E
+    round -- round 453's `the check that runs after you are gone` shape."""
+    recs = [{"round": 154, "verdict": "down"}, {"round": 190, "verdict": "down"}]
+    cov = rc.log_coverage(recs, [154, 190, 196])
+    assert cov["in_flight_round"] == 196
+    assert cov["missing"] == []
+    assert cov["n_owed"] == 2 and cov["n_covered"] == 2
+
+
+def test_coverage_finds_a_hole_once_the_round_is_no_longer_in_flight():
+    recs = [{"round": 154, "verdict": "down"}]
+    cov = rc.log_coverage(recs, [154, 190, 196])
+    assert cov["missing"] == [190]
+    cov2 = rc.log_coverage(recs, [154, 190, 196], allow_in_flight=False)
+    assert cov2["missing"] == [190, 196]
+
+
+def test_a_declared_hole_is_suppressed_but_named():
+    recs = [{"round": 154, "verdict": "down"}]
+    cov = rc.log_coverage(recs, [154, 190, 196], declared={190: "no transcript"})
+    assert cov["missing"] == []
+    assert cov["missing_declared"] == {190: "no transcript"}
+
+
+def test_a_declaration_that_suppresses_nothing_is_reported_as_dead():
+    """An acknowledgement that no longer acknowledges anything reads as
+    coverage. Round 454 wrote exactly this mistake into its own registry
+    first -- declaring round 148, which is outside the population -- and
+    this field is what caught it."""
+    recs = [{"round": 154, "verdict": "down"}, {"round": 190, "verdict": "down"}]
+    cov = rc.log_coverage(recs, [154, 190, 196], declared={190: "stale"})
+    assert cov["declared_but_not_missing"] == {190: "stale"}
+
+
+def test_the_live_log_owes_no_e_round_a_row():
+    """The rule round 448 wrote in prose, enforced. Eight E rounds had no
+    row when round 454 measured it; seven were recovered and the eighth
+    (148) predates the driver log and is outside the population."""
+    recs = rc.load_log(str(REAL_LOG))
+    e_rounds = rc.driver_e_rounds(Path("logs/driver.log").read_text())
+    cov = rc.log_coverage(recs, e_rounds, rc.load_declared_holes())
+    assert cov["missing"] == [], "an E round ran and appended nothing"
+    assert cov["declared_but_not_missing"] == {}
+    assert cov["n_covered"] == cov["n_owed"]
+
+
+def test_the_declared_holes_registry_is_empty_and_that_is_the_point():
+    """Round 454 recovered seven of eight holes, so nothing needs
+    declaring. The file exists as the mechanism, not as a list of excuses;
+    if a future round adds an entry, it is asserting it looked for a
+    transcript and found none."""
+    assert rc.load_declared_holes() == {}
+
+
+
+def test_the_module_does_not_care_what_order_the_log_file_is_in():
+    """`state/nuc-reachability-log.jsonl` is append-only, and round 454
+    appended eight RECOVERED rows whose `checked_at_utc` predate rows
+    already in the file -- so file order is no longer chronological order,
+    and will not be again. Every consumer sorts through `_sort_key`; this
+    pins that, because the one place that did not (a test fixture deriving
+    its window from `recs[-1]`) failed silently-looking and took an hour to
+    read."""
+    recs = rc.load_log(str(REAL_LOG))
+    stamps = [r["checked_at_utc"] for r in recs]
+    assert stamps != sorted(stamps), "file is chronological; this test is vacuous"
+    a = rc.continuity_report(recs)
+    b = rc.continuity_report(sorted(recs, key=rc._sort_key))
+    c = rc.continuity_report(list(reversed(recs)))
+    assert a == b == c
