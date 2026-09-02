@@ -845,6 +845,29 @@ def _streak_lastseen_values(streak: dict) -> list:
     return sorted(set(vals))
 
 
+def _lastseen_entries(recs: list) -> list:
+    """LastSeen readings from a list of records, in `_as_lastseen_bounds` form.
+
+    Round 460. `_streak_lastseen_values` reads the scalar field only, so a row
+    carrying an interval-valued reading (`tailscale_last_seen_bounds_utc`,
+    recovered from the plain-text renderer) was invisible to every dispute and
+    forward-witness rule. This is the same list with the brackets in it.
+
+    Ordered by the reading's own bracket, oldest first, because the dispute
+    rules quote `[-1]` and mean "the latest thing this streak says".
+    """
+    out = []
+    for rec in recs:
+        b = last_seen_bounds(rec)
+        if b is None:
+            continue
+        lo, hi = b
+        label = rec.get("tailscale_last_seen_utc") or (
+            "[%s, %s]" % (_fmt_ts(lo), _fmt_ts(hi)))
+        out.append((rec.get("checked_at_utc"), label, _fmt_ts(lo), _fmt_ts(hi)))
+    return sorted(set(out), key=lambda e: (e[2], e[3]))
+
+
 def streak_bounds(records: list) -> list:
     """Per-streak [confirmed, max-possible] span brackets.
 
@@ -1012,6 +1035,143 @@ def longest_completed_streak_bounds(records: list, verdict: str) -> dict | None:
     return max(matching, key=lambda b: b["confirmed_span_s"])
 
 
+# ------------------------------------------- timestamp precision (round 460)
+#
+# THE LOG HAS CARRIED `precision` ON EVERY ROW SINCE ROUND 310 AND NO RULE HAS
+# EVER ASKED. `reachability_backfill.py`'s own docstring defines it:
+#
+#   `precision` is "coarse" for uptime-derived arithmetic (uptime strings in
+#   the source prose are themselves rounded to the minute) and "precise" only
+#   where the source prose itself already gave a real timestamp
+#
+# Round 460 measured the exposure on the live log: 20 of 60 rows are `coarse`,
+# 23 of 52 gaps have at least one coarse endpoint, and those gaps carry
+# **60.3%** of the published `unobserved_total_s` (239090 s of 396378 s). The
+# headline `max_unobserved_outage` -- rounds 142 -> 154, printed as exactly
+# `14h00m00s` -- has BOTH endpoints coarse, and that suspiciously round number
+# is an artefact of two minute-truncated readings, not a measurement.
+#
+# What "coarse" means, precisely, because the direction matters. `uptime`
+# TRUNCATES its elapsed field, so a prose reading of "up 3:13" means the true
+# elapsed was in [3h13m, 3h14m). A `checked_at_utc` reconstructed as
+# `boot + elapsed` is therefore a LOWER bound: the true instant lies in
+# [stated, stated + 60 s]. It is never earlier. (Closed at the top on purpose:
+# a one-second-wide overstatement of our own ignorance is the safe direction,
+# and it keeps every interval in this module inclusive so they compose.)
+#
+# A `precise` row is a `datetime.now()` truncated to the second, so its true
+# instant lies in [stated, stated + 1 s].
+#
+# WHICH BOUND TO USE IS NOT A STYLE CHOICE. Every comparison in `_gap_witness`
+# is one side of a claim, and each claim must be evaluated at the bound that
+# makes it HARDER, never the one that makes it easier:
+#
+#   * to WITNESS a down gap we need "the peer was last seen at or before the
+#     earlier check". Evaluate with LastSeen's UPPER bound against the earlier
+#     check's LOWER bound -- if even the latest possible sighting precedes the
+#     earliest possible check, the claim holds however the rounding fell.
+#   * to ACCUSE the box of an excursion we need "the sighting is strictly
+#     inside the gap". Evaluate with LastSeen's LOWER bound against the earlier
+#     check's UPPER bound, and LastSeen's UPPER bound against the later check's
+#     LOWER bound. This is the branch that matters: a coarse `checked_at_utc`
+#     is a LOWER bound, i.e. reading it as exact makes the gap look like it
+#     STARTED EARLIER than it did, which is exactly the direction that sweeps a
+#     sighting into the gap and manufactures a missed excursion that never
+#     happened. Round 448 found this hazard on the LastSeen side and fixed it
+#     there; the same hazard was sitting on the `checked_at_utc` side the whole
+#     time, on 20 rows the log had already flagged.
+#
+# An interval that straddles a boundary decides NOTHING -- neither witness nor
+# accusation. That is a third outcome the point-valued code could not express,
+# and it is the honest one.
+PRECISION_RESOLUTION_S = {"exact_point": 0, "precise": 1, "coarse": 60}
+
+# A row with no `precision` key, or an unrecognised value, is treated as the
+# WIDEST known resolution rather than the narrowest. Fails closed: an unknown
+# provenance must not be able to buy a witness or an accusation it has not
+# earned. Every row in the live log carries the key today, so this branch
+# exists for the row that does not yet.
+UNKNOWN_PRECISION_RESOLUTION_S = max(PRECISION_RESOLUTION_S.values())
+
+
+def resolution_s(rec: dict) -> int:
+    """Half-open width of the interval a record's `checked_at_utc` stands for."""
+    return PRECISION_RESOLUTION_S.get(rec.get("precision"),
+                                      UNKNOWN_PRECISION_RESOLUTION_S)
+
+
+def checked_at_bounds(rec: dict):
+    """`(lo, hi)` datetimes bracketing a record's true check instant.
+
+    `lo` is the stated value -- the reconstruction can only have UNDERstated
+    the instant, never overstated it -- and `hi` is `lo` plus the row's own
+    declared resolution.
+    """
+    lo = _parse_ts(rec["checked_at_utc"])
+    return lo, lo + timedelta(seconds=resolution_s(rec))
+
+
+def last_seen_bounds(rec: dict):
+    """`(lo, hi)` datetimes bracketing a record's LastSeen, or None.
+
+    Two sources, in order of strength:
+
+    1. `tailscale_last_seen_bounds_utc: [lo, hi]` -- an interval recovered
+       from the plain-text renderer's `last seen 3h ago` form, whose width is
+       the renderer's own unit (see `reachability_recover.rendered_age_bounds`).
+       Present only on rows a transcript recovery produced.
+    2. `tailscale_last_seen_utc` -- the JSON field, a real instant. Degenerate
+       interval; round 448 measured the field being RECOMPUTED across reads,
+       and that instability is handled by the dispute rules, not by widening
+       this bracket, because a recomputed value is not a rounded one.
+
+    Tailscale's "never seen" sentinel `0001-01-01T00:00:00Z` is not a reading.
+    """
+    b = rec.get("tailscale_last_seen_bounds_utc")
+    if isinstance(b, (list, tuple)) and len(b) == 2 and all(b):
+        return _parse_ts(b[0]), _parse_ts(b[1])
+    v = rec.get("tailscale_last_seen_utc")
+    if not v or str(v).startswith("0001-01-01"):
+        return None
+    d = _parse_ts(v)
+    return d, d
+
+
+def gap_duration_bounds(earlier: dict, later: dict):
+    """`(lo, hi)` seconds bracketing the true length of one gap.
+
+    The gap is `later - earlier`, so its shortest possible value pairs the
+    later record's EARLIEST instant with the earlier record's LATEST, and vice
+    versa. With both endpoints `precise` this is a 2 s bracket around the
+    printed value; with both `coarse` it is 120 s wide, which is what makes
+    `max_unobserved_outage`'s exactly-`14h00m00s` an artefact rather than a
+    reading.
+    """
+    e_lo, e_hi = checked_at_bounds(earlier)
+    l_lo, l_hi = checked_at_bounds(later)
+    return (l_lo - e_hi).total_seconds(), (l_hi - e_lo).total_seconds()
+
+
+def _as_lastseen_bounds(item):
+    """Normalise one streak/forward LastSeen entry to `(lo, hi, label)`.
+
+    Accepts the pre-round-460 forms -- a bare value string, or the
+    `(read_at, value)` pair `forward_lastseen` carries -- so every existing
+    caller and test keeps working, and the new bounded form
+    `(read_at, value, lo, hi)` where a recovered row supplies one.
+    """
+    if isinstance(item, str):
+        d = _parse_ts(item)
+        return d, d, item
+    if isinstance(item, (list, tuple)):
+        if len(item) == 2:
+            d = _parse_ts(item[1])
+            return d, d, item[1]
+        if len(item) == 4:
+            return _parse_ts(item[2]), _parse_ts(item[3]), item[1]
+    raise TypeError("unrecognised LastSeen entry: %r" % (item,))
+
+
 # Verdict classes for which `tailscale_last_seen_utc` carries the meaning
 # `gap_continuity` needs ("the last instant the peer was demonstrably
 # alive"). Same set as `_LAST_SEEN_BOUNDS_START` and deliberately aliased
@@ -1092,7 +1252,8 @@ _BOUNDED_WITNESS_NOTE = (
 
 def _gap_witness(verdict: str, earlier: dict, later: dict,
                  t1: datetime, t2: datetime, boots: list | None = None,
-                 silence=None, streak_lastseen=(), forward_lastseen=()) -> dict:
+                 silence=None, streak_lastseen=(), forward_lastseen=(),
+                 bracket_boots=((), ())) -> dict:
     """Classify ONE gap between two adjacent same-verdict records.
 
     Returns `{strength, source, note, missed_excursion}` where
@@ -1107,8 +1268,16 @@ def _gap_witness(verdict: str, earlier: dict, later: dict,
     know", and only two named rules can move off it.
     """
     if verdict in _LAST_SEEN_WITNESSES_GAP:
-        last_seen = later.get("tailscale_last_seen_utc")
-        if not last_seen:
+        # ROUND 460. Every comparison below is evaluated on the bound that
+        # makes its claim HARDER -- see the `PRECISION_RESOLUTION_S` block.
+        # `t1`/`t2` are kept for the notes (they are what the log prints) but
+        # no decision is taken on them, because 20 of this log's 60 rows say
+        # of themselves that they are minute-rounded and every rule here used
+        # to read them as exact.
+        t1_lo, t1_hi = checked_at_bounds(earlier)
+        t2_lo, t2_hi = checked_at_bounds(later)
+        seen_b = last_seen_bounds(later)
+        if seen_b is None:
             # ROUND 454. Before this branch existed, a gap whose LATER record
             # carried no LastSeen was scored WITNESS_NONE outright -- and that
             # made `unobserved_total_s` NON-MONOTONE in the number of
@@ -1128,11 +1297,19 @@ def _gap_witness(verdict: str, earlier: dict, later: dict,
             # argument holds. Fails closed on the same dispute rule as the
             # direct path, and never manufactures a `missed_excursion` --
             # a forward reading may witness, it may not accuse.
-            inside = [v for v in streak_lastseen if t1 < _parse_ts(v) < t2]
-            qualifying = [(r, v) for r, v in forward_lastseen
-                          if _parse_ts(v) <= t1]
+            #
+            # Round 460 widened both comparisons to intervals. A streak
+            # reading DISPUTES if it could be inside the gap (its interval
+            # intersects the widest possible gap), and a forward reading
+            # QUALIFIES only if its latest possible sighting is at or before
+            # the earliest possible earlier-check.
+            inside = [lbl for lo, hi, lbl in map(_as_lastseen_bounds, streak_lastseen)
+                      if hi > t1_lo and lo < t2_hi]
+            qualifying = [(_as_lastseen_bounds(it), it) for it in forward_lastseen]
+            qualifying = [(b, it) for b, it in qualifying if b[1] <= t1_lo]
             if qualifying and not inside:
-                read_at, val = qualifying[0]
+                (_, _, val), item = qualifying[0]
+                read_at = item[0] if isinstance(item, (list, tuple)) else "?"
                 return {"strength": WITNESS_FULL,
                         "source": "tailscale_last_seen_forward",
                         "note": ("no tailscale_last_seen_utc on the later record, "
@@ -1151,8 +1328,10 @@ def _gap_witness(verdict: str, earlier: dict, later: dict,
                          "last sighting at or before the earlier check")
             return {"strength": WITNESS_NONE, "source": None, "note": note,
                     "missed_excursion": None}
-        seen_dt = _parse_ts(last_seen)
-        if seen_dt <= t1:
+        seen_lo, seen_hi = seen_b
+        last_seen = _fmt_ts(seen_lo) if seen_lo == seen_hi else (
+            "[%s, %s]" % (_fmt_ts(seen_lo), _fmt_ts(seen_hi)))
+        if seen_hi <= t1_lo:
             # The peer was last seen alive at or before the EARLIER check,
             # as reported by a read taken at the LATER one. So it was not
             # seen on the tailnet at any instant in (t1, t2] -- the gap
@@ -1161,12 +1340,19 @@ def _gap_witness(verdict: str, earlier: dict, later: dict,
             # across the two records": it needs no LastSeen at all on the
             # earlier record, which is what lets it witness the 184->196
             # gap, whose earlier record predates the field.
+            #
+            # Round 460: the LATEST possible sighting against the EARLIEST
+            # possible check, so the claim survives however either rounding
+            # fell. A bounded reading recovered from `last seen 3h ago` can
+            # therefore witness on its own merits, without ever being
+            # collapsed to a point -- which is the thing round 454 refused to
+            # do by division, and this does by bracket.
             return {"strength": WITNESS_FULL, "source": "tailscale_last_seen",
                     "note": ("peer last seen %s, at or before the earlier check "
                              "%s => not seen on the tailnet during the gap"
                              % (last_seen, _fmt_ts(t1))),
                     "missed_excursion": None}
-        if t1 < seen_dt < t2:
+        if t1_hi < seen_lo and seen_hi < t2_lo:
             # Positive evidence of a MISSED EXCURSION: something saw the
             # peer alive strictly inside a span this log calls one
             # continuous outage. Reported, never silently dropped -- the
@@ -1185,7 +1371,16 @@ def _gap_witness(verdict: str, earlier: dict, later: dict,
             # say which reading disputes it -- the alternative is asserting a
             # box came back to life on the strength of a value the log can
             # show is not stable.
-            contradicting = [v for v in streak_lastseen if _parse_ts(v) <= t1]
+            #
+            # ROUND 460 makes the same argument about the OTHER timestamp.
+            # `t1_hi < seen_lo` demands the sighting be after the LATEST
+            # instant the earlier check could have happened. Reading a coarse
+            # `checked_at_utc` as exact understates the gap's start by up to
+            # 60 s, which sweeps sightings into this branch that belong before
+            # it. No live instance exists today (`missed_excursions` is empty)
+            # and that is precisely why the guard goes in now.
+            contradicting = [lbl for lo, hi, lbl in map(_as_lastseen_bounds, streak_lastseen)
+                             if lo <= t1_hi]
             if contradicting:
                 return {"strength": WITNESS_NONE, "source": None,
                         "note": ("tailscale_last_seen %s falls inside this gap, "
@@ -1206,16 +1401,34 @@ def _gap_witness(verdict: str, earlier: dict, later: dict,
                         "from_round": earlier.get("round"),
                         "to_round": later.get("round"),
                     }}
-        # seen_dt >= t2: the peer was seen alive at or after a check that
-        # called it down. Round 334's `streak_bounds` drops this same shape
-        # rather than clamping it; so does this, for the same reason -- it
-        # implies more transitions than one gap can represent.
+        if seen_lo >= t2_hi:
+            # The peer was seen alive at or after a check that called it down.
+            # Round 334's `streak_bounds` drops this same shape rather than
+            # clamping it; so does this, for the same reason -- it implies
+            # more transitions than one gap can represent.
+            return {"strength": WITNESS_NONE, "source": None,
+                    "note": ("contradictory: tailscale_last_seen %s is at or after "
+                             "the later down check itself" % last_seen),
+                    "missed_excursion": None}
+        # ROUND 460, and the outcome the point-valued code could not express.
+        # The reading's interval STRADDLES one of the gap's own uncertain
+        # endpoints, so it decides nothing: it cannot witness (it might be
+        # inside) and it cannot accuse (it might be outside). Naming the
+        # straddle is the point -- "we do not know, and here is the boundary
+        # we cannot see across" is a different statement from "no evidence".
+        which = ("the earlier check" if seen_lo <= t1_hi else "the later check")
         return {"strength": WITNESS_NONE, "source": None,
-                "note": ("contradictory: tailscale_last_seen %s is at or after "
-                         "the later down check itself" % last_seen),
+                "note": ("tailscale_last_seen %s straddles %s, whose own "
+                         "precision is %d s -- the reading is inside the gap "
+                         "on one rounding and outside it on another, so it is "
+                         "evidence for nothing"
+                         % (last_seen, which,
+                            resolution_s(earlier if seen_lo <= t1_hi else later))),
+                "lastseen_straddles": which,
                 "missed_excursion": None}
 
-    return _up_gap_witness(verdict, earlier, later, t1, t2, boots, silence)
+    return _up_gap_witness(verdict, earlier, later, t1, t2, boots, silence,
+                           bracket_boots)
 
 
 def _silence_upgrade(base: dict, t1: datetime, t2: datetime, silence) -> dict:
@@ -1252,7 +1465,8 @@ def _silence_upgrade(base: dict, t1: datetime, t2: datetime, silence) -> dict:
 
 
 def _up_gap_witness(verdict: str, earlier: dict, later: dict,
-                    t1: datetime, t2: datetime, boots, silence) -> dict:
+                    t1: datetime, t2: datetime, boots, silence,
+                    bracket_boots=((), ())) -> dict:
     # --- up streaks ---
     # The box's own boot history is consulted FIRST: it is the only source
     # here that was recorded continuously rather than sampled, so when it
@@ -1268,6 +1482,56 @@ def _up_gap_witness(verdict: str, earlier: dict, later: dict,
     # asymmetry round 334 encoded in `_LAST_SEEN_BOUNDS_START`.
     b1, b2 = earlier.get("boot_utc"), later.get("boot_utc")
     if not b1 or not b2:
+        # ROUND 460, and round 454's item 3 -- the UP side of the split-gap
+        # bug it fixed on the down side and left standing here.
+        #
+        # The regression: `unobserved_total_s` was NON-MONOTONE in the number
+        # of observations. A streak A -- B whose endpoints share a boot_utc
+        # scores REBOOT_ONLY (or BOUNDED, with a journal interior). Insert an
+        # observation M between them that happens to carry no boot_utc -- a
+        # recovered row whose transcript only had `who -a`'s minute-rounded
+        # form, say -- and BOTH halves fall to WITNESS_NONE, so making one
+        # more observation of the box makes the instrument report MORE
+        # ignorance. Round 454 called this latent and unexhibited because no
+        # live instance existed. It still does not; the exhibit is a fixture,
+        # and building it is cheaper than waiting for the row that creates it.
+        #
+        # The repair is the same argument round 454 made forward with
+        # LastSeen, run OUTWARD with boot_utc: if the nearest record at or
+        # before this gap and the nearest at or after it report the same boot,
+        # no reboot happened anywhere in the span between them -- and this gap
+        # is inside that span. It is strictly the same claim `boot_utc
+        # unchanged` makes for adjacent records, over a wider bracket.
+        #
+        # It MAY WITNESS, IT MAY NOT ACCUSE. If the bracketing boots disagree,
+        # a reboot happened somewhere in the span -- but the span holds
+        # several gaps and nothing here says which one, so pinning it on this
+        # gap would be manufacturing a `missed_excursion` from an absence.
+        # That is exactly the asymmetry round 454 wrote into the forward rule.
+        prior, following = bracket_boots
+        if prior and following:
+            db1, db2 = _parse_ts(prior[-1]), _parse_ts(following[0])
+            span_s = (db2 - db1).total_seconds()
+            if abs(span_s) <= BOOT_UTC_JITTER_S:
+                return _silence_upgrade(
+                    {"strength": WITNESS_REBOOT_ONLY,
+                     "source": "boot_utc_unchanged_bracketed",
+                     "note": ("boot_utc is missing on an endpoint of this gap, but "
+                              "the nearest reading at or before it (%s) and the "
+                              "nearest at or after it (%s) are the same boot within "
+                              "the %d s jitter tolerance, so no reboot happened "
+                              "anywhere in the span that contains this gap. %s"
+                              % (prior[-1], following[0], BOOT_UTC_JITTER_S,
+                                 _BOOT_UTC_SUSPEND_CAVEAT)),
+                     "missed_excursion": None},
+                    t1, t2, silence)
+            return {"strength": WITNESS_NONE, "source": None,
+                    "note": ("boot_utc missing on an endpoint, and the readings "
+                             "bracketing this gap disagree (%s -> %s, %+.0f s): a "
+                             "reboot happened somewhere in that span, but this gap "
+                             "is only part of it, so nothing is attributed here"
+                             % (prior[-1], following[0], span_s)),
+                    "missed_excursion": None}
         return {"strength": WITNESS_NONE, "source": None,
                 "note": "boot_utc missing on one or both endpoints",
                 "missed_excursion": None}
@@ -1907,12 +2171,11 @@ def gap_continuity(records: list, boots: list | None = None,
         for i, (earlier, later) in enumerate(zip(recs, recs[1:])):
             t1, t2 = _parse_ts(earlier["checked_at_utc"]), _parse_ts(later["checked_at_utc"])
             gap_s = (t2 - t1).total_seconds()
-            forward = [(r["checked_at_utc"], r["tailscale_last_seen_utc"])
-                       for r in recs[i + 2:]
-                       if r.get("tailscale_last_seen_utc")
-                       and not r["tailscale_last_seen_utc"].startswith("0001-01-01")]
+            forward = _lastseen_entries(recs[i + 2:])
+            bracket = ([r["boot_utc"] for r in recs[:i + 1] if r.get("boot_utc")],
+                       [r["boot_utc"] for r in recs[i + 1:] if r.get("boot_utc")])
             w = _gap_witness(s["verdict"], earlier, later, t1, t2, boots,
-                             silence, _streak_lastseen_values(s), forward)
+                             silence, _lastseen_entries(recs), forward, bracket)
             witnesses.append(w)
             gaps.append({
                 "from_round": earlier.get("round"),
@@ -2266,6 +2529,183 @@ def current_streak_duration(records: list, now_fn=now_utc_iso) -> dict | None:
     }
 
 
+class _CannedResult:
+    """Minimal stand-in for `subprocess.CompletedProcess`, for `replay`."""
+
+    def __init__(self, returncode, stdout="", stderr=""):
+        self.returncode, self.stdout, self.stderr = returncode, stdout, stderr
+
+
+def replay(round_: int, checked_at_utc: str, ssh_returncode: int,
+           ssh_stderr: str, tailscale_json: str, notes: str = "") -> dict:
+    """Build a row from observations a round ALREADY made, by hand, first.
+
+    Why this exists. Rounds 448 and 454 both probed the box before writing any
+    code -- CLAUDE.md gates the whole round on reachability and stops after two
+    failures -- and then needed a log row for a probe they were not going to
+    repeat. Both wrote one with `source: "live-replay-r<N>"`. That token
+    appears in NO source file in this tree: it was typed. So the two rows in
+    the log that say most loudly "this came from a real observation" are the
+    two with no producer to re-derive them, which is the opposite of what the
+    label promises.
+
+    This is the producer. It runs `check`'s own code path -- same verdict
+    logic, same peer parsing, same field set -- with the round's actual
+    observations injected through the seams `check` already had for testing,
+    so a replayed row differs from a live one in exactly one field, `source`.
+
+    It is NOT a way to log a check nobody made: every argument is a value the
+    caller must have observed, and `notes` should say where each came from.
+    """
+    rec = check(round_=round_, notes=notes,
+                now_fn=lambda: checked_at_utc,
+                tailscale_runner=lambda *a, **k: _CannedResult(0, tailscale_json, ""),
+                ssh_runner=lambda *a, **k: _CannedResult(ssh_returncode, "", ssh_stderr))
+    rec["source"] = "live-replay-r%d" % round_
+    return rec
+
+
+def _as_points(records: list) -> list:
+    """The same log as the pre-round-460 rules saw it: every timestamp exact.
+
+    `exact_point` is a real resolution (0 s), not a disabling flag, so the
+    point view goes through the identical code path as the bracketed one --
+    which is the only way the comparison means anything. Interval-valued
+    LastSeen is dropped rather than collapsed: before round 460 a bracket was
+    not a reading at all, and collapsing it to a midpoint would be inventing a
+    third behaviour that never existed to compare against.
+    """
+    out = []
+    for r in records:
+        c = dict(r)
+        c["precision"] = "exact_point"
+        c.pop("tailscale_last_seen_bounds_utc", None)
+        out.append(c)
+    return out
+
+
+def precision_audit(records: list) -> dict:
+    """Does the log's own `precision` field change any published conclusion?
+
+    Round 460. The field has been on every row since round 310 and no rule read
+    it, so this asks the only question that decides whether that mattered: run
+    the continuity rules over the log as it is, run them again over the same
+    log with every timestamp declared exact, and diff the verdicts gap by gap.
+
+    Three kinds of difference, and only one of them is an error:
+
+    * `unearned_claims` -- a gap the POINT view witnesses or accuses and the
+      bracketed view refuses. These are conclusions the log was publishing on
+      the strength of digits it had already told us were rounded. `--strict`
+      fails on these.
+    * `earned_by_bounds` -- the reverse: a claim the bracketed view supports
+      and the point view could not. Not an error; today it is round 190's
+      recovered `3h ago` bracket, which is a reading the point view cannot
+      represent at all.
+    * `restated` -- same strength, different source or note.
+
+    Alongside, the arithmetic the field makes uncertain: every duration this
+    module prints to the second is the LOW end of a bracket whose width is the
+    sum of its two endpoints' resolutions.
+    """
+    live = gap_continuity(records)
+    pts = gap_continuity(_as_points(records))
+    by_key = {}
+    for rep, tag in ((live, "live"), (pts, "points")):
+        for s in rep:
+            for g in s["gaps"]:
+                by_key.setdefault((g["from_round"], g["to_round"]), {})[tag] = g
+
+    unearned, earned, restated = [], [], []
+    for key, pair in sorted(by_key.items(), key=lambda kv: (kv[0][0] or 0, kv[0][1] or 0)):
+        a, b = pair.get("live"), pair.get("points")
+        if a is None or b is None:
+            continue
+        row = {"from_round": key[0], "to_round": key[1],
+               "live_strength": a["witness_strength"], "point_strength": b["witness_strength"],
+               "live_source": a["witness_source"], "point_source": b["witness_source"],
+               "live_note": a["witness_note"], "point_note": b["witness_note"]}
+        rank = {WITNESS_NONE: 0, WITNESS_REBOOT_ONLY: 1, WITNESS_BOUNDED: 2, WITNESS_FULL: 3}
+        if rank[b["witness_strength"]] > rank[a["witness_strength"]]:
+            unearned.append(row)
+        elif rank[a["witness_strength"]] > rank[b["witness_strength"]]:
+            earned.append(row)
+        elif (a["witness_source"], a["witness_note"]) != (b["witness_source"], b["witness_note"]):
+            restated.append(row)
+
+    live_exc = {(e["from_round"], e["to_round"]) for s in live for e in s["missed_excursions"]}
+    pt_exc = {(e["from_round"], e["to_round"]) for s in pts for e in s["missed_excursions"]}
+    unearned_excursions = sorted(pt_exc - live_exc)
+
+    by_round = {}
+    for r in records:
+        by_round.setdefault(r["round"], r)
+    n_coarse_endpoint = 0
+    coarse_unobs = 0.0
+    total_unobs = 0.0
+    imprecision = 0.0
+    worst = None
+    for s in live:
+        for g in s["gaps"]:
+            e, l = by_round.get(g["from_round"]), by_round.get(g["to_round"])
+            if not e or not l:
+                continue
+            lo, hi = gap_duration_bounds(e, l)
+            u = g["unobserved_s"]
+            total_unobs += u
+            imprecision += (hi - lo)
+            if "coarse" in (e.get("precision"), l.get("precision")):
+                n_coarse_endpoint += 1
+                coarse_unobs += u
+            if u > 0 and (worst is None or u > worst["unobserved_s"]):
+                worst = dict(g, lo_s=lo, hi_s=hi)
+    runners = sorted((g["unobserved_s"] for s in live for g in s["gaps"]
+                      if g["unobserved_s"] > 0), reverse=True)
+    runner_up = runners[1] if len(runners) > 1 else None
+    max_block = None
+    if worst is not None:
+        # The argmax is ROBUST only if the winner's shortest possible length
+        # still beats the runner-up's longest. Two gaps whose brackets overlap
+        # do not have a determined order, and printing one of them as "the
+        # longest" is a coin toss dressed as a measurement.
+        max_block = {
+            "from_round": worst["from_round"], "to_round": worst["to_round"],
+            "printed_s": worst["unobserved_s"],
+            "lo_s": worst["lo_s"], "hi_s": worst["hi_s"],
+            "bracket_human": "%s .. %s" % (format_duration_s(worst["lo_s"]),
+                                           format_duration_s(worst["hi_s"])),
+            "runner_up_s": runner_up,
+            "argmax_robust": runner_up is None or worst["lo_s"] > runner_up,
+        }
+
+    counts = {}
+    for r in records:
+        counts[r.get("precision") or "(absent)"] = counts.get(r.get("precision") or "(absent)", 0) + 1
+    return {
+        "n_records": len(records),
+        "by_precision": counts,
+        "resolution_s": dict(PRECISION_RESOLUTION_S),
+        "unknown_precision_resolution_s": UNKNOWN_PRECISION_RESOLUTION_S,
+        "n_gaps": sum(len(s["gaps"]) for s in live),
+        "gaps_with_a_coarse_endpoint": n_coarse_endpoint,
+        "unobserved_total_s": total_unobs,
+        "unobserved_total_imprecision_s": imprecision,
+        "unobserved_carried_by_coarse_endpoint_s": coarse_unobs,
+        "unobserved_carried_by_coarse_endpoint_fraction": (
+            coarse_unobs / total_unobs if total_unobs else 0.0),
+        "max_unobserved_outage": max_block,
+        "unearned_claims": unearned,
+        "unearned_missed_excursions": unearned_excursions,
+        "earned_by_bounds": earned,
+        "restated": restated,
+        "note": ("`precision` has been on every row since round 310 and no rule "
+                 "read it until round 460. `unearned_claims` is the only error "
+                 "class here: a conclusion the point view reaches and the "
+                 "bracketed view refuses is a conclusion drawn from digits the "
+                 "log itself flagged as rounded."),
+    }
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = p.add_subparsers(dest="mode", required=True)
@@ -2354,6 +2794,28 @@ def main(argv=None) -> int:
                          "independent uptime witness; every probe gap it covers "
                          "end-to-end is reported closed.")
 
+    rp = sub.add_parser("replay",
+                        help="build a log row from observations this round "
+                             "already made by hand (round 460)")
+    rp.add_argument("--round", type=int, required=True)
+    rp.add_argument("--checked-at", required=True)
+    rp.add_argument("--ssh-returncode", type=int, required=True)
+    rp.add_argument("--ssh-stderr", default="")
+    rp.add_argument("--tailscale-json", required=True,
+                    help="path to the `tailscale status --json` output this "
+                         "round actually read")
+    rp.add_argument("--notes", default="")
+    rp.add_argument("--log-path", default=DEFAULT_LOG_PATH)
+    rp.add_argument("--append", action="store_true")
+
+    pa = sub.add_parser("precision-audit",
+                        help="does the log's own `precision` field change any "
+                             "published conclusion? (round 460)")
+    pa.add_argument("--log-path", default=DEFAULT_LOG_PATH)
+    pa.add_argument("--strict", action="store_true",
+                    help="exit 1 if any claim is unearned under the row's own "
+                         "declared precision")
+
     cv = sub.add_parser("coverage",
                         help="round 454: which E rounds owe this log a row and "
                              "have not paid")
@@ -2402,6 +2864,25 @@ def main(argv=None) -> int:
             bounds = [b for b in bounds if b["verdict"] == args.verdict]
         print(json.dumps({"n_streaks": len(bounds), "streaks": bounds}, indent=2))
         return 0
+
+    if args.mode == "replay":
+        rec = replay(args.round, args.checked_at, args.ssh_returncode,
+                     args.ssh_stderr, Path(args.tailscale_json).read_text(),
+                     args.notes)
+        existing = {r.get("round") for r in load_log(args.log_path)}
+        if args.append and args.round in existing:
+            print(json.dumps({"skipped": "round %d already has a row" % args.round}))
+            return 1
+        if args.append:
+            append_record(rec, args.log_path)
+        print(json.dumps(rec, indent=2))
+        return 0
+
+    if args.mode == "precision-audit":
+        aud = precision_audit(load_log(args.log_path))
+        print(json.dumps(aud, indent=2))
+        bad = bool(aud["unearned_claims"]) or bool(aud["unearned_missed_excursions"])
+        return 1 if (args.strict and bad) else 0
 
     if args.mode == "coverage":
         cov = log_coverage(load_log(args.log_path),

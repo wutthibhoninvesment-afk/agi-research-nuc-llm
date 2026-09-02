@@ -1062,8 +1062,17 @@ def test_real_log_up_streak_after_the_reboot_starts_at_the_boot_not_the_check():
 # is a lower bound on duration.
 # ==========================================================================
 
-def _rec(ts, verdict, rnd=None, last_seen=None, boot=None):
+def _rec(ts, verdict, rnd=None, last_seen=None, boot=None, precision=None,
+         last_seen_bounds=None):
+    # `precision` is deliberately absent by default: the bulk of this suite
+    # then exercises round 460's fail-closed path, where a record that does
+    # not say how precise it is gets the WIDEST bracket. Tests that care pass
+    # it explicitly.
     r = {"checked_at_utc": ts, "verdict": verdict, "round": rnd}
+    if precision is not None:
+        r["precision"] = precision
+    if last_seen_bounds is not None:
+        r["tailscale_last_seen_bounds_utc"] = list(last_seen_bounds)
     if last_seen is not None:
         r["tailscale_last_seen_utc"] = last_seen
     if boot is not None:
@@ -1136,12 +1145,19 @@ def test_last_seen_strictly_inside_a_down_gap_is_a_reported_missed_excursion():
     assert rc.continuity_report(recs)["missed_excursions"] == [m]
 
 
-def test_last_seen_at_or_after_the_later_down_check_is_contradictory_not_a_witness():
+def test_last_seen_after_the_later_down_check_is_contradictory_not_a_witness():
     """Mirrors round 334's `streak_bounds` rule: a LastSeen at/after a check
     that called the box down implies more transitions than one gap can
-    represent. Dropped with a named reason, never clamped into a witness."""
-    recs = [_rec("2026-01-01T10:00:00Z", "down", 1),
-            _rec("2026-01-01T14:00:00Z", "down", 2, last_seen="2026-01-01T14:00:00Z")]
+    represent. Dropped with a named reason, never clamped into a witness.
+
+    Round 460 sharpened "at or after" to "after, by more than the later
+    check's own declared resolution". A `precise` row's `checked_at_utc` is a
+    truncated `now()`, so the true check happened somewhere in [t2, t2+1);
+    a sighting AT t2 is therefore at-or-BEFORE the true check and proves no
+    contradiction at all. See the straddle test below for that case."""
+    recs = [_rec("2026-01-01T10:00:00Z", "down", 1, precision="precise"),
+            _rec("2026-01-01T14:00:00Z", "down", 2, precision="precise",
+                 last_seen="2026-01-01T14:05:00Z")]
     gap = rc.gap_continuity(recs)[0]["gaps"][0]
     assert gap["witnessed"] is False
     assert "contradictory" in gap["witness_note"]
@@ -3355,3 +3371,390 @@ def test_the_module_does_not_care_what_order_the_log_file_is_in():
     b = rc.continuity_report(sorted(recs, key=rc._sort_key))
     c = rc.continuity_report(list(reversed(recs)))
     assert a == b == c
+
+
+# --------------------------------------------------------------------------
+# Round 460: the `precision` field, which the log has carried on every row
+# since round 310 and which no rule had ever read.
+# --------------------------------------------------------------------------
+
+def test_a_coarse_row_brackets_its_check_instant_forward_by_a_minute():
+    """`checked_at_utc` on a backfilled row is `boot + a minute-TRUNCATED
+    uptime`, so it can only be an UNDERstatement. The bracket therefore opens
+    at the stated value and runs forward, never backward."""
+    lo, hi = rc.checked_at_bounds({"checked_at_utc": "2026-08-26T03:19:00Z",
+                                   "precision": "coarse"})
+    assert rc._fmt_ts(lo) == "2026-08-26T03:19:00Z"
+    assert (hi - lo).total_seconds() == 60
+
+
+def test_a_precise_row_is_still_a_bracket_not_a_point():
+    lo, hi = rc.checked_at_bounds({"checked_at_utc": "2026-08-26T03:19:00Z",
+                                   "precision": "precise"})
+    assert (hi - lo).total_seconds() == 1
+
+
+def test_a_row_that_does_not_declare_its_precision_gets_the_widest_bracket():
+    """Fails closed. An unknown provenance must not be able to buy a witness
+    or an accusation it has not earned."""
+    lo, hi = rc.checked_at_bounds({"checked_at_utc": "2026-08-26T03:19:00Z"})
+    assert (hi - lo).total_seconds() == rc.UNKNOWN_PRECISION_RESOLUTION_S
+    assert rc.UNKNOWN_PRECISION_RESOLUTION_S == max(rc.PRECISION_RESOLUTION_S.values())
+
+
+def test_the_headline_max_unobserved_outage_is_a_two_minute_bracket():
+    """The live log's `max_unobserved_outage` is rounds 142 -> 154, printed as
+    exactly `14h00m00s`. BOTH endpoints are `coarse`, so the true value is
+    somewhere in a 120 s window and the round number is an artefact of two
+    minute-truncated readings agreeing on their seconds field."""
+    e = {"checked_at_utc": "2026-08-26T03:19:00Z", "precision": "coarse"}
+    l = {"checked_at_utc": "2026-08-26T17:19:00Z", "precision": "coarse"}
+    lo, hi = rc.gap_duration_bounds(e, l)
+    assert (lo, hi) == (50340.0, 50460.0)
+    assert hi - lo == 2 * rc.PRECISION_RESOLUTION_S["coarse"]
+    assert lo < 50400.0 < hi
+
+
+def test_a_coarse_earlier_check_cannot_manufacture_a_missed_excursion():
+    """THE round 460 guard, in one test.
+
+    A sighting 30 s after a COARSE earlier check is not inside the gap on any
+    honest reading: the check's true instant is somewhere in the following
+    60 s, so the sighting may well precede it. Read as a point -- which is
+    what every rule did before this round -- it is an accusation that the box
+    came back to life mid-outage.
+    """
+    recs = [_rec("2026-01-01T10:00:00Z", "down", 1, precision="coarse"),
+            _rec("2026-01-01T14:00:00Z", "down", 2, precision="precise",
+                 last_seen="2026-01-01T10:00:30Z")]
+    rep = rc.gap_continuity(recs)[0]
+    assert rep["missed_excursions"] == []
+    assert "straddles the earlier check" in rep["gaps"][0]["witness_note"]
+    assert rep["gaps"][0]["witnessed"] is False
+
+
+def test_the_same_sighting_against_a_precise_earlier_check_still_accuses():
+    """The falsifier for the test above: the guard must be about PRECISION,
+    not about refusing to accuse. Identical data, one field changed."""
+    recs = [_rec("2026-01-01T10:00:00Z", "down", 1, precision="precise"),
+            _rec("2026-01-01T14:00:00Z", "down", 2, precision="precise",
+                 last_seen="2026-01-01T10:00:30Z")]
+    rep = rc.gap_continuity(recs)[0]
+    assert len(rep["missed_excursions"]) == 1
+    assert rep["missed_excursions"][0]["kind"] == "tailscale_last_seen_inside_gap"
+
+
+def test_a_witness_survives_a_coarse_earlier_check_when_it_has_the_margin():
+    """The guard must not eat honest witnesses. A sighting 42m before a coarse
+    check clears the check's 60 s bracket with room to spare -- this is round
+    190's real shape."""
+    recs = [_rec("2026-01-01T10:00:00Z", "down", 1, precision="coarse"),
+            _rec("2026-01-01T14:00:00Z", "down", 2, precision="precise",
+                 last_seen="2026-01-01T09:18:00Z")]
+    gap = rc.gap_continuity(recs)[0]["gaps"][0]
+    assert gap["witnessed"] is True
+    assert gap["witness_source"] == "tailscale_last_seen"
+
+
+def test_a_sighting_inside_the_earlier_checks_own_bracket_witnesses_nothing():
+    """The other side of the same coin: a sighting 30 s after a coarse check
+    cannot witness either, because it may fall inside the gap. Neither
+    witness nor accusation -- the third outcome."""
+    recs = [_rec("2026-01-01T10:00:00Z", "down", 1, precision="coarse"),
+            _rec("2026-01-01T14:00:00Z", "down", 2, precision="precise",
+                 last_seen="2026-01-01T10:00:30Z")]
+    gap = rc.gap_continuity(recs)[0]["gaps"][0]
+    assert gap["witnessed"] is False
+    assert gap["witness_strength"] == rc.WITNESS_NONE
+    assert gap.get("witness_source") is None
+
+
+def test_a_sighting_exactly_at_the_later_check_straddles_it():
+    """Split out of round 334's contradiction test. The later check's true
+    instant is at or after its stated one, so a sighting AT the stated value
+    is at-or-before the real check -- no contradiction is established."""
+    recs = [_rec("2026-01-01T10:00:00Z", "down", 1, precision="precise"),
+            _rec("2026-01-01T14:00:00Z", "down", 2, precision="precise",
+                 last_seen="2026-01-01T14:00:00Z")]
+    gap = rc.gap_continuity(recs)[0]["gaps"][0]
+    assert gap["witnessed"] is False
+    assert "straddles the later check" in gap["witness_note"]
+    assert rc.gap_continuity(recs)[0]["missed_excursions"] == []
+
+
+# --- bounded (interval-valued) LastSeen ------------------------------------
+
+def test_a_bounded_last_seen_witnesses_on_its_UPPER_bound():
+    """Round 454 item 4, done as a bracket rather than a division. A reading
+    recovered from `last seen 3h ago` is an interval; it witnesses only when
+    even its LATEST possible instant precedes the earlier check."""
+    recs = [_rec("2026-01-01T10:00:00Z", "down", 1, precision="precise"),
+            _rec("2026-01-01T14:00:00Z", "down", 2, precision="precise",
+                 last_seen_bounds=("2026-01-01T08:00:00Z", "2026-01-01T09:00:00Z"))]
+    gap = rc.gap_continuity(recs)[0]["gaps"][0]
+    assert gap["witnessed"] is True
+    assert "[2026-01-01T08:00:00Z, 2026-01-01T09:00:00Z]" in gap["witness_note"]
+
+
+def test_a_bounded_last_seen_that_reaches_past_the_earlier_check_witnesses_nothing():
+    """The falsifier: move the interval's upper end 1 s past the earlier
+    check and the witness must vanish. A bracket that is allowed to witness
+    on its midpoint is a division wearing a bracket's clothes."""
+    recs = [_rec("2026-01-01T10:00:00Z", "down", 1, precision="precise"),
+            _rec("2026-01-01T14:00:00Z", "down", 2, precision="precise",
+                 last_seen_bounds=("2026-01-01T08:00:00Z", "2026-01-01T10:00:01Z"))]
+    gap = rc.gap_continuity(recs)[0]["gaps"][0]
+    assert gap["witnessed"] is False
+
+
+def test_a_bounded_last_seen_never_accuses_on_a_straddle():
+    """An interval that pokes out of the gap at either end proves nothing,
+    and must not be collapsed to a point that does."""
+    recs = [_rec("2026-01-01T10:00:00Z", "down", 1, precision="precise"),
+            _rec("2026-01-01T14:00:00Z", "down", 2, precision="precise",
+                 last_seen_bounds=("2026-01-01T09:30:00Z", "2026-01-01T11:00:00Z"))]
+    rep = rc.gap_continuity(recs)[0]
+    assert rep["missed_excursions"] == []
+    assert rep["gaps"][0]["witnessed"] is False
+
+
+def test_a_bounded_last_seen_fully_inside_the_gap_does_accuse():
+    """...and the falsifier for THAT: an interval wholly inside the gap is as
+    good as a point inside it."""
+    recs = [_rec("2026-01-01T10:00:00Z", "down", 1, precision="precise"),
+            _rec("2026-01-01T14:00:00Z", "down", 2, precision="precise",
+                 last_seen_bounds=("2026-01-01T11:00:00Z", "2026-01-01T12:00:00Z"))]
+    rep = rc.gap_continuity(recs)[0]
+    assert len(rep["missed_excursions"]) == 1
+
+
+def test_bounds_beat_the_scalar_field_when_a_row_carries_both():
+    """A recovered row keeps `tailscale_last_seen_utc: null` for compatibility
+    and carries the interval beside it. If some future row carries both, the
+    interval is the one with the provenance."""
+    rec = {"tailscale_last_seen_utc": "2026-01-01T12:00:00Z",
+           "tailscale_last_seen_bounds_utc": ["2026-01-01T08:00:00Z",
+                                              "2026-01-01T09:00:00Z"]}
+    lo, hi = rc.last_seen_bounds(rec)
+    assert (rc._fmt_ts(lo), rc._fmt_ts(hi)) == ("2026-01-01T08:00:00Z",
+                                                "2026-01-01T09:00:00Z")
+
+
+def test_the_never_seen_sentinel_is_not_a_bracket():
+    assert rc.last_seen_bounds({"tailscale_last_seen_utc": "0001-01-01T00:00:00Z"}) is None
+    assert rc.last_seen_bounds({}) is None
+
+
+# --- the precision audit ---------------------------------------------------
+
+def test_the_audit_finds_nothing_unearned_in_the_live_log_today():
+    """The honest headline, as a pin. 20 of the live log's 60 rows are coarse
+    and they carry 60% of its published ignorance -- and not one published
+    conclusion currently rests on that coarseness. The guards added this round
+    are PREVENTIVE. Saying so is the finding; if a later round makes this go
+    red, the log has started drawing conclusions from rounded digits."""
+    aud = rc.precision_audit(rc.load_log(str(REAL_LOG)))
+    assert aud["unearned_claims"] == []
+    assert aud["unearned_missed_excursions"] == []
+    assert aud["by_precision"]["coarse"] == 20
+    assert aud["gaps_with_a_coarse_endpoint"] == 23
+    assert 0.60 < aud["unobserved_carried_by_coarse_endpoint_fraction"] < 0.61
+
+
+def test_the_audit_catches_an_excursion_that_only_a_point_reading_supports():
+    """The falsifier. A sighting 30 s after a COARSE check is an accusation
+    under the old point-valued rules and nothing at all under the row's own
+    declared precision. If the audit cannot see that, it is decorative."""
+    recs = [_rec("2026-01-01T10:00:00Z", "down", 1, precision="coarse"),
+            _rec("2026-01-01T14:00:00Z", "down", 2, precision="precise",
+                 last_seen="2026-01-01T10:00:30Z")]
+    aud = rc.precision_audit(recs)
+    assert aud["unearned_missed_excursions"] == [(1, 2)]
+    assert len(aud["unearned_claims"]) == 0  # strength is NONE either way
+    assert rc.main(["precision-audit", "--log-path", str(REAL_LOG), "--strict"]) == 0
+
+
+def test_a_witness_is_immune_to_the_EARLIER_checks_precision_and_here_is_why():
+    """Not a gap in the audit -- a property of the rule, and the reason
+    `unearned_claims` is empty on the live log.
+
+    Witnessing needs "the sighting is at or before the earlier check", which
+    is evaluated against that check's LOWER bound -- and the lower bound IS
+    the stated value, whatever the row's precision. Coarseness only ever opens
+    a bracket FORWARD. So declaring the earlier check coarse cannot take a
+    witness away, and cannot hand one over either.
+    """
+    for prec in ("precise", "coarse"):
+        recs = [_rec("2026-01-01T10:00:00Z", "down", 1, precision=prec),
+                _rec("2026-01-01T14:00:00Z", "down", 2, precision="precise",
+                     last_seen="2026-01-01T10:00:00Z")]
+        gap = rc.gap_continuity(recs)[0]["gaps"][0]
+        assert gap["witnessed"] is True, prec
+        assert rc.precision_audit(recs)["unearned_claims"] == []
+
+
+def test_the_audit_catches_a_witness_that_only_a_point_reading_supports():
+    """The error class that IS reachable, via round 454's forward rule.
+
+    Gap 1->2 has no LastSeen on its later record, so it leans on a forward
+    reading (round 3's 09:00, at or before check 1). Round 4 reports a
+    sighting at 14:00:30 -- half a minute after check 2's STATED time. Read as
+    a point, that sighting is outside gap 1->2 and the forward witness stands.
+    Read against check 2's own declared coarseness, the sighting falls inside
+    the gap's widest possible extent, the two readings dispute each other, and
+    the witness is not earned.
+    """
+    recs = [_rec("2026-01-01T10:00:00Z", "down", 1, precision="precise"),
+            _rec("2026-01-01T14:00:00Z", "down", 2, precision="coarse"),
+            _rec("2026-01-01T18:00:00Z", "down", 3, precision="precise",
+                 last_seen="2026-01-01T09:00:00Z"),
+            _rec("2026-01-01T22:00:00Z", "down", 4, precision="precise",
+                 last_seen="2026-01-01T14:00:30Z")]
+    aud = rc.precision_audit(recs)
+    assert [(r["from_round"], r["to_round"]) for r in aud["unearned_claims"]] == [(1, 2)]
+    assert aud["unearned_claims"][0]["point_strength"] == rc.WITNESS_FULL
+    assert aud["unearned_claims"][0]["live_strength"] == rc.WITNESS_NONE
+    assert "disputed" in aud["unearned_claims"][0]["live_note"]
+
+
+def test_the_point_view_reproduces_the_pre_round_460_rules_exactly():
+    """`_as_points` must be the OLD behaviour, not a third one. Zero-width
+    brackets make every comparison collapse back to the point form, and an
+    interval-valued LastSeen -- which had no meaning at all before this round
+    -- is dropped rather than averaged into a value the old code never saw."""
+    r = {"checked_at_utc": "2026-01-01T10:00:00Z", "precision": "coarse",
+         "tailscale_last_seen_bounds_utc": ["2026-01-01T08:00:00Z",
+                                            "2026-01-01T09:00:00Z"]}
+    pt = rc._as_points([r])[0]
+    lo, hi = rc.checked_at_bounds(pt)
+    assert lo == hi
+    assert rc.last_seen_bounds(pt) is None
+    assert r["precision"] == "coarse", "must not mutate the caller's records"
+
+
+def test_the_headline_outage_argmax_is_robust_and_says_so():
+    """`max_unobserved_outage` prints exactly `14h00m00s` from two
+    minute-truncated endpoints. The number is an artefact; the RANKING is not,
+    because the runner-up is nowhere near. The audit has to distinguish those
+    two statements -- a bracket on a value is not a doubt about its order."""
+    aud = rc.precision_audit(rc.load_log(str(REAL_LOG)))
+    m = aud["max_unobserved_outage"]
+    assert (m["from_round"], m["to_round"]) == (142, 154)
+    assert m["printed_s"] == 50400.0
+    assert m["bracket_human"] == "13h59m00s .. 14h01m00s"
+    assert m["argmax_robust"] is True
+    assert m["lo_s"] > m["runner_up_s"]
+
+
+def test_an_argmax_inside_its_own_bracket_is_reported_as_not_robust():
+    """The falsifier for that: two coarse gaps 30 s apart cannot be ordered."""
+    recs = [_rec("2026-01-01T10:00:00Z", "up", 1, precision="coarse", boot="2026-01-01T00:00:00Z"),
+            _rec("2026-01-01T11:00:00Z", "up", 2, precision="coarse"),
+            _rec("2026-01-01T12:00:30Z", "up", 3, precision="coarse")]
+    aud = rc.precision_audit(recs)
+    assert aud["max_unobserved_outage"]["argmax_robust"] is False
+
+
+# --------------------------------------------------------------------------
+# Round 460 / round 454's item 3: the UP side of the split-gap regression.
+# --------------------------------------------------------------------------
+
+def _up_streak_ignorance(recs):
+    rep = rc.gap_continuity(recs)
+    return sum(g["unobserved_s"] for s in rep for g in s["gaps"])
+
+
+def test_inserting_a_bootless_observation_no_longer_raises_up_side_ignorance():
+    """THE exhibit round 454 declined to build, and the regression it names.
+
+    A -- B share a boot, so the gap scores `reboot_only`. Insert an
+    observation M that carries no boot_utc and, before this round, BOTH halves
+    fell to WITNESS_NONE: making one more observation of the box made the
+    instrument report more ignorance. Same shape as the down-side bug round
+    454 fixed, on the other axis.
+    """
+    a = _rec("2026-01-01T10:00:00Z", "up", 1, boot="2026-01-01T00:00:00Z")
+    m = _rec("2026-01-01T11:00:00Z", "up", 2)                       # no boot_utc
+    b = _rec("2026-01-01T12:00:00Z", "up", 3, boot="2026-01-01T00:00:00Z")
+    without, with_m = rc.gap_continuity([a, b]), rc.gap_continuity([a, m, b])
+    assert [g["witness_strength"] for g in without[0]["gaps"]] == [rc.WITNESS_REBOOT_ONLY]
+    assert [g["witness_strength"] for g in with_m[0]["gaps"]] == [
+        rc.WITNESS_REBOOT_ONLY, rc.WITNESS_REBOOT_ONLY]
+    assert [g["witness_source"] for g in with_m[0]["gaps"]] == [
+        "boot_utc_unchanged_bracketed", "boot_utc_unchanged_bracketed"]
+    # and the property the regression violated
+    assert _up_streak_ignorance([a, m, b]) == _up_streak_ignorance([a, b])
+
+
+def test_the_bracketed_boot_rule_may_witness_but_may_not_accuse():
+    """Round 454's asymmetry, carried onto the up side. When the bracketing
+    readings disagree a reboot DID happen somewhere in the span -- but the
+    span holds several gaps and nothing says which, so no gap is accused."""
+    a = _rec("2026-01-01T10:00:00Z", "up", 1, boot="2026-01-01T00:00:00Z")
+    m = _rec("2026-01-01T11:00:00Z", "up", 2)
+    b = _rec("2026-01-01T12:00:00Z", "up", 3, boot="2026-01-01T09:00:00Z")
+    rep = rc.gap_continuity([a, m, b])[0]
+    assert [g["witness_strength"] for g in rep["gaps"]] == [rc.WITNESS_NONE,
+                                                            rc.WITNESS_NONE]
+    assert rep["missed_excursions"] == []
+    assert "only part of it" in rep["gaps"][0]["witness_note"]
+
+
+def test_the_bracketed_rule_needs_a_reading_on_BOTH_sides():
+    """A bracket open at one end brackets nothing. Two half-cases, both NONE."""
+    a = _rec("2026-01-01T10:00:00Z", "up", 1, boot="2026-01-01T00:00:00Z")
+    m = _rec("2026-01-01T11:00:00Z", "up", 2)
+    n = _rec("2026-01-01T12:00:00Z", "up", 3)
+    assert rc.gap_continuity([a, m, n])[0]["gaps"][1]["witness_strength"] == rc.WITNESS_NONE
+    assert rc.gap_continuity([n, m, a][::-1])  # smoke: ordering does not crash
+    b = _rec("2026-01-01T13:00:00Z", "up", 4, boot="2026-01-01T00:00:00Z")
+    first = _rec("2026-01-01T09:00:00Z", "up", 0)
+    assert rc.gap_continuity([first, m, b])[0]["gaps"][0]["witness_strength"] == rc.WITNESS_NONE
+
+
+def test_boot_jitter_applies_to_the_bracket_too():
+    """The bracket is the same claim `boot_utc_unchanged` makes over a wider
+    span, so it inherits round 376's 5 s same-boot sampling tolerance."""
+    a = _rec("2026-01-01T10:00:00Z", "up", 1, boot="2026-01-01T00:00:00Z")
+    m = _rec("2026-01-01T11:00:00Z", "up", 2)
+    b = _rec("2026-01-01T12:00:00Z", "up", 3, boot="2026-01-01T00:00:04Z")
+    assert rc.gap_continuity([a, m, b])[0]["gaps"][0]["witness_strength"] == \
+        rc.WITNESS_REBOOT_ONLY
+    b["boot_utc"] = "2026-01-01T00:00:06Z"        # past the tolerance
+    assert rc.gap_continuity([a, m, b])[0]["gaps"][0]["witness_strength"] == rc.WITNESS_NONE
+
+
+def test_a_bracketed_gap_is_reachable_by_the_journal_interior_upgrade():
+    """Why the upgrade is worth anything. `_silence_upgrade` is keyed on
+    REBOOT_ONLY, so a gap stuck at NONE could never be bounded no matter what
+    journal evidence arrived. These seven can be."""
+    a = _rec("2026-01-01T10:00:00Z", "up", 1, boot="2026-01-01T00:00:00Z")
+    m = _rec("2026-01-01T11:00:00Z", "up", 2)
+    b = _rec("2026-01-01T12:00:00Z", "up", 3, boot="2026-01-01T00:00:00Z")
+    silence = lambda t1, t2: {"max_silence_s": 30.0, "n_entry_seconds": 1000}
+    gap = rc.gap_continuity([a, m, b], silence=silence)[0]["gaps"][0]
+    assert gap["witness_strength"] == rc.WITNESS_BOUNDED
+    assert gap["witness_source"] == "boot_utc_unchanged_bracketed+journal"
+    assert gap["bound_s"] == 30.0
+
+
+def test_the_live_log_gains_seven_bracketed_gaps_and_no_headline_number_moves():
+    """The honest live result. Rounds 202/220/226/250 all report boot
+    `2026-08-27T11:50:48Z` -- the same boot, to the second -- and the five
+    coarse rows between them carry no boot_utc at all. Seven gaps therefore go
+    from 'boot_utc missing on one or both endpoints' to 'no reboot happened
+    anywhere in the span'. `unobserved_total_s` does NOT move, because
+    REBOOT_ONLY has never reduced it; what moves is that 16h49m of the log's
+    ignorance is now one journal capture away from a bound instead of being
+    permanently out of reach."""
+    rep = rc.gap_continuity(rc.load_log(str(REAL_LOG)))
+    bracketed = [g for s in rep for g in s["gaps"]
+                 if g["witness_source"] == "boot_utc_unchanged_bracketed"]
+    assert len(bracketed) == 7
+    assert [(g["from_round"], g["to_round"]) for g in bracketed] == [
+        (202, 208), (208, 214), (214, 220), (226, 232), (232, 238),
+        (238, 244), (244, 250)]
+    assert sum(g["unobserved_s"] for g in bracketed) == 60528.0
+    assert all(g["witness_strength"] == rc.WITNESS_REBOOT_ONLY for g in bracketed)
+    full = rc.continuity_report(rc.load_log(str(REAL_LOG)))
+    assert full["unobserved_total_s"] == 396378.0
