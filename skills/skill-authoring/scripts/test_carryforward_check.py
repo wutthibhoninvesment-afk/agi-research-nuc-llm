@@ -304,6 +304,296 @@ class TestLiveCorpus(unittest.TestCase):
             self.assertTrue(any(marker in p for p in paths), marker)
 
 
+class TestAnchorLocates(unittest.TestCase):
+    """K005/K006 (round 465): presence is not location.
+
+    K002 asks `quote in body`. These ask the two questions presence does not
+    answer -- is it there ONCE, and would it have been there if `where` named
+    somebody else's file.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        os.makedirs(os.path.join(self.tmp, "state"))
+        os.makedirs(os.path.join(self.tmp, "knowledge"))
+        write(os.path.join(self.tmp, "state/research-state.md"), "# s\n")
+        write(os.path.join(self.tmp, "state/research-state-archive.md"), "# a\n")
+        write(os.path.join(self.tmp, "state/round-500-predictions.md"), "P1: x")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def entry(self, **kw):
+        e = {"bank": "state/round-500-predictions.md", "status": "scored",
+             "scored_by": 501, "where": "knowledge/round-501-x.md",
+             "quote": "P1 HIT"}
+        e.update(kw)
+        return {"500": e}
+
+    def run_check(self, ledger, latest_round=500):
+        write(os.path.join(self.tmp, cf.LEDGER_FILE),
+              json.dumps({"banks": ledger}))
+        corpus = cf.Corpus(self.tmp)
+        banks, _ = cf.find_banks(self.tmp)
+        led, err = cf.load_ledger(self.tmp)
+        return [f[0] for f in cf.findings(self.tmp, corpus, banks, led, err,
+                                          latest_round)]
+
+    # ---- K005: ambiguity -------------------------------------------------
+
+    def test_k005_a_quote_present_twice_cannot_be_located(self):
+        write(os.path.join(self.tmp, "knowledge/round-501-x.md"),
+              "intro P1 HIT\n\nlater, again: P1 HIT\n")
+        self.assertIn("K005", self.run_check(self.entry()))
+
+    def test_a_quote_present_once_is_not_k005(self):
+        write(os.path.join(self.tmp, "knowledge/round-501-x.md"), "P1 HIT once")
+        self.assertNotIn("K005", self.run_check(self.entry()))
+
+    def test_round_421s_real_anchor_is_the_frozen_k005_fixture(self):
+        """The entry that made this code exist, with the corpus's own text.
+
+        Round 421's knowledge file scores its bank in one line of the round
+        summary and again in the section heading below it, so the anchor
+        `**6 hits, 2 misses.**` appears twice and points at neither. This is
+        the OLD anchor, quoted deliberately: pasting a LIVE one into a file
+        the checker reads is what broke rounds 15 and 421 in the first place.
+        """
+        write(os.path.join(self.tmp, "knowledge/round-501-x.md"),
+              "Scored in \u00a77: **6 hits, 2 misses.** Both misses are in the "
+              "same\ndirection.\n\n## 7. Predictions, scored\n\n"
+              "**6 hits, 2 misses.** Banked before the analyser existed.\n")
+        codes = self.run_check(self.entry(quote="**6 hits, 2 misses.**"))
+        self.assertIn("K005", codes)
+        self.assertNotIn("K002", codes)
+
+    # ---- K006: the `where` substitution ----------------------------------
+
+    def test_k006_a_quote_that_another_rounds_file_also_satisfies(self):
+        write(os.path.join(self.tmp, "knowledge/round-501-x.md"),
+              "## 8. Predictions, scored\n")
+        write(os.path.join(self.tmp, "knowledge/round-333-y.md"),
+              "## 8. Predictions, scored\n")
+        self.assertIn("K006", self.run_check(
+            self.entry(quote="## 8. Predictions, scored")))
+
+    def test_the_banking_round_and_the_scoring_round_are_both_own_scope(self):
+        """Round 141 scored three inherited banks in one sentence.
+
+        An entry for round 500 scored BY round 501 legitimately matches in
+        both rounds' files; only a third round's file is a substitution the
+        entry could have made by mistake.
+        """
+        write(os.path.join(self.tmp, "knowledge/round-501-x.md"), "shared line\n")
+        write(os.path.join(self.tmp, "knowledge/round-500-own.md"), "shared line\n")
+        self.assertNotIn("K006", self.run_check(self.entry(quote="shared line")))
+
+    def test_a_third_rounds_file_is_foreign_even_next_to_own_scope(self):
+        write(os.path.join(self.tmp, "knowledge/round-501-x.md"), "shared line\n")
+        write(os.path.join(self.tmp, "knowledge/round-500-own.md"), "shared line\n")
+        write(os.path.join(self.tmp, "knowledge/round-222-z.md"), "shared line\n")
+        self.assertIn("K006", self.run_check(self.entry(quote="shared line")))
+
+    def test_the_substitution_unit_is_a_section_not_the_prose_file(self):
+        """18 live entries name research-state(.archive) as `where`.
+
+        Those files contain every round, so a file-level substitution would
+        report every entry in the ledger. The candidate coordinate is the
+        round SECTION -- which means a quote inside round 500's own section
+        is own scope, and the same string inside round 222's section of the
+        same file is foreign.
+        """
+        write(os.path.join(self.tmp, "state/research-state.md"),
+              "### Round 500 - x\n\nthe scoring sentence\n")
+        codes = self.run_check(self.entry(
+            where="state/research-state.md", scored_by=500,
+            quote="the scoring sentence"))
+        self.assertNotIn("K006", codes)
+        write(os.path.join(self.tmp, "state/research-state.md"),
+              "### Round 500 - x\n\nthe scoring sentence\n\n"
+              "### Round 222 - y\n\nthe scoring sentence\n")
+        self.assertIn("K006", self.run_check(self.entry(
+            where="state/research-state.md", scored_by=500,
+            quote="the scoring sentence")))
+
+    def test_k006_is_silent_when_the_anchor_is_unique_to_its_round(self):
+        write(os.path.join(self.tmp, "knowledge/round-501-x.md"),
+              "P1 HIT, and nobody else says this\n")
+        write(os.path.join(self.tmp, "knowledge/round-333-y.md"), "unrelated\n")
+        self.assertEqual(self.run_check(
+            self.entry(quote="P1 HIT, and nobody else says this")), [])
+
+    def test_an_absent_quote_is_k002_only_and_not_k005_or_k006(self):
+        """The three codes are a chain, not a committee.
+
+        If the anchor is not in `where` at all there is nothing to count
+        occurrences of, and reporting all three for one defect would triple
+        the count in the line the driver logs.
+        """
+        write(os.path.join(self.tmp, "knowledge/round-501-x.md"), "nothing here")
+        write(os.path.join(self.tmp, "knowledge/round-333-y.md"), "P1 HIT\n")
+        codes = self.run_check(self.entry())
+        self.assertEqual([c for c in codes if c.startswith("K00")], ["K002"])
+
+    def test_both_new_codes_are_errors_and_drive_the_exit_code(self):
+        self.assertEqual(cf.SEV["K005"], "ERROR")
+        self.assertEqual(cf.SEV["K006"], "ERROR")
+
+    # ---- the pricing instrument -----------------------------------------
+
+    def test_quote_audit_reports_length_occurrences_and_foreign_scopes(self):
+        write(os.path.join(self.tmp, "knowledge/round-501-x.md"),
+              "## generic\n\n## generic\n")
+        write(os.path.join(self.tmp, "knowledge/round-333-y.md"), "## generic\n")
+        rows = cf.quote_audit(self.tmp, cf.Corpus(self.tmp),
+                              self.entry(quote="## generic"))
+        self.assertEqual(len(rows), 1)
+        n, length, occ, foreign = rows[0]
+        self.assertEqual((n, length, occ), (500, len("## generic"), 2))
+        self.assertEqual(len(foreign), 1)
+
+    def test_quote_audit_skips_unscored_entries(self):
+        rows = cf.quote_audit(self.tmp, cf.Corpus(self.tmp),
+                              {"500": {"bank": "state/round-500-predictions.md",
+                                       "status": "unscored", "owner": "skills",
+                                       "why": "x"}})
+        self.assertEqual(rows, [])
+
+    # ---- the requote proposer -------------------------------------------
+
+    def test_requote_proposes_only_unique_foreign_free_scoring_lines(self):
+        write(os.path.join(self.tmp, "knowledge/round-501-x.md"),
+              "\n".join([
+                  "a line about predictions that is long enough to be an anchor",
+                  "short HIT",
+                  "a duplicated scored line that is long enough to be an anchor",
+                  "a duplicated scored line that is long enough to be an anchor",
+                  "a foreign scored line that is long enough to be an anchor",
+                  "a long line with no scoring vocabulary in it whatsoever ok",
+              ]) + "\n")
+        write(os.path.join(self.tmp, "knowledge/round-333-y.md"),
+              "a foreign scored line that is long enough to be an anchor\n")
+        write(os.path.join(self.tmp, cf.LEDGER_FILE),
+              json.dumps({"banks": self.entry()}))
+        led, _ = cf.load_ledger(self.tmp)
+        got = cf.requote(self.tmp, cf.Corpus(self.tmp), led, 500)
+        self.assertEqual(
+            got, ["a line about predictions that is long enough to be an anchor"])
+
+    def test_requote_ranks_longest_first(self):
+        write(os.path.join(self.tmp, "knowledge/round-501-x.md"),
+              "P1 HIT and this line is just over the forty character bar\n"
+              "P2 HIT and this line is considerably longer than the one above "
+              "it, which is the point\n")
+        write(os.path.join(self.tmp, cf.LEDGER_FILE),
+              json.dumps({"banks": self.entry()}))
+        led, _ = cf.load_ledger(self.tmp)
+        got = cf.requote(self.tmp, cf.Corpus(self.tmp), led, 500)
+        self.assertEqual(len(got), 2)
+        self.assertGreater(len(got[0]), len(got[1]))
+
+    def test_requote_has_nothing_to_say_about_an_unscored_entry(self):
+        write(os.path.join(self.tmp, cf.LEDGER_FILE), json.dumps({"banks": {
+            "500": {"bank": "state/round-500-predictions.md",
+                    "status": "unscored", "owner": "skills", "why": "x"}}}))
+        led, _ = cf.load_ledger(self.tmp)
+        self.assertEqual(cf.requote(self.tmp, cf.Corpus(self.tmp), led, 500), [])
+
+    def test_requote_never_writes_the_ledger(self):
+        """It proposes. Which sentence IS the scoring line is a judgement,
+        and a script that picked one would be the prose classifier round 369
+        deleted."""
+        write(os.path.join(self.tmp, "knowledge/round-501-x.md"),
+              "P1 HIT and this line is just over the forty character bar\n")
+        write(os.path.join(self.tmp, cf.LEDGER_FILE),
+              json.dumps({"banks": self.entry()}))
+        before = cf.read(os.path.join(self.tmp, cf.LEDGER_FILE))
+        cf.requote(self.tmp, cf.Corpus(self.tmp), cf.load_ledger(self.tmp)[0], 500)
+        self.assertEqual(cf.read(os.path.join(self.tmp, cf.LEDGER_FILE)), before)
+
+
+class TestAnchorsOnTheLiveLedger(unittest.TestCase):
+    """The enforcement for K005/K006, plus the reason they are not a length
+    rule."""
+
+    def setUp(self):
+        self.corpus = cf.Corpus(ROOT)
+        self.led, err = cf.load_ledger(ROOT)
+        self.assertIsNone(err)
+
+    def test_every_live_anchor_occurs_exactly_once_in_the_file_it_cites(self):
+        for n, e in sorted(self.led.items()):
+            if e.get("status") != "scored":
+                continue
+            body = cf.read(os.path.join(ROOT, e["where"]))
+            self.assertEqual(body.count(e["quote"]), 1,
+                             "round %s: anchor occurs %d times in %s"
+                             % (n, body.count(e["quote"]), e["where"]))
+
+    def test_no_live_anchor_is_satisfied_by_a_round_it_does_not_name(self):
+        for n, e in sorted(self.led.items()):
+            if e.get("status") != "scored":
+                continue
+            own = {int(n)}
+            try:
+                own.add(int(e["scored_by"]))
+            except (TypeError, ValueError):
+                pass
+            foreign = self.corpus.foreign_scopes(e["quote"], own)
+            self.assertEqual(foreign, [],
+                             "round %s: anchor also satisfies %s" % (n, foreign[:2]))
+
+    def test_a_minimum_length_rule_would_be_red_on_this_same_ledger(self):
+        """Why the shipped rule is not the one round 464 proposed.
+
+        A 40-character floor reports dozens of entries that locate their
+        scoring perfectly well, and it is not what the two tests above
+        enforce. If this ever reaches zero the floor has become harmless --
+        and it is still not the check, because length was never the defect.
+        """
+        short = [n for n, e in self.led.items()
+                 if e.get("status") == "scored" and len(e["quote"]) < 40]
+        self.assertGreater(len(short), 20)
+
+    def test_round_465s_repairs_replaced_anchors_that_would_still_be_red(self):
+        """Re-derived, not trusted: every entry round 465 says it repaired
+        carries the anchor it replaced, and that old anchor must STILL be
+        reported by K005 or K006 today. A repair that swapped one weak anchor
+        for another would pass every other test in this file."""
+        checked = 0
+        for n, e in sorted(self.led.items()):
+            if not e.get("quote_was"):
+                continue
+            own = {int(n)}
+            try:
+                own.add(int(e["scored_by"]))
+            except (TypeError, ValueError):
+                pass
+            body = cf.read(os.path.join(ROOT, e["where"]))
+            weak = (body.count(e["quote_was"]) != 1
+                    or bool(self.corpus.foreign_scopes(e["quote_was"], own)))
+            self.assertTrue(weak, "round %s: `quote_was` is not weak, so the "
+                                  "repair claim does not re-derive" % n)
+            checked += 1
+        self.assertGreaterEqual(checked, 6)
+
+    def test_the_scope_set_covers_both_kinds_of_coordinate(self):
+        """Non-vacuity: if `round_scopes` ever returned only knowledge files,
+        both live tests above would pass for the wrong reason."""
+        scopes = self.corpus.round_scopes()
+        kinds = {"knowledge" if lbl.startswith("knowledge/") else "prose"
+                 for _, lbl, _ in scopes}
+        self.assertEqual(kinds, {"knowledge", "prose"})
+        self.assertGreater(len(scopes), 400)
+
+    def test_foreign_scopes_finds_something_when_something_is_there(self):
+        """The other half of non-vacuity: a string this corpus really does
+        repeat must come back non-empty, or the two live tests are green
+        because the scan is broken."""
+        self.assertGreater(
+            len(self.corpus.foreign_scopes("predictions", {465})), 20)
+
+
 class TestSectionBoundary(unittest.TestCase):
     """Round 449 (SWE-loop D) — what a round's OWN section actually contains.
 

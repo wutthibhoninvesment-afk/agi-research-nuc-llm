@@ -1,5 +1,5 @@
 {
- "_comment": "Per-PREDICTIONS-bank ledger, read by skills/skill-authoring/scripts/carryforward_check.py (round 369). CLAUDE.md rule D-013 has two halves -- bank predictions BEFORE measuring, then score them honestly -- and nothing in this program ever checked the second half. Five banks had been silently dropped (23, 132, 362, 368, and this round's own 369 until it is scored). An entry is `scored` (naming the round that discharged it, the file, and a sentence that must still be findable there -- K002 re-reads it, it is not trusted) or `unscored` (naming an `owner` track and a `why`). A `remainder` field records predictions a discharge left out; it raises a K004 WARNING, never an error, so a partial discharge stays visible without the check crying wolf. DISCOVERY IS A REPO-WIDE FILENAME SWEEP, not this file: a bank on disk with no entry here is a K001 ERROR, so adding a bank under a seventh naming convention cannot silently escape. The scanner behind `--suggest` is a bootstrap and a rot detector, never the authority -- its first version got 5 of 13 verdicts wrong in both directions, which is why this file exists. ROUND 375: a `scored` entry's `remainder` field means OUTSTANDING PREDICTIONS -- the ones the discharge did not reach -- and carryforward_check's K004 warns on its PRESENCE. Prose that is NOT a debt belongs in `note`, added round 375. Rounds 373 and 374 had written narrative into `remainder` (both texts open 'None outstanding'), so the check reported two partial discharges the record itself denies; their text moved to `note` unchanged. `note` is a DECLARATION and nothing re-derives it: see carryforward_check.py's docstring for why a scanner that decides whether a `remainder` really means debt would re-introduce the 5-of-13 prose classifier round 369 replaced with this ledger.",
+ "_comment": "Per-PREDICTIONS-bank ledger, read by skills/skill-authoring/scripts/carryforward_check.py (round 369). CLAUDE.md rule D-013 has two halves -- bank predictions BEFORE measuring, then score them honestly -- and nothing in this program ever checked the second half. Five banks had been silently dropped (23, 132, 362, 368, and this round's own 369 until it is scored). An entry is `scored` (naming the round that discharged it, the file, and a sentence that must still be findable there -- K002 re-reads it, it is not trusted) or `unscored` (naming an `owner` track and a `why`). A `remainder` field records predictions a discharge left out; it raises a K004 WARNING, never an error, so a partial discharge stays visible without the check crying wolf. DISCOVERY IS A REPO-WIDE FILENAME SWEEP, not this file: a bank on disk with no entry here is a K001 ERROR, so adding a bank under a seventh naming convention cannot silently escape. The scanner behind `--suggest` is a bootstrap and a rot detector, never the authority -- its first version got 5 of 13 verdicts wrong in both directions, which is why this file exists. ROUND 375: a `scored` entry's `remainder` field means OUTSTANDING PREDICTIONS -- the ones the discharge did not reach -- and carryforward_check's K004 warns on its PRESENCE. Prose that is NOT a debt belongs in `note`, added round 375. Rounds 373 and 374 had written narrative into `remainder` (both texts open 'None outstanding'), so the check reported two partial discharges the record itself denies; their text moved to `note` unchanged. `note` is a DECLARATION and nothing re-derives it: see carryforward_check.py's docstring for why a scanner that decides whether a `remainder` really means debt would re-introduce the 5-of-13 prose classifier round 369 replaced with this ledger. ROUND 465: K002 asked only `quote in body`. Two more codes ask what presence does not answer -- K005, the quote occurs 2+ times in `where` so a re-derivation cannot say which occurrence is the scoring line; and K006, the quote ALSO satisfies K002 against a round scope this entry has nothing to do with, so `where` could have been wrong and nothing would have said so. Priced before shipping over 139 scored entries: 1 K005, 6 K006, against 53 entries a 40-character minimum would have reported (47 after the repair, since six of the replacements are longer than the anchors they replaced) -- so the length floor round 464 proposed is the proxy and not the defect. All seven were repaired in round 465 by re-quoting a longer slice of the SAME file; the repaired entries carry `quote_was` (the old anchor, kept as provenance and read by nothing) and `quote_fixed_by` (why). Both codes ship as ERRORs against a backlog of zero. Note the failure mode this creates: quoting a live anchor in a knowledge file makes that anchor foreign-matched, which is how rounds 15 and 421 broke -- round 464's own file quoted them while diagnosing them. Paste OLD anchors, never live ones.",
  "_bootstrap": "Bootstrapped by round 369 from a prose scan of state/research-state.md, state/research-state-archive.md and knowledge/*.md, then HAND-ADJUDICATED bank by bank against the corpus. Eleven entries (15, 17, 24, 27, 29, 31, 105, 112, 137, 366, 367) had their quote or attribution corrected by hand -- the scanner had credited round 137 with round 353's P1 about round 137's TREE, credited round 105 with a sentence about round 27, and missed round 366's lowercase \"P4/P5/P6 hit\" entirely. Two banks carry no round number in their path at all (nuc/predictions-e1.md, nuc/predictions-e2.md, mission-scoped rather than round-scoped); the checker reports them as unnumbered and does not require entries for them.",
  "banks": {
   "15": {
@@ -7,7 +7,9 @@
    "status": "scored",
    "scored_by": 15,
    "where": "state/research-state-archive.md",
-   "quote": "scored 9 HIT / 6 MISS"
+   "quote": "(`state/trigger-eval/round-015-predictions.md`), scored 9 HIT / 6 MISS.",
+   "quote_was": "scored 9 HIT / 6 MISS",
+   "quote_fixed_by": "round 465: the old anchor MATCHED without LOCATING. It also satisfied K002 against 1 foreign scope(s) (K006), e.g. knowledge/round-464-the-definition-that-was-a-citation-of-itself.md. Replaced with a longer slice taken out of the same file by index; unique in `where` and satisfied by no foreign round scope. carryforward_check K005/K006."
   },
   "17": {
    "bank": "state/round-017-predictions.md",
@@ -347,8 +349,10 @@
    "status": "scored",
    "scored_by": 369,
    "where": "knowledge/round-369-the-obligation-with-no-registry.md",
-   "quote": "## 8. Predictions, scored",
-   "remainder": "P10 is UNRESOLVED by choice: scoring rounds 362/368's banks from their own artifacts is language(C)'s owed work, and round 363 established that scoring someone else's bank from their own output is not scoring. P4 is NOT ESTABLISHED -- the scanner's 11 includes at least 3 rounds that discharged another round's bank."
+   "quote": "## 8. Predictions, scored\n\nBanked in `state/skills/round-369/PREDICTIONS.md` before any measurement.",
+   "remainder": "P10 is UNRESOLVED by choice: scoring rounds 362/368's banks from their own artifacts is language(C)'s owed work, and round 363 established that scoring someone else's bank from their own output is not scoring. P4 is NOT ESTABLISHED -- the scanner's 11 includes at least 3 rounds that discharged another round's bank.",
+   "quote_was": "## 8. Predictions, scored",
+   "quote_fixed_by": "round 465: the old anchor MATCHED without LOCATING. It also satisfied K002 against 11 foreign scope(s) (K006), e.g. knowledge/round-359-swe-d-the-exemption-that-was-right-for-the-wrong-reason.md. Replaced with a longer slice taken out of the same file by index; unique in `where` and satisfied by no foreign round scope. carryforward_check K005/K006."
   },
   "370": {
    "bank": "nuc/predictions-e-round370.md",
@@ -363,7 +367,9 @@
    "status": "scored",
    "scored_by": 371,
    "where": "knowledge/round-371-the-signal-that-could-not-fire.md",
-   "quote": "## 8. Predictions scored"
+   "quote": "## 8. Predictions scored\n\n`state/swe/round-371/PREDICTIONS.md`, P1\u2013P13 banked before any measurement,",
+   "quote_was": "## 8. Predictions scored",
+   "quote_fixed_by": "round 465: the old anchor MATCHED without LOCATING. It also satisfied K002 against 9 foreign scope(s) (K006), e.g. knowledge/round-361-the-freshness-gate-was-wrong-in-both-directions.md. Replaced with a longer slice taken out of the same file by index; unique in `where` and satisfied by no foreign round scope. carryforward_check K005/K006."
   },
   "372": {
    "bank": "state/whence/round-372/PREDICTIONS.md",
@@ -418,8 +424,10 @@
    "status": "scored",
    "scored_by": 378,
    "where": "knowledge/round-378-the-deferral-that-was-three-claims.md",
-   "quote": "## 7. Predictions, scored (D-013)",
-   "remainder": "P7 and P8 are HALF (line-count band missed high at +262 vs 90-160; the overflow repro is 26 lines not 4) and P12 is HALF (no EXISTING test went red for a bug of mine, only my own new ones). All three are scored in the table, none is left open."
+   "quote": "## 7. Predictions, scored (D-013)\n\n| # | prediction | verdict |\n|---|---|---|\n| P1 | the two E4 pins become EXACT (4 and 1) | **HIT** \u2014 4 and 1 |",
+   "remainder": "P7 and P8 are HALF (line-count band missed high at +262 vs 90-160; the overflow repro is 26 lines not 4) and P12 is HALF (no EXISTING test went red for a bug of mine, only my own new ones). All three are scored in the table, none is left open.",
+   "quote_was": "## 7. Predictions, scored (D-013)",
+   "quote_fixed_by": "round 465: the old anchor MATCHED without LOCATING. It also satisfied K002 against 1 foreign scope(s) (K006), e.g. knowledge/round-380-the-precondition-that-was-a-grep.md. Replaced with a longer slice taken out of the same file by index; unique in `where` and satisfied by no foreign round scope. carryforward_check K005/K006."
   },
   "379": {
    "bank": "state/harness/round-379/PREDICTIONS.md",
@@ -729,9 +737,10 @@
    "status": "scored",
    "scored_by": 419,
    "where": "knowledge/round-419-the-engine-that-stopped-at-the-door.md",
-   "quote": "**7 HIT, 1 MISS.**",
+   "quote": "**7 HIT, 1 MISS.** The miss is the informative one.",
    "remainder": "The bank also fixed the DISPOSITION before measuring (wire/test/delete), so the result could not choose it. P3 is the MISS and the informative one: it predicted the break would be in `loop.py`'s own untested code and it was two subsystems down, in a guest-language test file another track added -- because the tools' tests are all pointed at TOY projects, so 'has tests' and 'has tests about the thing it is used on' came apart and the defect landed in the gap.",
-   "quote_fixed_by": "round 420: the ledger cited '7 HIT, 1 MISS of 8', which is not in the file; the knowledge file says '**7 HIT, 1 MISS.**'. Quote corrected, attribution and remainder untouched."
+   "quote_fixed_by": "round 465: the old anchor MATCHED without LOCATING. It also satisfied K002 against 1 foreign scope(s) (K006), e.g. knowledge/round-346-nuc-e-deleted-vs-never-written.md. Replaced with a longer slice taken out of the same file by index; unique in `where` and satisfied by no foreign round scope. carryforward_check K005/K006.",
+   "quote_was": "**7 HIT, 1 MISS.**"
   },
   "420": {
    "bank": "state/round-420-predictions.md",
@@ -747,8 +756,10 @@
    "status": "scored",
    "scored_by": 421,
    "where": "knowledge/round-421-the-verbs-nobody-ran.md",
-   "quote": "**6 hits, 2 misses.**",
-   "note": "No outstanding predictions: all eight banked numbers (B1-B8) were measured and scored. B5 landed ON its stated limit rather than inside it -- it accepted at most 3 observed-but-undeclared verbs provided each was individually explained, and exactly 3 occurred; one more would have obliged the round to call its own extractor refuted. That is recorded as a near-miss in the round file rather than folded into the hit. B6 is the load-bearing miss: it predicted that `wiring_audit.py check` was the one verb the driver ran and that `refs` was dead, and both are backwards -- `refs` is live as a Python function while `check` is invoked by nothing. Without B6 banked, the round would have written 'the driver runs the wiring check every round' into the knowledge file as background, because that is what the round-415 record reads like."
+   "quote": "## 7. Predictions, scored\n\n**6 hits, 2 misses.** Banked in `state/round-421-predictions.md` before the",
+   "note": "No outstanding predictions: all eight banked numbers (B1-B8) were measured and scored. B5 landed ON its stated limit rather than inside it -- it accepted at most 3 observed-but-undeclared verbs provided each was individually explained, and exactly 3 occurred; one more would have obliged the round to call its own extractor refuted. That is recorded as a near-miss in the round file rather than folded into the hit. B6 is the load-bearing miss: it predicted that `wiring_audit.py check` was the one verb the driver ran and that `refs` was dead, and both are backwards -- `refs` is live as a Python function while `check` is invoked by nothing. Without B6 banked, the round would have written 'the driver runs the wiring check every round' into the knowledge file as background, because that is what the round-415 record reads like.",
+   "quote_was": "**6 hits, 2 misses.**",
+   "quote_fixed_by": "round 465: the old anchor MATCHED without LOCATING. It occurred 2 times in `where` (K005). It also satisfied K002 against 1 foreign scope(s) (K006), e.g. knowledge/round-464-the-definition-that-was-a-citation-of-itself.md. Replaced with a longer slice taken out of the same file by index; unique in `where` and satisfied by no foreign round scope. carryforward_check K005/K006."
   },
   "422": {
    "bank": "state/round-422-predictions.md",

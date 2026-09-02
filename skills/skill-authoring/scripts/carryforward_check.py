@@ -81,6 +81,13 @@ Findings
                 scanner now finds scoring evidence for. Same rule as
                 `case_coverage.py`'s P005 — an acknowledgement that outlives
                 its debt is a mute button.
+`K005` (ERROR)  a `scored` entry whose quote occurs MORE THAN ONCE in the
+                file `where` names. Present twice is not located once: a
+                re-derivation cannot say which occurrence is the scoring
+                line, so the entry cannot be checked, only matched.
+`K006` (ERROR)  a `scored` entry whose quote ALSO satisfies K002 against a
+                round scope the entry has nothing to do with — the anchor
+                does not locate, see below.
 `K004` (WARN)   an `unscored` entry owed for a full rotation (6 rounds) or
                 more, or a `scored` entry with a `remainder` — predictions
                 the discharge left out. Never sets the exit code: round
@@ -88,6 +95,62 @@ Findings
                 program decided to carry gets ignored and then uninstalled.
                 The count rides in the summary line, which is the line the
                 driver logs.
+
+Matching is not locating (round 465)
+------------------------------------
+K002 asks `quote in body`. A substring that is PRESENT proves the sentence
+exists in that file; it does not prove the file is where the scoring
+happened. The property the ledger actually needs is that the anchor can
+FAIL when the coordinate is wrong — so the test is a SUBSTITUTION on the
+`where` field, not a judgement about the quote's prose:
+
+    would K002 still pass if `where` named some OTHER round's artefact?
+
+If yes, the entry could have mis-named its file and nothing here would say
+so. That is not hypothetical: round 464 found round 462's entry quoting
+`state/research-state.md`'s wording while naming the knowledge file, and
+K002 caught it ONLY because that exact sentence was absent from the
+knowledge file. Had the quote been `## 8. Predictions, scored` — which nine
+other rounds' files also carry — the wrong `where` would have passed.
+
+The candidate coordinates are ROUND SCOPES, not files: each
+`knowledge/round-NNN-*.md`, and each round's own section of
+research-state(+archive). File-level substitution would be meaningless for
+the 18 entries whose `where` IS `state/research-state.md` or its archive —
+those files contain every round, so every quote in the corpus "appears" in
+them. The unit has to be the smallest thing the coordinate identifies.
+
+Priced before shipping, over the 139 scored entries at round 465's HEAD:
+
+    quote absent from `where`   (K002, live rule)      0
+    quote occurs 2+ times       (K005)                 1   round 421
+    quote passes a FOREIGN scope (K006)                6   15, 369, 371,
+                                                           378, 419, 421
+    quote shorter than 40 chars (the proxy)           53
+
+Those are the numbers BEFORE the repair. Re-running `--audit-quotes` now
+reports 0/0/0 and **47** short, because six of the six repairs replaced a
+short anchor with a longer slice — the proxy's own count moved as a side
+effect of fixing something the proxy was not measuring.
+
+Round 464's next step proposed a minimum LENGTH for the second shape. The
+pricing says length is the wrong instrument: it reports 53 entries to reach
+6, and at HEAD every one of the 6 is short — so the floor is 8.8x
+false-positive inflation buying no extra recall. All six were repairable by
+quoting a stronger sentence out of the same file, so both codes ship as
+ERRORs against a backlog of zero rather than as warnings against a backlog
+nobody would clear (round 363's rule cuts the other way when the debt is
+six entries and an afternoon).
+
+Three of the six are section headings (`## 8. Predictions, scored` and
+friends) matched in 11, 9 and 1 foreign scopes — generic by construction.
+The other three are scoring tallies matched in exactly ONE foreign scope
+each, and two of those foreign scopes are round 464's own knowledge file,
+which quoted them WHILE DIAGNOSING THIS DEFECT. Writing about a weak anchor
+weakens it. That is not a flaw in the rule — a file carrying the exact
+sentence really is a file the entry could have mis-named — but it means the
+repair is to make the quote MORE SPECIFIC, never to widen the rule, and it
+means prose about this checker should paste OLD quotes, not live ones.
 
 `remainder` vs `note` (round 375)
 ---------------------------------
@@ -426,10 +489,44 @@ class Corpus(object):
             if m and name.endswith(".md"):
                 self.knowledge.setdefault(int(m.group(1)), []).append(
                     os.path.join("knowledge", name))
+        self._scopes = None
         self.all_prose = "\n".join(
             [read(os.path.join(root, p)) for p in self.PROSE]
             + [read(os.path.join(root, p))
                for paths in self.knowledge.values() for p in paths])
+
+    def round_scopes(self):
+        """[(round, coordinate label, text)] — every text a `where` could
+        name, attributed to the round that owns it.
+
+        This is the candidate set for the K006 substitution: one entry per
+        thing a ledger coordinate can point AT. A knowledge file is owned by
+        the round in its filename; a research-state section is owned by the
+        round whose heading opens it (`round_sections`, which round 449
+        taught to end a section at the next heading of level <= its own, so
+        a next-steps stack is not attributed to the round above it).
+
+        Cached: `findings` walks it once per scored entry.
+        """
+        if self._scopes is None:
+            out = []
+            for n, paths in sorted(self.knowledge.items()):
+                for rel in paths:
+                    out.append((n, rel, read(os.path.join(self.root, rel))))
+            for n, sec in sorted(self.sections.items()):
+                out.append((n, "%s §round %d" % (self.PROSE[0], n), sec))
+            self._scopes = out
+        return self._scopes
+
+    def foreign_scopes(self, quote, own):
+        """Coordinates OUTSIDE `own` whose text also satisfies K002.
+
+        Each one is a `where` the entry could have carried instead without
+        this checker noticing — which is the whole question K002 does not
+        ask.
+        """
+        return [label for n, label, text in self.round_scopes()
+                if n not in own and quote in text]
 
     def own_scope(self, n):
         parts = []
@@ -527,6 +624,35 @@ def findings(root, corpus, banks, ledger, err, latest_round):
                             "round %d: the cited sentence is no longer in %s "
                             "— the scoring claim cannot be re-derived"
                             % (n, e["where"])))
+            else:
+                # Present. Now the two questions presence does not answer:
+                # is it present ONCE, and would it have been present
+                # somewhere the entry does not name? See "Matching is not
+                # locating" in the module docstring.
+                occ = body.count(e["quote"])
+                if occ > 1:
+                    out.append(("K005", LEDGER_FILE,
+                                "round %d: the cited sentence occurs %d times "
+                                "in %s — a re-derivation cannot tell which "
+                                "occurrence is the scoring line. Quote more "
+                                "of it, or quote the line that is unique."
+                                % (n, occ, e["where"])))
+                own = {n}
+                try:
+                    own.add(int(e["scored_by"]))
+                except (TypeError, ValueError):
+                    pass
+                foreign = corpus.foreign_scopes(e["quote"], own)
+                if foreign:
+                    out.append(("K006", LEDGER_FILE,
+                                "round %d: the cited sentence also satisfies "
+                                "K002 against %d scope(s) this entry has "
+                                "nothing to do with (%s%s) — so `where` could "
+                                "have named one of those instead and nothing "
+                                "here would say so. The anchor matches; it "
+                                "does not locate."
+                                % (n, len(foreign), ", ".join(foreign[:3]),
+                                   ", …" if len(foreign) > 3 else "")))
             # A discharge that left predictions out is a PARTIAL discharge.
             # Rounds 17 and 29 each have one: the sentence that scored them
             # names the predictions it did NOT reach, and no later round ever
@@ -566,7 +692,77 @@ def findings(root, corpus, banks, ledger, err, latest_round):
     return out
 
 
-SEV = {"K001": "ERROR", "K002": "ERROR", "K003": "ERROR", "K004": "WARN"}
+def quote_audit(root, corpus, ledger):
+    """[(round, len, occurrences in `where`, [foreign coordinates])] .
+
+    The pricing behind K005/K006, kept runnable so the next round does not
+    have to take round 465's three numbers on faith — this program's own
+    rule (`skills/carried-claim-rot`), and round 464 published `54 of 138
+    quotes are under 40 characters` one commit before its OWN repair
+    lengthened one of them to 50.
+    """
+    rows = []
+    for key in sorted(ledger, key=lambda k: int(k) if str(k).isdigit() else 0):
+        e = ledger[key]
+        if not isinstance(e, dict) or e.get("status") != "scored":
+            continue
+        if not e.get("quote") or not e.get("where"):
+            continue
+        n = int(key)
+        body = read(os.path.join(root, e["where"]))
+        own = {n}
+        try:
+            own.add(int(e["scored_by"]))
+        except (TypeError, ValueError):
+            pass
+        rows.append((n, len(e["quote"]), body.count(e["quote"]),
+                     corpus.foreign_scopes(e["quote"], own)))
+    return rows
+
+
+# A line worth proposing as a replacement anchor. Deliberately NOT a
+# classifier for "is this the scoring sentence" — round 369 deleted one of
+# those. It is a filter for "could this line be a scoring line at all",
+# and every candidate it prints is then checked for the two properties the
+# codes actually test.
+_SCORING_LINE_RE = re.compile(r"\b(HIT|MISS|PARTIAL|scored|predictions?)\b",
+                              re.IGNORECASE)
+
+
+def requote(root, corpus, ledger, n):
+    """Candidate anchors for round n's entry: unique in `where`, foreign-free.
+
+    Ranked longest-first, because the failure this repairs is an anchor with
+    too little information in it. Prints, never writes: which sentence is
+    THE scoring line is the ledger author's judgement, and a script that
+    picked one would be the prose classifier this checker exists instead of.
+    """
+    e = ledger.get(str(n))
+    if not isinstance(e, dict) or e.get("status") != "scored":
+        return []
+    body = read(os.path.join(root, e["where"]))
+    own = {n}
+    try:
+        own.add(int(e["scored_by"]))
+    except (TypeError, ValueError):
+        pass
+    seen, out = set(), []
+    for raw in body.splitlines():
+        line = raw.strip()
+        if len(line) < 40 or line in seen or not _SCORING_LINE_RE.search(line):
+            continue
+        seen.add(line)
+        if body.count(line) != 1:
+            continue
+        if corpus.foreign_scopes(line, own):
+            continue
+        out.append(line)
+    out.sort(key=len, reverse=True)
+    return out
+
+
+SEV = {"K001": "ERROR", "K002": "ERROR", "K003": "ERROR", "K004": "WARN",
+       "K005": "ERROR", "K006": "ERROR"}
 
 
 def main(argv=None):
@@ -575,6 +771,11 @@ def main(argv=None):
     ap.add_argument("--list", action="store_true", help="print the ledger")
     ap.add_argument("--suggest", action="store_true",
                     help="propose ledger entries for banks that have none")
+    ap.add_argument("--audit-quotes", action="store_true",
+                    help="per-entry anchor pricing: length, occurrences in "
+                         "`where`, foreign scopes that also match")
+    ap.add_argument("--requote", type=int, default=None, metavar="ROUND",
+                    help="propose replacement anchors for ROUND's entry")
     ap.add_argument("--json", default=None)
     args = ap.parse_args(list(sys.argv[1:] if argv is None else argv))
     root = os.path.abspath(args.repo_root)
@@ -611,6 +812,29 @@ def main(argv=None):
                  "where": "?", "quote": hit[1]} if hit else
                 {"bank": banks[n][0], "status": "unscored", "owner": "?",
                  "why": "no scoring evidence found by --suggest"})}))
+
+    if args.audit_quotes:
+        rows = quote_audit(root, corpus, ledger)
+        print("round  len  occ  foreign  coordinates")
+        for n, ln, occ, fr in rows:
+            print("%-6d %-4d %-4d %-8d %s"
+                  % (n, ln, occ, len(fr), ", ".join(fr[:2])))
+        print("-- %d scored entr(ies): %d absent from `where` (K002), "
+              "%d occurring 2+ times (K005), %d with a foreign scope (K006), "
+              "%d shorter than 40 chars (the PROXY, not a finding)"
+              % (len(rows), sum(1 for r in rows if r[2] == 0),
+                 sum(1 for r in rows if r[2] > 1),
+                 sum(1 for r in rows if r[3]),
+                 sum(1 for r in rows if r[1] < 40)))
+
+    if args.requote is not None:
+        cands = requote(root, corpus, ledger, args.requote)
+        if not cands:
+            print("no candidate anchor for round %s (no scored entry, or no "
+                  "line in `where` is unique, foreign-free and >=40 chars)"
+                  % args.requote)
+        for line in cands[:10]:
+            print(json.dumps(line))
 
     for code, path, msg in found:
         print("%s: %s %s %s" % (path, SEV[code], code, msg))

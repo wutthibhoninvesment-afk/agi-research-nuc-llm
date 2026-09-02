@@ -2549,5 +2549,26 @@
    "registry-density-not-membership"
   ],
   "prompt": "Every RFC in our repo is written twice: a one-line summary in the RFC index with `(v2.4, sprint 61)` after it, and the full document under rfcs/. Nothing checks that the version and sprint in the index match the ones in the document header. Worth building, or am I inventing work?"
+ },
+ {
+  "id": "minl-evidence-row-wrong-path",
+  "expect": [
+   "matching-is-not-locating"
+  ],
+  "prompt": "Our SOC2 evidence tracker stores, per control, the log file path plus the exact log line that proves the control fired. A nightly job greps the line out of the file and marks the control green. An auditor just found a control whose path pointed at the WRONG service's log \u2014 and it had been green for months, because the line it quotes (`policy_check=allow`) shows up in every service's log. What should the nightly job actually be checking?"
+ },
+ {
+  "id": "minl-docs-snippet-min-length",
+  "expect": [
+   "matching-is-not-locating"
+  ],
+  "prompt": "We have a docs test that asserts each code snippet in our tutorials also appears verbatim in the example repo. It caught a real drift once. Someone in review wants to add a rule that any asserted snippet must be at least 3 lines long, because a one-liner like `npm install` matches everywhere and proves nothing. Reasonable, or is there a better rule?"
+ },
+ {
+  "id": "minl-changelog-quote-twice",
+  "expect": [
+   "matching-is-not-locating"
+  ],
+  "prompt": "Each of our migration notes cites the schema file it changed and quotes the altered line so a reviewer can re-derive it. A reviewer complained that one note quotes `  status VARCHAR(32) NOT NULL,` and that exact line is in the file four times for four different tables, so the quote doesn't tell you anything. Our validator says the note is fine because the string is present. How do I make the validator ask the right question?"
  }
 ]
