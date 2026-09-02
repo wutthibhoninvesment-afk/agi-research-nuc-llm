@@ -33,6 +33,24 @@ logs/whence_health_round_*.log
 # `git status` as an unattributed `??` and tripped round 365's record-gap
 # check. Same class as the two lines above, same reasoning verbatim.
 logs/skills_health_round_*.log
+# Round 441 (skills B): a FIFTH per-round log. `run_driver.sh:649` writes
+# `logs/slowtier_round_<N>.log` for every round the slow-tier slice runs in,
+# and the wiring round did not extend this pattern -- so round 440's log
+# landed in `git status` as an unattributed `??` and tripped round 441's
+# record-gap check, which is the third time in a row (rounds 363/365,
+# 409, and now) that a per-round log was wired without its ignore line.
+# Same class and same reasoning as the four patterns above: the DURABLE
+# artefact is `state/slow-tier-ledger.jsonl`, which is tracked; this is the
+# slice's own progress log and `driver.log` already carries its summary line.
+#
+# Checked before adding, because an ignore line is read by more than
+# `git status` (see this round's knowledge file): the ONLY in-tree reader of
+# `logs/slowtier_round_*` is the `run_driver.sh` line that WRITES it --
+# `git grep -n slowtier_round` returns that one source hit plus two prose
+# citations in `state/research-state.md`. Nothing selects on its git status,
+# so ignoring it silences no measurement.
+logs/slowtier_round_*.log
+
 # Round 409 (harness A) wired a FOURTH per-round health log
 # (`nuc/run_checks_fast.sh` -> nuc-health-check). Extended in the SAME
 # round as the wiring, which is the whole point of round 365's note

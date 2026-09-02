@@ -2184,5 +2184,26 @@
    "matcher-defines-the-population"
   ],
   "prompt": "This archived log bundle has two sections and the second one looks like a filtered copy of the first. My event counts for the last week are exactly double the week before. What's going on?"
+ },
+ {
+  "id": "shmr-near",
+  "expect": [
+   "suppression-has-many-readers"
+  ],
+  "prompt": "A build artifact keeps showing up in `git status` and nobody wrote it. I'm about to add it to .gitignore like the fourteen files next to it. Is there anything I should check first?"
+ },
+ {
+  "id": "shmr-mid",
+  "expect": [
+   "suppression-has-many-readers"
+  ],
+  "prompt": "I silenced a noisy Prometheus alert with an inhibition rule and now our weekly coverage dashboard shows 100% healthy for that service. The dashboard reads the same rule file. How should I have done this?"
+ },
+ {
+  "id": "shmr-far",
+  "expect": [
+   "suppression-has-many-readers"
+  ],
+  "prompt": "One of our tests went green this morning and nobody touched its subject. The only change in the diff is three new lines in the lint baseline file. What happened?"
  }
 ]
