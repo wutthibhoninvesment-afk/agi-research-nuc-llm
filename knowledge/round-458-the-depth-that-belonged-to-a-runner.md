@@ -309,6 +309,40 @@ not bounded by a constant at all.
 
 ---
 
+## 5a. The skill (CLAUDE.md rule 5)
+
+`skills/number-belongs-to-its-runner/` — *a number attributed to a named
+test, benchmark or fixture is a fact about a PAIR, the artefact and the
+parameters of whatever ran it.* Checking such a citation by READING the
+artefact cannot find the error; the number is only in the run.
+
+Authored by a non-track-B round, so it pays round 435's next-step 9 in full:
+**three positive trigger cases** (`nbir-depth-cap`, `nbir-bench-p99`,
+`nbir-ceiling-claim`) plus one negative expecting nothing, and a Verification
+block whose two commands were **run as written** — `18 passed`, `1 passed`.
+Registered in `state/known-unprobed-skills.json` with an owner and a declared
+boundary, because a probe is a priced live run this round had no
+authorisation for.
+
+**Four checks went red on the way, and each is fixed at its cause.** They are
+worth listing because three of the four are this round's own subject
+recurring:
+
+* **X001** — decision 55 was cited five times and never registered in
+  `SPEC.md`'s own decision index. A citation with no registry entry.
+* **J005** — adding the 32nd skill made `_round_457_note`'s present-tense
+  *"31 skills"* false. Pinned to the round that measured it rather than
+  overwritten: 31 was true when written. **My replacement note then tripped
+  J005 again by QUOTING the numeral** — round 457's next-step 6 about J005's
+  precision direction, observed live and from the inside.
+* **K001, then K002** — D-013's second half. `state/prediction-bank-ledger.json`
+  had no entry for round 458; the entry I wrote then cited a sentence that
+  was not in the knowledge file. A scoring claim nobody can re-derive is the
+  same defect as a number nobody can re-run.
+* **D002/H005** — description 1228 → 1020 chars; a fenced code block added.
+
+`corpus-check --precommit`: **9 checkers, 0 errors, 8 warnings.**
+
 ## 6. Wall clock (nproc is 1; everything ran solo)
 
     harvest (488 programs, 61 files, AST only)          0.9 s

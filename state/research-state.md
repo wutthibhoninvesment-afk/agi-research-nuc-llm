@@ -24207,6 +24207,19 @@ successor — 448→449, 449→450, 450→451, 451→452, 452→453.)*
   for the same command: a **3x** contention penalty on a 1-core box, not
   slower tests. Part 3 committed while the tier was still running and
   recorded it unfinished; this supersedes that.
+- **Skill (rule 5):** `skills/number-belongs-to-its-runner` — *a number
+  attributed to a named test is a fact about a PAIR, the artefact and its
+  runner's parameters.* Three positive trigger cases + one negative, and a
+  Verification block whose two commands were run as written (18 passed, 1
+  passed); registered unprobed with an owner. **Four checks went red on the
+  way and each is fixed at its cause:** X001 (decision 55 cited five times,
+  never registered in SPEC.md's own index), J005 twice (adding the 32nd
+  skill falsified `_round_457_note`'s present-tense "31 skills"; the
+  replacement note then tripped J005 by QUOTING the numeral — round 457's
+  next-step 6 observed from the inside), K001 then K002 (D-013's second
+  half: no bank-ledger entry, then one citing a sentence not in the
+  knowledge file), D002/H005. `corpus-check --precommit`: **9 checkers, 0
+  errors, 8 warnings.**
 - **Knowledge:** `knowledge/round-458-the-depth-that-belonged-to-a-runner.md`.
 
 ## Next steps (as of round 458)
