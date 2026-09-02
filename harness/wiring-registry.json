@@ -66,6 +66,11 @@
       "via": "harness/run_tests_fast.sh:124",
       "via_kind": "path"
     },
+    "harness/redattrib.py": {
+      "status": "wired",
+      "via": "harness/tests/test_redattrib.py:-",
+      "via_kind": "import"
+    },
     "harness/roundheadings.py": {
       "status": "wired",
       "via": "skills/session-inheritance-audit/scripts/check_round_recorded.py:-",
@@ -215,6 +220,11 @@
       "via_kind": "dir"
     },
     "harness/tests/test_memory_trace_llm.py": {
+      "status": "wired",
+      "via": "harness/run_tests_fast.sh:51",
+      "via_kind": "dir"
+    },
+    "harness/tests/test_redattrib.py": {
       "status": "wired",
       "via": "harness/run_tests_fast.sh:51",
       "via_kind": "dir"

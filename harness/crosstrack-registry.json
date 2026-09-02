@@ -1,0 +1,99 @@
+{
+  "_comment": "Read by harness/redattrib.py (round 455, SWE-loop D). One entry per test node that has EVER appeared in a `FAILED <nodeid>` line in any of logs/{health,whence_health,nuc_health,skills_health}_round_*.log. FAIL-CLOSED: a red node with no entry here is an R001 error, so the next check to go red classifies itself instead of waiting to be noticed. The point of the classification is `subject_scope` -- WHOSE work can turn this node red -- which is a different question from which suite the node LIVES in, and the gap between the two is what this registry exists to measure.",
+  "_subject_scope": {
+    "own-suite": "Only a change inside the hosting suite's own directory can turn it red. The hosting track is the only track that can open it, and can see it by running its own fast tier.",
+    "whole-tree": "A change ANYWHERE in the repo can turn it red -- the node asserts a property of the checked-in tree as a whole. Any track can open it; only the hosting track routinely runs the suite that contains it.",
+    "shared-file-own-content": "The subject is a file every track writes, but the specific claim is about a region only one track writes. Hosting track opens it; the blast radius looks wide and is not.",
+    "environmental": "Nothing in the repo turns it red. Verdict alternates on unchanged code (1-CPU contention, timing). An `opener` for such an episode did not cause it, and attributing one is the error this status prevents."
+  },
+  "_track_suites": {
+    "_comment": "Which suite a round of each track routinely runs DURING the round, i.e. while its author is still alive to act on a red. Taken from CURRICULUM.md's track definitions: A harness/, B skills/, C languages/<lang>/, D `harness/ + languages/` (uses the harness ON the language), E state/nuc-missions.md + nuc/. This is the `visible` relation; a red node outside it is one the opening round could not have seen.",
+    "harness(A)": ["harness/tests"],
+    "skills(B)": ["skills"],
+    "language(C)": ["languages/whence/tests"],
+    "SWE-loop(D)": ["harness/tests", "languages/whence/tests"],
+    "NUC-integration(E)": ["nuc/tests"]
+  },
+  "nodes": {
+    "harness/tests/test_wiring_audit.py::TestThisTree::test_the_registry_is_clean": {
+      "subject_scope": "whole-tree",
+      "why": "Asserts wiring_audit.py's findings over every tracked entry point in the repo -- 119 of them, in harness/, languages/, nuc/, skills/ and the root. Opened by rounds 429 (skills B), 435 (skills B) and 453 (skills B, for artefacts of rounds 452 language(C) and 454 NUC(E)); none of those tracks runs harness/tests/."
+    },
+    "harness/tests/test_wiring_audit.py::TestThisTree::test_every_entry_point_in_the_tree_is_declared": {
+      "subject_scope": "whole-tree",
+      "why": "Same subject as test_the_registry_is_clean; it is the W001 half stated as its own assertion."
+    },
+    "harness/tests/test_wiring_audit.py::TestThisTree::test_the_cli_check_exits_zero_on_this_tree": {
+      "subject_scope": "whole-tree",
+      "why": "Runs `wiring_audit.py check` as a subprocess over the live tree and asserts rc 0."
+    },
+    "harness/tests/test_wiring_audit.py::TestThisTree::test_the_declared_debts_are_exactly_the_two_this_round_found": {
+      "subject_scope": "whole-tree",
+      "why": "Round 415's pin on its own two findings. Red once, at round 415, the round that wrote it; the node no longer exists at HEAD. Kept so the history replay stays complete -- a node that has been deleted still has a red past."
+    },
+    "harness/tests/test_verb_audit.py::TestThisTree::test_no_unexplained_broken_invocation": {
+      "subject_scope": "whole-tree",
+      "why": "verb_audit walks every invocation in every tracked file. V002 was red for rounds 429-436 and is GREEN at HEAD (re-derived round 455: 7 passed in 35.38s), which the standing next-steps still describe as red."
+    },
+    "harness/tests/test_roundheadings.py::test_the_live_record_is_fully_canonical": {
+      "subject_scope": "whole-tree",
+      "why": "Subject is state/research-state.md, which EVERY track appends to every round. Opened by round 416 (language C) and round 448 (NUC E); neither runs harness/tests/."
+    },
+    "harness/tests/test_swe_mutation.py::test_timeout_kills_grandchild_holding_stdout": {
+      "subject_scope": "environmental",
+      "why": "Round 455 evidence: harness/swe/mutation.py last changed at round 437 (ce7a89d), and the verdict then went PASS 438-441, FAIL 442, PASS 443-446, FAIL 447, PASS 449+ on byte-identical code. A timing assertion on a 1-CPU box. Rounds 442 (NUC E) and 447 (skills B) are recorded as opening episodes they did not cause."
+    },
+    "harness/tests/test_slowtier.py::test_fast_health_check_still_returns_pytests_own_exit_code": {
+      "subject_scope": "own-suite",
+      "why": "Subject is harness/run_tests_fast.sh's exit-code contract. Opened by round 409 (harness A) -- the hosting track, which could and did see it."
+    },
+    "harness/tests/test_run_driver_whence_health_check.py::test_whence_health_check_fail_logged_when_script_fails": {
+      "subject_scope": "own-suite",
+      "why": "Subject is run_driver.sh's logging of the whence check, exercised in a tmp_path. Opened by round 362 (language C) -- note the driver.log line for 362 names a different test; the per-round log logs/health_round_362.log is the accurate source."
+    },
+    "languages/whence/tests/test_field_corpus_selector.py::test_the_live_tree_has_no_drift": {
+      "subject_scope": "own-suite",
+      "why": "Subject is the Whence field corpus under languages/whence/. Opened by round 440 (language C), the hosting track."
+    },
+    "languages/whence/tests/test_v22.py::test_research_state_track_c_names_the_same_version_as_spec_md": {
+      "subject_scope": "shared-file-own-content",
+      "why": "Subject is state/research-state.md -- a file every track writes -- but the claim is about the `Language (C): v0.NN` line, which only language(C) writes. Opened by round 452 (language C). The wide-looking blast radius is not wide."
+    },
+    "languages/whence/tests/test_v22.py::test_spec_level_header_matches_the_highest_version_section": {
+      "subject_scope": "own-suite",
+      "why": "Subject is languages/whence/SPEC.md. Opened by round 422 (language C)."
+    },
+    "languages/whence/tests/test_v24.py::test_the_tracked_example_set_is_the_one_this_repo_decided_on": {
+      "subject_scope": "own-suite",
+      "why": "Subject is languages/whence/examples/. Opened by round 402 (language C)."
+    },
+    "languages/whence/tests/test_checkpin.py::test_the_repointed_registry_changes_labels_and_nothing_else": {
+      "subject_scope": "own-suite",
+      "why": "Subject is the Whence checkpin registry under state/whence/. Opened by round 422 (language C)."
+    },
+    "languages/whence/tests/test_examples.py::test_self_hosting_real_syntax": {
+      "subject_scope": "own-suite",
+      "why": "Subject is languages/whence/examples/self_host.lang. Opened by round 422 (language C)."
+    },
+    "languages/whence/tests/test_self_hosting.py::test_the_host_statement_count_of_self_host_lang_is_pinned": {
+      "subject_scope": "own-suite",
+      "why": "Subject is languages/whence/examples/self_host.lang. Opened by round 422 (language C)."
+    },
+    "languages/whence/tests/test_v39.py::test_the_language_has_one_string_rendering_rule_and_two_implementations": {
+      "subject_scope": "own-suite",
+      "why": "Subject is the Whence interpreter and its self-hosted twin. Opened by round 422 (language C)."
+    },
+    "nuc/tests/test_constant_audit.py::test_the_fast_check_runs_green_on_this_tree": {
+      "subject_scope": "own-suite",
+      "why": "Subject is nuc/'s constant audit over nuc/. Part of the born-red install episode: round 409 (harness A) WIRED nuc/run_checks_fast.sh into run_driver.sh and its first ever run, at round 410, was red. Nobody opened it; it was installed red and stood 32 rounds until round 442 (NUC E), the owning track, fixed it."
+    },
+    "nuc/tests/test_kv_reuse_model.py::test_agent_turn2_breaks_strict_but_not_snapshot": {
+      "subject_scope": "own-suite",
+      "why": "Same born-red install episode, rounds 410-441."
+    },
+    "nuc/tests/test_kv_reuse_model.py::test_system_hint_is_a_token_prefix_for_nuc_mini": {
+      "subject_scope": "own-suite",
+      "why": "Same born-red install episode, rounds 410-441."
+    }
+  }
+}

@@ -24060,6 +24060,111 @@ successor — 448→449, 449→450, 450→451, 451→452, 452→453.)*
   re-derive pin caught two of them by itself.
 - **Knowledge:** `knowledge/round-454-the-observation-that-bought-ignorance.md`.
 
+### Round 455 — SWE-loop(D) — 2026-09-02 — the check that belonged to another track
+
+- **Closed a two-round-old live red.** `wiring_audit.py check` was `rc=1` with
+  two W001s — `languages/whence/depthcensus.py` (round 452, language C) and
+  `nuc/reachability_recover.py` (round 454, NUC E). Both are in the invocation
+  closure via a sibling test import, so both are `wired`; the `via`/`via_kind`
+  values came from `wiring_audit.py bootstrap`, not by hand. `119 entry
+  point(s), 99 in closure, 0 error(s)`; `62 passed in 69.43s`.
+- **Neither author could have seen it, and that turned out to be measurable.**
+  New instrument `harness/redattrib.py` + fail-closed registry
+  `harness/crosstrack-registry.json` (20 nodes) + 19 tests. Over all **554**
+  retained per-round health logs: 20 distinct nodes have ever gone red, in 31
+  episodes. **Invisible-open rate 15/28 = 54%** — episodes whose opening round
+  could not have seen the red by running its own track's suite.
+- **Round 453's stated mechanism does not generalise.** "Nobody who owns a
+  checker breaks it" holds for `skills-check` (0/16) and inverts for
+  `whence-health-check` (**8/8** opened by its owner). Ownership predicts
+  nothing; **subject scope** does: whole-tree nodes are **12/16 (75%)**
+  invisible, own-suite **1/9 (11%)**, Fisher exact two-sided **p = 0.0036**,
+  n=25. All four "visible" whole-tree episodes are round **415** — the round
+  that wrote `wiring_audit.py`. Every whole-tree red since was invisible.
+- **Ground truth is the per-round log, not `driver.log`.** The driver line
+  truncates at two names with `(+N more)`, and its round-362 line names a test
+  that did not fail. The parse is cross-checked against the driver's own
+  verdict, exactly, for all three pytest-grammar checks (18/18, 7+3/10, 32/32).
+- **Three first-draft defects, all of the class being measured, all fixed.**
+  (a) the driver has a third verdict, `ERROR`; matching only `PASS|FAIL`
+  dropped 5 runs and can merge episodes — real, and latent on this data.
+  (b) a pytest-shaped `could_not_run` heuristic called **68 of 91**
+  `skills-check` logs unrunnable; it is now restricted to `PYTEST_LOGS` and
+  `skills-check` is reported as an explicit **GRAMMAR GAP** rather than a
+  silent zero. On the three logs it may read it is exact — rounds 348/393/394,
+  which the driver independently calls FAIL/ERROR/ERROR. (c) static detection
+  of "whole-tree assertion" gave **2053** candidates loose and **59** strict,
+  and the strict set omits `test_wiring_audit.py` and `test_verb_audit.py` —
+  the two files behind 15 of 18 harness reds. History is the better oracle.
+- **`wiring_audit` is blind to untracked files.** It returned `0 error(s)` on
+  a tree holding two new undeclared entry points; `git add` turned the same
+  command red. Stage first, then check.
+- **Three carried claims re-derived; all three stale — and the record already
+  disagreed with itself.** Round **437**'s block (newer than 433/434/435's)
+  already says "V002 is fixed" and "`test_review_stage_and_report` is green";
+  rounds 433-435 carry both as red and round 454's item 7 re-points at those.
+  A next-steps list that is appended to rather than reconciled carries a closed
+  item forever. Also: this file's recent blocks are ordered **newest-first**, so
+  `tail` returns its OLDEST guidance — which is how this round found the
+  contradiction, by accident. `V002`
+  ("red since round 429") is GREEN (`7 passed in 35.38s`);
+  `test_swe_campaign.py::test_review_stage_and_report` is GREEN (`1 passed in
+  53.62s`); slow-tier recall is **9%**, not 0%. The fourth clause —
+  `test_swe_campaign.py[light]` never run through the instrument — still holds.
+- **Predictions:** 7 hits, 3 misses, 1 unresolvable-as-posed, banked in
+  `state/swe/round-455/PREDICTIONS.md` before measuring. The useful miss is
+  P5a: I predicted a 20% red rate and it is **8.5%** — rarity is why nobody
+  has fixed the visibility problem.
+- **Tests:** `test_redattrib.py` 19 passed (0.41 s); `test_wiring_audit.py` 62
+  passed (69.43 s); `test_verb_audit.py::TestThisTree` 7 passed (35.38 s);
+  `test_swe_campaign.py::test_review_stage_and_report` 1 passed (53.62 s).
+- **Knowledge:** `knowledge/round-455-the-check-that-belonged-to-another-track.md`.
+
+## Next steps (as of round 455)
+
+1. **Nothing yet makes a non-harness round run the five whole-tree nodes.**
+   This round measured the price and wrote the recipe (`wiring_audit.py check`
+   12-14 s, `test_verb_audit.py::TestThisTree` 35 s, `test_roundheadings.py`)
+   and did NOT install it. Installing it is a CLAUDE.md ground-rule change —
+   rule 2 or a sixth rule — and belongs to harness(A) or the operator. Until
+   then the 54% invisible-open rate is unchanged. harness(A).
+2. **`skills-check` has no per-node ground truth, so the headline rate is over
+   THREE checks, not four.** Its logs are a checker/verdict table.
+   `redattrib.py` prints a GRAMMAR GAP line on every run saying so; teaching it
+   that grammar would let round 453's 16 episodes be reproduced or refuted
+   inside the same instrument. skills(B) or SWE-loop(D).
+3. **Re-derive before quoting, again — 3 of 3 checkable carried claims were
+   stale this round.** V002, `test_review_stage_and_report` and the "0% recall"
+   line were all wrong at HEAD, and all three had been carried unchanged since
+   round 433. The fourth consecutive round where re-deriving changed the
+   answer. Whoever writes the next next-steps block should re-run before
+   copying. any track.
+4. **`test_swe_campaign.py[light]` is still `unknown` to the slow-tier
+   instrument** — the one clause of standing item 7 that survived. Recall is
+   9% (3 conclusive of 33) against checkout `6a525eab44f60c1c`. SWE-loop(D).
+5. **The nuc check was born red and stood 32 rounds.** Round 409 wired
+   `nuc/run_checks_fast.sh`; its first run, round 410, was red, and only round
+   442 — the owning track — fixed it. `redattrib.py` reports that episode as
+   `unopnd` rather than blaming round 410. Any future check wired by one track
+   over another track's suite should be run green BEFORE wiring. harness(A).
+6. **One classification is deliberately left at its weaker reading.**
+   `harness/tests/test_run_driver_whence_health_check.py::
+   test_whence_health_check_fail_logged_when_script_fails` is declared
+   `own-suite`; its subject is run_driver.sh's handling of the *whence* check,
+   so `shared-file-own-content` is arguable. Reclassifying moves own-suite from
+   1/9 to 0/9 invisible and strengthens this round's own result, which is why
+   it was not done here. Whoever decides should say which and re-run
+   `redattrib.py attribute`. SWE-loop(D).
+7. **Round 454's items 1-N and round 435's items 1-4, 6, 9, 10 stand because
+   nothing touched them, not because anything checked them.** In particular
+   `polarity.py audit`'s 5 MISPOINTED against a 0-acceptance registry, the
+   J005 recall gap, `selfdesc_check`'s top-level-only sweep, the fourteen-deep
+   probe batch, and CLAUDE.md's `CRITICAL MISSION` block, re-escalated for the
+   NINETEENTH time and still a one-line deletion for the operator.
+   `languages/whence/SECURITY.md` is still uncommitted, still not this
+   program's, and still the operator's decision — do not copy a carry count
+   for it from this file; the checker's own line is the only source.
+
 ## Next steps (as of round 454)
 
 1. **`coverage --strict` is now the first command of every E round.** It goes
