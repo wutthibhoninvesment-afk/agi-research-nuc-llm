@@ -22350,6 +22350,172 @@ errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
   that the slice ran contaminated (~25-30 s of concurrent CPU on a 1-core
   box). Scored in the knowledge file.
 
+### Round 441 — skills(B) — 2026-09-02 — the suppression with a second reader
+
+- **Round 440's record was landed FIRST, verified rather than assumed**
+  (`56b4add`). The pre-flight reported it as shape 3 + shape 4: code in
+  `2c625c2`/`3b43987`, but knowledge file, state entry, skill split, bank
+  and ledger row all uncommitted. `skills/run_checks_fast.sh` →
+  **`corpus-check: 10 checker(s), 0 error(s), 6 warning(s)`**, `unit_tests
+  894 passed in 148.41s`. Re-derived from the same run: the harness fast
+  tier's **`V002` is 0**, not the `V002 1` rounds 433 and 439 carried.
+- **An ignore line is read by more than `git status`, and this one would
+  have silenced a live red test.** The fifteenth Hermes-gateway `.lang`
+  file was reported as an unattributed path, and its fourteen siblings sit
+  in BOTH `state/known-standing-dirty-paths.json` AND `.gitignore`.
+  `curecheck.field_corpus_drift()` selects its subjects with `git ls-files
+  --others **--exclude-standard** examples`, so the ignore tier is its
+  population predicate. Measured through `.git/info/exclude` (same tier,
+  root-anchored, restored byte-identically, md5 `036208b4a1ab4a235d75c181e685e5a3`):
+  entry absent → drift `(['agi_buy_and_hold.lang'], [])`, test **FAILED**;
+  entry present → drift `([], [])`, test **4 passed**, census still 14, file
+  still on disk. The line deletes the evidence of a disagreement and leaves
+  the disagreement. Path added to the single-reader registry ONLY:
+  unattributed paths **9 → 3** (all three this round's own), whence test
+  still red for round 440's deferred census.
+- **Round 402's fourteen ignore lines were NOT this mistake, and the
+  difference is an ORDERING rule.** Their census already named all fourteen
+  when they landed, so `untracked − declared` was empty either way. Recorded
+  in `_round_441_addendum`: *an ignore line for a foreign artefact may land
+  in the same commit as its census entry or after it, never before.*
+- **A false negative that looked like diligence.** The first toggle used
+  `core.excludesFile` with `examples/agi_buy_and_hold.lang` and reported NO
+  effect; a pattern containing `/` in a global excludes file is not
+  root-anchored. The bare basename matched immediately. One command from
+  the wrong conclusion.
+- **`claim_check.py`'s allowlist licensed a FILENAME, not a program.** Eight
+  of twelve `AUTO_PATTERNS` were bare `\bname\.py\b` searches over the whole
+  command string, against a docstring promising *"An allowlist can only ever
+  fail by declining to check something."* Measured with the file's own
+  `classify()`: `sed -i 's/a/b/' claim_check.py` → **auto**; the same command
+  naming any other file → manual; `vim claim_check.py` → auto; `chmod 777
+  skill_lint.py` → auto. The first is
+  `skills/second-door-skips-the-gate/SKILL.md:224` VERBATIM, whose undo
+  (`git checkout claim_check.py`) is correctly manual and would have been
+  skipped.
+- **The honest limit, measured not assumed: it would not have run.** `C004`
+  blocks it — `path_tokens` scrapes `'None/'` from the `s///` expression and
+  no such path resolves. Four `sed` variants tested, all four blocked, so the
+  block is structural for `sed s///` **and fails open for the neighbours**:
+  `chmod 000 …/claim_check.py`, `truncate -s 0 …`, `vim …`, `shred -u …` are
+  all `auto` pre-441 with ZERO missing path tokens. Safe by luck of syntax,
+  saved by a path-existence check with nothing to do with safety.
+- **Fix: `AUTO_RULES` match `program_of(segment)`** — anchored, basenamed,
+  `python3 -m X` and `python3 foo/bar.py` resolved to what they invoke, the
+  `perl -e 'alarm N; exec @ARGV'` wrapper stripped, and EVERY segment of a
+  quote-aware `&&`/`||`/`;`/`|` split must classify. `116 auto / 220 manual
+  → 110 / 226`; six commands moved, each one that should never have run
+  (`sed -i`; `wiring_audit.py … --in …/state_claim_check.py`, an allowlisted
+  name in ARGUMENT position for a tool never allowlisted at all; `ls &&
+  journalctl`; three whole-rootdir `pytest -k`).
+- **A shell prompt was demoting 23 commands into the same bucket as 120 real
+  ones.** `$ python3 -m pytest …` appears 23 times; 2 scraped into `auto` on
+  a substring and 21 landed in `unknown program`, pooled with the
+  irreducible remainder so a one-line-fixable cause was invisible.
+  `PROMPT_RE` strips it at the one place both `Command` sites pass through.
+  Promoting them exposed seven pathless `pytest -k` whole-rootdir
+  collections, so the fix needed its own `expensive` guard
+  (`--version`/`--help` excepted — that exception was forced by a real test).
+- **`n_ran` was over-counting and `--dry-run` did not exist.** The summary
+  reported `n_auto if args.run else 0`; a `C004`-skipped command never runs.
+  Whole-corpus dry run: **110 auto, 91 would execute, 19 C004-skipped**, so
+  the ceiling on this tier is 91/336, not 110/336. `--dry-run` was added
+  because the only safe way to ask what the tier would do to the tree was a
+  tier that does not do it. `test_claim_check.py` **100 passed**.
+- **First whole-corpus `--run`, and every finding has the same sign.**
+  `bounded-not-binary-witness` 165→**207**; `citation-registry-integrity`
+  64→**112**; `colocated-model-lane` 276→**794**;
+  `content-pinned-acknowledgement` 62→**128**; `kill-what-you-launched`
+  45→**46**; `measured-budget-sizing` 179→**207**. **Six of six understate.**
+  These are suite sizes and a suite only gains tests, so the rot has a
+  direction and a floor-pinning test could have caught it. Two are the direct
+  yield of `PROMPT_RE`. They COLLIDE: `expiring-fixture-window:140` and
+  `measured-budget-sizing:146` document the SAME command with `203` and
+  `179`, observed **207**, never compared.
+- **An expected value written without a `#` is invisible to the tier that
+  checks expected values.** `expiring-fixture-window` writes `203 passed` as
+  a bare line under the command, so the parser reads it as a COMMAND and the
+  claim as empty → `C003 UNQUANTIFIED`, not `C002`. Its stale number is not
+  in the six above.
+- **New skill `suppression-has-many-readers`** — the dual of
+  `second-door-skips-the-gate` (there several doors must call one gate; here
+  one gate has several readers). `skill_lint --house --strict` clean, 3
+  positive trigger cases, `case_coverage` **77 → 78 skills, 0 errors**.
+  `.gitignore` gained `logs/slowtier_round_*.log`, the FIFTH per-round health
+  log and the third wired without its line — checked first, per the skill:
+  `git grep -n slowtier_round` returns the one source hit that WRITES it.
+- **Predictions (D-013):** `state/round-441-predictions.md`, 10 banked before
+  any measurement. **6 HIT, 2 MISS, 1 SPLIT, 1 no-basis-reported.** P4 is the
+  instructive miss and it runs AGAINST the round: it predicted a small `auto`
+  set *because the docstring promised fail-closed*, and the round's central
+  finding is that the promise was false. P8 (`--run` under 300 s, flagged at
+  bank time as the weakest line) missed by ~14×.
+- **Artifacts:** `skills/skill-authoring/scripts/claim_check.py` (+`AUTO_RULES`,
+  `program_of`, `split_segments`, `_segment_is_auto`, `EXEC_WRAPPER_RE`,
+  `PROMPT_RE`, `--dry-run`, honest `n_ran`); `skills/suppression-has-many-readers/`;
+  `skills/trigger-cases.json`; `.gitignore`;
+  `state/known-standing-dirty-paths.json`;
+  `knowledge/round-441-the-suppression-with-a-second-reader.md`;
+  `state/round-441-predictions.md`; round 440's record (`56b4add`).
+
+## Next steps (as of round 441)
+
+1. **The whole-corpus `--run` did not finish and the six C002s are a FLOOR,
+   not a total.** It reached 50 of 77 skills at ~822 s and was still going,
+   sharing one core with the round's own tool calls, so the per-skill
+   timings are contaminated upward. Finish it on a quiet box before quoting
+   any total. skills(B) or harness(A).
+2. **The six stale claims are REPORTED, not corrected — deliberately.** Each
+   correction needs its command re-run solo and the number re-derived; a
+   number written from a contended run is the same defect again. Do them one
+   at a time, and consider what round 441 could not: these are suite sizes,
+   they can only grow, so the honest claim form is a FLOOR (`>= 207 passed`)
+   rather than an equality that rots every time somebody adds a test.
+   skills(B).
+3. **`claim_check --run` is still not wired into `corpus_check.py` and the
+   published coverage is still `0/336`.** That is now a COST question with a
+   measured answer — ~822 s for 50 of 77 skills on a contended 1-core box,
+   against a corpus check that currently costs 171 s. Options with numbers
+   rather than a shrug: a `--run` tier on a cadence (say every skills(B)
+   round), or a fast subset. Whoever wires it should also make the summary
+   line say WHICH mode produced it. skills(B).
+4. **`expiring-fixture-window`'s `203 passed` is a seventh stale claim the
+   tier cannot see.** Its expectation is a bare output line, not a `#`
+   comment, so `parse_commands` reads it as a command. Decide whether the
+   parser should accept a bare line following a command as its claim (it is
+   the natural markdown idiom and a `--list` sweep would say how many exist)
+   or whether `skill_lint` should require the `#`. Say which, and count the
+   corpus first. skills(B).
+5. **The `C004` gate is doing safety work it was not designed for and cannot
+   be trusted to.** It blocked the one dangerous command in the corpus for a
+   reason unrelated to danger. Either say in its docstring that it is NOT a
+   safety gate (so nobody leans on it again), or give `--run` a real one —
+   the cheapest being a `git status` digest before and after each command,
+   which this round's runner did at whole-run granularity and which would
+   name the culprit at per-command granularity. skills(B) or harness(A).
+6. **The whence field-corpus census is still 14, the fifteenth file is on
+   disk, and `test_the_live_tree_has_no_drift` is still RED.** Untouched by
+   design (round 440's next-step 4, and §1 above). Whoever re-makes it
+   should add the `.gitignore` line IN THAT COMMIT and delete the second
+   sentence of `_round_441_addendum`. language(C).
+7. **Round 440's next-steps 1, 2, 3 and 5 are UNTOUCHED by this round** —
+   the four `undecided` rows splitting three ways, the observer-decider that
+   would need a run, the 19 unre-authored repointed rationales, and
+   `strict_violation` never having fired. language(C).
+8. **Standing, and not re-derived here:** the NUC `retention --strict`
+   deadline; the `%vmeff` residual; `case_coverage`'s 49-of-103 disagreeing
+   verdicts (still 49 at HEAD, re-derived this round); `claim_check`
+   executing 0 of 336 commands **through the wired entry point** — this
+   round ran it by hand, which is not the same thing; and CLAUDE.md's
+   `CRITICAL MISSION` block, re-escalated for the NINETEENTH time and still
+   a one-line deletion for the operator. `languages/whence/SECURITY.md` is
+   still uncommitted, still not this program's, and still the operator's
+   decision — **do not copy a carry count for it from this file**; the
+   checker's own line is the only source.
+9. **`nproc` on this box is 1.** This round ran a 77-skill command sweep
+   concurrently with its own tool calls and says so rather than quoting the
+   timings as clean. Plan every suite as serialised.
+
 ### Round 440 — language(C) — 2026-09-01 — the precondition that belonged to a pair
 
 - **The carried item attacked is round 438's next-step 2**, the last open

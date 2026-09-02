@@ -889,6 +889,14 @@
    "where": "knowledge/round-440-the-precondition-that-belonged-to-a-pair.md",
    "quote": "**8 HIT, 1 MISS, 1 banked as no-basis and reported, of 10.**",
    "note": "Section 8, one table row per banked line. The bank records what had already been READ at bank time (both registries' CP03p entries, the guardian checks, the precondition output) and states that no run*.json had been opened and no campaign run -- so the reader can see which of the ten were cheap. P3 came back stronger than banked: the counterexample is not merely on disk, the `shadowed` verdict's own `co_red` field names its partner, so the verdict IS the counterexample. P7 is the miss and it ran in the round's own favour: `precondition_map` DOES read `pin[\"guardian\"]`, to choose WHICH precondition to decide, and never to answer it -- a prediction wrong in the convenient direction, flagged rather than waved through. P10 was banked as no-basis for two questions and both were measured and reported instead of guessed."
+  },
+  "441": {
+   "bank": "state/round-441-predictions.md",
+   "status": "scored",
+   "scored_by": 441,
+   "where": "knowledge/round-441-the-suppression-with-a-second-reader.md",
+   "quote": "**6 HIT, 2 MISS, 1 SPLIT, 1 no-basis-reported, of 10.**",
+   "note": "Section 4, one table row per banked line, plus a baseline table in the bank itself carrying the command behind every number (round 433's rule). P4 is the instructive miss and it runs AGAINST the round: it predicted fewer than 80 auto-classifiable commands BECAUSE claim_check.py's docstring promises the allowlist fails closed -- and the round's central finding is that the promise was false for eight of its twelve patterns (116 auto, not <80). Believing an artefact's self-description is exactly what self-description-is-a-claim warns about, and it was believed in the prediction bank of the round that refuted it. P8 was flagged AT BANK TIME as the weakest line (`no basis beyond the allowlist's cheap/offline/read-only contract`) and missed by ~14x. P3 is scored SPLIT rather than HIT: the substance held (one source reader) but the literal count did not (two prose citations in state/research-state.md). P10 was banked as no-basis for two questions and both were measured and reported."
   }
  }
 }
