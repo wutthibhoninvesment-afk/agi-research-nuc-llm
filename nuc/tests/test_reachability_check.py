@@ -518,12 +518,29 @@ def test_streak_bounds_last_seen_tightens_a_down_streaks_start():
     assert b["max_possible_span_s"] == 5.5 * 3600.0
 
 
-def test_streak_bounds_takes_the_latest_last_seen_across_the_whole_streak():
+def test_streak_bounds_scans_the_whole_streak_and_takes_the_earliest_if_disputed():
+    """ROUND 448 REVERSED THIS TEST, deliberately.
+
+    Round 334 wrote it as `..._takes_the_latest_last_seen_across_the_whole_streak`
+    and asserted 07:00 -- the tightest of the two readings. That is correct
+    while `tailscale_last_seen_utc` is a reliable observation: a later
+    sighting means the outage began later. Round 448 measured the field being
+    RECOMPUTED across one continuous outage (124 s, and in the earlier
+    direction), so two readings in one streak are a contradiction, at most
+    one is right, and a bound named EARLIEST POSSIBLE has to hold whichever
+    it is. The property round 334 was really protecting -- the WHOLE streak
+    is scanned, not just its first record -- is unchanged and still asserted
+    here: neither 05:00 nor 07:00 is on the streak's first record.
+
+    The cost is a wider bracket. That is the point: the previous answer was
+    narrower than the evidence supports."""
     records = list(BRACKET_RECORDS)
     records[2] = dict(records[2], tailscale_last_seen_utc="2026-08-27T05:00:00Z")
     records[3] = dict(records[3], tailscale_last_seen_utc="2026-08-27T07:00:00Z")
     b = _bounds_by_rounds(records, 3)
-    assert b["earliest_possible_start_utc"] == "2026-08-27T07:00:00Z"
+    assert b["earliest_possible_start_utc"] == "2026-08-27T05:00:00Z"
+    assert b["earliest_possible_start_source"] == "tailscale_last_seen_min_disputed"
+    assert b["lastseen_disputed"] == ["2026-08-27T05:00:00Z", "2026-08-27T07:00:00Z"]
 
 
 def test_streak_bounds_ignores_last_seen_after_the_first_down_check():
@@ -2951,3 +2968,130 @@ def test_the_basis_does_not_change_unobserved_total_itself():
     b = rc.continuity_report(recs, basis={"sar_archive_supplied": True})
     assert a["unobserved_total_s"] == b["unobserved_total_s"]
     assert a["max_unobserved_outage_s"] == b["max_unobserved_outage_s"]
+
+
+# --------------------------------------------- LastSeen drift (round 448)
+#
+# The module adopted `tailscale status --json`'s `LastSeen` over the
+# plain-text renderer because the renderer is recomputed each read and
+# LastSeen was "the actual timestamp". Round 448 measured LastSeen being
+# recomputed too: one continuous outage, box down throughout, local
+# `tailscaled` up since 2026-08-09, and the field read 124 s EARLIER eleven
+# hours later. These pin what that costs and what it must not be allowed
+# to cost.
+
+DRIFT_RECORDS = [
+    {"checked_at_utc": "2026-09-01T19:30:39Z", "round": 436, "verdict": "down",
+     "tailscale_last_seen_utc": "2026-09-01T18:30:00.1Z"},
+    {"checked_at_utc": "2026-09-01T19:46:19Z", "round": 436, "verdict": "down",
+     "tailscale_last_seen_utc": "2026-09-01T18:30:00.1Z"},
+    {"checked_at_utc": "2026-09-02T06:32:13Z", "round": 448, "verdict": "down",
+     "tailscale_last_seen_utc": "2026-09-01T18:27:56.1Z"},
+]
+
+
+def test_lastseen_drift_names_the_streak_whose_field_was_recomputed():
+    d = rc.lastseen_drift(DRIFT_RECORDS)
+    assert d["n_drifting_streaks"] == 1
+    s = d["streaks"][0]
+    assert s["distinct_values"] == ["2026-09-01T18:27:56.1Z",
+                                    "2026-09-01T18:30:00.1Z"]
+    assert s["spread_s"] == 124.0
+    assert s["direction"] == "earlier" and s["drift_s"] == -124.0
+    assert (s["start_round"], s["end_round"]) == (436, 448)
+
+
+def test_a_streak_with_one_lastseen_value_is_not_drift():
+    """Round 436 read the field twice and got the same value both times. That
+    is the ordinary case and must stay silent, or the check cries wolf on
+    every log it is ever pointed at."""
+    assert rc.lastseen_drift(DRIFT_RECORDS[:2])["n_drifting_streaks"] == 0
+
+
+def test_the_tailscale_zero_value_is_not_a_timestamp():
+    """`0001-01-01T00:00:00Z` is tailscale's "no reading", and it appears ten
+    times in the live log. Treated as a timestamp it is both a permanent
+    drift report and a start bound at the beginning of the calendar."""
+    recs = [dict(DRIFT_RECORDS[0]),
+            dict(DRIFT_RECORDS[1], tailscale_last_seen_utc="0001-01-01T00:00:00Z")]
+    assert rc.lastseen_drift(recs)["n_drifting_streaks"] == 0
+    assert rc._streak_lastseen_values({"records": recs}) == [
+        "2026-09-01T18:30:00.1Z"]
+
+
+def test_a_disputed_start_bound_takes_the_earliest_reading_and_says_so():
+    """`earliest_possible_start` took the LATEST LastSeen, which is right only
+    while the field is trustworthy. Two readings of one outage cannot both be
+    the last instant the box was alive, and a bound named EARLIEST POSSIBLE
+    has to hold whichever is wrong."""
+    b = rc.streak_bounds(DRIFT_RECORDS)[0]
+    assert b["earliest_possible_start_utc"] == "2026-09-01T18:27:56.1Z"
+    assert b["earliest_possible_start_source"] == "tailscale_last_seen_min_disputed"
+    assert b["lastseen_disputed"] == ["2026-09-01T18:27:56.1Z",
+                                      "2026-09-01T18:30:00.1Z"]
+    # the honest cost: 124 s more declared ignorance, not less
+    assert b["start_uncertainty_s"] == 3638.9 + 124.0
+
+
+def test_an_undisputed_start_bound_still_takes_the_reading_it_always_did():
+    """The old behaviour is the majority case and is not changed by this."""
+    b = rc.streak_bounds(DRIFT_RECORDS[:2])[0]
+    assert b["earliest_possible_start_utc"] == "2026-09-01T18:30:00.1Z"
+    assert b["earliest_possible_start_source"] == "tailscale_last_seen"
+    assert b["lastseen_disputed"] is None
+
+
+def test_a_disputed_lastseen_cannot_manufacture_a_missed_excursion():
+    """The failure mode the drift makes reachable. A LastSeen rounded UP lands
+    later than the truth, and later is the direction that walks a reading
+    into a down gap -- where the module reports it as POSITIVE evidence that
+    the box came back to life mid-outage. With another reading of the same
+    streak placing the sighting before the gap, the two contradict and
+    neither is evidence."""
+    recs = [
+        {"checked_at_utc": "2026-09-01T18:29:00Z", "round": 1, "verdict": "down",
+         "tailscale_last_seen_utc": "2026-09-01T18:27:56.1Z"},
+        {"checked_at_utc": "2026-09-01T18:35:00Z", "round": 2, "verdict": "down",
+         "tailscale_last_seen_utc": "2026-09-01T18:30:00.1Z"},
+    ]
+    c = rc.gap_continuity(recs)[0]
+    assert c["missed_excursions"] == []
+    assert c["witnessed_gap_count"] == 0        # not witnessed either: unknown
+    assert c["unwitnessed_gap_count"] == 1
+
+
+def test_an_undisputed_lastseen_inside_a_gap_is_still_reported():
+    """The negative control. The guard must not silence the contradiction the
+    field exists to deliver -- only the case where the field contradicts
+    ITSELF."""
+    recs = [
+        {"checked_at_utc": "2026-09-01T18:29:00Z", "round": 1, "verdict": "down"},
+        {"checked_at_utc": "2026-09-01T18:35:00Z", "round": 2, "verdict": "down",
+         "tailscale_last_seen_utc": "2026-09-01T18:31:00Z"},
+    ]
+    c = rc.gap_continuity(recs)[0]
+    assert len(c["missed_excursions"]) == 1
+    assert c["missed_excursions"][0]["evidence_utc"] == "2026-09-01T18:31:00Z"
+
+
+def test_the_live_log_has_exactly_one_drifting_streak_and_it_is_this_outage():
+    """Read against the real log, not a fixture. If a later round's record
+    makes this two, that is a second measurement of the same instability and
+    should be written down, not asserted away."""
+    recs = rc.load_log(str(REAL_LOG))
+    d = rc.lastseen_drift(recs)
+    assert d["n_drifting_streaks"] == 1
+    assert d["streaks"][0]["spread_s"] == 124.0
+    assert d["streaks"][0]["end_round"] == 448
+
+
+def test_round_448_is_in_the_log_because_round_442_left_a_hole():
+    """Round 442 probed twice, recorded the failure in prose, and appended
+    nothing. The log is the durable record and prose is what it replaced."""
+    recs = rc.load_log(str(REAL_LOG))
+    rounds = [r.get("round") for r in recs]
+    assert 448 in rounds and 442 not in rounds
+    r448 = [r for r in recs if r.get("round") == 448][0]
+    assert r448["verdict"] == "down"
+    assert r448["source"] == "live-replay-r448"
+    assert "two-failures rule" in r448["notes"]

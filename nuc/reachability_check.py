@@ -677,6 +677,97 @@ def longest_completed_streak(records: list, verdict: str) -> dict | None:
 _LAST_SEEN_BOUNDS_START = ("down", "ambiguous")
 
 
+# ---------------------------------------------------- LastSeen drift (r448)
+#
+# THE FIELD IS NOT IMMUTABLE. This module's own opening docstring adopted
+# `tailscale status --json`'s `LastSeen` over the plain-text renderer because
+# the renderer "is a SNAPSHOT recomputed fresh each round" and LastSeen was
+# "the actual timestamp". Round 448 measured the JSON field being recomputed
+# too, on ONE outage, with the box down throughout and local `tailscaled` not
+# restarted since 2026-08-09:
+#
+#   round 436, 2026-09-01T19:30:39Z and 19:46:19Z -> 2026-09-01T18:30:00.1Z
+#   round 448, 2026-09-02T06:32:13Z (3 reads, 3 s apart, all identical)
+#                                   -> 2026-09-01T18:27:56.1Z
+#
+# 124 seconds EARLIER, eleven hours later. And the shape of the two values is
+# the tell: of the five distinct non-zero LastSeen values in this log's whole
+# history, three sit on an exact :00 second and two of those on an exact
+# half-hour (16:30:00.1, 18:30:00.1, 02:10:00.1). The round-448 read does not
+# (18:27:56.1). A coarse reading later refined is the simplest account.
+#
+# Which direction hurts. `streak_bounds` took the LATEST LastSeen in a streak,
+# which is right when every reading is sound -- a later sighting means the
+# outage began later. Once two readings contradict each other, at most one can
+# be right, and a bound called EARLIEST POSSIBLE start must hold under either.
+# So a disputed streak takes the MINIMUM, and says it is disputed. The cost is
+# 124 s of extra declared uncertainty on the round-436/448 outage; the
+# alternative is a bracket that is quietly unsound in the direction of
+# under-reporting how long the box has been away.
+
+
+def lastseen_drift(records: list) -> dict:
+    """Every streak whose members disagree about when the peer was last alive.
+
+    A disagreement is positive evidence that `tailscale_last_seen_utc` was
+    RECOMPUTED, not observed -- the box cannot have been last-seen at two
+    instants during one unbroken outage. Reported per streak, with the sign,
+    because the direction decides which bound is unsafe: a value that drifts
+    LATER can push a reading into a gap and manufacture a missed excursion,
+    and one that drifts EARLIER makes a start bound that took the max too
+    tight.
+    """
+    out = []
+    for s in _build_streaks(records):
+        seen = []
+        for rec in s["records"]:
+            v = rec.get("tailscale_last_seen_utc")
+            if not v or v.startswith("0001-01-01"):
+                continue
+            seen.append((rec.get("round"), rec.get("checked_at_utc"), v))
+        distinct = sorted({v for _, _, v in seen})
+        if len(distinct) < 2:
+            continue
+        lo, hi = _parse_ts(distinct[0]), _parse_ts(distinct[-1])
+        first_read, last_read = seen[0], seen[-1]
+        out.append({
+            "verdict": s["verdict"],
+            "start_round": s["records"][0].get("round"),
+            "end_round": s["records"][-1].get("round"),
+            "distinct_values": distinct,
+            "n_distinct": len(distinct),
+            "spread_s": (hi - lo).total_seconds(),
+            "first_read": {"round": first_read[0], "at_utc": first_read[1],
+                           "last_seen": first_read[2]},
+            "last_read": {"round": last_read[0], "at_utc": last_read[1],
+                          "last_seen": last_read[2]},
+            # The sign as the LOG saw it: later read minus earlier read.
+            "direction": ("earlier" if _parse_ts(last_read[2]) < _parse_ts(first_read[2])
+                          else "later" if _parse_ts(last_read[2]) > _parse_ts(first_read[2])
+                          else "same"),
+            "drift_s": (_parse_ts(last_read[2]) - _parse_ts(first_read[2])).total_seconds(),
+        })
+    return {"n_drifting_streaks": len(out), "streaks": out,
+            "note": ("a streak with two LastSeen values is a streak in which the "
+                     "field was recomputed; the box cannot have been last seen "
+                     "at two instants during one unbroken outage")}
+
+
+def _streak_lastseen_values(streak: dict) -> list:
+    """Usable LastSeen readings in one streak, oldest value first.
+
+    The zero value `0001-01-01T00:00:00Z` is tailscale's "no such reading",
+    not a timestamp from the year 1; treating it as one would put every
+    bound at the beginning of the calendar.
+    """
+    vals = []
+    for rec in streak.get("records", []):
+        v = rec.get("tailscale_last_seen_utc")
+        if v and not v.startswith("0001-01-01"):
+            vals.append(v)
+    return sorted(set(vals))
+
+
 def streak_bounds(records: list) -> list:
     """Per-streak [confirmed, max-possible] span brackets.
 
@@ -736,21 +827,30 @@ def streak_bounds(records: list) -> list:
             start_str = streaks[i - 1]["end"]
             start_dt = _parse_ts(start_str)
             start_src = "previous_check"
+        disputed = None
         if s["verdict"] in _LAST_SEEN_BOUNDS_START:
-            for rec in s["records"]:
-                last_seen = rec.get("tailscale_last_seen_utc")
-                if not last_seen:
-                    continue
-                seen_dt = _parse_ts(last_seen)
-                # A LastSeen AFTER our own first down check would mean the
-                # peer was seen alive after we had already called it down --
-                # a flicker the log cannot resolve into streaks, and using
-                # it would invert the bracket into a negative uncertainty.
-                # Ignored rather than clamped.
-                if seen_dt > first_dt:
-                    continue
+            # A LastSeen AFTER our own first down check would mean the peer
+            # was seen alive after we had already called it down -- a flicker
+            # the log cannot resolve into streaks, and using it would invert
+            # the bracket into a negative uncertainty. Ignored rather than
+            # clamped.
+            usable = [v for v in _streak_lastseen_values(s)
+                      if _parse_ts(v) <= first_dt]
+            if usable:
+                # ROUND 448. This took `max(usable)`: the tightest reading,
+                # which is correct only while the field is trustworthy. It is
+                # not -- see `lastseen_drift`. Two readings of one outage
+                # cannot both be the last instant the box was alive, and a
+                # bound named EARLIEST POSSIBLE has to survive whichever is
+                # wrong, so a disputed streak takes the min and says so.
+                pick = usable[0] if len(usable) > 1 else usable[-1]
+                seen_dt = _parse_ts(pick)
                 if start_dt is None or seen_dt > start_dt:
-                    start_str, start_src, start_dt = last_seen, "tailscale_last_seen", seen_dt
+                    start_str, start_dt = pick, seen_dt
+                    start_src = ("tailscale_last_seen_min_disputed"
+                                 if len(usable) > 1 else "tailscale_last_seen")
+                if len(usable) > 1:
+                    disputed = usable
         # A boot time on this streak's OWN first record is the mirror image
         # of the LastSeen rule: it is evidence the box was alive at that
         # instant, so nothing that happened before it can belong to this
@@ -788,6 +888,9 @@ def streak_bounds(records: list) -> list:
                     else (end_dt - start_dt).total_seconds())
         out.append({
             "verdict": s["verdict"],
+            # Non-null means this streak's own records disagree about
+            # when the peer was last alive. Round 448 measured that.
+            "lastseen_disputed": disputed,
             "start_round": s["start_round"],
             "end_round": s["end_round"],
             "n_checks": len(s["records"]),
@@ -912,7 +1015,7 @@ _BOUNDED_WITNESS_NOTE = (
 
 def _gap_witness(verdict: str, earlier: dict, later: dict,
                  t1: datetime, t2: datetime, boots: list | None = None,
-                 silence=None) -> dict:
+                 silence=None, streak_lastseen=()) -> dict:
     """Classify ONE gap between two adjacent same-verdict records.
 
     Returns `{strength, source, note, missed_excursion}` where
@@ -952,6 +1055,30 @@ def _gap_witness(verdict: str, earlier: dict, later: dict,
             # peer alive strictly inside a span this log calls one
             # continuous outage. Reported, never silently dropped -- the
             # whole point of the field is that it can contradict us.
+            #
+            # ROUND 448, and the one place the field's instability can turn
+            # an artefact into a claim. A LastSeen that has been rounded UP
+            # lands later than the truth, and "later" is exactly the
+            # direction that walks a reading into this branch. The 436/448
+            # pair measured a 124 s spread on one outage; a check either side
+            # of a rounded value would have produced a missed excursion that
+            # never happened. So if some OTHER reading of this same streak
+            # puts the peer's last sighting at or before the earlier check,
+            # the two readings contradict each other and this one is not
+            # positive evidence of anything. Fail closed on the CLAIM, and
+            # say which reading disputes it -- the alternative is asserting a
+            # box came back to life on the strength of a value the log can
+            # show is not stable.
+            contradicting = [v for v in streak_lastseen if _parse_ts(v) <= t1]
+            if contradicting:
+                return {"strength": WITNESS_NONE, "source": None,
+                        "note": ("tailscale_last_seen %s falls inside this gap, "
+                                 "but the same streak also reports %s, at or "
+                                 "before the earlier check -- the field is "
+                                 "disputed here and neither reading is evidence"
+                                 % (last_seen, contradicting[-1])),
+                        "lastseen_disputed": sorted(set(contradicting) | {last_seen}),
+                        "missed_excursion": None}
             return {"strength": WITNESS_NONE, "source": None,
                     "note": "tailscale saw the peer alive INSIDE this down gap",
                     "missed_excursion": {
@@ -1658,7 +1785,8 @@ def gap_continuity(records: list, boots: list | None = None,
         for earlier, later in zip(recs, recs[1:]):
             t1, t2 = _parse_ts(earlier["checked_at_utc"]), _parse_ts(later["checked_at_utc"])
             gap_s = (t2 - t1).total_seconds()
-            w = _gap_witness(s["verdict"], earlier, later, t1, t2, boots, silence)
+            w = _gap_witness(s["verdict"], earlier, later, t1, t2, boots,
+                             silence, _streak_lastseen_values(s))
             gaps.append({
                 "from_round": earlier.get("round"),
                 "to_round": later.get("round"),
@@ -1715,7 +1843,9 @@ def gap_continuity(records: list, boots: list | None = None,
                                   (_gap_witness(s["verdict"], e, l,
                                                 _parse_ts(e["checked_at_utc"]),
                                                 _parse_ts(l["checked_at_utc"]),
-                                                boots, silence)["missed_excursion"]
+                                                boots, silence,
+                                                _streak_lastseen_values(s)
+                                                )["missed_excursion"]
                                    for e, l in zip(recs, recs[1:]))
                                   if w is not None],
             "gaps": gaps,
@@ -2074,6 +2204,15 @@ def main(argv=None) -> int:
                     help=("union every cached capture into ONE file that "
                           "`continuity --journal-seconds` accepts as-is"))
 
+    dp = sub.add_parser(
+        "lastseen-drift",
+        help=("streaks whose own records disagree about when the peer was "
+              "last alive -- i.e. where tailscale recomputed LastSeen "
+              "(round 448)"))
+    dp.add_argument("--log-path", default=DEFAULT_LOG_PATH)
+    dp.add_argument("--strict", action="store_true",
+                    help="exit 1 if any streak's LastSeen is disputed")
+
     gp = sub.add_parser("continuity",
                         help="per-gap witness analysis: is each streak really unbroken?")
     gp.add_argument("--log-path", default=DEFAULT_LOG_PATH)
@@ -2131,6 +2270,11 @@ def main(argv=None) -> int:
             bounds = [b for b in bounds if b["verdict"] == args.verdict]
         print(json.dumps({"n_streaks": len(bounds), "streaks": bounds}, indent=2))
         return 0
+
+    if args.mode == "lastseen-drift":
+        drift = lastseen_drift(load_log(args.log_path))
+        print(json.dumps(drift, indent=2))
+        return 1 if (args.strict and drift["n_drifting_streaks"]) else 0
 
     if args.mode == "journal-seconds":
         seconds = journal_seconds_probe(args.since, args.until,
