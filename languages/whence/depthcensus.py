@@ -76,6 +76,7 @@ returning a clean number it did not earn.
 import json
 import os
 import sys
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -85,7 +86,7 @@ from whence.lexer import LexError                       # noqa: E402
 from whence.parser import ParseError                    # noqa: E402
 from whence import values as values_mod                 # noqa: E402
 from whence.values import (                             # noqa: E402
-    FULL_SHOW_NEST, Guess, Record, SHOW_NEST, WList,
+    FULL_SHOW_NEST, FULL_SHOW_NODES, Guess, Record, SHOW_NEST, WList,
 )
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -262,7 +263,7 @@ class _Recorder(object):
 
 
 def census_program(path, roots="all", max_nodes=DEFAULT_MAX_NODES,
-                   max_roots=DEFAULT_MAX_ROOTS):
+                   max_roots=DEFAULT_MAX_ROOTS, alloc=True):
     """Run one program and measure both depth populations.
 
     The interpreter is patched for the duration of the run and restored in a
@@ -287,6 +288,43 @@ def census_program(path, roots="all", max_nodes=DEFAULT_MAX_NODES,
         "deepest_root": "",
         "drop_roots": 0,
         "env_roots": 0,
+        # The allocation census (round 456). `alloc_*` is the population with
+        # no root set: every value the run constructed.
+        "alloc_on": bool(alloc),
+        "alloc_depth": 0,
+        "alloc_size": 0,
+        "alloc_nodes": 0,
+        "alloc_spine": [],
+        "alloc_root": "",
+        "alloc_size_root": "",
+        "alloc_depth_reachable": None,
+        "alloc_size_reachable": None,
+        "alloc_capped": False,
+        # The width bound, decided in the three cases the module comment sets
+        # out. `width_fired` counts values a full rendering really does stop
+        # rendering for lack of node budget -- measured on the renderer, not
+        # modelled.
+        "width_over_n": 0,
+        "width_fires_by_arithmetic": 0,
+        "width_sampled": 0,
+        "width_sample_complete": True,
+        "width_fired": 0,
+        "width_depth_stopped_first": 0,
+        # Measured separately from `seconds` because it happens AFTER the
+        # run: `seconds` would otherwise report 4.39 s for a program the
+        # census spends 2m36s on, and an instrument that hides its own cost
+        # is the shape this program keeps finding.
+        "width_seconds": 0.0,
+        # Cross-check: the champion's D and N recomputed by the ORDINARY
+        # walks (`depth_of` / `_payload_size`), which share no code with the
+        # constructor-time arithmetic. A disagreement means the incremental
+        # instrument is wrong, and it is reported rather than reconciled.
+        "alloc_depth_check": None,
+        "alloc_size_check": None,
+        "alloc_agrees": None,
+        "alloc_slow_views": 0,
+        "alloc_over_node_budget": False,
+        "seconds": 0.0,
     }
     try:
         src = open(path).read()
@@ -318,11 +356,18 @@ def census_program(path, roots="all", max_nodes=DEFAULT_MAX_NODES,
 
     env = None
     it = None
+    global _TRACKER
+    saved_classes = []
+    tracker = _AllocTracker() if alloc else None
+    started = time.time()
     try:
         sys.setrecursionlimit(max(old_limit, CLI_RECURSION_LIMIT))
         values_mod.full_show_named = hooked_full_show_named
         interp_mod.full_show_named = hooked_full_show_named
         Interpreter._note_drop = hooked_note_drop
+        if alloc:
+            _TRACKER = tracker
+            saved_classes = _install_counting(*_counting_classes())
         it = Interpreter(out=lambda _s: None, gc_relief=True)
         try:
             env = it.run(src)
@@ -336,10 +381,13 @@ def census_program(path, roots="all", max_nodes=DEFAULT_MAX_NODES,
             result["ok"] = False
             result["error"] = "%s: %s" % (type(e).__name__, e)
     finally:
+        _restore_counting(saved_classes)
+        _TRACKER = None
         values_mod.full_show_named = real_full_show_named
         interp_mod.full_show_named = real_full_show_named
         Interpreter._note_drop = real_note_drop
         sys.setrecursionlimit(old_limit)
+        result["seconds"] = round(time.time() - started, 2)
 
     env_roots = []
     if env is not None:
@@ -375,6 +423,55 @@ def census_program(path, roots="all", max_nodes=DEFAULT_MAX_NODES,
     if best_node is not None:
         result["deepest_spine"] = spine_of(best_node)
         result["deepest_root"] = best_node.label() or best_node.op or "?"
+
+    if tracker is not None:
+        result["alloc_depth"] = tracker.best_d
+        result["alloc_size"] = tracker.best_n
+        result["alloc_nodes"] = tracker.count
+        result["alloc_capped"] = tracker.capped
+        result["alloc_slow_views"] = tracker.slow_views
+        result["width_over_n"] = tracker.over_n
+        result["width_fires_by_arithmetic"] = tracker.over_n_decided
+        result["width_sampled"] = len(tracker.over_samples)
+        result["width_sample_complete"] = tracker.sample_full
+        fired = 0
+        depth_first = 0
+        w0 = time.time()
+        for cand in tracker.over_samples:
+            r = values_mod.full_show_named(cand)
+            if r.node_stopped:
+                fired += 1
+            elif r.depth_stopped:
+                depth_first += 1
+        result["width_seconds"] = round(time.time() - w0, 2)
+        result["width_fired"] = fired + tracker.over_n_decided
+        result["width_depth_stopped_first"] = depth_first
+        result["alloc_over_node_budget"] = result["width_fired"] > 0
+        # `nodes` is alive for the whole of this block, so its ids are valid
+        # keys -- the same rule `depth_of`'s `alive` list follows. The
+        # tracker holds its champions, so theirs are too.
+        walked = set(id(n) for n in nodes)
+        if tracker.best_d_node is not None:
+            result["alloc_spine"] = spine_of(tracker.best_d_node)
+            result["alloc_root"] = (tracker.best_d_node.label()
+                                    or tracker.best_d_node.op or "?")
+            result["alloc_depth_reachable"] = (
+                id(tracker.best_d_node) in walked)
+        if tracker.best_n_node is not None:
+            result["alloc_size_root"] = (tracker.best_n_node.label()
+                                         or tracker.best_n_node.op or "?")
+            result["alloc_size_reachable"] = (
+                id(tracker.best_n_node) in walked)
+        agrees = True
+        if tracker.best_d_node is not None:
+            chk = depth_of(tracker.best_d_node)
+            result["alloc_depth_check"] = chk
+            agrees = agrees and chk == tracker.best_d
+        if tracker.best_n_node is not None:
+            chk = _payload_size(tracker.best_n_node.value)
+            result["alloc_size_check"] = chk
+            agrees = agrees and chk == tracker.best_n
+        result["alloc_agrees"] = agrees
 
     # PRINTED: the payloads that reached `full_show`. Their nodes are not
     # available (full_show takes a payload), so depth is computed on a
@@ -415,19 +512,318 @@ def payload_depth(p):
     return _payload_depth(p)
 
 
+# ---------------------------------------------------------------------------
+# The ALLOCATION census (round 456). Sizes the class round 452's docstring
+# named and could not measure:
+#
+#     "a value that is neither bound, nor a discarded statement's value, nor
+#      printed, nor an input to any of those. ... nothing here measures the
+#      residual class"
+#
+# The root-set census answers "how deep is the deepest value the program's
+# provenance graph RETAINS". This one answers "how deep is the deepest value
+# the program ever BUILDS", by measuring at construction: `Prov` and
+# `MergedProv` are replaced for the duration of a run by subclasses that
+# compute D and N in the constructor and keep the champion. There is no root
+# set, so there is no residual — the population is every value that existed.
+#
+# Two quantities, because decision 53 shipped TWO constants and only one of
+# them ever had a population measured:
+#
+#     D  depth, exactly the metric at the top of this file, so the two
+#        censuses' numbers are directly comparable (`alloc_depth` vs
+#        `built_depth`) and their difference IS the residual.
+#     N  structural size: 1 for a leaf, 1 + sum(N of children) for a
+#        container -- the size of the value's TREE UNFOLDING, which is what
+#        `values._show` walks (it re-descends into shared sub-structure; its
+#        `seen` set is for misses, not for dedup). Round 452 measured N over
+#        PRINTED values only.
+#
+# `N > FULL_SHOW_NODES` is NOT the condition under which a rendering stops on
+# the width bound, and this comment said it was until the measurement refuted
+# it: `self_eval.lang` builds a value with N = 3.26e91 and `full_show` on it
+# reports `node_stopped=False`, because the DEPTH cap truncates the walk
+# after 25 levels and the truncated unfolding is under 20 000 nodes. The
+# renderer never walks N; it walks N restricted to `FULL_SHOW_NEST` levels.
+# So the census decides the width question in two exact cases and one
+# measured one:
+#
+#   N <= FULL_SHOW_NODES                  -> cannot fire (the truncation is
+#                                            a subset)
+#   N >  FULL_SHOW_NODES and D <= cap     -> fires (truncation is a no-op)
+#   N >  FULL_SHOW_NODES and D >  cap     -> undecided by arithmetic; the
+#                                            census RENDERS the node and
+#                                            reads `node_stopped` off the
+#                                            real renderer.
+#
+# The third case is sampled, bounded by ALLOC_BUDGET_SAMPLES, and the census
+# says whether the sample was complete.
+#
+# COST CONTROL, and why this is not O(n^2). A node's payload is usually a
+# payload some other node already carries (`Prov("call", ..., result, ...,
+# result.value)` re-wraps), and a `WList` is a length-bounded view over an
+# append-only shared buffer (`values.WList`), so a list grown by `push`
+# produces n views over ONE buffer. Recomputing `max` over the elements of
+# each view would be quadratic in the length of every list any program
+# builds. Instead:
+#
+#   * a container payload identical (by `is`) to an input node's payload
+#     copies that node's D and N in O(1);
+#   * `WList` uses per-BUFFER prefix aggregates, valid because the buffer is
+#     append-only, so view n costs O(1) amortised;
+#   * a buffer entry holds a reference to its buffer, because an `id` is
+#     only a valid key while its object lives (the same rule `depth_of`'s
+#     `alive` list follows).
+#
+# Both caps are reported when hit; neither is allowed to make an incomplete
+# answer look complete.
+
+ALLOC_BUF_CELLS = 4000000
+ALLOC_BUFS = 200000
+# Round 456: 400 was a placeholder; the corpus's only over-budget program
+# has 15 178 such values and an exhaustive answer beats a sampled one, so the
+# bound is set above that and the census reports when it was not enough.
+ALLOC_BUDGET_SAMPLES = int(os.environ.get("WHENCE_ALLOC_BUDGET_SAMPLES",
+                                          "20000"))
+
+
+class _AllocTracker(object):
+    """Depth and size of every value constructed during one program run."""
+
+    __slots__ = ("count", "best_d", "best_d_node", "best_n", "best_n_node",
+                 "bufs", "cells", "capped", "slow_views",
+                 "over_n", "over_n_decided", "over_samples", "sample_full")
+
+    def __init__(self):
+        self.count = 0
+        self.best_d = 0
+        self.best_d_node = None
+        self.best_n = 0
+        self.best_n_node = None
+        self.bufs = {}
+        self.cells = 0
+        self.capped = False
+        self.slow_views = 0
+        # Width-bound bookkeeping (see the module comment's three cases).
+        self.over_n = 0            # N > FULL_SHOW_NODES, any depth
+        self.over_n_decided = 0    # ... and D <= cap, so the budget FIRES
+        self.over_samples = []     # ... and D > cap, to be rendered
+        self.sample_full = True
+
+    # -- the two container shapes that need help ------------------------
+    def _wlist(self, p):
+        buf, n = p.buf, p.n
+        key = id(buf)
+        ent = self.bufs.get(key)
+        if ent is None:
+            if self.capped or self.cells >= ALLOC_BUF_CELLS or \
+                    len(self.bufs) >= ALLOC_BUFS:
+                self.capped = True
+                self.slow_views += 1
+                d, tot = 0, 0
+                i = 0
+                while i < n:
+                    k = buf[i]
+                    kd = getattr(k, "_d", 0)
+                    if kd > d:
+                        d = kd
+                    tot += getattr(k, "_n", 1)
+                    i += 1
+                return 1 + d, 1 + tot
+            ent = [buf, [0], [0]]
+            self.bufs[key] = ent
+        dpref, npref = ent[1], ent[2]
+        have = len(dpref) - 1
+        if have < n:
+            i = have
+            while i < n:
+                k = buf[i]
+                kd = getattr(k, "_d", 0)
+                prev = dpref[i]
+                dpref.append(prev if prev > kd else kd)
+                npref.append(npref[i] + getattr(k, "_n", 1))
+                i += 1
+            self.cells += (n - have)
+        return 1 + dpref[n], 1 + npref[n]
+
+    def measure(self, node):
+        self.count += 1
+        p = node.value
+        tp = type(p)
+        if tp is WList or tp is Record or tp is Guess:
+            # O(1) reuse: a re-wrapping node carries an input's exact payload.
+            ins = node._ins
+            if type(ins) is tuple:
+                for i in ins:
+                    if getattr(i, "value", None) is p:
+                        d = getattr(i, "_d", None)
+                        if d is not None:
+                            node._d = d
+                            node._n = i._n
+                            self._crown(node, d, i._n)
+                            return
+                        break
+            elif ins is not None and getattr(ins, "value", None) is p:
+                d = getattr(ins, "_d", None)
+                if d is not None:
+                    node._d = d
+                    node._n = ins._n
+                    self._crown(node, d, ins._n)
+                    return
+            if tp is WList:
+                d, n = self._wlist(p)
+            elif tp is Record:
+                d, n = 0, 0
+                for _, v in p.fields.items():
+                    vd = getattr(v, "_d", 0)
+                    if vd > d:
+                        d = vd
+                    n += getattr(v, "_n", 1)
+                d, n = d + 1, n + 1
+            else:
+                k = p.node
+                d = 1 + getattr(k, "_d", 0)
+                n = 1 + getattr(k, "_n", 1)
+        else:
+            d, n = 0, 1
+        node._d = d
+        node._n = n
+        self._crown(node, d, n)
+
+    def _crown(self, node, d, n):
+        if d > self.best_d:
+            self.best_d = d
+            self.best_d_node = node
+        if n > self.best_n:
+            self.best_n = n
+            self.best_n_node = node
+        if n > FULL_SHOW_NODES:
+            self.over_n += 1
+            if d <= FULL_SHOW_NEST:
+                self.over_n_decided += 1
+            elif len(self.over_samples) < ALLOC_BUDGET_SAMPLES:
+                self.over_samples.append(node)
+            else:
+                self.sample_full = False
+
+
+_TRACKER = None
+
+
+def _counting_classes():
+    """Build the two `Prov` subclasses fresh, so the module they patch is
+    whatever `values_mod` holds now (a test may itself have patched it)."""
+    base = values_mod.Prov
+    merged = values_mod.MergedProv
+    lazy = values_mod._LAZY
+
+    class _CountingProv(base):
+        # The constructor is INLINED rather than delegating to
+        # `base.__init__`: `values.Prov`'s own comment measures it at 187 ns
+        # and 2.77 M nodes for one meta.lang run, and a second host frame per
+        # node is the difference between an instrument and an outage.
+        __slots__ = ("_d", "_n")
+
+        def __init__(self, op, detail, line, ins=(), show=lazy, value=None):
+            self.op = op
+            self.detail = detail
+            self.line = line
+            self._ins = ins
+            self._show = show
+            self.value = value
+            _TRACKER.measure(self)
+
+    class _CountingMerged(merged):
+        __slots__ = ("_d", "_n")
+
+        def __init__(self, op, detail, line, ins=(), show=lazy, value=None,
+                     count=1):
+            self.op = op
+            self.detail = detail
+            self.line = line
+            self._ins = ins
+            self._show = show
+            self.value = value
+            self.count = count
+            _TRACKER.measure(self)
+
+    return _CountingProv, _CountingMerged
+
+
+def _install_counting(cp, cm):
+    """Point every module-level name the hot paths call through at the
+    counting subclasses. `values.leaf/derived/mk_miss/merge_miss` read the
+    module global, so patching `values_mod` covers them; `interp` imported
+    the names directly, so it needs its own. `Value` is deliberately NOT
+    patched: `timetravel` does `isinstance(v, Prov)` against the name it
+    imported, and rebinding an isinstance target to a subclass would make
+    every node built before the patch fail a test it used to pass."""
+    saved = []
+    for mod in (values_mod, interp_mod):
+        for name, cls in (("Prov", cp), ("MergedProv", cm)):
+            if hasattr(mod, name):
+                saved.append((mod, name, getattr(mod, name)))
+                setattr(mod, name, cls)
+    return saved
+
+
+def _restore_counting(saved):
+    for mod, name, cls in saved:
+        setattr(mod, name, cls)
+
+
+def alloc_payload_metrics(p):
+    """(D, N) for a bare payload, computed with the ordinary walk. Exists so
+    a test can check the constructor-time arithmetic against an independent
+    implementation rather than against itself."""
+    d = _payload_depth(p)
+    n = _payload_size(p)
+    return d, n
+
+
+def _payload_size(p):
+    """N(p): 1 for a leaf, 1 + sum(N of children) for a container.
+    Iterative, memoised by node identity, for the same reason `depth_of` is."""
+    memo, alive = {}, []
+    shim = _Shim(p)
+    stack = [(shim, False)]
+    while stack:
+        node, expanded = stack.pop()
+        nid = id(node)
+        if nid in memo:
+            continue
+        kids = struct_children(getattr(node, "value", None))
+        if kids is None:
+            memo[nid] = 1
+            alive.append(node)
+            continue
+        if not expanded:
+            stack.append((node, True))
+            for k in kids:
+                if id(k) not in memo:
+                    stack.append((k, False))
+            continue
+        tot = 1
+        for k in kids:
+            tot += memo.get(id(k), 1)
+        memo[nid] = tot
+        alive.append(node)
+    return memo[id(shim)]
+
+
 def corpus_paths(directory=EXAMPLES):
     return sorted(os.path.join(directory, f)
                   for f in os.listdir(directory) if f.endswith(".lang"))
 
 
 def census(paths=None, roots="all", max_nodes=DEFAULT_MAX_NODES,
-           max_roots=DEFAULT_MAX_ROOTS, progress=None):
+           max_roots=DEFAULT_MAX_ROOTS, progress=None, alloc=True):
     paths = corpus_paths() if paths is None else paths
     out = []
     for p in paths:
         if progress:
             progress(p)
-        out.append(census_program(p, roots, max_nodes, max_roots))
+        out.append(census_program(p, roots, max_nodes, max_roots, alloc))
     return out
 
 
@@ -452,23 +848,63 @@ def summarise(rows):
         "printed_values_over_cap": sum(r["printed_over_cap"] for r in ok),
         "printed_marker_lines": sum(r["printed_marker_lines"] for r in ok),
         "total_nodes": sum(r["built_nodes"] for r in ok),
+        "alloc_on": all(r["alloc_on"] for r in ok) if ok else False,
+        "max_alloc_depth": max([r["alloc_depth"] for r in ok] or [0]),
+        "max_alloc_size": max([r["alloc_size"] for r in ok] or [0]),
+        "full_nodes_budget": FULL_SHOW_NODES,
+        "programs_over_node_budget": [r["program"] for r in ok
+                                      if r["alloc_over_node_budget"]],
+        "values_over_node_budget": sum(r["width_over_n"] for r in ok),
+        "width_fired": sum(r["width_fired"] for r in ok),
+        "width_depth_stopped_first": sum(r["width_depth_stopped_first"]
+                                         for r in ok),
+        "width_sample_incomplete": [r["program"] for r in ok
+                                    if not r["width_sample_complete"]],
+        "total_alloc_nodes": sum(r["alloc_nodes"] for r in ok),
+        "programs_alloc_deeper": [r["program"] for r in ok
+                                  if r["alloc_depth"] > r["built_depth"]],
+        "max_alloc_gap": max([r["alloc_depth"] - r["built_depth"]
+                              for r in ok] or [0]),
+        "alloc_invariant_violations": [r["program"] for r in ok
+                                       if r["alloc_depth"] < r["built_depth"]],
+        "deepest_alloc_program": max(
+            ok, key=lambda r: r["alloc_depth"])["program"] if ok else "",
+        "alloc_champions_unreachable": [
+            r["program"] for r in ok if r["alloc_depth_reachable"] is False],
+        "alloc_capped_programs": [r["program"] for r in ok
+                                  if r["alloc_capped"]],
+        "alloc_disagreements": [r["program"] for r in ok
+                                if r["alloc_agrees"] is False],
+        "seconds": round(sum(r["seconds"] for r in rows), 2),
+        "width_seconds": round(sum(r["width_seconds"] for r in rows), 2),
         "truncated_walks": [r["program"] for r in ok if r["built_truncated"]],
         "deepest_program": max(ok, key=lambda r: r["built_depth"])["program"]
         if ok else "",
     }
 
 
+def _short(n):
+    """A 92-digit integer in a table column is noise, not a measurement."""
+    return "%d" % n if n < 10 ** 9 else "%.4g (%d digits)" % (float(n),
+                                                              len(str(n)))
+
+
 def render(rows, summary):
     w = max([len(r["program"]) for r in rows] or [7])
-    lines = ["%-*s  %5s %5s %8s %6s  %s"
-             % (w, "program", "built", "print", "nodes", "prints", "spine")]
+    lines = ["%-*s  %5s %5s %5s %8s %8s %16s %6s  %s"
+             % (w, "program", "built", "alloc", "print", "walked", "made",
+                "maxsize", "prints", "spine")]
     for r in sorted(rows, key=lambda r: (-r["built_depth"], r["program"])):
         if not r["ok"]:
             lines.append("%-*s  %s" % (w, r["program"], "FAILED: " + r["error"]))
             continue
-        lines.append("%-*s  %5d %5d %8d %6d  %s%s"
-                     % (w, r["program"], r["built_depth"], r["printed_depth"],
-                        r["built_nodes"], r["printed_values"],
+        lines.append("%-*s  %5d %5s %5d %8d %8s %16s %6d  %s%s"
+                     % (w, r["program"], r["built_depth"],
+                        r["alloc_depth"] if r["alloc_on"] else "-",
+                        r["printed_depth"], r["built_nodes"],
+                        r["alloc_nodes"] if r["alloc_on"] else "-",
+                        _short(r["alloc_size"]) if r["alloc_on"] else "-",
+                        r["printed_values"],
                         ">".join(r["deepest_spine"]),
                         "  [BUDGET]" if r["built_truncated"] else ""))
     lines.append("")
@@ -491,6 +927,44 @@ def render(rows, summary):
                     summary["programs_printing"]))
     lines.append("nodes walked: %d; walks stopped at budget: %s"
                  % (summary["total_nodes"], summary["truncated_walks"] or "none"))
+    if summary.get("alloc_on"):
+        lines.append("")
+        lines.append("ALLOCATION census (no root set; every value built)")
+        lines.append("max ALLOC depth %d (%s); root-walk missed it in: %s"
+                     % (summary["max_alloc_depth"],
+                        summary["deepest_alloc_program"],
+                        summary["alloc_champions_unreachable"] or "no program"))
+        lines.append("programs whose deepest BUILT value the root set does "
+                     "not reach: %d %s (max gap %d)"
+                     % (len(summary["programs_alloc_deeper"]),
+                        summary["programs_alloc_deeper"],
+                        summary["max_alloc_gap"]))
+        lines.append("nodes constructed: %d vs %d walked (%.2fx); "
+                     "invariant violations: %s"
+                     % (summary["total_alloc_nodes"], summary["total_nodes"],
+                        (summary["total_alloc_nodes"] /
+                         float(summary["total_nodes"] or 1)),
+                        summary["alloc_invariant_violations"] or "none"))
+        lines.append("max value SIZE (tree unfolding) %s against "
+                     "FULL_SHOW_NODES=%d"
+                     % (_short(summary["max_alloc_size"]),
+                        summary["full_nodes_budget"]))
+        lines.append("values whose size exceeds the budget: %d; renderings "
+                     "the WIDTH bound actually stopped: %d (depth cap "
+                     "truncated first in %d sampled); sample incomplete in: %s"
+                     % (summary["values_over_node_budget"],
+                        summary["width_fired"],
+                        summary["width_depth_stopped_first"],
+                        summary["width_sample_incomplete"] or "no program"))
+        lines.append("alloc walks that hit a cap: %s"
+                     % (summary["alloc_capped_programs"] or "none"))
+        lines.append("constructor arithmetic vs independent re-walk: %s"
+                     % ("AGREES on every champion"
+                        if not summary["alloc_disagreements"]
+                        else "DISAGREES: %s" % summary["alloc_disagreements"]))
+    lines.append("wall time in-run: %.2f s; in the width check after each "
+                 "run: %.2f s" % (summary.get("seconds", 0.0),
+                                  summary.get("width_seconds", 0.0)))
     return "\n".join(lines)
 
 
@@ -498,6 +972,7 @@ def main(argv):
     args = argv[1:]
     out_json = None
     roots = "all"
+    alloc = True
     paths = None
     max_nodes = DEFAULT_MAX_NODES
     i = 0
@@ -509,6 +984,9 @@ def main(argv):
         elif a == "--roots":
             roots = args[i + 1]
             i += 2
+        elif a == "--no-alloc":
+            alloc = False
+            i += 1
         elif a == "--max-nodes":
             max_nodes = int(args[i + 1])
             i += 2
@@ -519,17 +997,20 @@ def main(argv):
             i += 2
         else:
             sys.stderr.write("usage: depthcensus.py [--roots all|env] "
-                             "[--program NAME] [--max-nodes N] [--json OUT]\n")
+                             "[--no-alloc] [--program NAME] [--max-nodes N] "
+                             "[--json OUT]\n")
             return 2
         continue
     rows = census(paths, roots, max_nodes,
                   progress=lambda p: sys.stderr.write(
-                      "  %s\n" % os.path.basename(p)))
+                      "  %s\n" % os.path.basename(p)),
+                  alloc=alloc)
     summary = summarise(rows)
     print(render(rows, summary))
     if out_json:
         with open(out_json, "w") as fh:
-            json.dump({"roots": roots, "summary": summary, "programs": rows},
+            json.dump({"roots": roots, "alloc": alloc,
+                       "summary": summary, "programs": rows},
                       fh, indent=1, sort_keys=True)
             fh.write("\n")
     return 0

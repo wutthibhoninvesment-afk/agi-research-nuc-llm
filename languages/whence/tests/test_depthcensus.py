@@ -204,7 +204,7 @@ def test_the_corpus_maximum_is_fourteen_and_it_is_self_host_lang():
     example, `meta.lang` alone walks 2.5 M nodes) and kept rather than
     trimmed, because a constant justified by a corpus reading nothing
     re-takes is a constant justified by a comment."""
-    rows = DC.census()
+    rows = DC.census(alloc=False)
     s = DC.summarise(rows)
     assert s["programs"] == 33
     assert s["max_built_depth"] == 14
@@ -236,3 +236,265 @@ def teardown_module(module):
             os.unlink(p)
         except OSError:
             pass
+
+
+# --------------------------------------------------------------------------
+# the ALLOCATION census (round 456)
+#
+# The root-set census answers "how deep is the deepest value the program
+# RETAINS". Round 452's own docstring named the class it could not reach and
+# could not size. This half measures at CONSTRUCTION, so there is no root set
+# and therefore no residual, and everything below is about the two ways that
+# can go wrong: arithmetic that disagrees with the ordinary walk, and a
+# patched interpreter that does not get put back.
+# --------------------------------------------------------------------------
+
+def test_payload_size_counts_the_tree_unfolding_not_the_dag():
+    """N is what the RENDERER walks. `values._show` re-descends into shared
+    sub-structure -- its `seen` set is for misses, not for dedup -- so a
+    payload used twice is rendered twice and must be counted twice. Pinning
+    this is the difference between N and "number of distinct nodes"."""
+    shared = node(wlist([node(1), node(2)]))            # N = 3
+    twice = wlist([shared, shared])
+    assert DC._payload_size(shared.value) == 3
+    assert DC._payload_size(twice) == 1 + 3 + 3
+    assert DC.payload_depth(twice) == 2
+
+
+def test_payload_size_of_a_leaf_and_an_empty_container():
+    assert DC._payload_size(7) == 1
+    assert DC._payload_size(wlist([])) == 1
+    assert DC._payload_size(Record({})) == 1
+
+
+def test_alloc_payload_metrics_pairs_the_two_walks():
+    p = wlist([node(Record({"a": node(wlist([node(1)]))}))])
+    assert DC.alloc_payload_metrics(p) == (DC.payload_depth(p),
+                                           DC._payload_size(p))
+
+
+def _alloc(src):
+    return DC.census_program(_tmp_program(src))
+
+
+def test_the_constructor_arithmetic_agrees_with_an_independent_rewalk():
+    """The census reports `alloc_agrees` by recomputing its champions with
+    `depth_of` and `_payload_size`, which share no code with the
+    constructor-time incremental arithmetic. Two implementations, not one
+    asserting about itself."""
+    r = _alloc("let xs = [[1, 2], [[3]], [[[4]]]]\nprint(len(xs))\n")
+    assert r["ok"], r["error"]
+    assert r["alloc_agrees"] is True
+    assert r["alloc_depth"] == r["alloc_depth_check"]
+    assert r["alloc_size"] == r["alloc_size_check"]
+
+
+def test_the_allocation_population_is_a_superset_of_the_reachable_one():
+    r = _alloc("let xs = [[[1]]]\nprint(xs)\n")
+    assert r["alloc_depth"] >= r["built_depth"]
+    assert r["alloc_nodes"] >= r["built_nodes"]
+
+
+def test_a_value_no_root_reaches_is_invisible_to_the_root_walk_and_seen_here():
+    """The residual class round 452 named, made concrete. `deep` binds a
+    local, uses it only to produce an int, and returns the int: the deep list
+    is not a top-level binding, not a discarded statement value, not printed,
+    and not an input to anything that survives -- so the root walk cannot
+    reach it and the allocation census can."""
+    src = ("fn deep() {\n"
+           "  let a = [[[[[[[1]]]]]]]\n"
+           "  0\n"
+           "}\n"
+           "let n = deep()\n"
+           "print(n)\n")
+    r = _alloc(src)
+    assert r["ok"], r["error"]
+    assert r["alloc_depth"] == 7
+    assert r["built_depth"] == 0                  # the root walk sees nothing
+    assert r["alloc_depth_reachable"] is False
+
+
+def test_a_returned_value_is_reached_by_both_censuses():
+    """The control for the test above: change one line so the deep value is
+    RETURNED, and the root set finds it. Without this the previous test only
+    shows that the root walk is bad at something, not that it is bad at the
+    specific thing."""
+    src = ("fn deep() {\n"
+           "  let a = [[[[[[[1]]]]]]]\n"
+           "  a\n"
+           "}\n"
+           "let n = deep()\n"
+           "print(len(n))\n")
+    r = _alloc(src)
+    assert r["ok"], r["error"]
+    assert r["built_depth"] == r["alloc_depth"] == 7
+    assert r["alloc_depth_reachable"] is True
+    # `len(a)` would ALSO make it reachable -- an intermediate sub-expression
+    # is an input, and round 452's docstring says so. The residual is values
+    # nothing consumes, not values nothing binds.
+
+
+def test_a_list_grown_by_push_is_measured_through_the_shared_buffer():
+    """`values.WList` is a length-bounded view over an append-only buffer, so
+    a fold that pushes n times makes n views over ONE buffer. The census
+    keeps per-buffer prefix aggregates for that case; this checks the answer,
+    not the mechanism."""
+    src = ("let xs = fold(fn(acc, i) { push(acc, [[i]]) }, [], range(40))\n"
+           "print(len(xs))\n")
+    r = _alloc(src)
+    assert r["ok"], r["error"]
+    assert r["alloc_agrees"] is True
+    assert r["alloc_depth"] == 3                      # list > list > list > int
+    assert r["alloc_size"] == 1 + 40 * 3              # the tip view
+
+
+def test_the_interpreter_is_put_back_after_a_census_run():
+    before = (V.Prov, V.MergedProv, V.Value)
+    _alloc("let x = 1\nprint(x)\n")
+    assert (V.Prov, V.MergedProv, V.Value) == before
+
+
+def test_the_interpreter_is_put_back_even_when_the_program_fails():
+    before = (V.Prov, V.MergedProv)
+    r = _alloc("let x = (((\n")
+    assert not r["ok"]
+    assert (V.Prov, V.MergedProv) == before
+
+
+def test_value_is_deliberately_not_repointed():
+    """`timetravel` does `isinstance(v, Prov)` against the name it imported.
+    Rebinding an isinstance TARGET to a subclass would make every node built
+    before the patch fail a test it used to pass, so `_install_counting`
+    patches the two constructor names and nothing else. Pinned because the
+    obvious "patch every alias" edit is silently wrong."""
+    cp, cm = DC._counting_classes()
+    saved = DC._install_counting(cp, cm)
+    try:
+        assert V.Prov is cp and V.MergedProv is cm
+        assert V.Value is not cp
+        plain = Prov("lit", "", 1, (), value=1)
+        assert isinstance(plain, V.Value)
+    finally:
+        DC._restore_counting(saved)
+    assert V.Prov is not cp
+
+
+def test_no_alloc_turns_the_second_census_off_and_says_so():
+    path = _tmp_program("let xs = [[1]]\nprint(xs)\n")
+    r = DC.census_program(path, alloc=False)
+    assert r["alloc_on"] is False
+    assert r["alloc_depth"] == 0 and r["alloc_nodes"] == 0
+    assert r["alloc_agrees"] is None
+
+
+# --------------------------------------------------------------------------
+# the WIDTH bound, and the claim the measurement refuted
+# --------------------------------------------------------------------------
+
+def test_a_value_bigger_than_the_node_budget_need_not_stop_on_it():
+    """ROUND 456'S CORRECTION, held open as a test. The census comment used
+    to say `N > FULL_SHOW_NODES` was "exactly the condition" under which a
+    full rendering stops on the width bound. It is not: the DEPTH cap
+    truncates the walk first, and a value can be arbitrarily large in N and
+    still render with `node_stopped` False. Built here by hand so the claim
+    does not depend on any corpus program surviving."""
+    # Narrow and deep, with the bulk BELOW the cap: the shape `self_eval.lang`
+    # actually builds. A wide-AND-deep value does stop on the budget, which is
+    # why the census renders rather than reasons.
+    n = node(wlist([node(i) for i in range(V.FULL_SHOW_NODES + 5)]))
+    for _ in range(V.FULL_SHOW_NEST + 10):
+        n = node(wlist([n]))                   # branching factor ONE
+    assert DC._payload_size(n.value) > V.FULL_SHOW_NODES
+    assert DC.depth_of(n) > V.FULL_SHOW_NEST
+    r = V.full_show_named(n)
+    assert r.depth_stopped is True
+    assert r.node_stopped is False
+
+
+def test_a_wide_shallow_value_does_stop_on_the_node_budget():
+    """The other side: within the depth cap, N decides. Together the two
+    tests are why the census renders the undecided case instead of asserting
+    about it."""
+    wide = wlist([node(i) for i in range(V.FULL_SHOW_NODES + 10)])
+    n = node(wide)
+    assert DC._payload_size(wide) > V.FULL_SHOW_NODES
+    r = V.full_show_named(n)
+    assert r.node_stopped is True
+
+
+def test_a_program_that_builds_nothing_large_reports_no_width_candidates():
+    src = "let xs = " + "[" * 30 + "1" + "]" * 30 + "\nprint(len(xs))\n"
+    r = _alloc(src)
+    assert r["ok"], r["error"]
+    assert r["alloc_depth"] == 30
+    assert r["width_over_n"] == 0
+    assert r["width_fired"] == 0
+    assert r["width_sample_complete"] is True
+
+
+def test_the_width_check_reports_its_own_cost_separately():
+    """`seconds` is measured around the RUN and the width check happens
+    after it. Reported apart so a program the census spends minutes on cannot
+    report four seconds."""
+    r = _alloc("let x = 1\nprint(x)\n")
+    assert "width_seconds" in r and r["width_seconds"] >= 0.0
+    assert r["seconds"] >= 0.0
+
+
+def test_the_census_says_when_its_width_sample_was_not_exhaustive(monkeypatch):
+    """Silence about a truncated sample is the failure mode this whole field
+    exists to prevent (v0.42's rule for `dropped_scan_truncated`). Forced by
+    lowering the bound to one, on a program that has more than one candidate."""
+    monkeypatch.setattr(DC, "ALLOC_BUDGET_SAMPLES", 1)
+    src = ("let wide = range(%d)\n"
+           "let deep = fold(fn(a, i) { [a] }, wide, range(40))\n"
+           "print(len(deep))\n" % (V.FULL_SHOW_NODES + 5))
+    r = _alloc(src)
+    assert r["ok"], r["error"]
+    assert r["width_over_n"] > 1
+    assert r["width_sampled"] == 1
+    assert r["width_sample_complete"] is False
+    # and the arithmetic half is decided without rendering anything
+    assert r["width_fires_by_arithmetic"] > 0
+
+
+@pytest.mark.whence_slow
+def test_a_prefix_of_construction_order_is_not_a_sample():
+    """ROUND 456'S METHOD FINDING, held open. `self_eval.lang` builds 15 178
+    values larger than the node budget and 2 813 of them (18.5%) really do
+    stop the renderer on it. The census's first bound was 400 -- and the
+    first 400 in CONSTRUCTION order contain zero of them, because early
+    over-budget values are the narrow-and-deep links of the reify chain and
+    the wide ones come later. A uniform 400-sample would have found ~74.
+    Whoever lowers ALLOC_BUDGET_SAMPLES for speed is choosing this."""
+    path = os.path.join(DC.EXAMPLES, "self_eval.lang")
+    import unittest.mock as mock
+    with mock.patch.object(DC, "ALLOC_BUDGET_SAMPLES", 400):
+        prefix = DC.census_program(path)
+    assert prefix["width_over_n"] == 15178
+    assert prefix["width_sampled"] == 400
+    assert prefix["width_sample_complete"] is False
+    assert prefix["width_fired"] == 0
+    full = DC.census_program(path)
+    assert full["width_sample_complete"] is True
+    assert full["width_fired"] == 2813
+
+
+@pytest.mark.whence_slow
+def test_the_corpus_allocation_maximum_is_not_the_root_walks_number():
+    """THE NUMBER ROUND 456 CORRECTS. Round 452 measured 14 and v0.44's cap
+    was set against it. Over every value the corpus BUILDS the maximum is
+    1201, in `self_eval.lang`, and the root walk cannot see it. Slow (the
+    width check renders every over-budget value); kept for the same reason
+    round 452 kept its own corpus reading."""
+    rows = DC.census()
+    s = DC.summarise(rows)
+    assert s["max_built_depth"] == 14
+    assert s["max_alloc_depth"] == 1201
+    assert s["deepest_alloc_program"] == "self_eval.lang"
+    assert s["alloc_invariant_violations"] == []
+    assert s["alloc_disagreements"] == []
+    assert "self_eval.lang" in s["alloc_champions_unreachable"]
+    assert s["max_alloc_depth"] > s["full_levels"]
+    assert s["width_fired"] > 0
+    assert s["width_sample_incomplete"] == []

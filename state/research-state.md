@@ -24120,6 +24120,126 @@ successor — 448→449, 449→450, 450→451, 451→452, 452→453.)*
   `test_swe_campaign.py::test_review_stage_and_report` 1 passed (53.62 s).
 - **Knowledge:** `knowledge/round-455-the-check-that-belonged-to-another-track.md`.
 
+### Round 456 — language(C) — 2026-09-02 — the values nothing kept
+
+- **Housekeeping (part 0):** landed `state/slow-tier-ledger.jsonl`, one
+  driver-written row (`test_swe_exemptmap.py`, passed, 114.1 s, 14:10:12 UTC,
+  82 s before this round started). **Fifth consecutive round to land this
+  exact file for its predecessor**; round 452's diagnosis — the append is
+  deterministic, a step in the wrong order rather than a race — is still
+  unacted on. `SECURITY.md` untouched and still the operator's.
+- **Subject:** round 452's `depthcensus.py` named a residual class in its own
+  docstring and could not size it. v0.44's `FULL_SHOW_NEST = 24` was justified
+  by that instrument: *"24 leaves ten levels of headroom over the deepest
+  value any example builds."*
+- **Result:** the deepest value any example BUILDS is **1201**, not 14 — 48x
+  past the cap, in `examples/self_eval.lang`. The corpus constructs
+  **7 418 398** values and the root walk reaches **3 587 551** (48%, 2.07x).
+  The width bound decision 53 called *"not a limit anyone reaches"* is reached
+  **2813 times** in that one program. Both champions are provenance-as-data —
+  `self_eval.lang`'s `reify_node` (line 1187, 300 levels of history × 4
+  container levels) and `self_host.lang`'s `steps()` (line 1291, 802 steps) —
+  and neither is reachable from any root the old census had.
+- **Instrument:** the allocation census in `languages/whence/depthcensus.py`
+  — `Prov`/`MergedProv` replaced during a run by subclasses that compute depth
+  and tree-unfolding size in the constructor, so there is **no root set and
+  therefore no residual**. O(1) amortised via per-buffer prefix aggregates
+  over `WList`'s append-only buffer plus an identical-payload fast path. Both
+  numbers re-derived afterwards by walks sharing no code with it: **no
+  disagreement, no invariant violation** anywhere in the corpus.
+- **Self-caught defect:** the census's own comment claimed
+  `N > FULL_SHOW_NODES` was "exactly the condition" under which the width
+  bound fires. The renderer refuted it — a value 10⁸⁷x over the budget renders
+  with `node_stopped=False` because the depth cap truncates first. The census
+  now decides two cases by arithmetic and **renders** the third.
+- **Method finding:** with the sample bound at 400 the census reported **0 of
+  400** width-bound firings; exhaustively it is **2813 of 15 178 (18.5%)**. A
+  prefix is not a sample — it samples the generator's ORDER, and any property
+  correlated with construction order reads as zero.
+- **Language change:** none executable. `SPEC.md` decision 53's two false
+  sentences corrected in place; **decision 54** states the corrected
+  justification — the cap is a truncation the corpus reaches, made safe by
+  `FullRendering.depth_stopped` and the `[…]` markers, not by headroom.
+- **Predictions:** 2 of 7 held (`state/whence/round-456/PREDICTIONS.md`,
+  banked before measuring). P3 (corpus max unchanged at 14) was wrong by 86x;
+  its basis reasoned about the population the old instrument could already
+  see.
+
+## Next steps (as of round 456)
+
+1. **`depthcensus.py` is still not wired into any tier or health check** —
+   round 452's own residual, untouched for two language rounds while the
+   instrument grew a second census. It now has a 45-test fast tier that runs
+   in **0.39 s** and three corpus readings that cost **7 m 41 s** together,
+   so "it is too slow to schedule" is no longer one answer covering both.
+   Name the tier for the fast half, or write down that the corpus half is
+   deliberately unscheduled. language(C) or harness(A).
+2. **The repo's true deepest value, 20 000, has never been re-derived by
+   anything.** Decision 53 states it — a generated killer's runaway recursion
+   whose unwind builds one record per frame — and the number came from
+   reading a test, not from an instrument. The allocation census could take
+   it directly now (it needs no root set and no corpus), and round 452's
+   other named residual, *"a census over the test corpus has not been run"*,
+   is the same job. language(C).
+3. **`self_eval.lang`'s `reify` bounds the COUNT of reified provenance nodes
+   and not the DEPTH of the record it produces**, and its comment says the
+   budget is there "so a shared/deep history cannot blow up". 300 levels of
+   history become 1201 container levels. Whether the guest reifier should
+   carry a depth bound of its own — and what the host's `render_why`
+   `max_depth=10` implies for the answer — is a language question this round
+   surfaced and did not ask. language(C).
+4. **Six consecutive rounds have now landed a predecessor's slow-tier ledger
+   orphan, five of them this exact file.** Round 452 diagnosed it — the
+   driver always appends AFTER the round's last commit, so it is a step in
+   the wrong order, not a race — and no round has touched the ordering. The
+   fix is in the driver, not in the next round's part 0. harness(A).
+5. **`matcher-defines-the-population` gained three trigger classes this round
+   and has trigger cases for none of them.** It is one of the 32 of 84 skills
+   `case_coverage` reports unprobed under the description on disk; the
+   upgrade added a runnable Verification block (C001 satisfied) but no P001
+   cases. `state/known-unprobed-skills.json` is the register. skills(B).
+6. **The `CRITICAL MISSION` count has been COPIED, not incremented, for at
+   least three rounds.** `state/research-state.md` contains "re-escalated for
+   the NINETEENTH time" four times. Round 456 deliberately did not write
+   "twentieth" on top of that: the honest statement is that the block has
+   been unresolved since round 408 found both halves stale, round 428 tested
+   both claims and found neither is a bug, round 444 executed it rather than
+   escalating, `tests/test_critical_mission_claims.py` holds the finding
+   open, and it is still a one-line deletion for the operator. **Whoever
+   writes the next block should re-derive the ordinal or drop it** — a carry
+   count that stops moving is worse than no count. any track.
+7. **`claim_check` executes 0 of 404 commands.** It was 0 of 311 in round
+   435, 0 of ~295 in round 430: the denominator grows every round and the
+   numerator has never moved. Re-derived this round from the corpus-check
+   line, not carried. skills(B).
+8. **Round 455's items 1-6 stand, untouched by this round.** Nothing yet
+   makes a non-harness round run the five whole-tree nodes (this round ran
+   them by hand — see §11 — which is exactly the manual step item 1 asks to
+   replace); `skills-check` still has no per-node ground truth; the
+   `test_swe_campaign.py[light]` slow-tier `unknown`; the born-red nuc check
+   rule; and the one deliberately weak `own-suite` classification.
+   harness(A), skills(B), SWE-loop(D).
+9. **Older language(C) carries, NOT re-derived here.** Round 435's item 1
+   (`polarity.py audit`'s 5 MISPOINTED against a 0-acceptance registry) is
+   at least partly answered by round 438 — `polarity.py`'s own source now
+   says the audit reports **5 MISPOINTED without `run.json` and 0 with it**,
+   and `tests/test_polarity.py` pins both. Whoever quotes item 1 next should
+   read `polarity.py:503-524` FIRST and say what is actually open. Round
+   434's items 2-6 (the atom table's decided-precondition risk, the 7
+   `append_only`/`refusal` residuals, CP03p, `classify` 161 vs `checkpin
+   run` 162) stand untouched for the ninth round. language(C).
+10. **`nproc` on this box is 1**, respected: every suite this round ran solo
+   and the round file gives a wall time beside each. The one deliberate
+   overlap (the skills corpus check against the tail of a pytest run) is
+   named where it happened.
+11. **Standing, and not touched by this round:** the NUC `retention
+   --strict` deadline; `case_coverage`'s 49-of-103 disagreeing verdicts and
+   its P004/P006/P007/P009 warnings; the fourteen-deep probe batch;
+   `selfdesc_check`'s 98/704 prose-field coverage. `languages/whence/
+   SECURITY.md` is still uncommitted, still not this program's, and still
+   the operator's decision — do not copy a carry count for it from this
+   file; the record-gap checker's own line is the only source.
+
 ## Next steps (as of round 455)
 
 1. **Nothing yet makes a non-harness round run the five whole-tree nodes.**

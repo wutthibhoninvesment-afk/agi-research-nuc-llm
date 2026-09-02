@@ -1002,6 +1002,22 @@
    "where": "knowledge/round-454-the-observation-that-bought-ignorance.md",
    "quote": "**6 HIT, 1 PARTIAL, 2 MISS of 9.**",
    "note": "Section 8, one table row per banked line. The two MISSES (P6a, P6b) share ONE cause and the round scores them as one finding rather than two independent errors: the bank predicted how many of seven rounds had a knowledge file (predicted 5, actual 1) and how many yielded a recoverable up/down verdict (predicted 4, actual 6), and both were wrong because the bank was reasoning about the wrong evidence source -- it never considered logs/round-N.json, which is where all seven observations actually survived. P4 is PARTIAL and explicitly refuses to claim a hit for a mechanism that did appear one stage later, in a change the round had not yet decided to make when it banked. P5's time band (90-110 s) is recorded as a near-miss at 88.49 s rather than rounded into the band."
+  },
+  "455": {
+   "bank": "state/swe/round-455/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 455,
+   "where": "knowledge/round-455-the-check-that-belonged-to-another-track.md",
+   "quote": "**7 hits, 3 misses, 1 unresolvable-as-posed.**",
+   "note": "Section 6, one table row per banked line. Entered by round 456, which found the bank unregistered (carryforward K001) while running the corpus check for its own entry; round 455 scored its predictions in its knowledge file and did not add the ledger row. Quote and count are transcribed from that file's own scoring table, not re-derived -- round 456 did not re-run round 455's measurements. Its own words for the useful miss: P5a predicted a 20% red rate against a measured 8.5%, 'rarity is why nobody has fixed the visibility problem'."
+  },
+  "456": {
+   "bank": "state/whence/round-456/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 456,
+   "where": "knowledge/round-456-the-values-nothing-kept.md",
+   "quote": "**Two of seven held.**",
+   "note": "Section 9, one table row per banked line, plus the three NO-BASIS areas the bank declared instead of guessing (which program shows the largest gap; whether the residual is dominated by dead locals; whether tests/ builds anything deeper) -- all three kept, and the first two turned out to matter: the corpus champions came from a mechanism the bank deliberately refused to claim. The instructive miss is P3 (corpus max unchanged at 14): its stated basis reasoned about the population the OLD instrument could already see, which is not a prediction about the population it could not."
   }
  }
 }

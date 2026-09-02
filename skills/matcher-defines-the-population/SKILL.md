@@ -1,6 +1,6 @@
 ---
 name: matcher-defines-the-population
-description: Use when a rate, base rate, attribution, coverage figure or "nothing else was running" claim rests on a population of events extracted by a pattern — a regex over logs, a grep of a journal, a JSON filter, a query with a WHERE clause, an event-type allowlist. Symptoms - a denominator built by one matcher and never audited against the source's own vocabulary; a parser docstring justifying why a second verb, PID, tag, level or section is excluded; a large fraction of observations with "no matching event" treated as unexplained rather than as evidence the matcher is narrow; a file or table cited by its NAME for six months with nobody reading what it contains; counts taken across a source that concatenates two views of the same records. Covers enumerating every verb/actor/section the source actually emits, proving the excluded classes are empty rather than assuming it, and detecting a section that is a duplicate view of another.
+description: Use when a rate, base rate, attribution, coverage figure, bound or "nothing else was running" claim rests on a population something else chose. Three choosers: a PATTERN (regex over logs, grep, JSON filter, WHERE clause, event-type allowlist); a REACHABILITY walk (root set, GC-style trace, "everything the graph retains") standing in for everything that existed; or a PREFIX ("the first K", head, LIMIT, stop-after-K-matches), which samples generation order, not the population. Symptoms - a denominator never audited against the source's own vocabulary; a docstring justifying why a verb, PID, tag or section is excluded, or naming a residual class nothing sizes; a cap or budget justified by "nothing reaches it"; a large "no matching event" fraction reported as a property of the system; a file cited by NAME nobody has opened; a source concatenating two views of the same records. Covers enumerating the vocabulary, proving excluded classes empty, and removing a residual by instrumenting the source.
 ---
 
 # The population you counted is whatever your matcher admitted
@@ -20,7 +20,11 @@ produced, and the pattern is not itself under audit:
 * a source file or table cited by NAME across many reports that nobody has
   opened;
 * counts that jump by roughly a factor of two at one instant, or an archive
-  that concatenates a filtered view of its own earlier text.
+  that concatenates a filtered view of its own earlier text;
+* a population defined by REACHABILITY — a root set, a GC-style walk, "every
+  node the graph retains" — standing in for "everything that existed";
+* a bound, threshold, cap or budget justified by "nothing reaches it";
+* a scan bounded by "the first K" whose result is then quoted as a rate.
 
 
 An attribution, a base rate, a coverage percentage and a "nothing else could
@@ -69,6 +73,53 @@ a fact about the *regex*.
 And the same round's `supported: []` — the verdict that no unit's cost could
 ever be established — became `supported: ["engine:chat-completion"]` at
 `p_family 4.5e-32` the moment the excluded class was admitted.
+
+## The second instance: the matcher was a ROOT SET
+
+Round 456 of this program, on the Whence language. `depthcensus.py` measures
+how deep the values a program builds are, by walking provenance and structure
+edges from a root set: the top-level environment, every discarded statement
+value, everything printed. No regex anywhere. The docstring even names the
+excluded class in so many words — *"a value that is neither bound, nor a
+discarded statement's value, nor printed, nor an input to any of those …
+nothing here measures the residual class"* — and the language's rendering cap
+was set against the resulting number with the sentence *"24 leaves ten levels
+of headroom over the deepest value any example builds."*
+
+Measured directly, by counting at CONSTRUCTION instead of walking from roots:
+
+| | root walk | every value built |
+|---|---|---|
+| max depth | 14 | **1201** |
+| nodes | 3 587 551 | **7 418 398** |
+
+The deepest values in the corpus were built, consumed and dropped, so no root
+could reach them. **A reachability choice is a matcher.** "What the program
+retains" is a population; "what the program builds" is a different one; the
+cap's justification was a sentence about the second, resting on a measurement
+of the first.
+
+The move that settled it is step 3 done properly: the residual was not
+argued about, it was **removed** — hook the constructor and there is no root
+set, so there is no excluded class to enumerate. When a population is defined
+by traversal, ask whether the thing being traversed can be instrumented at its
+source instead.
+
+## The third: a prefix is not a sample
+
+The same round bounded an expensive per-value check at "the first 400
+candidates" and reported **0 of 400**. Exhaustively, the answer is **2813 of
+15 178 — 18.5 %**. A uniform 400-sample from an 18.5 % population returns zero
+with probability about 1e-35, which is how the bias was caught: the 400 were
+the first 400 *in construction order*, and the property correlated with that
+order (the early candidates were narrow-and-deep, the late ones wide).
+
+**A `head -K`, a `[:K]`, a `LIMIT K` and a "stop after K matches" all sample
+the generator's ORDER.** They are sound only for a property independent of it,
+and generation order is rarely independent of anything. If you cannot afford
+the whole population, sample it *uniformly* — and either way, print how many
+you skipped. Reporting `0` beside a silent `sampled 400 of 15178` is the
+shape this whole skill is about.
 
 ## Steps
 
@@ -173,6 +224,19 @@ ever be established — became `supported: ["engine:chat-completion"]` at
   in both the system and user journals — 10 lines for 3 kills. Find the line
   shape that identifies the *event* (here `Failed with result 'oom-kill'`,
   which only the unit that died emits) and collapse the rest into it.
+* **Reading "the population" off a traversal.** A root-set walk, a GC trace,
+  a "reachable from the entry points" closure and a dependency graph all
+  define a population by *what something keeps*, which is a matcher with no
+  regex to review. Ask what would have to be true for a member to be missed,
+  and then build the one instrument that cannot miss it.
+* **A bound nothing reaches.** "666x the largest value the corpus produces"
+  and "nothing exercises this except the tests written for it" are population
+  claims wearing a safety-margin costume. Name the population before the
+  factor: round 456's width bound was reached 2813 times by values the
+  measured population had never included.
+* **Quoting a rate from a truncated scan.** If the scan stopped early, the
+  number is a rate over a prefix. Carry the truncation in the same record as
+  the rate (`sample_complete: false`), never in a comment.
 * **Admitting events whose timestamp semantics differ.** A `Starting` line is
   a start; an access-log line is a completion. Pooling them silently applies
   one boundary convention to both. Carry the semantics on the event and report
@@ -217,3 +281,39 @@ The regression tests are
 ```sh
 python3 -m pytest nuc/tests/test_perturbation.py -q
 ```
+
+### For the reachability and prefix cases (round 456)
+
+The paired demonstration that a root set IS a matcher — one program whose deep
+value is consumed, one whose is not, same source but for one line:
+
+```sh
+cd /home/pgain/agi-research-nuc-llm/languages/whence
+python3 -c "
+import depthcensus as D, os, tempfile
+def run(body):
+    fd,p = tempfile.mkstemp(suffix='.lang')
+    os.write(fd, ('fn deep() {\n let a = [[[[[[[1]]]]]]]\n %s\n}\n'
+                  'let n = deep()\nprint(1)\n' % body).encode()); os.close(fd)
+    try:  r = D.census_program(p)
+    finally: os.unlink(p)
+    return r['built_depth'], r['alloc_depth'], r['alloc_depth_reachable']
+print('dropped ', run('0'))
+print('returned', run('a'))"
+```
+
+Expect `dropped  (0, 7, False)` and `returned (7, 7, True)`. The root walk
+reports depth **0** for a program that builds a 7-deep list.
+
+The regression tests, including the prefix-is-not-a-sample pair, are in
+`languages/whence/tests/test_depthcensus.py`:
+
+```sh
+cd /home/pgain/agi-research-nuc-llm/languages/whence
+python3 -m pytest -c pytest.ini -q -m "not whence_slow" tests/test_depthcensus.py
+```
+
+Expect **45 passed, 3 deselected**. The three deselected are the corpus
+readings; `::test_a_prefix_of_construction_order_is_not_a_sample` is the one
+that runs the same scan twice, bounded and exhaustive, and asserts `0` against
+`2813`.

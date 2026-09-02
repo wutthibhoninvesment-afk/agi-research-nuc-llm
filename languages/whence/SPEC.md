@@ -704,7 +704,7 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    diagnostics exactly as they were, while `FULL_SHOW_NEST = 24` governs
    `print` and `str`, and a new `FULL_SHOW_NODES = 20000` bounds the WIDTH
    the split left unbounded. **24 is derived, not chosen**: `depthcensus.py`
-   measures the deepest value any program in `examples/` builds at **14**
+   measures the deepest value any program in `examples/` RETAINS at **14**
    container levels — `examples/self_host.lang`'s `let p7`, the AST the
    Whence-in-Whence parser produces — against a v0.43 full rendering that
    showed **4**, while the deepest value the whole corpus ever PRINTS is
@@ -712,12 +712,39 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    half times deeper than the language could print, and nothing noticed
    because BUILT and PRINTED had been discussed as one population: a cap
    justified by "nothing has hit it" was being justified by the wrong one.
+   (Round 456 found that the split was one population short — 14 is what the
+   corpus RETAINS, and what it BUILDS is 1201. See decision 54.)
    The companion change is structural rather than a promise — decision 52's
    `named_misses` was a SECOND walk mirroring `_show`, and moving a
    detector's bound is the edit that breaks a mirror, so `full_show_named`
    now returns the text and the named misses from ONE walk and `b_print` no
    longer renders the value twice. Corpus output yield: **zero of 33**
    programs changed. See § v0.44.
+
+54. **A bound justified by "nothing reaches it" has to name the population,
+   and what a program RETAINS is not what it BUILDS (round 456).** Decision
+   53's number came from a census that walks provenance and structure edges
+   from a root set — the top-level `Env`, every value handed to `_note_drop`,
+   everything printed — and whose own docstring named the class it could not
+   reach: *a value that is neither bound, nor a discarded statement's value,
+   nor printed, nor an input to any of those*. Measured at CONSTRUCTION
+   instead, so that there is no root set and therefore no residual, the
+   deepest value `examples/` builds is **1201** container levels, not 14, and
+   the corpus builds **7 418 398** values against the 3 587 551 the root walk
+   reaches. Both champions are **provenance-as-data**, the feature the
+   language exists for: `self_eval.lang`'s `reify_node` turns 300 levels of
+   host history into guest records at 4 container levels each, and
+   `self_host.lang`'s deepest value is a `steps()` list of 802 provenance
+   steps rather than the AST inside it. Neither is reachable from any root,
+   so the census that justified the cap could not see the two values that
+   bear on it. **No constant moves** — 24 cannot cover 1201 and decision 53's
+   own frame arithmetic says why — but the justification does: the depth cap
+   is a **truncation the corpus reaches**, made safe by the renderer
+   REPORTING it (`FullRendering.depth_stopped`, and the `[…]` / `@{…}`
+   markers), not by headroom over it. The width bound is likewise reached:
+   `self_eval.lang` builds 15 178 values whose tree unfolding exceeds
+   `FULL_SHOW_NODES`, and rendering every one of them, **2813** stop on it.
+   See § Decision 54.
 
 ## Syntax (statements are newline-separated; `#` comments)
 ```
@@ -9110,7 +9137,10 @@ path now re-enters `_show` directly from an explicit loop. **27 frames at the
 new cap against 13 at the old one** — a +14 delta buys 20 extra levels.
 
 *The corpus.* 24 leaves ten levels of headroom over the deepest value any
-example builds.
+example RETAINS. **Round 456 corrected the sentence that stood here**, which
+said "the deepest value any example builds" and was false by a factor of 86:
+`examples/self_eval.lang` builds a value 1201 container levels deep. See
+decision 54.
 
 ### `FULL_SHOW_NODES`, and the job the cap was doing without saying so
 
@@ -9134,11 +9164,13 @@ and takes over the WIDTH direction too, which v0.43 never bounded at all:
 language that caps an integer at 4000 digits precisely so the explanation
 path cannot crash.
 
-20000 is 666x the largest full rendering the corpus produces (30 rendered
+20000 is 666x the largest full rendering the corpus PRINTS (30 rendered
 nodes, `examples/show.lang`; the widest text is 1883 characters,
-`examples/blame.lang`). It is a safety valve, not a limit anyone reaches, and
-a rendering that stops on it says so with the same `, …` a truncated head has
-always used.
+`examples/blame.lang`), and a rendering that stops on it says so with the same
+`, …` a truncated head has always used. **It is not "a safety valve, not a
+limit anyone reaches"**, which is what stood here: over the values the corpus
+BUILDS the bound fires 2813 times in `examples/self_eval.lang` alone. See
+decision 54.
 
 ### Why a deeper cap and not no cap
 
@@ -9214,3 +9246,71 @@ statement's value, nor printed, nor an input to any of those. `--roots env`
 measures how much the naive root set misses; nothing measures that residual,
 and `depthcensus.py`'s module docstring says so rather than leaving a reader
 to find it.
+
+
+### Decision 54 (round 456, language C): the cap is a truncation the corpus reaches, not headroom over it
+
+**No constant changes.** `FULL_SHOW_NEST` is still 24 and `FULL_SHOW_NODES` is
+still 20000. What changes is the justification, because the measurement
+decision 53 rested on was of the wrong population — and the two sentences
+above have been corrected in place rather than left to be re-quoted.
+
+**The measurement.** `depthcensus.py` (round 452) walks provenance and
+structure edges from a root set: the top-level `Env`, everything handed to
+`_note_drop`, everything printed. Its own docstring named what that cannot
+reach — *"a value that is neither bound, nor a discarded statement's value,
+nor printed, nor an input to any of those"* — and said nothing measured the
+residual. Round 456 measures the population directly instead: `Prov` and
+`MergedProv` are replaced during a census run by subclasses that compute
+depth and size in the constructor, so **there is no root set and therefore no
+residual**. Both numbers are re-derived by the ordinary walks afterwards and
+must agree (`alloc_agrees`); they do, on every champion in the corpus.
+
+    max depth over values the corpus RETAINS         14   self_host.lang
+    max depth over values the corpus BUILDS        1201   self_eval.lang
+    values built / values retained                 7 418 398 / 3 587 551
+
+**The deepest values Whence builds are its own histories.** Both champions
+are provenance-as-data, the feature the language exists for:
+
+* `self_eval.lang` — the Whence-in-Whence evaluator — reifies the host's
+  provenance graph into guest records, `reify_node(op, p, rins)` building
+  `@{op:, v:, ins:}` boxes at line 1187. Each level of history costs four
+  container levels, and 300 levels of history give 1201. The function
+  already threads a node budget "so a shared/deep history cannot blow up";
+  that budget bounds the COUNT of reified nodes, not the depth of the record
+  the reification produces.
+* `self_host.lang` — the Whence-in-Whence parser — builds its deepest value
+  at `steps(...)`, line 1291: a list of 802 provenance steps whose deepest
+  element holds a 15-deep AST, one level deeper than the AST the root walk
+  finds.
+
+Neither is reachable from the root set: both are consumed and discarded, so
+the census that justified the cap was structurally unable to see the two
+values in the corpus that bear on it.
+
+**What that means for the cap.** It cannot be raised to cover 1201 — decision
+53's own frame arithmetic (27 host frames at cap 25, against a 250-frame
+reserve) rules that out, and `max_depth` puts the true ceiling on value depth
+at 20000. So the honest statement is the one this decision is named for: the
+depth cap is a **truncation the corpus reaches**, and what makes it safe is
+not headroom but that the renderer REPORTS having truncated —
+`FullRendering.depth_stopped`, and the `[…]` / `@{…}` markers in the text.
+Printing the 1201-deep value takes 0.001 s and yields 9515 characters with
+`depth_stopped=True`. Decision 52 already refuses to claim more than the
+rendering named, so a miss below the cap stays an unobserved drop, which is
+the correct behaviour and is now known to have a real population.
+
+**The width bound is exercised, and not by anything printed.** `self_eval.lang`
+builds 15 178 values whose tree unfolding exceeds 20000 nodes; rendering each
+one, 2813 stop on `FULL_SHOW_NODES` and 12 365 are truncated by the depth cap
+first. `N > FULL_SHOW_NODES` is therefore NOT the condition under which the
+width bound fires — the census said it was until the renderer refuted it, and
+`tests/test_depthcensus.py::test_a_value_bigger_than_the_node_budget_need_not_
+stop_on_it` holds the correction open with a hand-built value that is 20 010
+nodes and renders with `node_stopped` False.
+
+**The rule.** *A bound justified by "nothing reaches it" has to name the
+population, and "what the program retains" is not "what the program builds".*
+A root-set census measures retention. For a language whose values carry their
+own history, the two differ by 2.07x in node count and 86x in depth.
