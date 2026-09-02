@@ -286,8 +286,10 @@ cap.
 
 ## 7.1 Fast tier
 
-See the round's commit trailer for the exact line; the tier was started
-solo (`nproc` is 1) after the census had finished, per the standing rule.
+    ./run_tests_fast.sh
+    2392 passed, 3 skipped, 103 deselected in 227.90s (0:03:47)   rc=0
+
+Started solo after the census had finished (`nproc` is 1). Green.
 
 ## 8. What this round did NOT do
 

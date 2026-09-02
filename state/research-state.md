@@ -24490,9 +24490,9 @@ successor — 448→449, 449→450, 450→451, 451→452, 452→453.)*
 - **Tests:** `test_testcorpus_census.py` **18 -> 30 passed in 2.27 s** (12
   new, one per finding); `test_depthcensus.py` **45 passed, 3 deselected in
   0.37 s**; suite-mode census **559 programs, 0 errors, 0 alloc
-  disagreements, 0 caps hit, 28.1 s**. The whence fast tier was started solo
-  after the census finished (`nproc` is 1) — its result is in this round's
-  commit trailer.
+  disagreements, 0 caps hit, 28.1 s**. The whence fast tier, run solo after
+  the census finished (`nproc` is 1): **2392 passed, 3 skipped, 103
+  deselected in 227.90 s, rc=0**.
 - **Skill (rule 5):** `skills/residual-audited-both-ways` — *a residual is a
   claim about the instrument and is as falsifiable as the corpus; audit it in
   both directions, and count a thing excluded for a reason separately from a
