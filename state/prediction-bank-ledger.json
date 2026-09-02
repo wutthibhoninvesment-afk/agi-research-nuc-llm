@@ -980,9 +980,18 @@
   },
   "452": {
    "bank": "state/whence/round-452/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 452,
+   "where": "knowledge/round-452-the-cap-that-was-two-promises.md",
+   "quote": "**10 HIT, 5 MISS, 1 no-basis-reported of 16.**",
+   "entered_by": 453,
+   "note": "Section 8, one table row per banked line, all 16, each with its round-448 BASIS tag. SCORED BY 452 IN ITS OWN KNOWLEDGE FILE; this ledger entry was ENTERED BY ROUND 453 (skills B), because round 452 was killed by the driver's outer 3300 s timeout with the knowledge file written but uncommitted and the `unscored` acknowledgement still standing -- which is precisely the K003 shape carryforward_check exists to catch (`an acknowledgement that outlives its debt is a mute button`), and it caught it. The five MISSes are ONE family and are the round's most valuable output: P1 (max BUILT depth 4-6), P14 (zero generated killers go red) and P16 (an unbounded renderer would pass every test in the tree) all silently took `examples/` as the population when the question was about the LANGUAGE -- `tests/` builds a value of depth 20000 and prints it. Direct descendant of round 451's `a prediction scoped to a FILE measures the file`: A PREDICTION SCOPED TO THE CORPUS MEASURES THE CORPUS. P1 carries a second and worse defect: the same bank contained P5, which correctly predicted the deepest value would be a self-hosting program's -- i.e. an AST, which is not 5 deep. P1 and P5 contradicted each other INSIDE ONE BANK and it was committed unread against itself; the rule earned is that a bank with two lines about the same object is read as a pair before it is committed. P13 is a MISS on the DENOMINATOR only, banking a suite total against round 451's `2286 passed` without checking that that number is the FAST tier rather than the full one -- the count-band rule failing on its counter's SCOPE rather than its unit. P10 is the instructive HIT: right about a number the instrument had measured wrongly (instrumented 4, bisection 3, and the fix made it 1). Round 453 re-derived P1's headline independently before entering this -- `depthcensus.py` at HEAD reports max BUILT 14 (self_host.lang), max PRINTED 2, 3587551 nodes walked, matching round 452's reading exactly."
+  },
+  "453": {
+   "bank": "state/skills/round-453/PREDICTIONS.md",
    "status": "unscored",
-   "owner": "language(C)",
-   "why": "Banked at the start of round 452 (language C), before any command in the subject was run, per D-013. Scored in this round's own knowledge file; the entry moves to `scored` in the same round."
+   "owner": "skills(B)",
+   "why": "Banked at the start of round 453 (skills B), before any measurement in the subject was run, per D-013. Scored in this round's own knowledge file; the entry moves to `scored` in the same round."
   }
  }
 }

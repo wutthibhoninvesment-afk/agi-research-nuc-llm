@@ -690,6 +690,34 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    it, in a language whose rule 2 is *no exceptions*. A `Guess` is walked, because the drop
    rule's predicate is REACHABILITY after the statement and not the value's
    epistemic status. See § v0.43.
+53. **One number was two promises: the bounded snapshot's cap and the full
+   rendering's cap are now different constants (v0.44, round 452).** Until
+   v0.44 `full_show` and `show_payload` both read `SHOW_NEST`, and that
+   sharing is why "lifting the cap" reads as impossible in decision 52's own
+   prose — **every argument for keeping it low is an argument about the
+   snapshot, and every argument for raising it is an argument about the full
+   rendering.** Decision 37 had already written both promises down (`str` is
+   `full_show`, unbounded, a miss lists its reasons; every miss MESSAGE is
+   `show_payload`, one line, bounded) and then left the bounded one's
+   constant deciding how much of a value the unbounded one may show. So:
+   `SHOW_NEST = 3` keeps the snapshot, miss messages, `Prov.show` and parse
+   diagnostics exactly as they were, while `FULL_SHOW_NEST = 24` governs
+   `print` and `str`, and a new `FULL_SHOW_NODES = 20000` bounds the WIDTH
+   the split left unbounded. **24 is derived, not chosen**: `depthcensus.py`
+   measures the deepest value any program in `examples/` builds at **14**
+   container levels — `examples/self_host.lang`'s `let p7`, the AST the
+   Whence-in-Whence parser produces — against a v0.43 full rendering that
+   showed **4**, while the deepest value the whole corpus ever PRINTS is
+   **2**. The language's own self-hosting program built values three and a
+   half times deeper than the language could print, and nothing noticed
+   because BUILT and PRINTED had been discussed as one population: a cap
+   justified by "nothing has hit it" was being justified by the wrong one.
+   The companion change is structural rather than a promise — decision 52's
+   `named_misses` was a SECOND walk mirroring `_show`, and moving a
+   detector's bound is the edit that breaks a mirror, so `full_show_named`
+   now returns the text and the named misses from ONE walk and `b_print` no
+   longer renders the value twice. Corpus output yield: **zero of 33**
+   programs changed. See § v0.44.
 
 ## Syntax (statements are newline-separated; `#` comments)
 ```
