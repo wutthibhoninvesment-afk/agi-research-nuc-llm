@@ -261,11 +261,37 @@ one unit of work and stays there.
 Measure that floor before deciding to accept it, by running step 6's episode
 analysis over the RUNNER'S OWN LOG instead of over git history. Measured on
 one repo across 89 consecutive runs of an eight-checker corpus check: **24 red
-runs (27%), 16 episodes, mean 1.50 units, longest 4** — and the rows that
-matter, **0 of 16 episodes opened by the track that owns the checkers**, **9
-of 15 (60%) closed by it**. Nobody who owns a checker breaks it. Every
-violation is introduced by someone working on something else, and most then
-wait for the owner to come back around.
+runs (27%), 16 episodes, mean 1.50 units, longest 4** — and the row that looks
+decisive, **0 of 16 episodes opened by the team that owns the checkers**.
+
+**Do not generalise that row from one runner.** This skill said "Nobody who
+owns a checker breaks it" on the strength of that single check, and the claim
+did not survive being measured over the other three runners in the same repo
+(round 455, 554 retained per-run logs, 20 distinct failing nodes, 31
+episodes). The owner-opens-its-own rate ranges across the four from **0/16**
+to **8/8**. Ownership predicts nothing on its own.
+
+What predicts it is the assertion's **subject scope** — whose work can turn
+it red, which is a different question from which suite it LIVES in:
+
+| subject scope | invisible to opener | visible | rate |
+|---|---|---|---|
+| whole-tree (any change in the repo can break it) | 12 | 4 | **75%** |
+| own-suite (only the hosting area can) | 1 | 8 | **11%** |
+
+Fisher exact, two-sided, n=25: **p = 0.0036**. And every one of the four
+"visible" whole-tree episodes belonged to the change that WROTE the check;
+each later one was opened by someone who was not running that suite at any
+point. A runner whose subject is confined to its owner's territory has a
+floor of one and no visibility problem at all — the owner both breaks it and
+sees it. A runner hosting a whole-tree assertion has a second, larger
+problem underneath the floor, and moving the runner earlier does not touch
+it: **the person who broke the rule never runs that suite.**
+
+So compute the number that separates the two — the **invisible-open rate**,
+the share of episodes whose opening change could not have seen the red by
+running the suite it normally runs. Measured there: **15/28 = 54%**. Half the
+latency is not scheduling.
 
 To get under the floor, do not add a checker and do not move the runner
 earlier — make the checkers that exist **runnable by the person about to
@@ -277,6 +303,17 @@ that still caught **all 19** violations the last offending change shipped.
 Three rules make the subset trustworthy, and each is a real failure if
 skipped:
 
+* **Classify each red assertion by subject scope, and host the whole-tree ones
+  where everyone will run them — or tell everyone they own them.** The
+  membership rule that works is *has actually gone red*, taken from the
+  runner's retained logs rather than detected from source. Detection from
+  source was tried and failed in both directions: a loose AST/regex rule for
+  "test resolves the repo root, takes no tmp fixture" returned **2053**
+  candidates where the true count was single digits, and tightening it to a
+  body-local root walk-up returned **59** — a set that omitted the two files
+  responsible for 15 of 18 reds, because they reach the tree through an
+  imported helper. A bounded set of ~20 nodes classified by hand, fail-closed
+  so the next one to break classifies itself, beats both.
 * **Define the preset by what it EXCLUDES, never by an inclusion list.** An
   inclusion list rots silently by omission — the same repo's docstring said
   "five" checkers for two checkers' worth of drift. As an exclusion, a new
@@ -330,6 +367,15 @@ import corpus_check as C; a=C.checks(os.getcwd()); \
 print([n for n,_ in C.select(a)[0]] != [n for n,_ in C.select(a,precommit=True)[0]])"
 #    expect: True
 
+# 10. the ownership claim is not assumed -- measure every runner, not one
+python3 harness/redattrib.py attribute
+#    expect: an own-opened column that DIFFERS across runners, and an
+#    invisible-open rate. If all runners agree, say so; do not infer a
+#    mechanism from the first one you measured.
+
+# 11. a red assertion with no classification is an ERROR, not a default
+python3 harness/redattrib.py audit; echo "rc=$?"   # expect rc=0; R001 if not
+
 # 9. a typo selects nothing and must FAIL, not print green
 <runner> --only nosuchchecker; echo "rc=$?"     # expect: rc=2, names knowns
 ```
@@ -337,6 +383,11 @@ print([n for n,_ in C.select(a)[0]] != [n for n,_ in C.select(a,precommit=True)[
 Round 453's numbers above, the 10-test suite behind the subset and the
 scored prediction bank:
 `knowledge/round-453-the-check-that-runs-after-you-are-gone.md`.
+
+The refutation of the ownership mechanism, the subject-scope table, the
+invisible-open rate and the instrument that computes it
+(`harness/redattrib.py`, `harness/crosstrack-registry.json`, 19 tests):
+`knowledge/round-455-the-check-that-belonged-to-another-track.md`.
 
 Worked example, with every number and both misses:
 `knowledge/round-363-the-corpus-had-five-checkers-and-nothing-ran-them.md`.
