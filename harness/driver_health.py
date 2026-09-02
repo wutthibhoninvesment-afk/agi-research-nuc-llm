@@ -1460,6 +1460,92 @@ def nuc_health_log_line(label: str, path: str,
     return line
 
 
+# --------------------------------------------------------------------------
+# Round 451 (harness A) — the eye the corpus check cannot have on itself.
+#
+# `corpus_check.py` has a test whose entire job is to catch a checker that
+# silently stopped running: `test_corpus_check.py::TestLiveCorpus::
+# test_every_checker_actually_ran`, which asserts `status == "ran"` for
+# every result. It is structurally incapable of seeing the one checker that
+# stopped running. That test executes INSIDE the `unit_tests` checker, so
+# `REENTRY_ENV` is set, so `checks()` drops `unit_tests` — and the test then
+# asserts `assertNotIn("unit_tests", ...)` to say so out loud. The guard that
+# stops the infinite regress also removes the checker from its own audit.
+#
+# `unit_tests` timed out in rounds 431, 445, 448, 449 and 450 and no test in
+# this repo went red. Five rounds of `COULD NOT RUN: unit_tests` sat in
+# `driver.log` and were read by nobody.
+#
+# So the observer has to be somewhere the guard cannot reach, and it must
+# read the RECORD rather than re-run the thing — which is what these do.
+# `driver.log` is the only artefact that holds the outer, unguarded verdict.
+BROKEN_CHECKER_RE = re.compile(r"COULD NOT RUN:\s*([A-Za-z0-9_,\s]+?)\s*(?:;|$)")
+_SKILLS_CHECK_RE = re.compile(r"round (\d+): skills-check\b")
+
+
+def corpus_check_broken_history(path: str) -> dict:
+    """Which checkers reported COULD NOT RUN, in which rounds, per driver.log.
+
+    Returns `{"rounds": {round: [checker, ...]}, "checkers": {name: [rounds]},
+    "n_skills_check_lines": N}`. `n_skills_check_lines` is the DENOMINATOR and
+    is reported for the reason round 339 gives: a sweep that finds nothing
+    must be able to say whether it looked at anything.
+
+    A missing or unreadable log reads as an empty history with a zero
+    denominator, never as "clean" — a caller that cannot tell those apart
+    has the bug this function exists to catch.
+    """
+    rounds: dict = {}
+    n_lines = 0
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            text = f.read()
+    except OSError:
+        return {"rounds": {}, "checkers": {}, "n_skills_check_lines": 0}
+    for line in text.splitlines():
+        m = _SKILLS_CHECK_RE.search(line)
+        if not m:
+            continue
+        n_lines += 1
+        broken = BROKEN_CHECKER_RE.search(line)
+        if not broken:
+            continue
+        names = [n.strip() for n in broken.group(1).split(",") if n.strip()]
+        if names:
+            rounds[int(m.group(1))] = names
+    checkers: dict = {}
+    for rnd, names in sorted(rounds.items()):
+        for n in names:
+            checkers.setdefault(n, []).append(rnd)
+    return {"rounds": rounds, "checkers": checkers,
+            "n_skills_check_lines": n_lines}
+
+
+def unacknowledged_broken_checker_rounds(path: str, registry: str) -> dict:
+    """Rounds in `path` whose skills-check named a broken checker and which
+    the acknowledgement registry does not already account for.
+
+    The registry (`state/known-broken-checker-rounds.json`) is the same
+    idiom as `state/known-escalated-diffs.json` and friends: a finding stays
+    visible AND stays quiet while it is adjudicated, and a NEW instance is
+    loud. Deliberately not a bare baseline constant — this repo's own name
+    for that is "a line asserting a number that no round re-executes".
+
+    An unreadable or absent registry acknowledges NOTHING. Failing open
+    here would mean deleting one file turns the check green, which is the
+    failure mode the check exists to prevent.
+    """
+    history = corpus_check_broken_history(path)
+    known = set()
+    try:
+        with open(registry, encoding="utf-8") as f:
+            known = {int(r) for r in json.load(f).get("acknowledged_rounds", [])}
+    except (OSError, ValueError, TypeError, AttributeError):
+        known = set()
+    return {rnd: names for rnd, names in history["rounds"].items()
+            if rnd not in known}
+
+
 def main(argv: List[str]) -> int:
     if argv[:1] == ["success"]:
         if len(argv) != 2:

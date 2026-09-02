@@ -1988,3 +1988,140 @@ def test_all_max_turns_unchanged_for_single_session_logs(tmp_path):
     assert is_max_turns(other) is driver_health._hit_max_turns_anywhere(other) is False
     assert all_max_turns([hit]) is True
     assert all_max_turns([hit, other]) is False
+
+
+# --------------------------------------------------------------------------
+# Round 451 (harness A) — the corpus check's blind spot, watched from outside.
+#
+# `skills/.../test_corpus_check.py::TestLiveCorpus::test_every_checker_
+# actually_ran` asserts `status == "ran"` for every checker and CANNOT see
+# `unit_tests`: it runs inside `unit_tests`, so the re-entry guard drops that
+# checker from `checks()`, and the test asserts `assertNotIn("unit_tests")` to
+# make the exclusion explicit. `unit_tests` then timed out in rounds 431, 445,
+# 448, 449 and 450 with nothing in the repo going red.
+#
+# These tests read `driver.log`, which holds the OUTER verdict the guard never
+# touches. They live in `harness/` for the same reason: a checker cannot be
+# its own witness.
+
+REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
+DRIVER_LOG = os.path.join(REPO, "logs", "driver.log")
+BROKEN_REGISTRY = os.path.join(REPO, "state", "known-broken-checker-rounds.json")
+
+_PASS_LINE = ("[2026-09-02 04:00:00] round 444: skills-check PASS "
+              "(corpus-check: 10 checker(s), 0 error(s), 7 warning(s); "
+              "coverage: verb_audit 20/103 verbs)\n")
+_BROKEN_LINE = ("[2026-09-02 08:28:43] round 449: skills-check ERROR — a "
+                "checker could not run — unit_tests TIMEOUT timed out after "
+                "600s corpus-check: 10 checker(s), 0 error(s), 8 warning(s); "
+                "COULD NOT RUN: unit_tests; coverage: verb_audit 20/105 verbs\n")
+
+
+def _log(tmp_path, text):
+    p = os.path.join(str(tmp_path), "driver.log")
+    with open(p, "w", encoding="utf-8") as f:
+        f.write(text)
+    return p
+
+
+class TestBrokenCheckerHistory:
+    def test_a_broken_round_is_found_and_attributed_to_its_checker(self, tmp_path):
+        h = driver_health.corpus_check_broken_history(
+            _log(tmp_path, _PASS_LINE + _BROKEN_LINE))
+        assert h["rounds"] == {449: ["unit_tests"]}
+        assert h["checkers"] == {"unit_tests": [449]}
+
+    def test_the_denominator_is_published(self, tmp_path):
+        """Round 339's rule. A sweep that finds nothing has to be able to say
+        whether it looked at anything — otherwise a log the parser cannot read
+        at all reports exactly like a clean one."""
+        h = driver_health.corpus_check_broken_history(
+            _log(tmp_path, _PASS_LINE + _BROKEN_LINE))
+        assert h["n_skills_check_lines"] == 2
+
+    def test_a_clean_log_and_an_absent_log_do_not_read_the_same(self, tmp_path):
+        clean = driver_health.corpus_check_broken_history(
+            _log(tmp_path, _PASS_LINE))
+        missing = driver_health.corpus_check_broken_history(
+            os.path.join(str(tmp_path), "nope.log"))
+        assert clean["rounds"] == missing["rounds"] == {}
+        assert clean["n_skills_check_lines"] == 1
+        assert missing["n_skills_check_lines"] == 0
+
+    def test_several_broken_checkers_on_one_line_all_land(self, tmp_path):
+        line = _BROKEN_LINE.replace("COULD NOT RUN: unit_tests",
+                                    "COULD NOT RUN: unit_tests,xref_check")
+        h = driver_health.corpus_check_broken_history(_log(tmp_path, line))
+        assert h["rounds"] == {449: ["unit_tests", "xref_check"]}
+        assert sorted(h["checkers"]) == ["unit_tests", "xref_check"]
+
+    def test_a_health_check_line_that_is_not_skills_check_is_ignored(self, tmp_path):
+        # `health-check` and `whence-health-check` lines share the log and
+        # must not be counted into this denominator.
+        other = ("[2026-09-02 08:28:43] round 449: health-check PASS "
+                 "(1238 passed, 352 deselected in 888.64s)\n")
+        h = driver_health.corpus_check_broken_history(_log(tmp_path, other))
+        assert h["n_skills_check_lines"] == 0
+
+
+class TestBrokenCheckerAcknowledgement:
+    def test_an_acknowledged_round_is_quiet(self, tmp_path):
+        reg = os.path.join(str(tmp_path), "reg.json")
+        with open(reg, "w", encoding="utf-8") as f:
+            json.dump({"acknowledged_rounds": [449]}, f)
+        assert driver_health.unacknowledged_broken_checker_rounds(
+            _log(tmp_path, _BROKEN_LINE), reg) == {}
+
+    def test_an_unacknowledged_round_is_loud(self, tmp_path):
+        reg = os.path.join(str(tmp_path), "reg.json")
+        with open(reg, "w", encoding="utf-8") as f:
+            json.dump({"acknowledged_rounds": [431]}, f)
+        assert driver_health.unacknowledged_broken_checker_rounds(
+            _log(tmp_path, _BROKEN_LINE), reg) == {449: ["unit_tests"]}
+
+    def test_a_missing_registry_acknowledges_nothing(self, tmp_path):
+        """Failing OPEN here would mean deleting one file turns the check
+        green — the exact failure this check exists to prevent."""
+        assert driver_health.unacknowledged_broken_checker_rounds(
+            _log(tmp_path, _BROKEN_LINE),
+            os.path.join(str(tmp_path), "gone.json")) == {449: ["unit_tests"]}
+
+    def test_a_corrupt_registry_acknowledges_nothing(self, tmp_path):
+        reg = os.path.join(str(tmp_path), "reg.json")
+        with open(reg, "w", encoding="utf-8") as f:
+            f.write("{not json")
+        assert driver_health.unacknowledged_broken_checker_rounds(
+            _log(tmp_path, _BROKEN_LINE), reg) == {449: ["unit_tests"]}
+
+
+@pytest.mark.skipif(not os.path.exists(DRIVER_LOG),
+                    reason="no driver.log in this checkout")
+class TestBrokenCheckerLiveRecord:
+    def test_the_live_log_has_no_unacknowledged_broken_checker(self):
+        """THE ENFORCEMENT, and the thing that was missing for five rounds.
+
+        Red means `skills-check` reported COULD NOT RUN in a round that
+        `state/known-broken-checker-rounds.json` does not account for. The
+        repair is to find out why that checker could not run — not to append
+        the round number here.
+        """
+        found = driver_health.unacknowledged_broken_checker_rounds(
+            DRIVER_LOG, BROKEN_REGISTRY)
+        assert found == {}, (
+            "skills-check reported COULD NOT RUN in unacknowledged round(s): %s"
+            % found)
+
+    def test_the_acknowledgement_is_not_vacuous(self):
+        """Guards the assertion above against passing because the parser
+        stopped finding anything — the failure mode a health check must not
+        have. Every acknowledged round must still be visible in the log.
+        """
+        history = driver_health.corpus_check_broken_history(DRIVER_LOG)
+        assert history["n_skills_check_lines"] > 0
+        with open(BROKEN_REGISTRY, encoding="utf-8") as f:
+            known = {int(r) for r in json.load(f)["acknowledged_rounds"]}
+        assert known, "registry acknowledges nothing; the check is vacuous"
+        assert known <= set(history["rounds"]), (
+            "registry acknowledges round(s) the log does not show as broken: "
+            "%s — a stale acknowledgement is a silencer nobody is watching"
+            % sorted(known - set(history["rounds"])))

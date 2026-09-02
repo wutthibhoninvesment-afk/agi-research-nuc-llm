@@ -76,8 +76,10 @@ import argparse
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
+import tempfile
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -208,26 +210,8 @@ def checks(root):
     ])
 
 
-def run_one(name, argv, root, timeout=600):
-    if argv[0] != "-m" and not os.path.exists(argv[0]):
-        return {"check": name, "status": "absent", "errors": [],
-                "warnings": [], "coverage": "",
-                "summary": "script not present"}
-    t0 = time.time()
-    env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1", **{REENTRY_ENV: "1"})
-    try:
-        p = subprocess.run([sys.executable] + argv, cwd=root, env=env,
-                           capture_output=True, text=True, timeout=timeout)
-    except subprocess.TimeoutExpired:
-        return {"check": name, "status": "timeout", "errors": [],
-                "warnings": [], "coverage": "",
-                "summary": "timed out after %ds" % timeout}
-    out = (p.stdout or "") + (p.stderr or "")
-    lines = [l for l in out.strip().splitlines() if l.strip()]
-    if p.returncode == 2 or (p.returncode not in (0, 1)):
-        return {"check": name, "status": "error", "rc": p.returncode,
-                "errors": [], "warnings": [], "coverage": coverage_of(out),
-                "summary": lines[-1][:200] if lines else "rc=%d" % p.returncode}
+def _findings_in(lines):
+    """(errors, warnings) as sorted lists, parsed from any output lines."""
     errors, warnings = set(), set()
     for line in lines:
         m = FINDING_RE.search(line)
@@ -235,15 +219,153 @@ def run_one(name, argv, root, timeout=600):
             continue
         sev, code = m.group(1).lower(), m.group(2)
         (errors if sev in ERROR_SEVERITIES else warnings).add(code)
+    return sorted(errors), sorted(warnings)
+
+
+# Round 451 (harness A). The budget clause.
+#
+# `unit_tests` did not fail suddenly. Its own source comment calls it "the
+# slow one (~37s vs ~3s for the five above)" and it was measured at 162 s
+# solo this round -- 4.4x that comment, with no round in between noticing,
+# because the only number this file published about time was a boolean
+# ("did it finish?") that stayed True until the round it did not. Five
+# rounds then reported COULD NOT RUN.
+#
+# A rate that grows with the corpus needs a MARGIN reported every round, not
+# a verdict reported once it is gone -- the `bounded-not-binary-witness`
+# idea applied to a budget. Any checker past BUDGET_WARN_FRAC of its own
+# timeout is named on the line the driver logs, with the fraction, so the
+# round that crosses 50% is the round that gets told.
+#
+# The threshold is deliberately not 90%. The driver runs FOUR pytest suites
+# concurrently on a box with `nproc` 1 (`run_driver.sh`, HEALTH_PID /
+# WHENCE_PID / SKILLS_PID / NUC_PID), and round 435 next-step 8 measured
+# that contention at roughly 3x. So a checker at 50% of budget when measured
+# alone is already over it when the driver runs it -- which is exactly the
+# arithmetic that produced rounds 431-450: 162 s solo x ~3.7 = ~600 s.
+BUDGET_WARN_FRAC = 0.5
+
+
+def budget_clause(results):
+    """"; budget: <name> 512s/600s (85%)" for each checker over the fraction.
+
+    Empty string when every checker is comfortably inside its budget, so the
+    driver line does not grow a clause that says nothing.
+    """
+    over = []
+    for r in results:
+        limit, used = r.get("timeout_s"), r.get("elapsed_s")
+        if not limit or used is None:
+            continue
+        if used >= BUDGET_WARN_FRAC * limit:
+            over.append("%s %.0fs/%ds (%d%%)"
+                        % (r["check"], used, limit, round(100.0 * used / limit)))
+    return "; budget: " + ", ".join(over) if over else ""
+
+
+def run_one(name, argv, root, timeout=600):
+    """Run one checker. The result ALWAYS carries what the checker managed
+    to say, including when it was killed for running long.
+
+    Round 451 (harness A) rewrote two things here, both of which had cost
+    real rounds.
+
+    1. THE TIMEOUT BRANCH DISCARDED THE RUN. It returned empty
+       `errors`/`warnings`/`coverage` and the single sentence "timed out
+       after 600s", so `unit_tests` -- which fired this branch in rounds 431,
+       445, 448, 449 and 450 -- reported *nothing* about ten minutes of
+       computation, and `driver.log` recorded five rounds of `COULD NOT RUN:
+       unit_tests` with no clue whether anything had failed inside. A
+       checker killed during its 501st test still knows 500 things. Output
+       now goes to a real FILE rather than a pipe, so whatever the child
+       wrote survives the kill regardless of how it died, and the timeout
+       branch parses that partial output with the same `_findings_in` the
+       normal path uses. THE VERDICT IS UNCHANGED: `status` is still
+       `timeout`, so `main()` still returns COULD_NOT_RUN. Raising the
+       budget or hiding the kill would have been the other repair and is
+       explicitly not this one -- the point is to stop LOSING the evidence,
+       not to stop reporting the failure.
+
+    2. THE KILL LEAKED GRANDCHILDREN. `subprocess.run(timeout=)` kills the
+       process it started and nothing below it. `unit_tests` is a pytest
+       run whose tests spawn the other nine checkers, so every one of those
+       five timeouts orphaned live checker processes onto a box with
+       `nproc` 1, where they went on competing with the rest of the round.
+       This repo had already written the pitfall down twice --
+       `skills/fuzz-mutate-kill-loop/references/pitfalls.md` and
+       `claim_check.run_command`'s docstring, which fixed the same bug in
+       the same tree -- and this file never applied it. Own process group,
+       `killpg` the group.
+
+    `elapsed_s` is now on every branch. It was computed from `t0` and then
+    dropped on three of the four, which is why no round could say how close
+    a checker was to its budget before the round it went over.
+    """
+    if argv[0] != "-m" and not os.path.exists(argv[0]):
+        return {"check": name, "status": "absent", "errors": [],
+                "warnings": [], "coverage": "", "elapsed_s": 0.0,
+                "timeout_s": timeout, "summary": "script not present"}
+    t0 = time.time()
+    env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1", **{REENTRY_ENV: "1"})
+    fd, sink_path = tempfile.mkstemp(prefix="corpus_check.%s." % name,
+                                     suffix=".out")
+    timed_out, rc = False, None
+    try:
+        with os.fdopen(fd, "wb") as sink:
+            proc = subprocess.Popen([sys.executable] + argv, cwd=root,
+                                    env=env, stdout=sink,
+                                    stderr=subprocess.STDOUT,
+                                    start_new_session=True)
+            try:
+                rc = proc.wait(timeout=timeout)
+            except subprocess.TimeoutExpired:
+                timed_out = True
+                try:
+                    os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+                except (ProcessLookupError, PermissionError):  # already gone
+                    proc.kill()
+                proc.wait()
+        with open(sink_path, encoding="utf-8", errors="replace") as f:
+            out = f.read()
+    finally:
+        try:
+            os.unlink(sink_path)
+        except OSError:                                    # pragma: no cover
+            pass
+    elapsed = round(time.time() - t0, 2)
+    lines = [l for l in out.strip().splitlines() if l.strip()]
+    if timed_out:
+        errors, warnings = _findings_in(lines)
+        # The summary leads with the fact that it was killed -- that is the
+        # headline and must not be buried -- and then says what was salvaged.
+        # `lines` is empty when the checker was killed before it flushed a
+        # single line, and "said nothing before the kill" is itself a
+        # finding: it distinguishes a checker that is slow from one that
+        # hung before it started.
+        last = lines[-1][:120] if lines else ""
+        return {"check": name, "status": "timeout", "errors": errors,
+                "warnings": warnings, "coverage": coverage_of(out),
+                "elapsed_s": elapsed, "timeout_s": timeout, "partial": True,
+                "output_lines": len(lines),
+                "summary": "timed out after %ds; %s" % (
+                    timeout,
+                    ("%d line(s) before the kill, last: %s" % (len(lines), last))
+                    if lines else "said nothing before the kill")}
+    if rc == 2 or (rc not in (0, 1)):
+        return {"check": name, "status": "error", "rc": rc,
+                "errors": [], "warnings": [], "coverage": coverage_of(out),
+                "elapsed_s": elapsed, "timeout_s": timeout,
+                "summary": lines[-1][:200] if lines else "rc=%d" % rc}
+    errors, warnings = _findings_in(lines)
     # A checker with a non-zero exit and no parseable code still FAILS: its
     # own exit code is authoritative and an unparsed line must never read as
     # green (round 349's FAIL-vs-ERROR rule, applied to this layer).
-    if p.returncode == 1 and not errors and not warnings:
-        errors.add("rc1")
-    return {"check": name, "status": "ran", "rc": p.returncode,
-            "errors": sorted(errors), "warnings": sorted(warnings),
+    if rc == 1 and not errors and not warnings:
+        errors = ["rc1"]
+    return {"check": name, "status": "ran", "rc": rc,
+            "errors": errors, "warnings": warnings,
             "coverage": coverage_of(out),
-            "elapsed_s": round(time.time() - t0, 2),
+            "elapsed_s": elapsed, "timeout_s": timeout,
             "summary": lines[-1][:200] if lines else ""}
 
 
@@ -314,13 +436,14 @@ def main(argv=None):
     nested = " (nested: unit_tests skipped)" if os.environ.get(REENTRY_ENV) \
         else ""
     cov = [r for r in results if r.get("coverage")]
-    print("corpus-check: %d checker(s)%s, %d error(s), %d warning(s)%s%s%s"
+    print("corpus-check: %d checker(s)%s, %d error(s), %d warning(s)%s%s%s%s"
           % (len(results), nested, n_err, n_warn,
              "; COULD NOT RUN: " + ",".join(broken) if broken else "",
              "; absent: " + ",".join(absent) if absent else "",
              ("; coverage: " + "; ".join("%s %s" % (r["check"], r["coverage"])
                                          for r in cov)) if cov else
-             "; coverage: none published"))
+             "; coverage: none published",
+             budget_clause(results)))
     if broken:
         return COULD_NOT_RUN
     return ERRORS_FOUND if n_err else PASS

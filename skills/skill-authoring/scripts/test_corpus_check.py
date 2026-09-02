@@ -12,12 +12,15 @@ would print false prose in two of its four branches. A round that later
 "simplifies" this back onto the shared classifier has to delete these.
 """
 
+import contextlib
+import io
 import json
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 
 import corpus_check
@@ -139,6 +142,193 @@ class TestRunOne(unittest.TestCase):
         self.assertEqual(r["warnings"], ["B002"])
 
 
+class TestTimeoutKeepsWhatTheCheckerSaid(unittest.TestCase):
+    """Round 451. The timeout branch used to throw the whole run away.
+
+    `unit_tests` fired it in rounds 431, 445, 448, 449 and 450, and each of
+    those five rounds logged `COULD NOT RUN: unit_tests` with empty errors,
+    empty warnings, empty coverage and no indication whether anything had
+    gone red before the kill. These pin the salvage — and, first, pin that
+    salvaging does NOT soften the verdict, which is the way this repair goes
+    wrong.
+
+    Every assertion below is about ONE killed run, so there is ONE killed
+    run — `setUpClass`, not `setUp`. Five tests each burning their own 2 s
+    budget would be this round's own finding committed again in the file
+    that reports it, and the assertions stay separate so a failure still
+    names which property broke.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp()
+        talkative = os.path.join(cls.tmp, "slow.py")
+        write(talkative,
+              "print('/a/SKILL.md: ERROR H001 no trigger', flush=True)\n"
+              "print('warning: P004 x: never probed', flush=True)\n"
+              "print('coverage 3/9 checkers', flush=True)\n"
+              "import time\ntime.sleep(30)\n")
+        cls.killed = corpus_check.run_one("x", [talkative], cls.tmp, timeout=2)
+        mute = os.path.join(cls.tmp, "mute.py")
+        write(mute, "import time\ntime.sleep(30)\n")
+        cls.silent = corpus_check.run_one("x", [mute], cls.tmp, timeout=2)
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def test_a_timeout_is_still_could_not_run(self):
+        # THE GUARD ON THE REPAIR. Reporting the partial findings must not
+        # turn a killed checker into a checker that ran.
+        self.assertEqual(self.killed["status"], "timeout")
+        self.assertTrue(self.killed["partial"])
+
+    def test_errors_printed_before_the_kill_survive_it(self):
+        self.assertEqual(self.killed["errors"], ["H001"])
+
+    def test_warnings_printed_before_the_kill_survive_it(self):
+        self.assertEqual(self.killed["warnings"], ["P004"])
+
+    def test_coverage_printed_before_the_kill_survives_it(self):
+        self.assertEqual(self.killed["coverage"], "3/9 checkers")
+
+    def test_the_summary_says_it_was_killed_and_what_it_salvaged(self):
+        self.assertIn("timed out after 2s", self.killed["summary"])
+        self.assertIn("3 line(s) before the kill", self.killed["summary"])
+        self.assertEqual(self.killed["output_lines"], 3)
+
+    def test_the_elapsed_time_is_reported_on_the_timeout_branch_too(self):
+        # `t0` was computed and then dropped on this branch, so no round
+        # could say how close a checker was to its budget until it was over.
+        self.assertGreaterEqual(self.killed["elapsed_s"], 2.0)
+        self.assertEqual(self.killed["timeout_s"], 2)
+
+    def test_a_checker_killed_before_it_spoke_says_exactly_that(self):
+        # Silence and "it never got going" must not render the same — the
+        # distinction the old branch destroyed for all five rounds.
+        self.assertIn("said nothing before the kill", self.silent["summary"])
+        self.assertEqual(self.silent["output_lines"], 0)
+        self.assertEqual(self.silent["errors"], [])
+
+
+class TestTimeoutReapsTheWholeTree(unittest.TestCase):
+    """`subprocess.run(timeout=)` kills the child and orphans its tree.
+
+    `unit_tests` IS a process tree — pytest spawning the nine checkers — so
+    each of the five timeouts left live checker processes running on a box
+    with `nproc` 1, competing with the rest of the round. This repo had
+    written the pitfall down twice before this file ignored it
+    (`fuzz-mutate-kill-loop/references/pitfalls.md`,
+    `claim_check.run_command`). Pinned with a grandchild that outlives its
+    parent's budget and leaves a marker if it is still alive afterwards.
+    """
+
+    def test_the_kill_reaps_grandchildren_not_just_the_child(self):
+        tmp = tempfile.mkdtemp()
+        try:
+            marker = os.path.join(tmp, "orphan-was-alive")
+            child = os.path.join(tmp, "grandchild.py")
+            write(child, "import time, sys\ntime.sleep(4)\n"
+                         "open(sys.argv[1], 'w').write('alive')\n")
+            parent = os.path.join(tmp, "parent.py")
+            write(parent, "import subprocess, sys, time\n"
+                          "subprocess.Popen([sys.executable, %r, %r])\n"
+                          "time.sleep(30)\n" % (child, marker))
+            r = corpus_check.run_one("x", [parent], tmp, timeout=1)
+            self.assertEqual(r["status"], "timeout")
+            time.sleep(6)          # past the grandchild's own sleep
+            self.assertFalse(os.path.exists(marker),
+                             "grandchild survived the timeout kill")
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
+class TestBudgetClause(unittest.TestCase):
+    """Round 451. A rate that grows with the corpus needs a margin reported
+    every round, not a verdict reported once the margin is gone."""
+
+    def test_a_checker_past_the_fraction_is_named_with_its_share(self):
+        clause = corpus_check.budget_clause(
+            [{"check": "unit_tests", "elapsed_s": 512.0, "timeout_s": 600}])
+        self.assertIn("unit_tests", clause)
+        self.assertIn("512s/600s", clause)
+        self.assertIn("85%", clause)
+
+    def test_a_comfortable_checker_adds_no_clause(self):
+        self.assertEqual(corpus_check.budget_clause(
+            [{"check": "skill_lint", "elapsed_s": 3.0, "timeout_s": 600}]), "")
+
+    def test_a_result_with_no_timing_is_skipped_not_crashed(self):
+        # `absent` results and any future shape without the keys.
+        self.assertEqual(corpus_check.budget_clause(
+            [{"check": "x"}, {"check": "y", "elapsed_s": None,
+                              "timeout_s": 600}]), "")
+
+    def test_the_threshold_would_have_fired_on_the_round_431_measurement(self):
+        # 162.3 s solo x the ~3.7 contention factor is how `unit_tests` got
+        # to 600. At 162 s solo it is already 27% of budget; the point of the
+        # 50% line is that it fires while there is still room to act.
+        self.assertEqual(corpus_check.BUDGET_WARN_FRAC, 0.5)
+        self.assertEqual(corpus_check.budget_clause(
+            [{"check": "unit_tests", "elapsed_s": 301.0, "timeout_s": 600}]),
+            "; budget: unit_tests 301s/600s (50%)")
+
+
+# --------------------------------------------------------------------------
+# Round 451 (harness A) — ONE live run, shared.
+#
+# `TestLiveCorpus` warns below that a live-corpus test spawns the whole
+# `skills/` suite, and it is right one level down and blind one level up:
+# each of the FOUR live tests in this file called `corpus_check.main()` on
+# the real repo, and each of those spawns all nine checkers. Measured this
+# round with `--durations`, those four tests cost 25.35 + 24.51 + 24.29 +
+# 23.57 = 97.7 s of the suite's 162.3 s — 60% of a suite whose 600 s budget
+# it had just blown five rounds running (`driver.log`, rounds 431/445/448/
+# 449/450, `COULD NOT RUN: unit_tests`).
+#
+# The corpus does not change while pytest runs, so four invocations sample
+# one state four times. This runs it ONCE and hands all four tests the same
+# `(rc, report, stdout_lines)`. No assertion is weakened: every one of the
+# four asserted over a single snapshot already, and none of them asserted
+# anything ACROSS runs, so there was no stability property here to lose.
+#
+# Memoised at module scope rather than in a fixture because the callers are
+# two different `TestCase` classes and `unittest` has no cross-class setup.
+# The exception is cached too — if the live run blows up, all four tests
+# must report it, not just whichever ran first.
+_LIVE = []
+
+
+def live_run():
+    """`(rc, report, out_lines)` from ONE `corpus_check.main()` on the corpus.
+
+    Always with the re-entry guard set, for the reason `TestLiveCorpus`
+    gives: without it this recurses into the suite that is running it.
+    """
+    if not _LIVE:
+        prior = os.environ.get(corpus_check.REENTRY_ENV)
+        os.environ[corpus_check.REENTRY_ENV] = "1"
+        out = os.path.join(tempfile.mkdtemp(), "r.json")
+        buf = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(buf):
+                rc = corpus_check.main(["--repo-root", ROOT, "--json", out])
+            with open(out, encoding="utf-8") as f:
+                report = json.load(f)
+            _LIVE.append((rc, report,
+                          [l for l in buf.getvalue().splitlines() if l.strip()]))
+        except BaseException as exc:            # pragma: no cover - see above
+            _LIVE.append(exc)
+        finally:
+            if prior is None:
+                os.environ.pop(corpus_check.REENTRY_ENV, None)
+            else:
+                os.environ[corpus_check.REENTRY_ENV] = prior
+    if isinstance(_LIVE[0], BaseException):     # pragma: no cover
+        raise _LIVE[0]
+    return _LIVE[0]
+
+
 class TestLiveCorpus(unittest.TestCase):
     """The enforcement. This is what round 361's H001+P001 would have hit.
 
@@ -161,9 +351,7 @@ class TestLiveCorpus(unittest.TestCase):
             os.environ[corpus_check.REENTRY_ENV] = self._prior
 
     def test_live_corpus_is_clean(self):
-        out = os.path.join(tempfile.mkdtemp(), "r.json")
-        rc = corpus_check.main(["--repo-root", ROOT, "--json", out])
-        report = json.load(open(out, encoding="utf-8"))
+        rc, report, _ = live_run()
         errs = {r["check"]: r["errors"] for r in report["results"]
                 if r["errors"]}
         self.assertEqual(rc, corpus_check.PASS,
@@ -190,9 +378,7 @@ class TestLiveCorpus(unittest.TestCase):
         """Guards the assertion above against passing because the checkers
         silently went missing — the failure mode a health check has to not
         have."""
-        out = os.path.join(tempfile.mkdtemp(), "r.json")
-        corpus_check.main(["--repo-root", ROOT, "--json", out])
-        report = json.load(open(out, encoding="utf-8"))
+        _, report, _ = live_run()
         # DERIVED, not a literal. This assertion was `== 5` and round 369
         # added a sixth checker, which turned a real health check red for a
         # number rather than for a defect — round 321 item 14 / round 333
@@ -307,24 +493,10 @@ class TestCoverageIsReadFromFullOutput(unittest.TestCase):
 class TestLiveCoverageOnTheDriverLine(unittest.TestCase):
     """The point of the change: the aggregate line names the gaps."""
 
-    def setUp(self):
-        self.env = dict(os.environ)
-        os.environ[corpus_check.REENTRY_ENV] = "1"
-        self.tmp = tempfile.mkdtemp()
-
-    def tearDown(self):
-        os.environ.clear()
-        os.environ.update(self.env)
-        shutil.rmtree(self.tmp, ignore_errors=True)
-
     def _last_line(self):
-        out = os.path.join(self.tmp, "r.json")
-        import io as _io
-        import contextlib
-        buf = _io.StringIO()
-        with contextlib.redirect_stdout(buf):
-            corpus_check.main(["--repo-root", ROOT, "--json", out])
-        return [l for l in buf.getvalue().splitlines() if l.strip()][-1]
+        # Round 451: was its own `corpus_check.main()` on the live corpus,
+        # the third and fourth of four. Same snapshot, run once.
+        return live_run()[2][-1]
 
     def test_the_aggregate_line_names_each_checker_that_published_coverage(self):
         line = self._last_line()
