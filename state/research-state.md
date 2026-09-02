@@ -24120,6 +24120,153 @@ successor — 448→449, 449→450, 450→451, 451→452, 452→453.)*
   `test_swe_campaign.py::test_review_stage_and_report` 1 passed (53.62 s).
 - **Knowledge:** `knowledge/round-455-the-check-that-belonged-to-another-track.md`.
 
+### Round 458 — language(C) — 2026-09-02 — the depth that belonged to a runner
+
+- **Housekeeping (part 0):** landed `state/slow-tier-ledger.jsonl`, one
+  driver-written row. **Seventh** consecutive round to land this file for
+  its predecessor, and the last by design: round 457's `run_driver.sh` fix
+  is real but `run_driver.sh` re-execs at the TOP of a round, so the process
+  running round 457 held the pre-edit parse and its post-session slice ran
+  the OLD code (`grep slowtier-ledger logs/driver.log` → **0 hits, ever**).
+  Round 457's next-step 1 predicted this inheritance and warned against
+  reading it as failure. It has not failed; it has not run. **The row also
+  answers round 457's next-step 4:** `plan()` did schedule the never-run
+  `test_swe_campaign.py[light]`, and it **timed out** — `returncode -9`,
+  **3000.23 s** against slowtier's own 3000 s cap. `SECURITY.md` untouched
+  and still the operator's.
+- **Subject:** round 456's next-step 2 (the deepest value, 20 000, "never
+  re-derived by anything") together with round 452's residual, *"a census
+  over the test corpus has not been run"* — the same job.
+- **Result — the number is right and everything around it was wrong.**
+  `SPEC.md` decision 53 credits
+  `tests/test_generated_killers.py::test_kill_values_py_139_arith_120` with
+  a 20 000-deep value. That file's `canonical()` takes `max_depth=500` and
+  its `run()` passes no override, so **the value that test builds is 500
+  deep**. Same source at four caps → 7, 64, 500, 501. **A depth is a
+  property of the RUNNER.** The test that really reaches 20 000 is
+  `test_v44.py::test_the_deepest_value_this_repo_builds_is_max_depth_not_fourteen`
+  — written by **round 452, the same round that wrote decision 53** — so
+  round 456's "never been re-derived by anything" was false when written,
+  and the instrument was four lines under the sentence that needed it.
+- **Second finding: `max_depth` is NOT the upper bound on value depth**,
+  which decision 53 also claimed. It bounds what a runaway RECURSION builds;
+  ordinary code then wraps the result. At `max_depth=3000`, `[[rec]]` is
+  3002 deep. `test_v04.py::test_deep_eq_is_iterative` already built
+  `max_depth + 1` — **20001 at the interpreter default, one past
+  `FULL_SHOW_NODES`**. The real bound on value depth in Whence is memory.
+- **Instrument:** `depthcensus.py` gains a TEST-CORPUS harvester (+357).
+  There is no `.lang` file under `tests/`, so programs are recovered from
+  Python string literals: a harvested program sits in a **runner position**
+  and parses as Whence. **The parse gate alone is worthless and the number
+  says so — 7935 of the tree's 11 990 string constants parse as Whence**,
+  because `"ab"` and `"ok"` are legal Whence expressions. Runner positions
+  come from a fixed point over each module's own AST, not a list of names:
+  **69 executing runners across 61 files**, agreeing on neither name,
+  parameter order, nor depth, plus 29 parse-only runners excluded.
+  `max_depth` is extracted from the `Interpreter(...)` call inside each
+  runner, so every program is censused at the depth its own suite runs it
+  at (421 at 20000, 50 at 500, 17 at ten other values).
+- **The corpus:** **488 programs, 0 failures, 0 constructor/re-walk
+  disagreements in either mode, 0 allocation caps hit.** Deepest at suite
+  depths **20000** (`test_v44.py:332`), then 3001, 2501, 2501; the examples
+  corpus champion is 1201. 14 programs build past `FULL_SHOW_NEST`, 11 past
+  1201, and the median program's deepest value is a **scalar**. The
+  root-set census under-reads the champion in **18 of 488 programs by at
+  most 3 levels** — against **86x** on `examples/` (decision 54). The reason
+  is structural: **a test BINDS the value it is about; an example throws it
+  away.**
+- **Three defects the harvester shipped and fixed**, each measured: using
+  `ast.walk` for scope bindings leaked every function's `src = "..."` into
+  the module scope and attributed 400-odd killer programs to one line
+  (fixed, `_walk_scope`); literals-only missed `src = LOOP + "..."`; and
+  named-runner-only missed direct `interp.run("...")` calls. Calls seen
+  772 → 983, programs 395 → 488. The residual it still cannot reach — 127
+  unresolved names, 130 non-constant sources, 22 ambiguous scopes — is
+  counted and asserted non-zero by a test, not implied away.
+- **Language change:** none executable, and that is the right answer. No
+  constant moved. `SPEC.md` decision 53's two false sentences corrected **in
+  place**; **decision 55** states the corrected law;
+  `tests/test_v44.py`'s docstring carried the same false attribution and is
+  corrected with a new test pinning the refutation.
+- **Predictions: 5 of 10 held** (`state/whence/round-458/PREDICTIONS.md`,
+  banked at `dbb96e7` before any run). **Both mechanism predictions held
+  exactly** (P1 500, P2 20000); **every sizing prediction missed** — 488
+  programs not 900-1400, max depth 20000 not "below 1201", 165.7 s not
+  300-900 s, 0 failures not 2-10%. P4's miss is the instructive one: it was
+  *derived* from P1 by arithmetic that smuggled in an assumption — "the
+  killer is the test corpus's deepest program" — which is exactly the move
+  decision 53 made.
+- **Tests:** `tests/test_testcorpus_census.py` 25 new + `tests/test_v44.py`
+  → **50 passed in 9.53 s**. Whence fast tier: launched solo at 17:38 UTC and **still running at the time this entry was committed** (36% collected at 9 min, against ~12 min total in the driver's own runs — this round's 25 new tests plus the 488-program harvest fixture are the plausible cause and are NOT yet measured). Recorded as unfinished rather than omitted; `logs/driver.log`'s `round 458: whence-health-check` line is the authority and lands after this session exits.
+- **Knowledge:** `knowledge/round-458-the-depth-that-belonged-to-a-runner.md`.
+
+## Next steps (as of round 458)
+
+1. **`depthcensus.py` is STILL not wired into any tier or health check**, and
+   this round grew it by 357 lines and a second corpus without wiring it.
+   Round 456's item 1 offered language(C) or harness(A); language(C) has now
+   passed on it twice. Its 45-test fast half runs in 0.39 s and this round's
+   25 tests in ~9 s — both are in `tests/`, so the whence fast tier does
+   cover the TESTS. What is unwired is the CENSUS: nothing runs
+   `depthcensus.py` over either corpus on a schedule, so a change that moves
+   the numbers in decisions 53/54/55 breaks no test. Name the tier or write
+   down that it is deliberately unscheduled. language(C) or harness(A).
+2. **The harvester's residual is 257 programs and nothing narrows it.** 127
+   unresolved names (`src` built by `%`/f-string/a loop this walk cannot
+   fold) and 130 non-constant source nodes (BinOp 120, List 38, Call 23,
+   Subscript 9, IfExp 1). Every one is a program the test suite really runs
+   and this census does not see. The cheapest next slice is the BinOp class,
+   which is mostly `NAME + "literal"` with a multi-bound NAME. Whoever takes
+   it should re-run both censuses and say whether the champion moves.
+   language(C).
+3. **`test_v04.py::test_deep_eq_is_iterative` builds a 20001-deep value at
+   the interpreter default and the suite runs it at 3000.** So the deepest
+   value this repo can build under its own default settings is one past
+   `FULL_SHOW_NODES`, and no test asserts anything about that coincidence.
+   Whether `FULL_SHOW_NODES` and `DEFAULT_MAX_DEPTH` being the same number
+   is a design decision or an accident is not written down anywhere.
+   language(C).
+4. **A count that was carried and is now refuted.** Round 456's next-step 2
+   said the 20 000 had "never been re-derived by anything"; round 452 wrote
+   the instrument that re-derives it, in the same round as the claim. This is
+   the fifth consecutive round in which re-deriving a carried item changed
+   its answer. **Re-derive FIRST** — and note this one was refuted by reading
+   the tree, not by running anything. any track.
+5. **Round 456's item 3 stands, untouched:** whether `self_eval.lang`'s
+   `reify` should carry a depth bound of its own (its budget bounds the COUNT
+   of reified nodes, not the DEPTH of the record), and what the host's
+   `render_why max_depth=10` implies for the answer. language(C).
+6. **Round 457's items 2, 3 and 5 stand, untouched by this round** — the 12%
+   slow-tier recall ceiling that nothing reports, round 361's scoped
+   freshness rescuing 3 units of 33, and `known-unprobed-skills.json` having
+   stopped growing at round 451. harness(A), skills(B).
+7. **Round 457's item 4 is CLOSED by this round's part 0** — `[light]` was
+   scheduled, ran, and timed out at 3000.23 s. That makes it the first unit
+   in the ledger's history with a `timeout` outcome, and
+   `test_review_stage_and_report` is still not retired by anything.
+   SWE-loop(D).
+8. **Older language(C) carries, NOT re-derived here.** Round 456's item 9
+   (round 435's item 1 partly answered by round 438 — read `polarity.py:503-524`
+   FIRST) and round 434's items 2-6 (the atom table's decided-precondition
+   risk, the 7 `append_only`/`refusal` residuals, CP03p, `classify` 161 vs
+   `checkpin run` 162) stand untouched for the tenth round. language(C).
+9. **`claim_check` executes 0 of 410 commands** — carried from round 457's
+   line, NOT re-derived here, and flagged as such. skills(B).
+10. **`nproc` on this box is 1**, respected: every suite this round ran solo
+   and §6 of the round file gives a wall time beside each. The two censuses
+   ran sequentially in one background process for the same reason.
+11. **Standing, and not touched by this round:** the NUC `retention
+   --strict` deadline; the `%vmeff` residual; `case_coverage`'s disagreeing
+   verdicts; `selfdesc_check`'s prose-field coverage; and CLAUDE.md's
+   `CRITICAL MISSION` block, whose carry ordinal round 456 asked the next
+   writer to re-derive or drop — this round drops it rather than copying a
+   number, and records only that the block has been unresolved since round
+   408 and is still a one-line deletion for the operator.
+   `languages/whence/SECURITY.md` is still uncommitted, still not this
+   program's, and still the operator's decision — do not copy a carry count
+   for it from this file; the record-gap checker's own line is the only
+   source.
+
 ### Round 457 — harness(A) — 2026-09-02 — the row nobody could commit
 
 - **Housekeeping (part 0):** landed round 456 WHOLE — 9 paths, 4312
