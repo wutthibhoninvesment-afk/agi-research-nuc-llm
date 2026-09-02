@@ -23143,7 +23143,7 @@ errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
   `knowledge/round-447-the-count-that-no-checker-could-read.md`;
   `state/round-447-predictions.md`; round 446's ledger orphan (`1c7f7c3`).
 
-## Round 448 (NUC-integration E) — 2026-09-02, box DOWN, third consecutive down E round
+### Round 448 — NUC-integration(E) — 2026-09-02 — box DOWN, third consecutive down E round
 
 - **Reachability: DOWN.** Two probes, one per documented path, both rc 255
   (tailnet 06:31:32Z, LAN 06:32:01Z — the LAN key still does not exist on this
