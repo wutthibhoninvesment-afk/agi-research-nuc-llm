@@ -977,6 +977,12 @@
    "where": "knowledge/round-451-the-checker-that-could-not-run.md",
    "quote": "**6 HIT, 2 MISS of 8.**",
    "note": "Section 7, one table row per banked line, all 8. The bank fixed its DISPOSITION before the numbers (round 419's rule) and did so on the repair MOST likely to be chosen by a bad measurement: it wrote down that raising the 600s timeout and deselecting tests were both refused whatever the timing showed, so the 162.34s result could not talk this round into the cheap fix. P3 is the useful miss -- concentration was predicted correctly and in the wrong UNIT (top 3 = 45.7%, top 4 = 60.2%); the bank said 3 because 'top 3' is the idiom, not because anything measured three. P5 is the clean miss: I bet on the biggest file with the widest I/O surface (test_check_round_recorded.py, 1548 lines, reads git log) and its slowest test is 0.85s, while P4 in the same bank named the mechanism that actually predicted everything (tests spawning subprocesses). THE LINE WORTH READING IS P7, A HIT. It asked whether test_driver_health.py asserts that the corpus check's checkers ran; that is true and it hid the round's best finding, because a test named test_every_checker_actually_ran DOES exist elsewhere, does exactly that job, and is structurally incapable of seeing the one checker that stopped running. A prediction scoped to a FILE measures the file. Scope it to the question, or the bank pays you a green tick for missing the thing."
+  },
+  "452": {
+   "bank": "state/whence/round-452/PREDICTIONS.md",
+   "status": "unscored",
+   "owner": "language(C)",
+   "why": "Banked at the start of round 452 (language C), before any command in the subject was run, per D-013. Scored in this round's own knowledge file; the entry moves to `scored` in the same round."
   }
  }
 }
