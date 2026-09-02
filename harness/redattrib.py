@@ -633,6 +633,155 @@ def cmd_nodes(args):
     return 0
 
 
+# ---------------------------------------------------------------------------
+# Round 463 (harness A). WHAT A RED ROW LEAVES BEHIND.
+#
+# Round 461's next-step 1 named the reddest node in this whole measurement --
+# `unit_tests`, 26 of the 65 red checker rows -- and the reason nothing can
+# say anything about it: `corpus_check.run_one` unlinked its output on every
+# branch. Round 463 made a NOT-CLEAN checker keep its own output under
+# `logs/corpus-evidence/round-<N>/<check>.out`.
+#
+# This command is the reader. It exists as much for the number it CANNOT
+# produce as for the one it can: retention starts at the round that landed
+# it, so every red row before that is unrecoverable BY CONSTRUCTION and the
+# recovery rate must be reported against the whole history rather than
+# against the rounds that happen to have files. A rate computed over "rounds
+# with evidence" would be 100% on its first day and would say nothing.
+EVIDENCE_DIRNAME = "corpus-evidence"
+EVIDENCE_ROUND_RE = re.compile(r"^round-(\d+)$")
+
+
+def evidence_index(root=ROOT):
+    """{round: {checker: path}} over `logs/corpus-evidence/round-*/*.out`."""
+    base = os.path.join(root, "logs", EVIDENCE_DIRNAME)
+    out = {}
+    if not os.path.isdir(base):
+        return out
+    for name in sorted(os.listdir(base)):
+        m = EVIDENCE_ROUND_RE.match(name)
+        if not m:
+            continue
+        d = os.path.join(base, name)
+        if not os.path.isdir(d):
+            continue
+        per = {}
+        for fn in sorted(os.listdir(d)):
+            if fn.endswith(".out"):
+                per[fn[:-len(".out")]] = os.path.join(d, fn)
+        if per:
+            out[int(m.group(1))] = per
+    return out
+
+
+#: The same shape `corpus_check.FAILED_NODE_RE` writes. Duplicated rather
+#: than imported: this module is `harness/` and that one is `skills/`, the
+#: two are read by different tracks, and `test_the_two_node_id_patterns_agree`
+#: pins them together so the duplication cannot drift silently.
+EVIDENCE_FAILED_RE = re.compile(r"^(?:FAILED|ERROR) (\S+\.py(?:::\S+)?)", re.M)
+
+
+def nodes_in_evidence(path):
+    """Ordered pytest node ids a retained evidence file names as failing."""
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            text = fh.read()
+    except OSError:                                        # pragma: no cover
+        return []
+    seen, order = set(), []
+    for nid in EVIDENCE_FAILED_RE.findall(text):
+        if nid not in seen:
+            seen.add(nid)
+            order.append(nid)
+    return order
+
+
+def evidence_report(root=ROOT):
+    """Every NOT-CONCLUSIVE-GREEN corpus row against the evidence it left."""
+    rows = corpus_rows(root)["skills_health_round"]
+    index = evidence_index(root)
+    items = []
+    for rnd in sorted(rows):
+        for checker, (status, codes) in sorted(rows[rnd].items()):
+            # The denominator is the RETENTION PREDICATE, not "not green".
+            # `corpus_check._attach_evidence` keeps a run whose rc is
+            # non-zero or whose errors are non-empty, and an `ABSENT` row
+            # never had a child to keep output from. Counting every not-green
+            # row would manufacture a permanent shortfall out of rows the
+            # mechanism is not answerable for -- the mirror image of the
+            # borrowed-code defect round 463 fixed one file over.
+            #
+            # A `warn` row is USUALLY clean (rc 0, no errors) and so is
+            # usually excluded -- but not always, and round 463 found that
+            # out by running the thing: `checks()` passes `--strict` to
+            # `skill_lint`, which exits 1 on a WARNING, so a `warn B002` row
+            # is rc 1 and DOES retain. The rule is therefore "ERROR/TIMEOUT,
+            # or anything that actually left a file". Never orphan a retained
+            # file from the report that counts retentions.
+            path = index.get(rnd, {}).get(checker)
+            if status not in ("ERROR", "TIMEOUT") and not path:
+                continue
+            items.append({
+                "round": rnd, "checker": checker, "status": status,
+                "codes": codes, "evidence": path,
+                "nodes": nodes_in_evidence(path) if path else [],
+            })
+    covered = [i for i in items if i["evidence"]]
+    first = min(index) if index else None
+    return {
+        "items": items,
+        "n_rows": len(items),
+        "n_with_evidence": len(covered),
+        "first_retained_round": first,
+        "rounds_observed": sorted(rows),
+        # The honest denominator split. Rows BEFORE retention existed are not
+        # a recall failure of anything -- they are the loss this round stopped
+        # -- and rows after it are the only ones the mechanism is answerable
+        # for.
+        "n_before_retention": sum(1 for i in items
+                                  if first is None or i["round"] < first),
+        "n_since_retention": sum(1 for i in items
+                                 if first is not None and i["round"] >= first),
+        "n_since_retention_covered": sum(
+            1 for i in covered if first is not None and i["round"] >= first),
+    }
+
+
+def cmd_evidence(args):
+    rep = evidence_report()
+    if args.json:
+        print(json.dumps(rep, indent=2, sort_keys=True))
+        return 0
+    for i in rep["items"]:
+        if args.only_missing and i["evidence"]:
+            continue
+        mark = "EVIDENCE" if i["evidence"] else "lost"
+        print("round %-4d %-18s %-8s %-22s %s"
+              % (i["round"], i["checker"], i["status"], i["codes"] or "-",
+                 mark))
+        for nid in i["nodes"][:args.nodes]:
+            print("%18s%s" % ("", nid))
+        if len(i["nodes"]) > args.nodes:
+            print("%18s(+%d more)" % ("", len(i["nodes"]) - args.nodes))
+    first = rep["first_retained_round"]
+    print("\ncorpus-evidence: %d not-green row(s) over rounds %s-%s; "
+          "%d carry a retained file"
+          % (rep["n_rows"], rep["rounds_observed"][0] if rep["rounds_observed"]
+             else "-", rep["rounds_observed"][-1] if rep["rounds_observed"]
+             else "-", rep["n_with_evidence"]))
+    if first is None:
+        print("corpus-evidence: retention has never run — every row above is "
+              "unrecoverable, which is the state round 461's item 1 "
+              "described")
+        return 0
+    print("corpus-evidence: retention starts at round %d — %d row(s) predate "
+          "it and are unrecoverable BY CONSTRUCTION, not by omission; "
+          "%d of %d row(s) since are covered"
+          % (first, rep["n_before_retention"],
+             rep["n_since_retention_covered"], rep["n_since_retention"]))
+    return 0
+
+
 def cmd_audit(args):
     res = analyse()
     for code, nid, msg in res["registry_findings"]:
@@ -652,6 +801,13 @@ def build_parser():
     n = sub.add_parser("nodes"); n.add_argument("--json", action="store_true")
     n.set_defaults(fn=cmd_nodes)
     d = sub.add_parser("audit"); d.set_defaults(fn=cmd_audit)
+    e = sub.add_parser("evidence")
+    e.add_argument("--json", action="store_true")
+    e.add_argument("--only-missing", action="store_true",
+                   help="print only the rows with no retained file")
+    e.add_argument("--nodes", type=int, default=5,
+                   help="how many failing node ids to print per row")
+    e.set_defaults(fn=cmd_evidence)
     return p
 
 

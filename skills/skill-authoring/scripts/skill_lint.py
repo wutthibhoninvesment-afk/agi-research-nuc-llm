@@ -677,8 +677,29 @@ def main(argv=None):
         print(f)
     n_err = sum(1 for f in all_findings if f.level == "ERROR")
     n_warn = sum(1 for f in all_findings if f.level == "WARN")
+    # Round 463 (harness A): a SUBSET RUN MUST NOT LOOK LIKE A FULL ONE --
+    # round 453's rule for `corpus_check.subset_clause`, applied to this
+    # file's own summary because it had the same defect one level down.
+    #
+    # `--house` is what turns H001-H006 on, and `corpus_check.checks()` passes
+    # it. A round verifying its own new skill types the short form, gets
+    # `0 error(s)`, and ships a SKILL.md that is an ERROR in the corpus check
+    # that runs after the round exits. That has now happened three times:
+    # round 363 (`## When this applies`, recorded in
+    # skills/measured-not-declared-dependencies/SKILL.md's own header), round
+    # 462 (`residual-audited-both-ways`, H001-red from the round it landed),
+    # and round 463, which typed `skill_lint.py --strict skills/<new>` on its
+    # own skill, read `0 error(s)`, and found H001 only when the live corpus
+    # check went red an hour later.
+    #
+    # The clause is empty in --house mode, so the line the driver's
+    # corpus-check logs is byte-identical to what every round before this
+    # logged.
+    house_clause = "" if args.house else \
+        " (house format NOT enforced — add --house for the rules the corpus " \
+        "check applies)"
     print(f"skill-lint: {len(skill_dirs)} skill(s), {n_err} error(s), "
-          f"{n_warn} warning(s)")
+          f"{n_warn} warning(s){house_clause}")
     if n_err or (args.strict and n_warn):
         return 1
     return 0

@@ -1,5 +1,7 @@
 """Tests for skill_lint.py. Run:  python3 -m unittest test_skill_lint -v"""
 
+import contextlib
+import io
 import os
 import sys
 import tempfile
@@ -7,6 +9,11 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import skill_lint  # noqa: E402
+
+#: This repo's root, for the round-463 test that names the caller
+#: which passes --house. Three levels up from skills/skill-authoring/scripts/.
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.dirname(os.path.abspath(__file__)))))
 
 GOOD_DESC = ("Validates SKILL.md files against official constraints. "
              "Use when authoring or reviewing skills.")
@@ -719,3 +726,73 @@ class TestSiblingSkillLinks(unittest.TestCase):
             os.path.join(self.root, "b", "SKILL.md"), p))
         self.assertFalse(skill_lint.is_sibling_skill(
             os.path.join(self.root, "a", "references", "x.md"), p))
+
+
+class TestHouseModeIsNotSilentlyOff(unittest.TestCase):
+    """Round 463 (harness A). A subset run must not look like a full one.
+
+    `--house` is what turns H001-H006 on and `corpus_check.checks()` passes
+    it, so `skill_lint.py --strict skills/<new>` -- the command a round
+    naturally types to verify its own new skill -- applies a strictly weaker
+    rule set than the check that runs after the round exits. Three rounds
+    have shipped an H001-red SKILL.md that way: 363 (recorded in
+    `skills/measured-not-declared-dependencies/SKILL.md`'s own header), 462
+    (`residual-audited-both-ways`, red from the round it landed until 463),
+    and 463 itself.
+
+    This is round 453's `corpus_check.subset_clause` reasoning applied one
+    level down: the fix is not to change the default, which would rewrite
+    every historical verdict, but to stop the weaker run from printing a line
+    indistinguishable from the stronger one.
+    """
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp(prefix="house-clause.")
+        d = os.path.join(self.root, "s")
+        os.makedirs(d)
+        with open(os.path.join(d, "SKILL.md"), "w", encoding="utf-8") as fh:
+            fh.write("---\nname: s\ndescription: Use when a thing happens "
+                     "and you want the other thing done to it.\n---\n\n"
+                     "# S\n\n## When this fires\n\nprose\n")
+        self.skill = d
+
+    def _run(self, argv):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = skill_lint.main(argv)
+        return rc, buf.getvalue()
+
+    def test_without_house_the_summary_says_the_rules_were_not_applied(self):
+        rc, out = self._run(["--strict", self.skill])
+        self.assertEqual(rc, 0)
+        self.assertIn("house format NOT enforced", out)
+        self.assertIn("--house", out)
+
+    def test_with_house_the_line_is_byte_identical_to_what_rounds_logged(self):
+        """The SUMMARY line, not the whole stream -- H005's own message
+        contains the words `house format` and is not the clause."""
+        rc, out = self._run(["--house", "--strict", self.skill])
+        self.assertEqual(rc, 1)
+        summary = [l for l in out.splitlines() if l.startswith("skill-lint:")]
+        self.assertEqual(summary,
+                         ["skill-lint: 1 skill(s), 5 error(s), 0 warning(s)"])
+
+    def test_the_clause_rides_on_the_summary_line_itself(self):
+        rc, out = self._run(["--strict", self.skill])
+        summary = [l for l in out.splitlines() if l.startswith("skill-lint:")]
+        self.assertEqual(len(summary), 1)
+        self.assertTrue(summary[0].endswith(
+            "(house format NOT enforced — add --house for the rules the "
+            "corpus check applies)"), summary[0])
+
+    def test_the_two_modes_really_do_disagree_on_this_skill(self):
+        """The clause would be noise if the modes agreed."""
+        self.assertNotIn("H001", codes(skill_lint.lint_skill(self.skill)))
+        self.assertIn("H001", codes(skill_lint.lint_skill(self.skill,
+                                                          house=True)))
+
+    def test_the_corpus_check_is_the_caller_that_passes_house(self):
+        """If this ever stops being true, the clause is pointed at nothing."""
+        import corpus_check
+        argvs = dict(corpus_check.checks(REPO_ROOT))
+        self.assertIn("--house", argvs["skill_lint"])

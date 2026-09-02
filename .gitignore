@@ -59,6 +59,29 @@ logs/slowtier_round_*.log
 # tripped the record-gap check.
 logs/nuc_health_round_*.log
 
+# Round 463 (harness A): retained output of a NOT-CLEAN corpus checker,
+# `logs/corpus-evidence/round-<N>/<check>.out`, written by
+# `skills/skill-authoring/scripts/corpus_check.py` (`_attach_evidence`).
+# Same class and same reasoning as the five per-round-log patterns above,
+# and added in the SAME round as the wiring on purpose: rounds 363/365, 409
+# and 441 each wired a per-round log WITHOUT its ignore line and each left
+# the next round an unattributed `??` that tripped the record-gap check.
+# Three instances of one avoidable mistake is enough.
+#
+# Checked before adding, per round 441's rule that an ignore line is read by
+# more than `git status`: `git grep -n corpus-evidence` at the time of
+# writing returned only this round's own PREDICTIONS.md, so no measurement
+# selects on this path's git status and ignoring it silences nothing. The
+# DURABLE artefacts stay tracked as always -- the round file, the knowledge
+# file, and `driver.log`'s `skills-check FAIL` line, which now carries the
+# retained path because `evidence:` lines print above the summary and
+# `driver_line` joins the last five.
+#
+# Note this is DIAGNOSTIC SCRATCH BY CONSTRUCTION: it exists only for rounds
+# whose corpus check was already red, and a green repo never creates the
+# directory at all.
+logs/corpus-evidence/
+
 # OS files
 .DS_Store
 Thumbs.db

@@ -120,6 +120,221 @@ def coverage_of(output):
     return re.sub(r"\s+", " ", found[-1]).strip() if found else ""
 
 
+# ---------------------------------------------------------------------------
+# Round 463 (harness A). THE ROW WHOSE CHILD IS A TEST RUNNER.
+#
+# Round 461's next-step 1: "`unit_tests` is 25 of the 60 red checker-rows and
+# its failures are unrecoverable. `corpus_check.run_one` unlinks its
+# `tempfile.mkstemp` sink in a `finally`, so no round can say WHICH test
+# failed inside any red `unit_tests` row, ever." Re-derived at round 463 over
+# `logs/skills_health_round_*.log`: **26 of 65**, over 99 logs (rounds
+# 364-462), plus 5 TIMEOUT rows. The carried pair was a round stale; the
+# claim it makes was not.
+#
+# Retention is the smaller half of the repair. The larger half is what the
+# row published INSTEAD of the evidence it destroyed.
+#
+# `unit_tests` runs `pytest -q skills/skill-authoring/scripts
+# skills/session-inheritance-audit/scripts`, and those tests INVOKE the other
+# nine checkers. When one fails, pytest dumps the captured stdout of the
+# checker it drove into the traceback -- so `_findings_in` and `coverage_of`,
+# which exist to read a CHECKER's own output, read another checker's output
+# through a test runner's failure report. Every field the row publishes is
+# then borrowed:
+#
+#   codes     19 of the 26 red rows say `rc1`, which is honest. The other 7
+#             say P001 / C001 / S001,S002,S006 -- other checkers' codes. Round
+#             398's log is the clean specimen: `case_coverage ERROR P001`,
+#             `state_claim_check ERROR S001,S002,S006`, and then `unit_tests
+#             ERROR P001,S001,S002,S006`, the union of the two, re-read out of
+#             pytest's traceback.
+#   count     `n_err` sums `len(r["errors"])` over rows, so those borrowed
+#             codes are DOUBLE-COUNTED in the number `driver_line` puts in
+#             `driver.log`. Round 398 logged `9 error(s)` for 5 distinct
+#             violations.
+#   coverage  21 of the 99 aggregate lines name a `unit_tests <clause>`, and
+#             it is another checker's clause verbatim -- round 419's is
+#             `state_claim_check`'s `6/10 items (60%), 6/6 claims`, published
+#             twice under two names on the line the driver logs.
+#
+# The fix is not a better regex. A test runner has no findings of its own to
+# parse; it has an exit code and a list of node ids. So a check named here
+# publishes ITS OWN verdict -- `rc1`, plus the failing node ids, plus the path
+# to its retained output -- and the scraped fields are moved to `borrowed` in
+# the `--json` result, kept rather than deleted so the next round can see what
+# the row used to say.
+#
+# `rc1` is retained deliberately as the token, rather than something more
+# descriptive: `corpus_history.LIVE_CODE_RE` matches `([A-Z]\d{3}|rc1)` over
+# these logs' history and `redattrib.CORPUS_ROW` captures the codes token
+# only when a single space follows the status word. A richer token here would
+# have silently dropped this row from both readers, which is the same class of
+# loss this round exists to stop.
+RUNNER_CHECKS = {
+    "unit_tests":
+        "pytest over skills/*/scripts/test_*.py, whose tests drive the other "
+        "checkers; any code, warning or coverage clause in its output belongs "
+        "to a checker it ran, not to it",
+}
+
+#: A pytest node id in a `FAILED`/`ERROR` short-summary line. Anchored on
+#: `.py` so a checker's own `ERROR P001 ...` line, which this same output can
+#: contain, cannot be mistaken for a node id.
+FAILED_NODE_RE = re.compile(r"^(?:FAILED|ERROR) (\S+\.py(?:::\S+)?)", re.M)
+
+
+def failed_nodes(output):
+    """Ordered, de-duplicated pytest node ids named FAILED/ERROR in `output`."""
+    seen, order = set(), []
+    for nid in FAILED_NODE_RE.findall(output or ""):
+        if nid not in seen:
+            seen.add(nid)
+            order.append(nid)
+    return order
+
+
+#: Retention cap, in CHARACTERS of the child's decoded output. A red
+#: `unit_tests` run is a pytest traceback dump and has no natural bound; the
+#: cap is what stops one pathological round from writing a hundred megabytes
+#: into `logs/`. Head AND tail are kept because they answer different
+#: questions -- the head has the collection errors, the tail has pytest's
+#: short summary (`FAILED <nodeid>`) and its count line, which is the part
+#: `failed_nodes` reads.
+MAX_EVIDENCE_CHARS = 256 * 1024
+EVIDENCE_HEAD_CHARS = 64 * 1024
+
+
+def elide(output, cap=MAX_EVIDENCE_CHARS, head=EVIDENCE_HEAD_CHARS):
+    """(text, n_elided). Keeps the first `head` and the last `cap - head`.
+
+    The marker names the number elided, so a reader can never mistake a
+    capped file for a complete one -- round 453's subset-clause rule applied
+    to a file instead of a summary line.
+    """
+    raw = output or ""
+    if len(raw) <= cap:
+        return raw, 0
+    tail = cap - head
+    dropped = len(raw) - cap
+    return ("%s\n... [%d character(s) elided by corpus_check.py: kept the "
+            "first %d and the last %d] ...\n%s"
+            % (raw[:head], dropped, head, tail, raw[-tail:])), dropped
+
+
+def round_label(root):
+    """`round-463` from `state/round_counter`, else `round-unknown`.
+
+    NOT passed in by `run_driver.sh` on purpose. The driver writes `ROUND` to
+    that file at the top of a loop iteration and launches the four health
+    checks later in the SAME iteration, so the counter is already this round's
+    number when the check runs -- which means this retention works from the
+    round that lands it, with none of the one-round re-exec lag round 457's
+    fix had to warn its successor about.
+    """
+    try:
+        with open(os.path.join(root, "state", "round_counter"),
+                  encoding="utf-8") as fh:
+            return "round-%d" % int(fh.read().strip())
+    except (OSError, ValueError):
+        return "round-unknown"
+
+
+def default_evidence_dir(root):
+    """`<root>/logs/corpus-evidence/round-<N>`."""
+    return os.path.join(root, "logs", "corpus-evidence", round_label(root))
+
+
+def _runner_verdict(res, output):
+    """Replace a runner row's BORROWED fields with its own verdict.
+
+    Keeps what it replaced under `borrowed`, because the question "what did
+    this row used to say?" is exactly the one a round reading an old log will
+    ask, and deleting the answer would repeat this file's own mistake.
+    """
+    res = dict(res)
+    res["runner"] = True
+    res["borrowed"] = {"errors": res["errors"], "warnings": res["warnings"],
+                       "coverage": res["coverage"]}
+    res["failed_nodes"] = failed_nodes(output)
+    res["errors"] = (["rc1"] if res["status"] == "ran"
+                     and res.get("rc") not in (0, None) else [])
+    res["warnings"] = []
+    res["coverage"] = ""
+    return res
+
+
+def _attach_evidence(res, output, evidence_dir):
+    """Write a NOT-CLEAN run's output under `evidence_dir` and record where.
+
+    A clean run writes nothing and creates no directory, so a repo whose
+    corpus check passes never grows this tree at all. `absent` writes nothing
+    either: there was no child and therefore no evidence.
+    """
+    if not evidence_dir:
+        return res
+    clean = (res["status"] == "ran" and res.get("rc") == 0
+             and not res["errors"])
+    if clean or res["status"] == "absent":
+        return res
+    body, dropped = elide(output or "")
+    path = os.path.join(evidence_dir, "%s.out" % res["check"])
+    try:
+        os.makedirs(evidence_dir, exist_ok=True)
+        with open(path, "w", encoding="utf-8", errors="replace") as fh:
+            fh.write(body)
+    except OSError as exc:                                 # pragma: no cover
+        res["evidence_error"] = "%s: %s" % (path, exc)
+        return res
+    res["evidence"] = path
+    res["evidence_chars"] = len(body)
+    res["evidence_lines"] = body.count("\n") + (1 if body else 0)
+    res["evidence_elided"] = dropped
+    return res
+
+
+def _finish(res, output, evidence_dir):
+    """The two things every non-`absent` result now gets."""
+    if res["check"] in RUNNER_CHECKS:
+        res = _runner_verdict(res, output)
+    return _attach_evidence(res, output, evidence_dir)
+
+
+def evidence_lines(results, root):
+    """The `evidence: ...` lines printed under the rows, one per retention.
+
+    Deliberately NOT row-shaped. `redattrib.CORPUS_ROW` matches a name
+    followed by two or more spaces and a status word; `evidence:` is followed
+    by a colon, so these lines cannot be read as checker rows by the module
+    that counts them, and the 99 logs' historical row counts are unaffected.
+
+    They sit ABOVE the `corpus-check:` summary, which means `driver_line`'s
+    FAIL branch (`" ".join(lines[-5:])`) carries the retained PATH into
+    `driver.log` with no change to `run_driver.sh` at all.
+    """
+    out = []
+    for r in results:
+        if r.get("evidence_error"):
+            out.append("evidence: %s NOT retained — %s"
+                       % (r["check"], r["evidence_error"]))
+            continue
+        if not r.get("evidence"):
+            continue
+        rel = os.path.relpath(r["evidence"], root)
+        out.append("evidence: %s -> %s (%d line(s), %d char(s)%s, rc=%s)"
+                   % (r["check"], rel, r["evidence_lines"],
+                      r["evidence_chars"],
+                      ", %d elided" % r["evidence_elided"]
+                      if r["evidence_elided"] else "", r.get("rc")))
+        nodes = r.get("failed_nodes") or []
+        if nodes:
+            shown = nodes[:5]
+            out.append("evidence: %s failing node(s): %s%s"
+                       % (r["check"], ", ".join(shown),
+                          " (+%d more in the file)" % (len(nodes) - len(shown))
+                          if len(nodes) > len(shown) else ""))
+    return out
+
+
 # Re-entry guard. `test_corpus_check.py::TestLiveCorpus` calls `main()` on
 # the live corpus, and `main()` runs the `skills/` test suite — which
 # contains that test. Round 363 built exactly that loop and watched it spin.
@@ -319,7 +534,7 @@ def budget_clause(results):
     return "; budget: " + ", ".join(over) if over else ""
 
 
-def run_one(name, argv, root, timeout=600):
+def run_one(name, argv, root, timeout=600, evidence_dir=None):
     """Run one checker. The result ALWAYS carries what the checker managed
     to say, including when it was killed for running long.
 
@@ -356,6 +571,19 @@ def run_one(name, argv, root, timeout=600):
     `elapsed_s` is now on every branch. It was computed from `t0` and then
     dropped on three of the four, which is why no round could say how close
     a checker was to its budget before the round it went over.
+
+    Round 463 (harness A) added the third thing that had cost real rounds:
+    THE OUTPUT WAS STILL DESTROYED. Round 451 stopped the timeout branch
+    from discarding what the child had SAID; the `finally` below still
+    unlinked the file it said it in, on every branch, so a red row's only
+    surviving trace was a codes token and pytest's count line. `evidence_dir`
+    keeps a copy of a NOT-CLEAN run's output under `logs/corpus-evidence/
+    round-<N>/<check>.out`, capped by `elide`, and records the path on the
+    result. A CLEAN run keeps nothing and creates no directory.
+
+    The temp sink itself is still unlinked unconditionally, as it always was:
+    retention writes a second, named file from the text already in memory,
+    so no failure path can leave a `/tmp` file behind.
     """
     if argv[0] != "-m" and not os.path.exists(argv[0]):
         return {"check": name, "status": "absent", "errors": [],
@@ -399,30 +627,35 @@ def run_one(name, argv, root, timeout=600):
         # finding: it distinguishes a checker that is slow from one that
         # hung before it started.
         last = lines[-1][:120] if lines else ""
-        return {"check": name, "status": "timeout", "errors": errors,
-                "warnings": warnings, "coverage": coverage_of(out),
-                "elapsed_s": elapsed, "timeout_s": timeout, "partial": True,
-                "output_lines": len(lines),
-                "summary": "timed out after %ds; %s" % (
-                    timeout,
-                    ("%d line(s) before the kill, last: %s" % (len(lines), last))
-                    if lines else "said nothing before the kill")}
+        return _finish({"check": name, "status": "timeout", "errors": errors,
+                        "warnings": warnings, "coverage": coverage_of(out),
+                        "elapsed_s": elapsed, "timeout_s": timeout,
+                        "partial": True, "output_lines": len(lines),
+                        "summary": "timed out after %ds; %s" % (
+                            timeout,
+                            ("%d line(s) before the kill, last: %s"
+                             % (len(lines), last))
+                            if lines else "said nothing before the kill")},
+                       out, evidence_dir)
     if rc == 2 or (rc not in (0, 1)):
-        return {"check": name, "status": "error", "rc": rc,
-                "errors": [], "warnings": [], "coverage": coverage_of(out),
-                "elapsed_s": elapsed, "timeout_s": timeout,
-                "summary": lines[-1][:200] if lines else "rc=%d" % rc}
+        return _finish({"check": name, "status": "error", "rc": rc,
+                        "errors": [], "warnings": [],
+                        "coverage": coverage_of(out),
+                        "elapsed_s": elapsed, "timeout_s": timeout,
+                        "summary": lines[-1][:200] if lines
+                        else "rc=%d" % rc}, out, evidence_dir)
     errors, warnings = _findings_in(lines)
     # A checker with a non-zero exit and no parseable code still FAILS: its
     # own exit code is authoritative and an unparsed line must never read as
     # green (round 349's FAIL-vs-ERROR rule, applied to this layer).
     if rc == 1 and not errors and not warnings:
         errors = ["rc1"]
-    return {"check": name, "status": "ran", "rc": rc,
-            "errors": errors, "warnings": warnings,
-            "coverage": coverage_of(out),
-            "elapsed_s": elapsed, "timeout_s": timeout,
-            "summary": lines[-1][:200] if lines else ""}
+    return _finish({"check": name, "status": "ran", "rc": rc,
+                    "errors": errors, "warnings": warnings,
+                    "coverage": coverage_of(out),
+                    "elapsed_s": elapsed, "timeout_s": timeout,
+                    "summary": lines[-1][:200] if lines else ""},
+                   out, evidence_dir)
 
 
 # The exit-code contract. Anything not in this table is a bug in this file,
@@ -526,6 +759,15 @@ def main(argv=None):
                     help="comma-separated checker names; see --list")
     ap.add_argument("--list", action="store_true",
                     help="print the checker names and exit")
+    # Round 463 (harness A). See RUNNER_CHECKS and `_attach_evidence`.
+    ap.add_argument("--evidence-dir", default=None,
+                    help="where a NOT-CLEAN checker's own output is kept "
+                         "(default: logs/corpus-evidence/round-<N>, the round "
+                         "read from state/round_counter)")
+    ap.add_argument("--no-evidence", action="store_true",
+                    help="destroy a failing checker's output as this script "
+                         "did before round 463; for a caller that must not "
+                         "write to the tree")
     args = ap.parse_args(argv)
     root = os.path.abspath(args.repo_root)
 
@@ -545,13 +787,17 @@ def main(argv=None):
         print("corpus_check: %s" % exc, file=sys.stderr)
         return COULD_NOT_RUN
 
-    results = [run_one(n, a, root) for n, a in selected]
+    ev_dir = None if args.no_evidence else (
+        args.evidence_dir or default_evidence_dir(root))
+    results = [run_one(n, a, root, evidence_dir=ev_dir) for n, a in selected]
     for r in results:
         flag = ("ERROR " + ",".join(r["errors"])) if r["errors"] else (
             ("warn " + ",".join(r["warnings"])) if r["warnings"] else "ok")
         if r["status"] in ("absent", "timeout", "error"):
             flag = r["status"].upper()
         print("%-18s %-22s %s" % (r["check"], flag, r["summary"]))
+    for line in evidence_lines(results, root):
+        print(line)
 
     n_err = sum(len(r["errors"]) for r in results)
     n_warn = sum(len(r["warnings"]) for r in results)
