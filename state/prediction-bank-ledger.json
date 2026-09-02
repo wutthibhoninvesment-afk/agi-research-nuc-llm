@@ -1042,6 +1042,14 @@
    "where": "knowledge/round-459-the-claims-that-only-drift-one-way.md",
    "quote": "**5 clean HITs, 1 split, 2 MISSes, 2 unresolvable-as-posed, 1 reported.**",
    "remainder": "P2 (how many C002 corpus-wide) and P4 (whole-corpus wall clock) are unresolvable AS POSED, not unscored: the corpus-wide sweep was stopped at 23 of 86 skills to spend the remaining budget on the 12 skills the repairs needed. Section 6 of the knowledge file says so and gives the partial numbers rather than a partial denominator dressed as a whole one."
+  },
+  "460": {
+   "bank": "nuc/predictions-e-round460.md",
+   "status": "scored",
+   "scored_by": 460,
+   "where": "knowledge/round-460-the-field-nobody-read.md",
+   "quote": "**13 HIT, 1 PARTIAL, 0 MISS of 14, plus one",
+   "note": "Section 7 of the knowledge file, with the full table in the bank file's own SCORING section. The one non-HIT, P12, is a PROCESS failure rather than a forecast failure: the round predicted a test-suite baseline it had never measured, and by the time it tried, the tree was already dirty. Measuring it in a git worktree afterwards is what surfaced the round's fifth finding -- .gitignore excludes logs/round-*.json, so seven of the reachability log's rows and eleven of its tests are pinned against files deliberately not in the repository -- so the process failure paid for itself once, which is not a reason to repeat it. Two calibration results worth keeping: both LOW-confidence predictions (P8, the tailscale age renderer floors rather than rounds; P15, round 190's recovered bracket moves no published number) HELD, because flagging weak evidence made the round go and measure rather than assume. And P6 was nearly scored a MISS on a phrase grep that returned four quotations of round 184's prose alongside the two real readings -- a grep over a transcript finds citations of an observation as readily as the observation. The bank also used round 436's no-basis clause once, declining to guess whether six unopened transcripts carried a rendering; none did."
   }
  }
 }

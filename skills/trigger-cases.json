@@ -2455,5 +2455,26 @@
   "id": "floor-neg-twosided",
   "expect": [],
   "prompt": "Our linter's summary line says `0 error(s), 0 warning(s)` and I want the README to document that as the expected clean state. Errors get introduced and fixed all the time. How should I write it?"
+ },
+ {
+  "id": "chb-near",
+  "expect": [
+   "compare-at-the-hardest-bound"
+  ],
+  "prompt": "Our event log rows have a `precision` column that says whether the timestamp was measured or reconstructed from a rounded uptime string, and I just noticed none of our analytics queries look at it. They all just compare timestamps directly. How much should I care?"
+ },
+ {
+  "id": "chb-mid",
+  "expect": [
+   "compare-at-the-hardest-bound"
+  ],
+  "prompt": "This report says the longest outage was exactly 4h00m00s and I don't trust it - both endpoints come from timestamps we rounded to the minute before storing. Can you work out what the number should actually be and whether the ranking it feeds still holds?"
+ },
+ {
+  "id": "chb-far",
+  "expect": [
+   "compare-at-the-hardest-bound"
+  ],
+  "prompt": "We have one function that decides both 'this proves the service was down the whole time' and 'this proves someone reached it mid-outage', and both branches use the same `<=` against a sampled timestamp. That feels wrong but I can't articulate why."
  }
 ]
