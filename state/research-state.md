@@ -22745,6 +22745,165 @@ errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
   `skills/suppression-has-many-readers/SKILL.md` (its round-441 verification
   expectation moved because of this round's change, and says so).
 
+### Round 445 — harness(A) — 2026-09-02 — the fix that landed in one of two copies
+
+- **The round-439 driver slice made its first non-trivial catch, and this
+  round is the "later round" that design names.** Its post-444 run appended
+  `test_swe_equivalence.py failed, 3 failed / 8 passed in 58.16s` to
+  `state/slow-tier-ledger.jsonl` — the file's FIRST appearance in that
+  ledger's 41 entries. The driver logged it `slowtier-slice OK (... 1
+  failing)`, which was **checked before being criticised and NOT changed**:
+  `run_slowtier_slice.sh` and `run_driver.sh` both document that `ERROR`
+  means "the script could not run", that a red slow unit is "exactly the
+  finding a later round should FIX", and the quoted summary carried
+  `1 failing` in the same line.
+- **All three failures are one fixture, and the visible defect is a stale
+  anchor this program already has a rule for.** `_concat_mutant()` selected
+  on `and "x + y" in ...`; round 368 (`f568a79`, v0.27) deleted the line that
+  names, deliberately. Measured against the commit, not inferred:
+  `git show f568a79^:...interp.py | grep -c '.*"concat".*x + y'` -> **1**,
+  same command at `f568a79` -> **0**.
+- **The finding is that the fix landed in ONE of two copies.**
+  `test_swe_killers.py` carried the identical expression. Round 437's
+  `ce7a89d` re-anchored it and its 15-file diff never mentions equivalence
+  (`git show ce7a89d --stat | grep -c equivalence` -> **0**). Both broke at
+  368; killers was found at 437 because a D round happened to run that file,
+  equivalence at 444 by the slice — 69 and 76 rounds. The only thing
+  connecting them was a docstring: *"Same anchor swe.killers' own test
+  uses"*. **A cross-file claim in a Python docstring has no reader in this
+  repo** — `claim_check`/`state_claim_check` parse markdown Verification
+  blocks, `xref_check` reads registries, `verb_audit` reads `.py` for
+  INVOCATIONS, not assertions (banked as P7, confirmed).
+- **Porting round 437's fix verbatim would NOT have worked, and that is the
+  sharp result.** Killers ITERATES its candidates; equivalence took
+  `candidates[0]`. At HEAD `cand[0] interp.py:2059:arith#1294 found=False`,
+  `cand[1] interp.py:2014:arith#1441 found=True`. The second copy was not
+  merely un-fixed — it was structurally WEAKER than the copy that got the
+  fix. Two copies that were never interchangeable. (Banked as P2.)
+- **The repair removes the duplication rather than re-applying the fix
+  twice.** New `harness/tests/whence_anchor.py` is the single definition,
+  carrying selection AND reachability together, because separating them is
+  what let one caller have a weaker version; `first_reachable(candidates,
+  try_kill)` takes the kill as a parameter so the "no anchor at all" failure
+  path is testable without running a Whence program. New
+  `harness/tests/test_whence_anchor.py`, 9 tests, all pure, ~14 s,
+  **deliberately not named `test_swe_*`** — that prefix is what `conftest.py`
+  tiers slow and the whole finding is that the broken copy lived behind it.
+  Its guard walks each `tests/*.py` with `ast` for `'"concat"' in <expr>` and
+  fails on a third copy; **falsified** (probe file -> `1 failed` naming file
+  and line; removed -> `1 passed`).
+- **A bug in my own guard, caught by the guard.** The first draft matched by
+  SUBSTRING and flagged itself twice — its own detector predicate, and
+  `"reachable_concat_mutant" in f.read()`, whose identifier merely contains
+  `concat`. It now matches the literal `'"concat"'` exactly and states its
+  own scope limit in its docstring: it pins the KNOWN duplication shape, not
+  uniqueness. A copy spelled `line.find(...)` still slips past.
+- **A census, so "is this a one-off?" has a number.** AST-hashing every
+  function body of >=2 statements across `harness/tests/`: **1635 bodies, 18
+  duplicated across files.** `_run_driver` is split into two lineages across
+  five driver-test files but the difference is COSMETIC (an inlined local, a
+  longer `pytest.fail` message) — recorded, explicitly not escalated.
+- **A SECOND live instance of this round's class, handed over measured.**
+  `guardpin_fixture.py` genuinely is the shared fixture (`MOD`, `_pin`,
+  `_project`, `_run` are imported by both guardpin test files) and it ALSO
+  defines **14 `test_*` functions** whose names match `test_guardpin.py`'s 14
+  exactly. Pytest's default `python_files` is `test_*.py`, so a directory
+  collection skips them: **0 of this round's 1207 collected fast-tier tests
+  come from that file**. 13 of the 14 bodies are identical; **1 has
+  drifted** (`test_drop_stmt_replaces_the_statement_with_pass`, where the
+  LIVE copy carries the stronger assertions). Both files arrived in ONE
+  commit, `4c82315` (round 413), and neither has been touched since — so the
+  fork was **born divergent** and the un-collected half has been wrong for 32
+  rounds. NOT fixed here: deleting 14 of another round's test functions on a
+  five-minute read is the wrong call for a round whose subject is elsewhere.
+- **Predictions: 6 HIT, 1 weak hit, 1 half of 8** (`state/swe/round-445/PREDICTIONS.md`,
+  banked after reproducing the red and before measuring anything else). The
+  half is the useful one: P6 banded the repaired file's runtime at 90-220 s
+  and it came in at 76.00 s, because two of the three tests use fixed 3-5
+  program corpora — readable in test bodies I had ALREADY read before
+  banking. A band over a number I could have derived is not a prediction.
+  P3 is a weak hit (predicted 3 candidates, actual 2: `interp.py:2066`'s
+  `l.concat(r)` is a method call and yields no arith mutant).
+- **`copied-mirror-drift` UPGRADED, not duplicated** — authoring a new skill
+  about duplication would have been the joke version of this round. New
+  trigger bullets (a docstring that ASSERTS PARITY; grep the fix's anchor
+  before editing), new step 3a (check the fix is even PORTABLE — copies drift
+  in strength), new step 6a (put the guard in the tier that runs every
+  round), two new pitfalls, a second "proven on", and a five-command
+  Verification block all executed this round. Three cases
+  `cmd-fix-near/mid/far` added to `skills/trigger-cases.json` (335 -> 338).
+  Registered UNPROBED (fifteenth entry) with the risk named: `cmd-fix-mid`
+  may be taken by `unrun-checker-latency`, `cmd-fix-far` by
+  `unenforced-documented-rule`; if so the DESCRIPTION needs narrowing, not
+  the cases.
+- **Round 413 got to the fast-tier-guard placement first**, for the same
+  reason and nearly the same words (`guardpin_fixture.py`'s docstring). I
+  arrived at it independently and then found it already written down — which
+  is itself an argument for the census above.
+- **Verified, serially (`nproc` is 1):** `test_whence_anchor.py` 9 passed
+  13.61s; `test_swe_equivalence.py` **11 passed 76.00s** (was 3 failed / 8
+  passed 58.16s); `test_swe_killers.py` 21 passed 31.18s (was 31.79s, no
+  regression); harness fast tier **1207 passed, 352 deselected in 249.70s**
+  (= round 444's 1198 + this round's 9); `wiring_audit check` 0 errors 0
+  warnings; `slowtier run --only test_swe_equivalence.py` then `status` ->
+  **`0 failing`**, ledger row 42 `outcome passed, 73.27s, rc 0`. The tier's
+  own record now retires the red.
+- **249.70s solo against the driver's 753.16s for the same suite** run beside
+  three others — round 435 item 8's contention penalty, re-confirmed by
+  accident.
+- Landed round 444's orphaned RECORD first (commit `c94951090db6`): round 444
+  committed its code in three commits then died at `error:max_turns` before
+  committing its knowledge file, skill, state entry, bank row and predictions.
+- See `knowledge/round-445-the-fix-that-landed-in-one-of-two-copies.md`.
+
+## Next steps (as of round 445)
+
+1. **`guardpin_fixture.py` carries 14 test functions that pytest never
+   collects, and 1 of them is already wrong.** Numbers in the round entry
+   above and §7 of the knowledge file; both files came in together at round
+   413 and neither has moved since. Two defensible repairs — delete the dead
+   copies, or make both files import one definition — and it is the guardpin
+   owner's call which. Whoever takes it should ALSO ask why a `*_fixture.py`
+   holding `test_*` functions is not itself an error: a fast, general check
+   ("no non-collected file defines `test_*`") is cheaper than this census and
+   would have found it at round 413. harness(A) or SWE-loop(D).
+2. **The slow tier's recall is 3% and 13 of 32 units have NEVER run.** The
+   slice works — this round is the proof — but at one unit per round against
+   32 units whose entries go stale whenever a dep moves, the steady state is
+   not 100%. Nobody has published what the slice's achievable ceiling
+   actually is. That is a derivable number (`plan`'s ordering + the observed
+   staleness rate over the ledger's 42 rows), and it decides whether
+   `DRIVER_SLOWTIER_BUDGET_S` should go up. harness(A).
+3. **The duplication guard covers ONE anchor in ONE directory.** §7's census
+   is a throwaway script, not an instrument. If the class is worth a guard it
+   is worth a checker: cross-file body-hash duplication over `harness/tests/`
+   costs ~0.5 s and would have flagged both this round's pair and item 1's.
+   The design question is the exemption list (the 5 `_make_stub_bin` copies
+   are fine), which is the same shape as `state/known-*.json`. harness(A) or
+   skills(B).
+4. **Round 444's items 1-7 stand and were NOT re-derived by this round.** In
+   particular its item 2 ("an ABSENCE carries a reason and nothing
+   re-derives one") is the sibling of this round's P7 finding — a docstring
+   claim with no reader — and the two should probably be one checker.
+   language(C) or skills(B).
+5. **Round 435's items 1-3 and round 434's items 2-6 stand, unchecked.**
+   Three consecutive rounds have now found that re-deriving a carried item
+   changes its answer; re-derive FIRST.
+6. **`nproc` on this box is 1**, re-confirmed by accident this round: the
+   same fast tier is 249.70s solo and 753.16s under the driver's four-way
+   concurrency. Plan every suite as serialised.
+7. **Standing, and not touched by this round:** the NUC `retention --strict`
+   deadline; the `%vmeff` residual; `case_coverage`'s disagreeing verdicts;
+   `claim_check` executing 0 of its commands; the operator-blocked
+   `--cap 196`; the exhausted E-mission list; and CLAUDE.md's `CRITICAL
+   MISSION` block, which round 444 REFUTED rather than re-escalated (its
+   claim 1 is false and claim 2 is satisfied twice —
+   `languages/whence/tests/test_critical_mission_claims.py`, 6 passed). It is
+   still a deletion only the operator should make.
+   `languages/whence/SECURITY.md` is still uncommitted, still not this
+   program's, and still the operator's decision — do not copy a carry count
+   for it from this file; the checker's own line is the only source.
+
 ## Next steps (as of round 444)
 
 1. **The other frozen artefacts in `state/whence/` have not been checked for

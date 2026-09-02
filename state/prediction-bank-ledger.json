@@ -921,6 +921,14 @@
    "where": "knowledge/round-444-the-evidence-that-was-also-the-selector.md",
    "quote": "**8 HIT, 0 MISS of 8.**",
    "note": "Section 6, one table row per banked line. The clean sweep is scored as a WEAKNESS of the bank and the round says so, following round 443's next-step 2: seven of the eight asked whether an instrument the round was about to build would agree with a file the round had already read, and only P3 (does the fifteenth field program contribute new unbound identifiers) was about the world. P1 is the one band that could plausibly have missed -- exact reproduction of all 80 keys and counts of round 384's frozen census, where a binder rule that mishandles `fn` parameters would still reproduce the headline `println: 34`. The round also records an UNBANKED prediction that was FALSE ('the fifteenth is the first gateway program that runs clean' -- test_simple.lang also does, in 2 lines); it was formed while reading the file, written into a test docstring, and only caught when the other four parsing programs were finally run. Section 5.1 carries the correction and the narrower true claim."
+  },
+  "445": {
+   "bank": "state/swe/round-445/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 445,
+   "where": "knowledge/round-445-the-fix-that-landed-in-one-of-two-copies.md",
+   "quote": "**6 HIT, 1 weak hit, 1 half of 8.**",
+   "note": "Section 8, one table row per banked line. NOT a clean sweep, which is the point round 443's next-step 2 and round 444's own row both asked for. P2 is the round's strongest result and was genuinely at risk: it predicted that porting round 437's fix verbatim would NOT fix the second copy, because killers ITERATES its candidates and equivalence took candidates[0] -- measured, cand[0] interp.py:2059:arith#1294 found=False, cand[1] interp.py:2014:arith#1441 found=True. P6 is scored a HALF rather than widened: direction right (76.00s > the 58.16s failing run) but the 90-220s band was wrong, and the reason is disqualifying rather than unlucky -- two of the three tests use fixed 3-5 program corpora, which was readable in test bodies I had ALREADY read before banking. A band over a number I could have derived is not a prediction, it is a failure to look, and that is recorded as the round's own lesson rather than as noise. P3 is a WEAK hit inside its declared band (predicted 3 candidates, actual 2; interp.py:2066's l.concat(r) is a method call and yields no arith mutant). P8 was closed by actually running `slowtier run --only test_swe_equivalence.py` and re-reading `status` -- `1 failing` -> `0 failing`, ledger row 42 -- rather than by asserting the tests pass in a shell."
   }
  }
 }

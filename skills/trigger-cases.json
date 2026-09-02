@@ -2226,5 +2226,26 @@
    "evidence-is-not-membership"
   ],
   "prompt": "I need to regenerate a snapshot fixture that was committed years ago with a comment saying do not edit, but there's no script anywhere that produces it \u2014 only three test files that read it. How do I know a regenerator I write is the same instrument?"
+ },
+ {
+  "id": "cmd-fix-near",
+  "expect": [
+   "copied-mirror-drift"
+  ],
+  "prompt": "A teammate fixed a stale test fixture last month \u2014 our mutation anchor was pinned to a source line that had been deleted. Their commit touched one test file. I just found the identical fixture in a second test file, still broken, and its docstring says \"same anchor as the other file's\". Do I just apply their diff to this one?"
+ },
+ {
+  "id": "cmd-fix-mid",
+  "expect": [
+   "copied-mirror-drift"
+  ],
+  "prompt": "Our nightly-only suite finally ran a file nobody had executed in months and it's red. The helper it uses is a hand-copied version of one in a suite that runs every commit, and that one was repaired at some point. How should I think about repairing this side?"
+ },
+ {
+  "id": "cmd-fix-far",
+  "expect": [
+   "copied-mirror-drift"
+  ],
+  "prompt": "I keep finding comments in our tests that say things like \"kept in sync with the parser fixture\" or \"mirrors what the integration harness does\". Nothing checks any of those sentences. Is there a way to stop them from quietly becoming false?"
  }
 ]
