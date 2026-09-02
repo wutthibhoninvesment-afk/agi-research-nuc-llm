@@ -24206,7 +24206,11 @@ successor — 448→449, 449→450, 450→451, 451→452, 452→453.)*
   deselected in 244.08 s — GREEN**. Round 457's driver line reports 727.77 s
   for the same command: a **3x** contention penalty on a 1-core box, not
   slower tests. Part 3 committed while the tier was still running and
-  recorded it unfinished; this supersedes that.
+  recorded it unfinished; this supersedes that. **Re-verified after part 5
+  edited `SPEC.md`**, which happened after the tier ran: all 16 whence test
+  files that read `SPEC.md` (found by grep, not from memory) → **886
+  passed, 3 skipped, 20 deselected in 30.30 s**. A green tier taken before
+  the last edit is a green tier for a tree that no longer exists.
 - **Skill (rule 5):** `skills/number-belongs-to-its-runner` — *a number
   attributed to a named test is a fact about a PAIR, the artefact and its
   runner's parameters.* Three positive trigger cases + one negative, and a

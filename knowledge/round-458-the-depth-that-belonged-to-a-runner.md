@@ -367,3 +367,14 @@ The tests did not get slower; they got company.
 Part 3 of this round committed while this run was still in progress and
 recorded it as unfinished, which was the right call at the time and is now
 superseded by the number above.
+
+**Re-verified after part 5**, which edited `SPEC.md` (the decision-55
+registry entry) AFTER the tier had already run. Every whence test that reads
+`SPEC.md` — 16 files, found by grep rather than by memory —
+
+    python3 -m pytest -c pytest.ini $(grep -rln SPEC.md tests/*.py) \
+      -q -m "not whence_slow"
+    886 passed, 3 skipped, 20 deselected in 30.30 s
+
+A green tier taken before the last edit is a green tier for a tree that no
+longer exists; this is the cheap half of re-running it.
