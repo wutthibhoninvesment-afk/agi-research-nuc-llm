@@ -21,6 +21,10 @@ the defect it names is SILENCE; but it does NOT move the exit code on its
 own, because 1 has meant "a check failed" since v0.1 and a caller that greps
 for that must keep working. `--strict-miss` is the opt-in for a CI that
 wants a discarded miss to fail the run.
+
+v0.42 widens the report to misses inside a DISCARDED AGGREGATE — the
+`map(fn(x) { nosuch(x) }, xs)` shape, which reported nothing for ten
+versions. The exit-code contract is unchanged.
 """
 import os
 import sys
@@ -100,6 +104,23 @@ def repl():
         report_checks(interp.checks[n0:])
 
 
+def _report_truncation(interp, out):
+    """v0.42: say that a discarded aggregate was too large to read to the end.
+
+    Printed whether or not anything was found, and deliberately NOT counted
+    as a drop: it does not move `--strict-miss`, because "I did not finish
+    looking" is not "I found something". `Interpreter.DROP_SCAN_NODES` is
+    the bound and the sentence names it, so a reader who wants the rest can
+    raise it rather than guess what was skipped."""
+    n = getattr(interp, "dropped_scan_truncated", 0)
+    if not n:
+        return
+    out("  (%d discarded value%s too large to read to the end at %d nodes "
+        "— a miss deeper inside %s not listed)"
+        % (n, "" if n == 1 else "s", interp.DROP_SCAN_NODES,
+           "is" if n == 1 else "are"))
+
+
 def report_drops(interp, out=print):
     """v0.32: print the miss values this run computed and threw away.
 
@@ -112,22 +133,46 @@ def report_drops(interp, out=print):
     away, the exact sentence that named their bug.
 
     `print(x)` is not a drop — see `Interpreter._observed`. Returns the
-    number of distinct drop SITES."""
-    if not interp.dropped:
-        return 0
+    number of distinct drop SITES.
+
+    v0.42 widens what "the value" means: a miss riding inside a list or
+    record the statement discards is a drop too (`Interpreter._misses_within`).
+    Until v0.42 `map(fn(x) { nosuch(x) }, xs)` as a statement reported
+    NOTHING — the outermost node was a list, so the `isinstance(_, Miss)`
+    test said no, and the misses inside it went to the same silence the
+    feature was built to end."""
     n, sites = interp.dropped_total, len(interp.dropped)
+    # v0.42: the truncation note is NOT inside this guard. A walk that
+    # stopped early and found nothing is the one case where "no drops" is
+    # least trustworthy, and the first draft of this function printed the
+    # note only when something HAD been found — i.e. never said "I stopped
+    # reading" in the situation that sentence exists for.
+    if not interp.dropped:
+        _report_truncation(interp, out)
+        return 0
     out("dropped: %d miss value%s computed and discarded — nothing can ask "
         "%s why" % (n, "" if n == 1 else "s", "it" if n == 1 else "them"))
     for e in interp.dropped:
         where = "line %d" % e["at"]
         if e["line"] != e["at"]:
             where += " (%s, from line %d)" % (e["label"], e["line"])
+        # v0.42: the miss was inside a list or record the statement threw
+        # away whole. Naming the container is the difference between "line
+        # 12 — unbound name 'println'" and "line 12 in map — …": the reader
+        # has to know the value they were looking for never existed as a
+        # name, or they will go looking for the binding.
+        if e.get("within"):
+            where += " in %s" % e["within"]
         times = "" if e["count"] == 1 else " ×%d" % e["count"]
         out("  %s%s — %s" % (where, times, "; ".join(e["reasons"])))
     if n > sum(e["count"] for e in interp.dropped):
         out("  (%d more, past the %d-site cap)"
             % (n - sum(e["count"] for e in interp.dropped),
                interp.DROP_CAP))
+    # v0.42: an aggregate too big to walk in full. Said out loud, because a
+    # short list that looks complete is what this whole feature exists
+    # against; `Interpreter.DROP_SCAN_NODES` is the bound.
+    _report_truncation(interp, out)
     return sites
 
 

@@ -576,10 +576,44 @@ class Interpreter(object):
 
     # v0.32: distinct dropped-miss SITES kept. `dropped_total` keeps counting
     # past it, so the report can say how many it is not showing. 100 is far
-    # above anything a human reads and far below anything that costs memory:
-    # the whole tracked example corpus drops 0 and the field corpus's worst
-    # program drops 5 (round 384's measurement).
+    # above anything a human reads and far below anything that costs memory.
+    #
+    # The two corpus numbers that justified 100 were round 384's and BOTH
+    # have moved; kept with their attribution rather than overwritten,
+    # because a constant argued from a corpus rate needs the rate re-derived,
+    # not silently replaced (round 446).
+    #   round 384: "the whole tracked example corpus drops 0 and the field
+    #               corpus's worst program drops 5".
+    #   round 446: the tracked corpus drops 1 --- `examples/dropped.lang`,
+    #               added after round 384 as the runnable example of this
+    #               feature and named in `tests/test_v32.py`'s
+    #               DROPS_ON_PURPOSE --- and the field corpus's worst program
+    #               is `prod_showcase_final.lang` at 6 (12 across 3 of the 5
+    #               field programs that reach a value at all; the 12th is
+    #               v0.42's own, a miss inside a discarded record that no
+    #               version before it could see). Re-derive with
+    #               `python3 curecheck.py corpus`, whose summary line now
+    #               carries both halves. 100 is still ~16x the worst seen.
     DROP_CAP = 100
+
+    # v0.42 (round 446): how many element nodes ONE dropped aggregate is
+    # walked for misses hiding inside it. A dropped statement value can be a
+    # list of up to `DEFAULT_MAX_VALUE` elements, so the walk needs a bound
+    # or a discarded `map` over a big range costs more than the program did.
+    # Past the bound the run SAYS it stopped (`dropped_scan_truncated`, which
+    # `run.py`'s report prints) rather than reporting a clean zero: an
+    # incomplete answer that looks complete is the exact defect v0.32 exists
+    # to end, and re-introducing it as an optimisation would be worse than
+    # the cost it saves.
+    #
+    # 100000 rather than a small number, measured: the walk is proportional
+    # to a value the program ALREADY paid to build, so a bound tight enough
+    # to fire on ordinary code (`map(f, range(20000))` under a 5000 budget)
+    # buys nothing and prints a note about a program with no defect. What it
+    # must bound is the case building did NOT pay for — one big list
+    # discarded by a statement inside a recursion, walked once per drop —
+    # and 100000 id-lookups is single-digit milliseconds.
+    DROP_SCAN_NODES = 100000
 
     def __init__(self, out=None, max_depth=DEFAULT_MAX_DEPTH,
                  max_iter=DEFAULT_MAX_ITER, max_value=DEFAULT_MAX_VALUE,
@@ -659,9 +693,14 @@ class Interpreter(object):
         # Keyed on (reasons, line, op) with a count, because a drop inside a
         # loop or a recursion is the same defect N times, and capped so a
         # runaway program cannot turn the record into the memory leak.
-        self.dropped = []          # [{reasons, line, op, label, count, node}]
+        self.dropped = []          # [{reasons, line, op, label, within,
+                                   #   count, node}]
         self.dropped_total = 0     # every drop, including ones past the cap
-        self._drop_index = {}      # (reasons, line, op, at) -> entry
+        # v0.42: dropped aggregates whose miss-walk hit DROP_SCAN_NODES. A
+        # non-zero count means "there may be more inside a value I stopped
+        # reading", and the front end prints it.
+        self.dropped_scan_truncated = 0
+        self._drop_index = {}      # (reasons, line, op, at, within) -> entry
         # Nodes a miss has already been SHOWN through. `print` is a
         # pass-through (`print(x) is x`), so `print(some_miss)` is a
         # statement whose value is a miss — and it is the one statement in
@@ -675,6 +714,12 @@ class Interpreter(object):
         # visible and arguable; a silent one is what this feature exists to
         # end).
         self._observed = {}
+        # v0.42: printed AGGREGATES, kept apart from `_observed` rather than
+        # merged into it. One dict would have made a program that prints a
+        # hundred harmless lists consume the cap and then report the next
+        # printed MISS as a drop --- i.e. widening the feature would have
+        # broken the case v0.32 got right. Two sets, one bound each.
+        self._observed_aggr = {}
         self.globals.interp = self   # root back-pointer for shared-AST closures
         _install_builtins(self.globals)
 
@@ -715,14 +760,72 @@ class Interpreter(object):
         `at` is the line of the STATEMENT that dropped it, which is not
         `v.line`: a program that ends in a bare `total` drops a value made
         twenty lines earlier, and the reader needs both — where the miss
-        came from, and where it stopped being anybody's."""
+        came from, and where it stopped being anybody's.
+
+        v0.42 (round 446) adds the AGGREGATE case. Until v0.42 the test was
+        `isinstance(v.payload, Miss)` and nothing else, so a miss riding
+        inside a discarded list or record was invisible to the one feature
+        built to end invisible misses:
+
+            [nosuch(1)]                          -> 0 drops, exit 0
+            map(fn(x) { nosuch(x) }, [1, 2])     -> 0 drops, exit 0
+            fold(fn(a, x) { nosuch(x) }, 0, xs)  -> 1 drop   (fold returns
+                                                              the miss ITSELF)
+
+        The `map` line is not a corner case: it is the shape of every
+        machine-written program in the field corpus that processes rows, and
+        `map`'s result is the one an agent most often forgets to bind. The
+        rule is unchanged in words — a value nothing keeps cannot be asked
+        why — and the change is that "the value" now means the whole value
+        rather than its outermost node."""
         val = getattr(v, "value", None)
-        if not isinstance(val, Miss):
+        if isinstance(val, Miss):
+            if id(v) in self._observed:
+                return
+            self._record_drop(v, at)
             return
-        if id(v) in self._observed:
-            return
+        if type(val) is WList or type(val) is Record:
+            # The observation gate applies to the CONTAINER, and that is what
+            # keeps `print(xs)` (and a `let`-bound list printed later) out of
+            # the report: `print(x) is x`, so the node this statement drops
+            # is the node `print` marked. Walking past an observed container
+            # would report a drop for a value the program can still name ---
+            # measured, not assumed. The first draft of v0.42 marked only
+            # printed MISSES, and `examples/history.lang` (a TRACKED example,
+            # green for 14 versions) immediately reported a drop for line
+            # 43's `print(culprits)`, a list of blame records the next FIVE
+            # lines then interrogate, including
+            # `at(culprits[0].value, "literal") == "5,25"`. A report that
+            # fires on a program doing exactly what the feature asks for is
+            # worse than the silence it replaces.
+            if self._seen_by_print(v):
+                return
+            inner, truncated = self._misses_within(v)
+            within = v.label()
+            for node in inner:
+                self._record_drop(node, at, within)
+            if truncated:
+                self.dropped_scan_truncated += 1
+
+    def _seen_by_print(self, v):
+        """v0.42: has `print` already shown this exact node?
+
+        Two sets because they are bounded separately (see `_observed_aggr`),
+        one question because every caller wants the same answer."""
+        return id(v) in self._observed or id(v) in self._observed_aggr
+
+    def _record_drop(self, v, at, within=None):
+        """Add one miss node `v`, dropped by the statement on line `at`, to
+        the record. `within` is the label of the discarded aggregate it was
+        found inside, or None when `v` IS the dropped value.
+
+        `within` is part of the dedup key on purpose: the same miss reason
+        reached at the same line by two different routes — once bare and once
+        inside a list — is two findings for a reader, and collapsing them
+        would drop the more surprising one."""
+        val = v.value
         self.dropped_total += 1
-        key = (val.reasons, v.line, v.op, at)
+        key = (val.reasons, v.line, v.op, at, within)
         entry = self._drop_index.get(key)
         if entry is not None:
             entry["count"] += 1
@@ -730,9 +833,68 @@ class Interpreter(object):
         if len(self.dropped) >= self.DROP_CAP:
             return
         entry = {"reasons": val.reasons, "line": v.line, "op": v.op,
-                 "at": at, "label": v.label(), "count": 1, "node": v}
+                 "at": at, "label": v.label(), "within": within,
+                 "count": 1, "node": v}
         self._drop_index[key] = entry
         self.dropped.append(entry)
+
+    def _misses_within(self, v):
+        """v0.42: `(miss nodes reachable inside the aggregate `v`, truncated)`.
+
+        Iterative, not recursive: a dropped list can nest as deep as the
+        parser allows and this runs inside `run`/`_block`, where the host
+        stack is already the scarce resource (`HOST_RESERVE`).
+
+        Three rules, each of which is a decision and not an implementation
+        detail:
+
+          * an element already in `self._observed` is skipped, so
+            `[print(m), 1]` reports nothing for `m` — `print` showed it, and
+            the container being discarded does not un-show it;
+          * a node is visited once (`seen`), because `WList` views share one
+            append-only buffer and the same element node is reachable through
+            every prefix of a list built by `push`;
+          * the walk stops at `DROP_SCAN_NODES` and SAYS SO rather than
+            returning a short list that looks complete.
+
+        Deliberately NOT walked: `Guess`. A `Guess` holds a real node
+        (`Guess.node`) and a miss can be inside one, but a guess is a value
+        the program is asserting is uncertain-but-present, and reporting its
+        interior as "nothing can ask it why" would be wrong about a value
+        `confidence`/`sources` were built to interrogate. Round 446 measured
+        the case (`guess(nosuch(1), 0.5, [])` as a dropped statement) and
+        chose to leave it; if that turns out to be wrong it needs its own
+        sentence in the report, not a silent third branch here."""
+        payload = getattr(v, "value", None)
+        if type(payload) is not WList and type(payload) is not Record:
+            return [], False
+        out = []
+        seen = {id(v)}
+        stack = [payload]
+        budget = self.DROP_SCAN_NODES
+        truncated = False
+        while stack and not truncated:
+            p = stack.pop()
+            if type(p) is WList:
+                kids = p
+            else:
+                kids = [n for _, n in p.fields.items()]
+            for node in kids:
+                if budget <= 0:
+                    truncated = True
+                    break
+                budget -= 1
+                if id(node) in seen:
+                    continue
+                seen.add(id(node))
+                if self._seen_by_print(node):
+                    continue
+                q = getattr(node, "value", None)
+                if isinstance(q, Miss):
+                    out.append(node)
+                elif type(q) is WList or type(q) is Record:
+                    stack.append(q)
+        return out, truncated
 
     def exec_stmt(self, stmt, env):
         self._collect_shadowed(stmt)
@@ -3313,9 +3475,28 @@ def _make_builtin_table():
         # gate is `isinstance` on the payload, so a program that never
         # prints a miss never touches this dict.
         a = args[0]
-        if (isinstance(a.payload, Miss)
-                and len(interp._observed) < interp.DROP_CAP):
-            interp._observed[id(a)] = a
+        p = a.payload
+        if isinstance(p, Miss):
+            if len(interp._observed) < interp.DROP_CAP:
+                interp._observed[id(a)] = a
+        elif type(p) is WList or type(p) is Record:
+            # v0.42: a printed list or record is observed too, because from
+            # v0.42 a DISCARDED one is walked for misses inside it. The two
+            # halves have to arrive together: the walk without this line
+            # reports `print(<a list of blame records>)` as a drop.
+            #
+            # Known and deliberate residual: `full_show` renders a miss
+            # nested inside a container as the bare token `miss`, with no
+            # reason (`[miss]`, `@{v: miss}`), so `print([nosuch(1)])` shows
+            # the reader THAT there is a miss and not WHY. Calling that
+            # observation is generous. It is still the right call here ---
+            # the alternative reports a drop for `history.lang`'s
+            # `print(culprits)` --- and the fix belongs in the RENDERING,
+            # which round 446 did not touch because 11 pinned mutation-killer
+            # regressions in `tests/test_generated_killers.py` quote the
+            # `[miss, miss]` spelling verbatim. See SPEC "v0.42".
+            if len(interp._observed_aggr) < interp.DROP_CAP:
+                interp._observed_aggr[id(a)] = a
         return a  # pass-through: print(x) is x
 
     @register("rand", 0, "")

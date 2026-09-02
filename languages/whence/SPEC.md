@@ -1,6 +1,6 @@
 # Whence — a provenance-first language
 
-*Spec level: **v0.41** (round 422). The `## vN` sections below are the
+*Spec level: **v0.42** (round 446). The `## vN` sections below are the
 authoritative version list and each names the round that built it; this
 line deliberately no longer enumerates rounds, because the enumeration it
 replaced had said "v0.16.6 + v0.14.2" since round 266 while the file went
@@ -394,7 +394,10 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    earlier. `print(x)` is observation, not a drop: the tracked corpus
    reported four drops on the recorder's first run and all four were
    `print(<a miss>)` in an example whose subject IS that miss. The report is
-   unconditional; the exit code is not (`--strict-miss`). See § v0.32.
+   unconditional; the exit code is not (`--strict-miss`). **v0.42 corrected
+   what "the value" means** — a miss inside a discarded list or record is a
+   drop too, and a printed container is observed — see decision 51.
+   See § v0.32, § v0.42.
 41. **`unbound name 'x'` names the cure from a table with an entry rule, not
    from edit distance (v0.32, round 384).** Decision 32's rule applied to
    the language's most common runtime miss. A name enters `_FOREIGN_NAMES`
@@ -647,6 +650,23 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    written), and no per-statement interpreter warning is added, because
    polarity is a property of a suite's coverage and a per-statement
    diagnostic would fire on 147 correct lines. See § Decision 50.
+51. **A discarded value is discarded WHOLE: a miss inside a dropped list or
+   record is a dropped miss (v0.42, round 446).** v0.32 wrote the rule as
+   *a miss that is the value of a statement nothing keeps cannot be asked
+   anything by anybody* and implemented it as `isinstance(v.payload, Miss)`
+   — a test on the outermost node — so `[nosuch(1)]`, `@{a: nosuch(1)}` and
+   `map(fn(x) { nosuch(x) }, xs)` reported NOTHING and exited 0 for ten
+   versions, while `fold(fn(a, x) { nosuch(x) }, 0, xs)` reported, only
+   because `fold` returns the miss itself. The distinction was an accident
+   of which builtin happens to wrap its result. `map` is the shape that
+   matters: it is what a machine-written program does to rows, and its
+   result is the value an agent most often forgets to bind. The widening is
+   the RULE unchanged and its subject corrected — and it forced the
+   companion half, because observation was implemented on the same
+   outermost node: `print` now observes a printed CONTAINER too, in a
+   separately bounded set, or the first thing the widened report does is
+   fire on `examples/history.lang`'s `print(culprits)`, a list of blame
+   records the next five lines interrogate. See § v0.42.
 
 ## Syntax (statements are newline-separated; `#` comments)
 ```
@@ -3861,7 +3881,11 @@ and a miss was dropped), 2 (lex/parse error). *(v0.32: the run also prints a
 is unconditional — the defect it names is SILENCE — but it does not move the
 exit code by itself, because 1 has meant "a check failed" since v0.1 and a
 caller grepping for that must keep working. `--strict-miss` is the opt-in
-for a CI that wants a discarded miss to fail the run.)* *(`--max-iter 0`,
+for a CI that wants a discarded miss to fail the run. v0.42: the report also
+names misses found INSIDE a discarded list or record --- `map(fn(x) {
+nosuch(x) }, xs)` as a statement reported nothing until then --- and prints
+`(N discarded values too large to read to the end at 100000 nodes)` when a
+walk stopped early, which does NOT move the exit code either.)* *(`--max-iter 0`,
 `--max-value 0` and `--max-int-bits 0` each mean unbounded; the two v0.27
 flags follow the shape v0.26 settled on, omitted unless given so the class
 default applies. Until v0.26
@@ -6980,6 +7004,15 @@ statement in the language where that is the point rather than the defect.
 is the property that makes the report readable: a green corpus is a silent
 one.
 
+*(Read as of v0.42: the tracked corpus drops **1**, not 0.
+`examples/dropped.lang` was added AFTER this section as the runnable example
+of the feature — a language feature with no runnable example is a feature
+nobody runs — and `tests/test_v32.py`'s `DROPS_ON_PURPOSE` names it with its
+exact count, so "the corpus is silent" is still a measurement rather than a
+habit of ignoring the line. The 0 above is what v0.32 measured and is left
+standing as that; `Interpreter.DROP_CAP`'s comment carries both readings and
+the command that re-derives them.)*
+
 Two honest edges, both kept deliberately:
 
 - `1 + print(y)` still reports the SUM as dropped. `print` showed `y`; it
@@ -8613,3 +8646,166 @@ failed on a string with a tab in it. When a comment explains why two things
 are not shared, the comment is a CLAIM about the two things, and it wants the
 same treatment as any other claim in this repo — re-derive it or carry it as
 unverified, but do not spend a fifth round quoting it.
+
+
+## v0.42 (round 446, language C) — the miss inside a value nothing kept
+
+v0.32 (round 384) is the version that ended silent misses. Its sentence is
+exact and it is still right:
+
+> A miss that is the value of a statement nothing keeps cannot be asked
+> anything by anybody.
+
+Its implementation was a test on ONE node:
+
+```python
+val = getattr(v, "value", None)
+if not isinstance(val, Miss):
+    return
+```
+
+So for ten versions the report answered a narrower question than the
+sentence asks — *is the OUTERMOST node a miss* — and everything below the
+outermost node stayed in exactly the silence v0.32 was built to end:
+
+```
+nosuch(1)                            -> dropped: 1 miss value …
+fold(fn(a, x) { nosuch(x) }, 0, xs)  -> dropped: 1 miss value …
+[nosuch(1)]                          -> (nothing)        exit 0
+@{a: nosuch(1)}                      -> (nothing)        exit 0
+map(fn(x) { nosuch(x) }, xs)         -> (nothing)        exit 0
+```
+
+The `fold`/`map` split is the tell. Neither builtin is more or less careful
+than the other; `fold` returns the accumulator, which IS the miss, and `map`
+returns a list that CONTAINS the misses. Whether a program's bug was
+reported came down to which builtin the author happened to reach for.
+
+### Decision 51: a discarded value is discarded whole
+
+`_note_drop` now walks a dropped list or record for misses inside it
+(`Interpreter._misses_within`). Three rules, each a decision:
+
+* **An element `print` has already shown is skipped**, so `[print(m), 1]`
+  reports nothing for `m` — the container being discarded does not un-show
+  it.
+* **A node is visited once.** `WList` views share one append-only buffer, so
+  the same element node is reachable through every prefix of a list built by
+  `push`; without the `seen` set a fold-built list is walked quadratically.
+* **The walk is bounded and SAYS SO.** `DROP_SCAN_NODES = 100000`; past it
+  the run prints `(N discarded values too large to read to the end at 100000
+  nodes — a miss deeper inside is not listed)`. It does not move the exit
+  code, because "I did not finish looking" is not "I found something".
+
+`Guess` is deliberately NOT walked. A `Guess` holds a real node and a miss
+can be inside one, but a guess is a value the program is asserting is
+uncertain-but-present, and reporting its interior as *nothing can ask it
+why* would be wrong about a value `confidence`/`sources` exist to
+interrogate. Measured and left; if that is wrong it needs its own sentence
+in the report, not a silent third branch in the walk.
+
+### The companion half, which the corpus forced
+
+The widening's FIRST run went red on a tracked example, and the failure was
+the widening's fault rather than the example's. `examples/history.lang:43`
+is `print(culprits)` — a list of blame records whose `.value` is a miss, and
+the next five lines ask it four `check`s, including
+`at(culprits[0].value, "literal") == "5,25"`. That is the feature being used
+correctly, and the report fired on it.
+
+The cause is that OBSERVATION was implemented on the same outermost node
+v0.32 tested for a drop: `b_print` remembered a printed value only when its
+payload was a `Miss`. So the two halves had to move together — v0.42's
+`b_print` also remembers a printed `WList`/`Record`, and `_note_drop` skips
+an observed container before walking it.
+
+In a **second** dict, not more entries in the first. Merged, a program that
+prints `DROP_CAP` harmless lists exhausts the cap and the next printed MISS
+is then reported as a drop — v0.42 breaking the case v0.32 got right.
+`tests/test_v42.py::test_the_two_observation_sets_are_bounded_separately`
+pins that, and
+`::test_history_lang_is_the_case_that_forced_the_observation_rule` runs the
+example under a subclass restoring the pre-v0.42 gate and asserts it DOES
+fire, so deleting `_observed_aggr` cannot pass the suite.
+
+**Known residual, deliberate.** `full_show` renders a miss nested inside a
+container as the bare token `miss`, with no reason (`[miss]`, `@{v: miss}`),
+so `print([nosuch(1)])` shows the reader THAT there is a miss and not WHY.
+Calling that observation is generous. It is still the right call over
+reporting `print(culprits)`, and the fix belongs in the RENDERING — which
+v0.42 does not touch, because eleven pinned mutation-killer regressions in
+`tests/test_generated_killers.py` quote the `[miss, miss]` spelling
+verbatim. It is a separate decision with a separate blast radius.
+
+### What it found
+
+The tracked corpus is unmoved: 18 files, **1** drop, `examples/dropped.lang`,
+the deliberate one. The field corpus — the fifteen programs a separate
+system leaves in `examples/` — gained one:
+
+```
+examples/mini_agi_guardian.lang:48
+  line 48 (let conf_result, from line 32) in let r1 —
+    unbound name 'return' (Whence has no `return`; a block's value is its
+    last expression) (line 27)
+```
+
+Line 48 is a bare `r1`. `r1` is the record `run_full_audit` returns, and one
+of its fields is a miss made at line 27 by `else { return ("ACCEPTABLE") }`.
+The program prints a banner, exits **0**, and has been carrying that since
+it was written. `return` is one of the names decision 41's table has a cure
+sentence for; the sentence existed, and nothing rendered it.
+
+### The exit contract, and the two readers that publish it
+
+Unchanged: 0 / 1 / 2, with `--strict-miss` the opt-in that makes a dropped
+miss exit 1. What changed is who ASKS. `curecheck.py`'s two readers over the
+same corpus had diverged — `replay` has run `run.py --strict-miss` since
+round 386 and printed *"N clean under --strict-miss"*; `survey`, which is
+what `curecheck.py corpus` calls, recorded `rc` alone and published
+
+```
+15 file(s): 5 parse, 5 reach a value (rc=0), 4 mechanical edit(s) …
+```
+
+a sentence this document already contradicts three paragraphs into § v0.33,
+under the heading **"Reaching a value is not working."** Both readers now
+share one parser for the report line (`curecheck.dropped_count`, anchored on
+`DROP_LINE_PREFIX`, pinned to exactly one spelling by a test) and both
+publish the pair:
+
+```
+15 file(s): 5 parse, 5 reach a value (rc=0), 2 of those clean under
+--strict-miss (12 miss value(s) dropped), 4 mechanical edit(s) applied in
+total
+```
+
+`rc` and `strict_rc` are recorded as different facts, and `dropped` as a
+third: the contract (*would a CI fail this file*) and the size of the
+finding are not the same question, and a file with one dropped miss and a
+file with six both have `strict_rc == 1`. `dropped_count` returns `None`
+rather than `0` for a file that never ran, because a column printing `0` for
+both would report ten parse failures as ten clean programs.
+
+### Measured
+
+```
+languages/whence  tests/test_v42.py            29 passed
+                  run_tests_fast.sh            (see round 446's knowledge file)
+curecheck.py      corpus     15 file(s): 5 parse, 5 reach a value (rc=0),
+                             2 of those clean under --strict-miss
+                             (12 miss value(s) dropped)
+tracked corpus    18 file(s), 1 drop (examples/dropped.lang, on purpose)
+field corpus      3 of the 5 that run drop; worst prod_showcase_final.lang, 6
+```
+
+### What v0.42 deliberately does NOT do
+
+It does not move the exit code, add a flag, or change any value, reason
+string or check result — the walk is passive, exactly as v0.32's recorder
+was. It does not walk a `Guess`. It does not change how a nested miss
+RENDERS. And it does not add liveness analysis: `let xs = [nosuch(1)]` then
+a bare `xs` is still a drop even though `xs` is in scope, because that is
+v0.32's own rule for the scalar case
+(`test_the_last_top_level_expression_is_a_drop_too`) and the two must not
+disagree about the same program.

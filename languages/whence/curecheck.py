@@ -761,16 +761,51 @@ def replay(ledger, root=None):
         with open(tmp, "w") as fh:
             fh.write(text)
         rc = strict = None
+        drops = None
         if final_err is None:
-            rc, _ = run_program(tmp)
+            rc, out = run_program(tmp)
             strict, _ = run_program(tmp, strict=True)
+            # Round 446: `strict_rc` says whether a CI would fail this file
+            # and `dropped` says by how much. `replay` has recorded the
+            # first since round 386 and neither reader recorded the second.
+            drops = dropped_count(out)
         rows.append({"file": name, "edits": len(edits),
                      "parse_errors_seen": seen,
                      "edits_for_accepted_text": accepted,
                      "n_accepted": len(accepted),
                      "final_error": final_err, "rc": rc, "strict_rc": strict,
+                     "dropped": drops,
                      "cured_path": tmp})
     return rows
+
+
+#: v0.32's report line, as `run.py` writes it. ONE definition, because this
+#: module has two readers over the same corpus (`survey` and `replay`) and
+#: round 445's finding was a fix that landed in one of two copies of a
+#: selector. Anchored on the literal prefix rather than on a regex over the
+#: whole sentence: the sentence is pluralised and the count is what matters.
+DROP_LINE_PREFIX = "dropped: "
+
+
+def dropped_count(out):
+    """How many miss values `run.py` says the run computed and threw away.
+
+    `None` when the program did not get far enough to have an answer (it was
+    never run, or it did not parse), `0` when it ran and dropped nothing.
+    The distinction matters: `0` is a clean program and `None` is no
+    measurement, and a survey column that prints `0` for both would report
+    eleven parse failures as eleven clean runs.
+    """
+    if out is None:
+        return None
+    for line in out.splitlines():
+        if line.startswith(DROP_LINE_PREFIX):
+            head = line[len(DROP_LINE_PREFIX):].split(" ", 1)[0]
+            try:
+                return int(head)
+            except ValueError:
+                return None
+    return 0
 
 
 def run_program(path, timeout=90, strict=False):
@@ -1216,16 +1251,42 @@ def field_corpus_drift(root=None):
 
 
 def survey(paths, max_steps=MAX_STEPS):
+    """Per file: does it parse, does following its cures make it parse, and
+    --- once it runs --- does it run CLEANLY.
+
+    ROUND 446 added the last clause, and it is the whole point of the change.
+    Until round 446 this function recorded `rc` and nothing else, so the
+    headline it produced was *"N reach a value (rc=0)"* --- a sentence
+    SPEC.md's own v0.33 section already contradicts three paragraphs later,
+    under the heading **"Reaching a value is not working."** Three of the
+    five field programs that reach a value exit 0 while the same run prints
+    a `dropped:` report naming the exact bug, and this survey was the reader
+    that did not look at it. `replay` in this same module HAS asked the
+    strict question since round 386 (`run_program(tmp, strict=True)`), so
+    the repo held two readers over one corpus and only one of them was
+    asking. Round 444's next-step 4 named the second half of that; the first
+    half ("nothing in the corpus tooling uses `--strict-miss`") is not true
+    and is corrected here rather than repeated.
+
+    `strict_rc` and `dropped` are BOTH recorded and they are different
+    facts: `strict_rc` is the contract (would a CI running
+    `run.py --strict-miss` fail this file), `dropped` is the size of the
+    finding. A file with one dropped miss and a file with six both have
+    `strict_rc == 1`.
+    """
     rows = []
     for path in paths:
         with open(path) as fh:
             text = fh.read()
         first = parse_error_of(text)
-        row = {"file": os.path.basename(path), "first_error": first}
+        row = {"file": os.path.basename(path), "first_error": first,
+               "strict_rc": None, "dropped": None}
         if first is None:
             rc, out = run_program(path)
+            srt, _ = run_program(path, strict=True)
             row.update(parses=True, rc=rc, outcome="parses-unedited",
-                       steps=[], applied=0)
+                       steps=[], applied=0, strict_rc=srt,
+                       dropped=dropped_count(out))
         else:
             cured, steps, outcome = cure_loop(text, max_steps)
             row.update(parses=False, outcome=outcome, steps=steps,
@@ -1235,7 +1296,10 @@ def survey(paths, max_steps=MAX_STEPS):
                 with open(tmp, "w") as fh:
                     fh.write(cured)
                 rc, out = run_program(tmp)
+                srt, _ = run_program(tmp, strict=True)
                 row["rc"] = rc
+                row["strict_rc"] = srt
+                row["dropped"] = dropped_count(out)
         rows.append(row)
     return rows
 
@@ -1259,8 +1323,8 @@ def _fmt_rules():
 
 def _fmt_survey(rows):
     out = []
-    hdr = "%-28s %-6s %-16s %-4s %s" % ("file", "edits", "outcome", "rc",
-                                        "stopped by")
+    hdr = "%-28s %-6s %-16s %-4s %-7s %-6s %s" % (
+        "file", "edits", "outcome", "rc", "strict", "drops", "stopped by")
     out.append(hdr)
     out.append("-" * len(hdr))
     for r in rows:
@@ -1269,16 +1333,26 @@ def _fmt_survey(rows):
             last = r["steps"][-1]
             if not last.get("applied"):
                 stopper = "%s @L%s" % (last["determinacy"], last["line"])
-        out.append("%-28s %-6d %-16s %-4s %s" % (
+        drops = r.get("dropped")
+        out.append("%-28s %-6d %-16s %-4s %-7s %-6s %s" % (
             r["file"], r["applied"], r["outcome"],
-            r.get("rc", "-"), stopper))
+            r.get("rc", "-"),
+            "-" if r.get("strict_rc") is None else r["strict_rc"],
+            "-" if drops is None else drops, stopper))
     total = len(rows)
     reached = sum(1 for r in rows if r.get("rc") == 0)
     parses = sum(1 for r in rows if r["outcome"] in ("parses", "parses-unedited"))
+    # Round 446. `clean` counts files that RAN and dropped nothing, so it is
+    # never larger than `reached`; `drops` is the total number of discarded
+    # miss values behind the difference. "5 reach a value" alone was the
+    # misleading half of this sentence --- see `survey`'s docstring.
+    clean = sum(1 for r in rows if r.get("rc") == 0 and r.get("strict_rc") == 0)
+    drops = sum(r["dropped"] for r in rows if r.get("dropped"))
     out.append("")
-    out.append("%d file(s): %d parse, %d reach a value (rc=0), "
+    out.append("%d file(s): %d parse, %d reach a value (rc=0), %d of those "
+               "clean under --strict-miss (%d miss value(s) dropped), "
                "%d mechanical edit(s) applied in total"
-               % (total, parses, reached,
+               % (total, parses, reached, clean, drops,
                   sum(r["applied"] for r in rows)))
     return "\n".join(out)
 
@@ -1329,13 +1403,15 @@ def main(argv=None):
     if args.cmd == "replay":
         with open(args.ledger) as fh:
             rows = replay(json.load(fh))
-        hdr = ("%-28s %-6s %-8s %-8s %-5s %s"
-               % ("file", "edits", "errors", "accepted", "rc", "strict"))
+        hdr = ("%-28s %-6s %-8s %-8s %-5s %-7s %s"
+               % ("file", "edits", "errors", "accepted", "rc", "strict",
+                  "drops"))
         print(hdr); print("-" * len(hdr))
         for r in rows:
-            print("%-28s %-6d %-8d %-8d %-5s %s"
+            print("%-28s %-6d %-8d %-8d %-5s %-7s %s"
                   % (r["file"], r["edits"], len(r["parse_errors_seen"]),
-                     r["n_accepted"], r["rc"], r["strict_rc"]))
+                     r["n_accepted"], r["rc"], r["strict_rc"],
+                     "-" if r.get("dropped") is None else r["dropped"]))
         ok = sum(1 for r in rows if r["rc"] == 0)
         clean = sum(1 for r in rows if r["strict_rc"] == 0)
         errs = sum(len(r["parse_errors_seen"]) for r in rows)
@@ -1343,8 +1419,10 @@ def main(argv=None):
         det = collections.Counter(s["determinacy"]
                                   for r in rows for s in r["parse_errors_seen"])
         print()
-        print("%d file(s): %d reach a value, %d clean under --strict-miss"
-              % (len(rows), ok, clean))
+        print("%d file(s): %d reach a value, %d clean under --strict-miss "
+              "(%d miss value(s) dropped)"
+              % (len(rows), ok, clean,
+                 sum(r["dropped"] for r in rows if r.get("dropped"))))
         uniq = len(set((r["file"], s["error"])
                        for r in rows for s in r["parse_errors_seen"]))
         print("%d edit(s); %d parse-error observation(s) on the way, %d of "
@@ -1360,15 +1438,29 @@ def main(argv=None):
     if args.cmd == "verify":
         names = sorted(n for n in os.listdir(args.dir) if n.endswith(".lang"))
         bad = 0
+        dirty = 0
+        drops = 0
         for n in names:
             path = os.path.join(args.dir, n)
             rc, out = run_program(path)
+            d = dropped_count(out)
             tail = [l for l in out.strip().split("\n") if l.strip()]
-            print("%-28s rc=%-3d %s" % (n, rc, tail[-1][:90] if tail else ""))
+            print("%-28s rc=%-3d drops=%-4s %s"
+                  % (n, rc, "-" if d is None else d,
+                     tail[-1][:80] if tail else ""))
             if rc != 0:
                 bad += 1
-        print("\n%d file(s): %d reach a value, %d do not"
-              % (len(names), len(names) - bad, bad))
+            elif d:
+                dirty += 1
+                drops += d
+        # Round 446: `verify` carried the identical misleading sentence
+        # `_fmt_survey` did --- "N reach a value" --- over a DIFFERENT
+        # directory. Two copies of one claim, fixed together on purpose;
+        # round 445's finding was a fix that landed in only one of two.
+        print("\n%d file(s): %d reach a value, %d do not; %d of the %d that "
+              "run drop a miss (%d value(s) in total)"
+              % (len(names), len(names) - bad, bad, dirty,
+                 len(names) - bad, drops))
         return 0
     ap.print_help()
     return 2
