@@ -746,6 +746,33 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    `FULL_SHOW_NODES`, and rendering every one of them, **2813** stop on it.
    See § Decision 54.
 
+55. **A measured number carries its measurement conditions or it carries
+   nothing: a depth is a property of the RUNNER, and `max_depth` bounds
+   recursion rather than value depth (round 458).** Decision 53 credited
+   `tests/test_generated_killers.py`'s
+   `test_kill_values_py_139_arith_120` with a 20 000-deep value. That
+   file's `canonical()` takes `max_depth=500` and its `run()` passes no
+   override, so the value that test builds is **500** deep; the same source
+   at four caps gives 7, 64, 500, 501. The number is real and is reached —
+   by `tests/test_v44.py`'s
+   `test_the_deepest_value_this_repo_builds_is_max_depth_not_fourteen`,
+   written by the same round 452 — so what was wrong was the citation, not
+   the figure. Decision 53's other claim, *"`max_depth` is the real upper
+   bound on value depth in Whence"*, is **false**: it bounds what a runaway
+   RECURSION builds, and ordinary code then wraps the result, so at
+   `max_depth=3000` `[[rec]]` is 3002 deep and `test_v04.py`'s
+   `test_deep_eq_is_iterative` already builds `max_depth + 1` — **20001**
+   at the interpreter default, one past `FULL_SHOW_NODES`. **The real bound
+   on value depth in Whence is memory.** The second corpus that settled it
+   is `depthcensus.py`'s TEST-corpus harvester: **488 programs** recovered
+   from Python string literals by AST runner-position analysis (a parse
+   gate alone admits **7935 of 11 990** string constants, because `"ab"` is
+   legal Whence), each censused at the depth its own runner uses. **No
+   constant moves.** The root-set census under-reads the champion in 18 of
+   488 test programs by at most 3 levels, against 86x on `examples/` — a
+   test BINDS the value it is about and an example throws it away, which is
+   decision 54's rule seen from the other side. See § Decision 55.
+
 ## Syntax (statements are newline-separated; `#` comments)
 ```
 let x = 12                        fn add(a, b) { a + b }

@@ -2403,5 +2403,31 @@
   "id": "wliow-neg-two-live-writers",
   "expect": [],
   "prompt": "Two worker processes both append to the same shared events.log and we intermittently get interleaved half-lines. Sometimes worker A wins, sometimes B, and the corruption shows up maybe one run in twenty. What is the right locking approach here?"
+ },
+ {
+  "id": "nbir-depth-cap",
+  "expect": [
+   "number-belongs-to-its-runner"
+  ],
+  "prompt": "Our design doc justifies a serialisation depth cap with 'the deepest object the codebase ever builds is 20000, see test_runaway_unwind in tests/test_generated.py'. I want to raise the cap and I need to know if that 20000 is solid. I have read the test and the number is nowhere in it -- the assertion just checks a truncated repr. How do I confirm or refute the figure before I touch the constant?"
+ },
+ {
+  "id": "nbir-bench-p99",
+  "expect": [
+   "number-belongs-to-its-runner"
+  ],
+  "prompt": "The perf README says 'p99 is 40ms, measured by bench_hot_path'. A customer is seeing 300ms on the same endpoint. bench_hot_path is real and it passes. Before I go looking at their infrastructure, is there a way the benchmark and production could both be telling the truth?"
+ },
+ {
+  "id": "nbir-ceiling-claim",
+  "expect": [
+   "number-belongs-to-its-runner"
+  ],
+  "prompt": "A comment in our allocator says MAX_FRAMES is the real upper bound on how big a node can get, and cites the stress test that hits it. I would like to rely on that in a proof obligation for the new renderer. How much should I trust a superlative like that, and what would checking it actually look like?"
+ },
+ {
+  "id": "nbir-neg-missing-denominator",
+  "expect": [],
+  "prompt": "Our nightly audit prints '0 stale entries' and everyone treats it as clean. I do not think it says how many entries it looked at, and I suspect on some nights it enters no tier at all and still prints zero. How should the summary line be written so that zero means something?"
  }
 ]

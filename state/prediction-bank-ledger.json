@@ -1026,6 +1026,14 @@
    "where": "knowledge/round-457-the-row-nobody-could-commit.md",
    "quote": "**One of nine held cleanly.**",
    "note": "Section 4, one table row per banked line. The worst score this file records, and the round says why rather than softening it: every QUANTITATIVE prediction (P2, P3, P4, P6, P7) missed, four of them because the bank reasoned from the shape of the mechanism without pricing its inputs -- the same failure round 456 scored on its own P3, one round earlier. P1, the only clean hold, was close to a deduction rather than a guess, and was banked anyway because a single row landed inside its own round would have refuted the ordering diagnosis that rounds 452-456 had been carrying. Two misses were more useful than the hit. P5 (every digest reset preceded by a whence-source COMMIT) is refuted because checkout_digest reads the WORKING TREE, so an uncommitted edit resets the tier -- the corrected claim is cleaner than the banked one, 5 of 5 language(C) rounds reset and 0 of 11 others. P4 (>=40% repeat rows) is backwards: 22 driver rows / 22 distinct units, zero repeats, because worst-evidence-first ordering means the tier is still in its first pass and the waste predicted has not begun. P8 was caught wrong by the round itself BEFORE the fact -- run_driver.sh re-execs at the bottom of each round, so the fix first fires at round 458's slice and the first clean record-check is round 459, not 458."
+  },
+  "458": {
+   "bank": "state/whence/round-458/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 458,
+   "where": "knowledge/round-458-the-depth-that-belonged-to-a-runner.md",
+   "quote": "## 3. Predictions: 5 of 10 held",
+   "note": "Section 3, one table row per banked line. The split is the finding: BOTH mechanism predictions held EXACTLY (P1 the cited test's value is 500; P2 the same source at the interpreter default is 20000) and EVERY sizing prediction missed (488 programs not 900-1400; max depth 20000 not 'below 1201'; 165.7 s not 300-900 s; 0 failures of 488 not 2-10%). P1 and P2 were derived from source already read -- canonical()'s max_depth=500 default and DEFAULT_MAX_DEPTH -- and every miss was a guess about a population nobody had measured, which is the same move the round was sent to correct. P4 is the one to read: it was DERIVED from P1 ('500 < 1201, so the test corpus cannot beat the examples corpus') by arithmetic that smuggled in the unmeasured premise that the cited killer was the test corpus's deepest program. It was off by 40x. Repairing a number does not repair what was derived from it. The bank also records a prediction REVERSED before measurement, in the file, rather than silently rewritten."
   }
  }
 }
