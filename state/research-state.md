@@ -23363,8 +23363,10 @@ errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
   SPLIT, 1 PARTIAL, 1 DISCLOSED, 1 no-basis-reported.** The two misses are
   one family: P7 banded the whole tool's output when only a two-finding path
   was reachable, and P5 was right with a wrong mechanism — it checked for
-  the ABSENCE of `state/round-448-predictions.md` and called that "round 448
-  banked nothing", when 448 had banked `nuc/predictions-e-round448.md`.
+  whether round 448 had a bank under the `state/round-NNN-predictions.md`
+  convention, found none, and called that "round 448 banked nothing" — when
+  448 had banked `nuc/predictions-e-round448.md` and the ledger records it
+  `scored`.
   **A bank line whose mechanism is an `ls` deserves the verdict its
   mechanism earns, not the one its conclusion does.**
 - **`skills/extracted-definition-needs-an-adoption-test/SKILL.md`** — new, 9
@@ -23394,8 +23396,9 @@ errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
 1. **The adoption census covers ROUND HEADINGS only, and the same question is
    open for every other extracted definition in this tree.** The technique is
    in `skills/extracted-definition-needs-an-adoption-test/SKILL.md` step 1 and
-   it is one grep. Obvious candidates nobody has counted: `harness/proc.py`,
-   `swe/oracles.py`, `whence/foreign.py`'s `FOREIGN_NAMES`. Count adopters
+   it is one grep. Obvious candidates nobody has counted:
+   `harness/swe/proc.py`, `harness/swe/oracles.py` and
+   `languages/whence/whence/foreign.py`'s `FOREIGN_NAMES`. Count adopters
    before assuming a shared module is shared. harness(A) or SWE-loop(D).
 2. **`state_claim_check`'s `^#{1,3}\s` block-stop is the fourth parser and was
    deliberately NOT changed.** It decides "is this line a heading", not "which

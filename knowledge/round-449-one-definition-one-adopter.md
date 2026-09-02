@@ -288,8 +288,9 @@ Seven baselines re-derived this session with their commands.
 | P13 | 13 scored lines | HIT |
 
 **P5, the instructive PARTIAL.** The line was right and the reason was not.
-I wrote *"round 448 banked no predictions — `state/round-448-predictions.md`
-does not exist"*. It does not; round 448 banked
+I wrote that round 448 had banked no predictions, on the evidence that it
+had no bank under the `state/round-NNN-predictions.md` convention. It has
+none; it banked
 `nuc/predictions-e-round448.md`, and the ledger records it `scored`. The
 real mechanism is narrower and more interesting: `scan()` is reached only
 for `unscored` entries, of which there is one, round 132, whose section is
