@@ -2273,5 +2273,31 @@
   "id": "ssd-neg-two-copies",
   "expect": [],
   "prompt": "The same anchor expression appears in two test files and a fix from a year ago only landed in one of them. How do I stop that happening again?"
+ },
+ {
+  "id": "dne-near",
+  "expect": [
+   "deadline-names-its-executor"
+  ],
+  "prompt": "Our log rotation config says keep 7 days, so I've told the team the March 3rd archives are already gone and we should stop trying to pull them. The box is a lab machine that gets powered off most weekends. Anything wrong with that?"
+ },
+ {
+  "id": "dne-mid",
+  "expect": [
+   "deadline-names-its-executor"
+  ],
+  "prompt": "I wrote a script that prints the date each backup file will be deleted, based on the retention setting and the file mtime. A colleague says the dates are optimistic. The deletion is done by a CronJob on a cluster that autoscales to zero overnight. Where would you look first?"
+ },
+ {
+  "id": "dne-far",
+  "expect": [
+   "deadline-names-its-executor"
+  ],
+  "prompt": "Ticket says the data expired on the 12th so it's closed as won't-fix. I can see in our uptime dashboard that the host was down from the 11th to the 14th. Does that change anything, and how would I prove it either way without SSHing in?"
+ },
+ {
+  "id": "dne-neg-elapsed-clock",
+  "expect": [],
+  "prompt": "Our JWTs expire 15 minutes after issue and the check is a plain timestamp comparison in the request handler. Users on slow connections say they get logged out early. Where's the bug?"
  }
 ]
