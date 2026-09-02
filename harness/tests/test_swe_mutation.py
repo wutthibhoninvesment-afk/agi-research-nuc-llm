@@ -88,6 +88,44 @@ def test_timeout_counts_as_killed(tmp_path):
     assert m.status == "timeout"
 
 
+def _grandchild_mutant(pidfile, startup_delay_s=0.0):
+    """Mutant source that spawns a stdout-inheriting grandchild outliving the
+    cap, and records that grandchild's pid FROM THE PARENT.
+
+    Round 449 (SWE-loop D). The original fixture had the GRANDCHILD write its
+    own pid, which made the test's evidence race the cap: `Popen` returns as
+    soon as the child has EXEC'd, but everything a CPython interpreter does
+    after exec — `site`, the import machinery, the `-c` body — is schedulable
+    work, and on this 1-core box running four suites at once it does not
+    always finish inside 2.0 s. `p.pid` is known to the parent the instant
+    Popen returns and costs the grandchild nothing, so the same evidence is
+    collected without the race. `startup_delay_s` simulates the contention
+    that produced round 447's failure; see
+    `test_the_grandchild_pid_survives_a_grandchild_slower_than_the_cap`.
+    """
+    body = "import time; time.sleep(%r); time.sleep(60)" % startup_delay_s
+    return textwrap.dedent('''
+        import os, subprocess, sys, time
+        # grandchild inherits our stdout (the pipe) and outlives the cap
+        p = subprocess.Popen([sys.executable, "-c", %r])
+        with open(%r, "w") as fh:
+            fh.write(str(p.pid))
+        time.sleep(60)
+    ''' % (body, str(pidfile)))
+
+
+def _wait_dead(pid, budget_s=5.0):
+    import time
+    deadline = time.time() + budget_s
+    while time.time() < deadline:
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return True
+        time.sleep(0.1)
+    return False
+
+
 def test_timeout_kills_grandchild_holding_stdout(tmp_path):
     """Round 101: a test spawned a `run.py` grandchild that inherited stdout
     and looped forever; `subprocess.run(timeout=)` killed pytest, then blocked
@@ -97,31 +135,49 @@ def test_timeout_kills_grandchild_holding_stdout(tmp_path):
     root = make_project(tmp_path)
     pidfile = tmp_path / "grandchild.pid"
     m = generate(MOD, "mod.py")[0]
-    m.source = textwrap.dedent('''
-        import os, subprocess, sys, time
-        # grandchild inherits our stdout (the pipe) and outlives the cap
-        subprocess.Popen([sys.executable, "-c",
-            "import os,time; open(%r,'w').write(str(os.getpid())); time.sleep(60)"])
-        time.sleep(0.5)
-        while not os.path.exists(%r):
-            time.sleep(0.05)
-        time.sleep(60)
-    ''' % (str(pidfile), str(pidfile))) + m.source
+    m.source = _grandchild_mutant(pidfile) + m.source
     t0 = time.time()
     run_mutant(m, root, DEFAULT_TEST_CMD, timeout_s=2.0)
     wall = time.time() - t0
     assert m.status == "timeout" and "group" in m.detail
     assert wall < 15, "runner blocked on the grandchild's pipe for %.1fs" % wall
+    assert pidfile.exists(), (
+        "the mutant was killed before it recorded the grandchild's pid — this "
+        "run proved nothing about killing grandchildren, and saying so is the "
+        "point (round 449)")
     pid = int(pidfile.read_text())
-    dead = False
-    for _ in range(50):
-        try:
-            os.kill(pid, 0)
-            time.sleep(0.1)
-        except ProcessLookupError:
-            dead = True
-            break
-    assert dead, "grandchild %d survived the cap" % pid
+    assert _wait_dead(pid), "grandchild %d survived the cap" % pid
+
+
+def test_the_grandchild_pid_survives_a_grandchild_slower_than_the_cap(tmp_path):
+    """Round 449 — round 447's health-check FAIL, reproduced without a spike.
+
+    Round 447's `health-check FAIL` was this file's grandchild test, and the
+    traceback named neither a race nor a grandchild: it was a bare
+    `FileNotFoundError` on `pidfile.read_text()`, because the pidfile the
+    GRANDCHILD was supposed to write did not exist. The driver runs four
+    suites at once on a box whose `nproc` is 1, and the grandchild's
+    interpreter simply was not scheduled inside the 2.0 s cap.
+
+    Round 443's technique applies exactly: the spike does not need producing,
+    it needs SIMULATING. Delaying the grandchild 3.0 s against the unchanged
+    2.0 s cap fails the old shape deterministically (measured: `pidfile:
+    False`) and passes this one, on an idle box, in about two seconds.
+
+    The honest limit, measured with the same harness: this removes the
+    GRANDCHILD's startup from the race, not the parent's. At a 0.3 s cap both
+    shapes fail, because the mutant is killed before pytest has imported it —
+    and there the run really has proved nothing, which is why the assertion
+    above says so instead of raising `FileNotFoundError`.
+    """
+    root = make_project(tmp_path)
+    pidfile = tmp_path / "grandchild.pid"
+    m = generate(MOD, "mod.py")[0]
+    m.source = _grandchild_mutant(pidfile, startup_delay_s=3.0) + m.source
+    run_mutant(m, root, DEFAULT_TEST_CMD, timeout_s=2.0)
+    assert m.status == "timeout" and "group" in m.detail
+    assert pidfile.exists(), "the parent must record the pid, not the grandchild"
+    assert _wait_dead(int(pidfile.read_text()))
 
 
 # ------------------------------------------------------- round 349 (harness A) --
