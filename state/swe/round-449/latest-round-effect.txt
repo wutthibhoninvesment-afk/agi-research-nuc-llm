@@ -1,0 +1,7 @@
+ROTATION = 6
+max(banks) = 449  max(corpus.sections) = 447
+latest as computed at HEAD now = 449
+unscored entries: {132: ('unscorable-as-posed', 'OWNER MOVED from language(C) to unscorable-as-posed by round')}
+latest=447 -> ages {132: 315} -> K004-age fires for [132]
+latest=448 -> ages {132: 316} -> K004-age fires for [132]
+latest=449 -> ages {132: 317} -> K004-age fires for [132]

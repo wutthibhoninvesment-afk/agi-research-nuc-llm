@@ -54,6 +54,14 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.environ.get("AGI_RESEARCH_ROOT") or os.path.dirname(
     os.path.dirname(HERE))
 
+# ONE definition of a round-entry heading (round 397). This module is
+# imported both as `harness.swe.toolliveness` and, from inside `harness/`,
+# as `swe.toolliveness`, so the parent of `harness/` has to be on the path
+# for the absolute import to resolve under the second name.
+if os.path.dirname(HERE) not in sys.path:
+    sys.path.insert(0, os.path.dirname(os.path.dirname(HERE)))
+from harness import roundheadings as _roundheadings  # noqa: E402
+
 
 # --- git, kept in one place so a probe never shells out on its own ---------
 
@@ -415,17 +423,33 @@ def record_files(repo=None):
 
 
 _ROUND_FILE = re.compile(r"round-(\d+)")
+# The pattern this module carried until round 449: one of the four
+# independent heading parsers `harness/roundheadings.py` catalogued at round
+# 397. It admits `##` and `###` but is blind to `####`/`#####` and to the
+# archive's span headings, and nothing on the writing side enforces any of
+# it. Kept as a name because the tests pin what it does and does not match.
 _STATE_HEAD = re.compile(r"^#{2,3} Round (\d+)\b")
 
 
 def _round_of_line(path, lineno, lines):
+    """The round a line of the record belongs to, or None.
+
+    Round 449 (SWE-loop D) moved this onto `harness.roundheadings`, the
+    shared definition. The old scan-backwards for `^#{2,3} Round N` was
+    wrong on the archive in a way that is easy to see and was never
+    reported: under `### Rounds 114-126 — driver-level, mostly did not run`
+    it kept walking past a heading it did not recognise and attributed all
+    thirteen rounds' lines to round **113**, the entry above the span. Four
+    archived span headings do this. A span now answers with its FIRST round
+    rather than with the round before it.
+    """
     m = _ROUND_FILE.search(os.path.basename(path))
     if m:
         return int(m.group(1))
     for i in range(lineno - 1, -1, -1):
-        h = _STATE_HEAD.match(lines[i])
-        if h:
-            return int(h.group(1))
+        h = _roundheadings.parse_heading(lines[i])
+        if h is not None:
+            return h.rounds[0]
     return None
 
 

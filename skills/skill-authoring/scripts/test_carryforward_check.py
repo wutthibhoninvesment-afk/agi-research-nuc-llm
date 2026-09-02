@@ -304,5 +304,79 @@ class TestLiveCorpus(unittest.TestCase):
             self.assertTrue(any(marker in p for p in paths), marker)
 
 
+class TestSectionBoundary(unittest.TestCase):
+    """Round 449 (SWE-loop D) — what a round's OWN section actually contains.
+
+    `own_scope(n)` is the evidence `scan()` reads to decide whether round n
+    scored its own predictions, so every character in it that round n did
+    not write is a chance to credit n with somebody else's verdict.
+
+    Until round 449 the section ran from one ROUND heading to the next, and
+    `## Next steps (as of round N)` is not a round heading. Measured on the
+    live record at that round's HEAD: **67 of 260** sections carried a
+    foreign level-<=3 heading, **135** next-steps blocks were attributed to
+    a round that did not write them, round 388's section swallowed 22
+    headings, and **26.7%** of all attributed text belonged to another
+    round. Correcting it moved 488 KB of prose and changed zero published
+    findings — extent is not impact, and the tests below are what keep the
+    boundary right now that nothing downstream would notice if it slipped.
+    """
+
+    DOC = ("### Round 400 — NUC-integration(E) — 2026-08-31\n"
+           "- four hundred's own line\n\n"
+           "#### a sub-heading inside round 400\n"
+           "- still four hundred\n\n"
+           "## Next steps (as of round 400)\n"
+           "1. not round 400's entry\n\n"
+           "### Round 401 — SWE-loop(D) — 2026-09-01\n"
+           "- four oh one's own line\n")
+
+    def test_a_next_steps_block_is_not_part_of_the_preceding_entry(self):
+        secs = cf.round_sections(self.DOC)
+        self.assertIn("four hundred's own line", secs[400])
+        self.assertNotIn("not round 400's entry", secs[400])
+        self.assertNotIn("Next steps", secs[400])
+
+    def test_a_deeper_sub_heading_stays_inside_the_entry_that_owns_it(self):
+        """The boundary is level-<=, not any-heading: a round entry may have
+        sub-headings of its own and must keep them."""
+        secs = cf.round_sections(self.DOC)
+        self.assertIn("a sub-heading inside round 400", secs[400])
+        self.assertIn("still four hundred", secs[400])
+
+    def test_a_drifted_heading_opens_its_own_section_and_leaves_its_neighbour(self):
+        """Round 448's live shape. Before round 449 the `##` heading matched
+        nothing, so 448's entry was served as part of 447's section."""
+        doc = ("### Round 447 — skills(B) — 2026-09-02\n- 447 body\n\n"
+               "## Round 448 (NUC-integration E) — box DOWN\n- 448 body\n")
+        secs = cf.round_sections(doc)
+        self.assertIn(448, secs)
+        self.assertIn("448 body", secs[448])
+        self.assertNotIn("448 body", secs[447])
+
+    def test_a_span_heading_is_a_boundary_but_never_a_key(self):
+        """Handing one block to thirteen rounds would give each of them an
+        entry it does not have."""
+        doc = ("### Round 113 — harness(A) — 2026-08-25\n- 113 body\n\n"
+               "### Rounds 114-126 — driver-level, mostly did not run\n"
+               "- the span's body\n")
+        secs = cf.round_sections(doc)
+        self.assertEqual(sorted(secs), [113])
+        self.assertNotIn("the span's body", secs[113])
+
+    def test_no_live_section_swallows_another_round_or_a_next_steps_block(self):
+        """The enforcement. Vacuous only if the record is already clean —
+        which it was not when this test was written."""
+        import re as _re
+        for rel in ("state/research-state.md", "state/research-state-archive.md"):
+            secs = cf.round_sections(cf.read(os.path.join(ROOT, rel)))
+            for n, sec in secs.items():
+                body = sec.split("\n", 1)[1] if "\n" in sec else ""
+                foreign = [l for l in body.splitlines()
+                           if _re.match(r"^#{1,3}\s", l)]
+                self.assertEqual(foreign, [], "%s round %d swallows %r"
+                                 % (rel, n, foreign[:3]))
+
+
 if __name__ == "__main__":
     unittest.main()

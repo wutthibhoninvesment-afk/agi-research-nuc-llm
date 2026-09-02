@@ -131,6 +131,19 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_REPO_ROOT = os.path.normpath(os.path.join(HERE, "..", "..", ".."))
 
+if DEFAULT_REPO_ROOT not in sys.path:
+    sys.path.insert(0, DEFAULT_REPO_ROOT)
+try:
+    from harness import roundheadings as _roundheadings
+except ImportError:
+    # Same promoted-copy case `check_round_recorded` documents: this skill
+    # may be copied somewhere without the harness/ package. The fallback
+    # below keeps `_HEADING_RE` for section KEYS — which is the pattern that
+    # produced round 302's and round 396's false gaps, so it degrades into a
+    # wrong answer, not a missing column — but keeps the level-based section
+    # BOUNDARY, which needs nothing from harness.
+    _roundheadings = None
+
 LEDGER_FILE = os.path.join("state", "prediction-bank-ledger.json")
 
 # One full track rotation (CLAUDE.md ground rule 6 is mod 6). A debt younger
@@ -297,22 +310,91 @@ def score_evidence(text, n=None, require_named=None):
     return None
 
 
+# The historical, strict pattern. Round 449 demoted it from "the definition
+# of a round entry" to the fallback used only when harness/ is not
+# importable, for the reason `harness/roundheadings.py` gives: it rejects
+# legal entries. Kept as a name because the tests pin what it does and does
+# not match.
 _HEADING_RE = re.compile(r"^###\s+Round\s+(\d{1,4})\b", re.MULTILINE)
+
+_ANY_HEADING_RE = re.compile(r"^(#{1,6})\s")
+
+
+def _marks(text):
+    """(line_index, level, round_or_None, is_span) for every md heading.
+
+    `round_or_None` is the round a SINGULAR heading opens a section for.
+    Span headings (`### Rounds 114-126 — did not run`) are boundaries but
+    not keys: assigning one block of prose to thirteen rounds would make
+    each of them look like it had an entry of its own.
+    """
+    out = []
+    for i, line in enumerate(text.splitlines(keepends=True)):
+        m = _ANY_HEADING_RE.match(line)
+        if not m:
+            continue
+        level, raw = len(m.group(1)), line.rstrip("\n")
+        if _roundheadings is None:
+            hit = _HEADING_RE.match(raw)
+            out.append((i, level, int(hit.group(1)) if hit else None, False))
+        else:
+            h = _roundheadings.parse_heading(raw)
+            out.append((i, level,
+                        None if h is None or h.is_span else h.rounds[0],
+                        bool(h is not None and h.is_span)))
+    return out
 
 
 def round_sections(text):
-    """{round: section text} for every `### Round N —` heading.
+    """{round: the prose that round's own entry owns}.
 
     A round number can head more than one section across the two prose files
     (a reconciling round amends an earlier entry); sections are concatenated
     rather than overwritten so no evidence is lost.
+
+    Round 449 (SWE-loop D) changed two things here, both measured against
+    the live record before and after:
+
+    1. **Which headings open a section** — `harness.roundheadings`, not this
+       module's own `^###\\s+Round\\s+N` regex. That regex was one of the
+       four independent heading parsers round 397 catalogued, and the only
+       one still carrying its own pattern 52 rounds later. It is blind to
+       `## Round 448 (NUC-integration E) — …`, the shape round 448 actually
+       wrote, and to the archive's four span headings. Live cost measured at
+       round 449's HEAD: 22 rounds across the two prose files had no section
+       at all (448 plus 21 archived rounds), and round 448's entry was not
+       dropped but ABSORBED — its whole 138-line entry was served as part of
+       round 447's `own_scope`.
+
+    2. **Where a section ENDS** — at the next heading of level <= this
+       heading's own, not at the next ROUND heading. `## Next steps (as of
+       round N)` is not a round heading, so under the old rule every round
+       entry that preceded a next-steps stack swallowed the whole stack.
+       Measured at the same HEAD: **67 of 260** live sections (26%) carried
+       a foreign level-<=3 heading, 135 next-steps blocks were attributed to
+       a round that did not write them, round 388's section swallowed 22
+       headings, and **26.7%** of all the text this function attributed to
+       some round belonged to another one.
+
+    The two defects are wildly different sizes and the SMALL one is the one
+    that changed an answer: correcting the boundary alone moved 488 KB of
+    prose and flipped zero verdicts, while correcting the drift alone moved
+    no text at all and flipped exactly one (round 448's own scoring, which
+    `--suggest` would otherwise have proposed as `unscored`). Extent is not
+    impact; both numbers are in `state/swe/round-449/`.
     """
+    lines = text.splitlines(keepends=True)
+    marks = _marks(text)
     out = {}
-    hits = list(_HEADING_RE.finditer(text))
-    for i, m in enumerate(hits):
-        end = hits[i + 1].start() if i + 1 < len(hits) else len(text)
-        n = int(m.group(1))
-        out[n] = out.get(n, "") + text[m.start():end]
+    for j, (i, level, n, _span) in enumerate(marks):
+        if n is None:
+            continue
+        end = len(lines)
+        for k in range(j + 1, len(marks)):
+            if marks[k][1] <= level:
+                end = marks[k][0]
+                break
+        out[n] = out.get(n, "") + "".join(lines[i:end])
     return out
 
 

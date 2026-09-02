@@ -1,0 +1,14 @@
+old sections 322   new sections 323   only-new [448]
+total chars attributed: old 1792270  new 1313746  (26.7% of the old text was foreign)
+
+banks whose OWN-scope scoring evidence changes: 1 of 125
+  evidence LOST when the scope is corrected (i.e. it came from foreign prose): []
+  evidence GAINED: [448]
+  round 448
+     old: None
+     new: tally | opened. **17 HIT / 1 MISS / 1 PARTIAL / 2 no-basis-reported of 21.** Every
+
+=== the one UNSCORED ledger bank, round 132 ===
+old scope chars 0, new 0
+old evidence: None
+new evidence: None

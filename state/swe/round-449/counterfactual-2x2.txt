@@ -1,0 +1,9 @@
+today (own regex, round-heading boundary)                  sections 322  chars  1792270  verdict-changes vs today: []
+drift fix only (roundheadings keys, round-heading boundary) sections 323  chars  1792270  verdict-changes vs today: [448]
+boundary fix only (own regex, level boundary)              sections 322  chars  1303990  verdict-changes vs today: []
+both                                                       sections 323  chars  1313746  verdict-changes vs today: [448]
+
+round 448's bank on disk: ['nuc/predictions-e-round448.md']
+round 449's bank on disk: ['state/round-449-predictions.md']
+ledger has 448: True -> status scored
+ledger has 449: False

@@ -1,0 +1,8 @@
+=== state/research-state-archive.md: 4 span heading(s)
+  ### Rounds 12–13 — did not run — (discovered 2026-08-24, line    83: old -> 11   new -> 12
+  ### Rounds 114-126 — driver-level, mostly did not run —  line   269: old -> 113   new -> 114
+  ### Rounds 128-129 — unrecorded, flagged not chased — 20 line   289: old -> 124   new -> 128
+  ### Rounds 131-135 — mostly did not finish — 2026-08-26  line   305: old -> 130   new -> 131
+  lines whose attributed round CHANGES: 16 of 1041 (1.5%)
+=== state/research-state.md: 0 span heading(s)
+  lines whose attributed round CHANGES: 0 of 24439 (0.0%)

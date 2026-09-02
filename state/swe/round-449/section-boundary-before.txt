@@ -1,0 +1,24 @@
+=== state/research-state.md ===
+sections: 260   sections containing a FOREIGN level<=3 heading: 67 (26%)
+total foreign headings swallowed: 136
+  round 388  swallows 22: ## Next steps (as of round 388) | ## Next steps (as of round 387) | ## Next steps (as of round 384) | ## Next steps (as of round 383)
+  round 363  swallows 14: ## Next steps (as of round 363) | ## Next steps (as of round 361) | ## Next steps (as of round 359) | ## Next steps (as of round 358)
+  round 403  swallows 10: ## Next steps (as of round 403) | ## Next steps (as of round 397) | ## Next steps (as of round 396) | ## Next steps (as of round 395)
+  round 447  swallows  9: ## Round 448 (NUC-integration E) — 2026-09-0 | ## Next steps (as of round 448) | ## Next steps (as of round 447) | ## Next steps (as of round 446)
+  round 440  swallows  7: ## Next steps (as of round 440) | ## Next steps (as of round 439) | ## Next steps (as of round 438) | ## Next steps (as of round 437)
+  round 277  swallows  6: ## Next steps (as of round 277) | ## Next steps (as of round 276) | ## Next steps (as of round 275) | ## Next steps (as of round 274)
+sections swallowing >=1 `## Next steps` block: 67, blocks total 135
+sections swallowing another ROUND heading: 1 -> {447: ['## Round 448 (NUC-integration E) — 2026-']}
+
+=== state/research-state-archive.md ===
+sections: 62   sections containing a FOREIGN level<=3 heading: 8 (13%)
+total foreign headings swallowed: 8
+  round 11   swallows  1: ### Rounds 12–13 — did not run — (discovered
+  round 113  swallows  1: ### Rounds 114-126 — driver-level, mostly di
+  round 124  swallows  1: ### Rounds 128-129 — unrecorded, flagged not
+  round 130  swallows  1: ### Rounds 131-135 — mostly did not finish —
+  round 136  swallows  1: ## Round log (rounds 137-174)
+  round 142  swallows  1: ### 2026-08-25: Time-Travel Debugger v0.7 CO
+sections swallowing >=1 `## Next steps` block: 0, blocks total 0
+sections swallowing another ROUND heading: 4 -> {11: ['### Rounds 12–13 — did not run — (discov'], 113: ['### Rounds 114-126 — driver-level, mostl'], 124: ['### Rounds 128-129 — unrecorded, flagged'], 130: ['### Rounds 131-135 — mostly did not fini']}
+
