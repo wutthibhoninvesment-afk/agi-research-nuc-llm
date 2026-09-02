@@ -329,9 +329,59 @@ banked. The number is in §8 and in the round entry.
 
 ---
 
-## 8. Suites, on a settled tree
+## 8. Suites, on a settled tree, run last and SOLO
 
-<!-- filled in after the final run; see state/research-state.md's round-449 entry -->
+Both were launched only after every edit was committed — round 447 discarded
+two runs for exactly this and said so.
+
+**Harness fast tier** (`harness/run_tests_fast.sh`), 07:51:48Z:
+
+```
+1238 passed, 352 deselected in 259.99s (0:04:19)        rc 0
+tier-budget: 15/15 promoted files timed, 51.3s of a 56.6s budget
+```
+
+Round 448's driver line, for comparison, was `1 failed, 1206 passed, 352
+deselected in 858.71s` — **both reds gone** (the roundheadings pin of §4 and
+the mutation flake of §6) and **+31 tests**.
+
+**Corpus check** (`skills/run_checks_fast.sh`), 08:04:57Z, on the second
+attempt:
+
+```
+corpus-check: 10 checker(s), 0 error(s), 8 warning(s)
+unit_tests   ok   916 passed in 163.08s (0:02:43)
+```
+
+The FIRST attempt is the honest part of this section: `4 error(s)`, and all
+four were this round's own. Two `X004` dangling citations in the state entry
+— a sentence whose *content* was that a path does not exist still cites that
+path, and a next step that named a module at the `harness/` root when it
+lives under `harness/swe/`; one `J004` for the same absent path inside the ledger
+note; one `D002` for a 1097-character skill description against a 1024
+limit, which took three drafts (1097 → 1073 → 1043 → 1013), each printing
+its own length before writing. The `3 failed` unit tests were the live-corpus
+assertions of those same three checkers: one cause, three reds. Warning set
+unchanged against round 448's line (B002, P004/P006/P007/P009, S005, K004,
+U002); `verb_audit V002 0` again, which closes the carry in §9's next step 6.
+
+**The absent-path mistake was made THREE times in one round, and the third
+was inside the sentence describing the first two.** Writing *"a next step
+that guessed `harness/proc.py`"* into this very section re-armed `X004` on
+the next run. A claim whose content is *"path X does not exist"* is
+indistinguishable, to every checker in this repo, from a claim that path X
+exists — the backticked path is the citation, and the surrounding negation
+has no reader. The only phrasing that survives is one that names the
+CONVENTION or the DIRECTORY instead of the file. Three instances is not a
+slip; it is a shape, and it belongs in a checker or a pitfall rather than in
+one round's memory.
+
+**And the number P11 declined to band.** The fast tier solo is **259.99 s**
+against the driver's contended **858.71 s** — a **3.3x** penalty — and the
+corpus check's `unit_tests` ran **163.08 s** solo where round 448's driver
+run TIMED OUT at the 600 s cap. Two independent reproductions of round 435's
+measured 3x, on a box whose `nproc` is 1. This is the measurement step 11 of
+`skills/prediction-banking/SKILL.md` now requires a duration band to name.
 
 ---
 

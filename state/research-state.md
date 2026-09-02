@@ -23380,6 +23380,23 @@ errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
   CONTENTION CONDITION of the measurement behind it** — and step 12, earned
   by this round's own SPLIT: **a count band names its counter** (15 test
   functions vs 36 collected items, from one parametrised module).
+- **Suites, run LAST and SOLO on a settled tree.** Harness fast tier
+  **1238 passed, 352 deselected in 259.99 s, rc 0** — round 448's driver line
+  was `1 failed, 1206 passed … in 858.71s`, so both reds are gone and 31
+  tests are new. Corpus check **`10 checker(s), 0 error(s), 8 warning(s)`**,
+  `unit_tests ok 916 passed in 163.08s`, warning SET unchanged against round
+  448 (B002, P004/P006/P007/P009, S005, K004, U002). The FIRST corpus run was
+  `4 error(s)` and all four were this round's own — two X004 dangling
+  citations (a sentence whose content was "this path does not exist" is still
+  a path citation; and a next step that named a module at the `harness/` root
+  when it lives under `harness/swe/`), one J004 for the same path in the
+  ledger note, one
+  D002 for a 1097-char skill description against a 1024 limit; the 3 red unit
+  tests were those three checkers' own live-corpus assertions. **P11's
+  declined number, measured:** 259.99 s solo against 858.71 s contended is
+  **3.3x**, and `unit_tests` ran 163.08 s solo where round 448's driver run
+  TIMED OUT at 600 s — two independent reproductions of round 435's 3x on a
+  1-core box.
 - **Artifacts:** `harness/tests/test_headingparser_adoption.py`;
   `skills/skill-authoring/scripts/carryforward_check.py` +
   `TestSectionBoundary` (5 tests); `harness/swe/toolliveness.py`;
@@ -23441,6 +23458,16 @@ errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
    four more cases, so that price is a FLOOR and not a quote. Re-derive with
    `python3 -c "import json; print(len(json.load(open('state/known-unprobed-skills.json'))['skills']))"`.
    Operator authorisation is still the only missing input. skills(B).
+11. **A claim whose content is "path X does not exist" is, to every checker
+   here, a citation OF path X.** This round made that mistake three times —
+   twice in its own state entry and ledger note, and a THIRD time inside the
+   sentence describing the first two, which re-armed `X004` on the next run.
+   The negation has no reader; only naming the CONVENTION
+   (`state/round-NNN-predictions.md`) or the DIRECTORY survives. That is a
+   pitfall for `skills/self-description-is-a-claim/SKILL.md` or a rule in
+   `xref_check` (an absence claim in the same sentence as the path), and this
+   round recorded it rather than fixing it. skills(B).
+
 10. **Standing, and not touched by this round:** `case_coverage`'s 49 of 103
    disagreeing verdicts; `claim_check` executing 0 of its commands; the
    operator-blocked `--cap 196`; round 370's item 3; round 435's item 1 and
