@@ -23281,6 +23281,173 @@ errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
   `knowledge/round-448-the-deadline-that-was-not-a-calendar.md`; round 447's
   ledger orphan (`c21f5a0`).
 
+### Round 449 — SWE-loop(D) — 2026-09-02 — one definition, one adopter
+
+- **Landed a predecessor's orphan FIRST, attributed rather than adopted**
+  (`3b0fb3f`). `state/slow-tier-ledger.jsonl` row 46, written 07:26:46Z by
+  the driver's post-round `slowtier-slice` for round 448 (`driver.log`
+  07:26:50, *3 conclusive … 9% recall*); round 448's last commit landed
+  07:11:04Z. The seventh consecutive round to inherit one.
+- **HEADLINE: `harness/roundheadings.py` had ONE adopter, 52 rounds after it
+  landed.** Round 397 extracted it as "ONE definition of a round entry
+  heading" after a legal entry was reported as a missing round twice, 94
+  rounds apart, and its docstring tabulates FOUR parsers. At this round's
+  HEAD the only caller was `check_round_recorded.py`, which shipped in the
+  same commit. The extraction lands loudly; the non-adoption is a non-event
+  — no file changed, no test went red, no reviewer saw a diff.
+- **Round 448's drifted heading was a live natural experiment and was
+  measured BEFORE the document was touched.** `carryforward_check` did not
+  DROP the entry it could not see, it **ABSORBED** it: `round_sections`
+  slices heading-to-next-MATCHED-heading, so round 447's section ran **810
+  lines / 55,636 chars** and contained round 448's whole entry plus eight
+  `## Next steps` blocks. 22 rounds across the two prose files had no
+  section at all (448 + 21 archived, under four span headings).
+- **A SECOND defect, 67x larger, that nobody had named.** The section
+  boundary was "the next ROUND heading", and `## Next steps (as of round N)`
+  is not one: **67 of 260** live sections (26%) carried a foreign level-<=3
+  heading, **135** next-steps blocks were attributed to a round that did not
+  write them, round 388's section swallowed 22 headings, and **26.7%** of
+  all attributed text belonged to another round.
+- **THE FINDING: extent is not impact, and the SMALL defect is the one that
+  moved an answer.** The 2x2 on the same tree: boundary fix alone moved
+  **488 KB** of prose and flipped **zero** verdicts; drift fix alone moved
+  **no text** and flipped **one** — round 448's own scoring, which
+  `--suggest` would have proposed as `unscored` while its entry sat in 447's
+  scope. Both numbers are published because either alone misleads.
+- **Why 52 rounds noticed nothing:** old parser vs new, same tree, `findings
+  29 vs 29, only-old [], only-new []`, published tail identical. `scan()` —
+  the only consumer of `own_scope` — runs only for ledger entries recorded
+  `unscored`, of which there is exactly one (round 132), whose section is
+  empty in both worlds. A parser can be wrong about the newest round in the
+  record and publish a character-identical line.
+- **Fixed, in this order, and the order is the point.** (1)
+  `carryforward_check.round_sections` reads `harness.roundheadings` with the
+  promoted-copy fallback and ends a section at the next heading of level <=
+  its own (spans are boundaries, never keys); (2)
+  `toolliveness._round_of_line` reads it too and answers a span with its
+  first round — the old scan attributed all of rounds 114-126's lines to
+  round **113**, 16 archive lines, 0 live; (3) **then** round 448's heading
+  was normalised. Round 303 edited the DOCUMENT to satisfy the REGEX and
+  `roundheadings.py` names that as the wrong fix; doing it last, with the
+  drifted text kept verbatim as a fixture, is a different act that looks
+  identical in a `git log --stat`, so the commit says so.
+  `test_roundheadings.py::test_the_live_record_is_fully_canonical` RED →
+  GREEN; `261 heading(s), 261 round(s), 0 non-canonical`.
+- **The durable half is a DERIVED census, not a list.**
+  `harness/tests/test_headingparser_adoption.py` (9 functions / 30 items):
+  every declared parser × fixtures including round 448's heading verbatim,
+  plus negatives; and the parser set is walked out of the repo's ASTs, so a
+  module that grows its own heading regex fails here BY PATH instead of
+  surfacing as a false gap six rounds later — with a companion test that the
+  census is non-empty, because a derived set that finds nothing looks
+  exactly like a broken scanner. Falsified: a planted probe module is named
+  by path; reverting each fix in place reddens 3/3/1 tests and no
+  pre-existing one; all three files restored byte-identically.
+- **Round 447's `health-check FAIL` was a race in the TEST's own evidence,
+  not a regression.** `logs/health_round_447.log:70` — a bare
+  `FileNotFoundError` on `grandchild.pid`. The first two assertions passed.
+  The GRANDCHILD wrote its own pid; the driver runs four suites at once on a
+  1-core box; its interpreter was not scheduled inside the 2.0 s cap.
+  Reproduced by SIMULATING the ingredient (round 443's technique): delay the
+  grandchild 3.0 s against the unchanged cap → old shape `pidfile: False`,
+  new shape (parent writes `Popen().pid`) ok. The measured limit is banked
+  in the test: at a 0.3 s cap BOTH shapes fail, so the original test now
+  asserts `pidfile.exists()` saying *"this run proved nothing"* rather than
+  raising an unrelated exception. 24 passed in 19.95 s (23 before). The
+  first repro attempt was wrong — shrinking the cap moves the deadline, not
+  the latency — and is recorded as such.
+- **Predictions (D-013):** `state/round-449-predictions.md`, 13 lines frozen
+  in `d6cc5df` before the measurement, before any parser edit and before the
+  heading was normalised, with the DISPOSITION fixed in the bank so the
+  result could not choose the fix (round 419's rule). **7 HIT, 2 MISS, 1
+  SPLIT, 1 PARTIAL, 1 DISCLOSED, 1 no-basis-reported.** The two misses are
+  one family: P7 banded the whole tool's output when only a two-finding path
+  was reachable, and P5 was right with a wrong mechanism — it checked for
+  the ABSENCE of `state/round-448-predictions.md` and called that "round 448
+  banked nothing", when 448 had banked `nuc/predictions-e-round448.md`.
+  **A bank line whose mechanism is an `ls` deserves the verdict its
+  mechanism earns, not the one its conclusion does.**
+- **`skills/extracted-definition-needs-an-adoption-test/SKILL.md`** — new, 9
+  steps, 7 pitfalls, a 4-command Verification block all four of which were
+  RUN before being written down (two corrections came out of that: pytest
+  prints the offending path twice, and `grep -v "/.venv/"` went `STALE
+  C001`). Registered UNPROBED (27 → **28**, twelfth consecutive round of
+  growth) with four cases (`trigger-cases.json` 346 → 350) including a
+  negative. `skills/prediction-banking/SKILL.md` gains step 11 — round 448's
+  next-step 9, unpaid for one round: **a wall-time band states the
+  CONTENTION CONDITION of the measurement behind it** — and step 12, earned
+  by this round's own SPLIT: **a count band names its counter** (15 test
+  functions vs 36 collected items, from one parametrised module).
+- **Artifacts:** `harness/tests/test_headingparser_adoption.py`;
+  `skills/skill-authoring/scripts/carryforward_check.py` +
+  `TestSectionBoundary` (5 tests); `harness/swe/toolliveness.py`;
+  `harness/tests/test_swe_mutation.py`;
+  `skills/extracted-definition-needs-an-adoption-test/SKILL.md`;
+  `skills/prediction-banking/SKILL.md`; `skills/trigger-cases.json`;
+  `state/known-unprobed-skills.json`; `state/prediction-bank-ledger.json`
+  row 449; `state/round-449-predictions.md`; `state/swe/round-449/` (6
+  measurement artefacts);
+  `knowledge/round-449-one-definition-one-adopter.md`.
+
+## Next steps (as of round 449)
+
+1. **The adoption census covers ROUND HEADINGS only, and the same question is
+   open for every other extracted definition in this tree.** The technique is
+   in `skills/extracted-definition-needs-an-adoption-test/SKILL.md` step 1 and
+   it is one grep. Obvious candidates nobody has counted: `harness/proc.py`,
+   `swe/oracles.py`, `whence/foreign.py`'s `FOREIGN_NAMES`. Count adopters
+   before assuming a shared module is shared. harness(A) or SWE-loop(D).
+2. **`state_claim_check`'s `^#{1,3}\s` block-stop is the fourth parser and was
+   deliberately NOT changed.** It decides "is this line a heading", not "which
+   round is this", so it is not in the agreement cross-product — but it IS
+   blind to `#### ` and would run a block past a level-4 heading. Decide
+   whether that is a real limit or a correct scope, and write the decision
+   down rather than leaving it as this round's omission. skills(B).
+3. **`toolliveness`'s span fix is LATENT and says so.** `record_files()` reads
+   only `state/research-state.md` plus `knowledge/`, and the live record has
+   no span headings, so the 16 changed attributions are all in a file the tool
+   does not open. Either widen `record_files()` to the archive — which is a
+   real behaviour change to `cites`, with its own numbers — or publish the
+   limit. Do not leave it reading as a live fix. SWE-loop(D).
+4. **The next-steps stack is structural and now correctly scoped, which makes
+   a NEW question askable.** `own_scope(n)` no longer contains eight other
+   rounds' next-steps prose; but `## Next steps (as of round N)` is still
+   attributed to nobody at all. It is written BY round N and it is the single
+   most-quoted prose in this record. Deciding whether it belongs to round N's
+   scope is a real question with a real consequence for `scan()`, and this
+   round deliberately did not decide it. skills(B).
+5. **Round 448's items 1-5 stand, UNTOUCHED by this round** — the perishable
+   `sa23`/`sa24`/`sar23`/`sar24` capture, `Persistent=` scored against the
+   derived `false`, the two-command standing E action (`sweeps --strict` then
+   `retention … --strict`), the once-measured `tailscale_last_seen_utc` drift,
+   and round 436's items 4-6 and 9. NUC-integration(E).
+6. **Round 448's item 8 is CONFIRMED and can be closed.** `verb_audit` reports
+   `V002 0` on this round's corpus line as it did on 448's; the carry that
+   called it red has been copied forward since round 429 against a checker
+   that is green. harness(A).
+7. **Round 447's items 2, 3 and 4 stand, unchecked** — J004's structural
+   blindness to nested prose paths, the newest-round-stamp rule's untested
+   failure mode, and `known-selfdesc-drift.json`'s two recall limits.
+   skills(B).
+8. **Round 445's items 1-3 stand, unchecked** — `guardpin_fixture.py`'s 14
+   never-collected `test_*` functions, the slow tier's 3% recall and
+   unpublished achievable ceiling, and the cross-file body-hash duplication
+   checker. harness(A) or SWE-loop(D).
+9. **The unprobed batch is 28 and has grown in twelve consecutive rounds.**
+   Round 447 priced 26 at 91 cases / 455 probes / $26.57; this round added
+   four more cases, so that price is a FLOOR and not a quote. Re-derive with
+   `python3 -c "import json; print(len(json.load(open('state/known-unprobed-skills.json'))['skills']))"`.
+   Operator authorisation is still the only missing input. skills(B).
+10. **Standing, and not touched by this round:** `case_coverage`'s 49 of 103
+   disagreeing verdicts; `claim_check` executing 0 of its commands; the
+   operator-blocked `--cap 196`; round 370's item 3; round 435's item 1 and
+   round 434's items 2-5 (language C); and CLAUDE.md's `CRITICAL MISSION`
+   block, which round 444 REFUTED and which is still a deletion only the
+   operator should make. `languages/whence/SECURITY.md` is still uncommitted,
+   still not this program's, and still the operator's decision — do not copy
+   a carry count for it from this file; the checker's own line is the only
+   source.
+
 ## Next steps (as of round 448)
 
 1. **IF THE BOX IS UP, CAPTURE `sa23`/`sa24`/`sar23`/`sar24` FIRST.** They are

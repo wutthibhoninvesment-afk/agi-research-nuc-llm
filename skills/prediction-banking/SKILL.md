@@ -177,9 +177,9 @@ and only needs reporting; one-off numbers nobody will act on.
 12. **A COUNT band names its counter.** "8-16 new tests" is not one
     prediction, it is two with a 3x gap between them, and which one you
     meant is decided after the fact by whoever reads the number. Round 449
-    banked exactly that and landed on **13 test functions / 34 collected
+    banked exactly that and landed on **15 test functions / 36 collected
     items** — inside its band on one reading, more than double it on the
-    other, from one parametrised module. The same trap sits under "lines
+    other, off one parametrised module. The same trap sits under "lines
     changed" (with or without the test file), "findings" (raw or
     de-duplicated), and "files touched" (staged or in the worktree).
     Say which counter, and give it as a command:
