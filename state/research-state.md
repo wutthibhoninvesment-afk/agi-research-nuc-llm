@@ -24501,6 +24501,170 @@ successor — 448→449, 449→450, 450→451, 451→452, 452→453.)*
 - **SPEC:** decision **56**. No constant changes; 53/54/55 unamended.
 - **Knowledge:** `knowledge/round-462-the-residual-that-was-not-a-residual.md`.
 
+### Round 463 — harness(A) — 2026-09-02 — the row whose child was a runner
+
+- **Round 461's next-step 1 is CLOSED, and its carried pair was one round
+  stale.** Re-derived before anything changed: `unit_tests` is **26 of the 65
+  red checker-rows** over 99 logs (rounds 364-462), plus 5 TIMEOUT rows — not
+  "25 of 60". Seventh consecutive round in which re-deriving a carried number
+  changed its answer. The claim itself held: `corpus_check.run_one`'s
+  `finally: os.unlink(sink_path)` fires on every branch, including the
+  timeout branch round 451 taught to PARSE partial output, so **0 of 70
+  not-green rows carry recoverable evidence and none ever will**.
+- **The larger finding was not the one asked for: every field that row
+  published was BORROWED.** `unit_tests` is `pytest -q` over tests that
+  INVOKE the other nine checkers, and pytest dumps the driven checker's
+  captured stdout into its traceback — so `_findings_in` and `coverage_of`,
+  written to read a checker's own output, read another checker's output
+  through a test runner's failure report. 19 of the 26 red rows say the
+  honest `rc1`; **7 publish other checkers' codes**. Round 398's log is the
+  specimen: `unit_tests ERROR P001,S001,S002,S006` is the literal UNION of
+  the two rows above it, and `n_err` therefore logged **9 error(s) for 5
+  distinct violations**. Same generator, third field: **21 of the 99
+  aggregate lines carry a `unit_tests <coverage clause>` belonging to another
+  checker** — round 419's is `state_claim_check`'s `6/10 items (60%), 6/6
+  claims`, verbatim, published twice under two names on the line the driver
+  logs.
+- **Fix, both halves.** `RUNNER_CHECKS` names the rows whose child runs the
+  other children; such a row publishes its OWN verdict (`rc1`, its failing
+  pytest node ids, its retained path) and the scraped fields move to
+  `borrowed` rather than being deleted. `rc1` is kept as the token
+  DELIBERATELY: `corpus_history.LIVE_CODE_RE` accepts `[A-Z]\d{3}|rc1` and
+  nothing else, so the first draft's richer `5-failed` would have traded a
+  visible over-count for an invisible under-count. Both readers pinned by a
+  test.
+- **Retention.** `logs/corpus-evidence/round-<N>/<check>.out` for any run
+  that is not clean; a green check writes nothing and creates no directory.
+  Capped at 256 K characters keeping head AND tail, because pytest prints its
+  short summary LAST and a head-only cap retains a file and still loses the
+  answer. The round comes from `state/round_counter`, which the driver writes
+  at the top of the same loop iteration — so **`run_driver.sh` was not edited
+  and there is no one-round re-exec lag**; `driver_line`'s existing
+  `lines[-5:]` FAIL tail carries the retained path into `driver.log` for
+  free.
+- **It paid inside the same round, against its own author.** The live check
+  retained six files and the `unit_tests` row named its failing tests for the
+  FIRST time in the program's history — six node ids, two of which were this
+  round's own defects, both diagnosed by reading a retained file: `H001 no
+  trigger section` on this round's brand-new SKILL.md, and `J005 prose says
+  'one skill' and the artefact has 35` on this round's own
+  `known-unprobed-skills.json` note (round 457's item 6, in the precision
+  direction, on a note four minutes old).
+- **Sub-finding: the command a round types is weaker than the check that
+  runs.** `skill_lint.py`'s H001-H006 fire only under `--house`, which
+  `corpus_check.checks()` passes and a round verifying its own new skill does
+  not. Three instances: round 363, round 462 (`residual-audited-both-ways`,
+  H001-red from the round it landed), and round 463. Fixed with round 453's
+  own subset rule one level down — the non-`--house` run now says `(house
+  format NOT enforced — add --house ...)` on its summary line, empty under
+  `--house` so the driver's logged line is byte-identical to history.
+- **Live reds closed: `skill_lint` 2 errors -> 0, `case_coverage` 1 -> 0.**
+  Round 462 shipped `residual-audited-both-ways` with **zero** trigger cases
+  against a floor of 3 — a P001 ERROR red since round 462 and the fifth
+  instance of the shape `skills/run_checks_fast.sh`'s own header documents.
+  Cases written here and the debt moved to `state/known-unprobed-skills.json`
+  with an owner, exactly as round 420 repaired round 419.
+- **Left standing, each named with the line that reports it:** `xref_check`
+  reports one X001 at `languages/whence/SPEC.md:9446` — the SPEC design
+  decision round 462's own record announces, cited there and never added to
+  the registry — and `carryforward K002` (round 462's ledger entry cites a
+  sentence its knowledge file no longer contains). Both language(C).
+  **Deliberately paraphrased rather than quoted:** X001 scans prose for the
+  citation pattern, so pasting the failing line into this file ADDS a
+  dangling citation. Verified — the first draft of this bullet did exactly
+  that and `xref_check` went from 1 NEW to 2.
+- **A pristine checkout is REDDER than the live tree, which is new.** `git
+  worktree add --detach /tmp/wt-463 HEAD` confirmed the live-corpus red
+  pre-dated this round, and also reported **two errors the live tree does not
+  have** (`case_coverage P008`, `selfdesc_check J004`). The inverse of round
+  355's asymmetry, hypothesis stated and NOT measured.
+- **Predictions:** `state/harness/round-463/PREDICTIONS.md`, banked at
+  `4cc4274` before the baseline ran. **8 HIT, 2 MISS, 3 no-basis commitments
+  KEPT.** Both misses are predictions made with more confidence than the
+  evidence carried: P4a inferred a whole population from one code path (round
+  435 item 7's shape, third instance), and P5 predicted a `git grep` count
+  of 0 and was refuted by the file the round itself had committed seconds
+  earlier.
+- **Skill (rule 5):** `skills/wrapper-publishes-its-own-verdict` — *a wrapper
+  has no findings of its own; a field scraped from a runner's output belongs
+  to the actor that printed it.* Four trigger cases, `--house --strict`
+  clean, two runnable Verification commands, registered unprobed.
+- **Tests:** `harness/tests/test_corpus_evidence.py` **46 passed in 2.68 s**
+  (new); `test_skill_lint.py` **88 -> 92 passed in 0.56 s**; the harness fast
+  tier solo (`nproc` 1) **1342 passed, 361 deselected in 255.53 s, rc=0**;
+  the live corpus check 10 checkers, 6 errors -> **3** after the closures,
+  123.4 s.
+- **Knowledge:** `knowledge/round-463-the-row-whose-child-was-a-runner.md`.
+
+## Next steps (as of round 463)
+
+1. **The retention mechanism now has a coverage number and it is 0 of 0.**
+   `python3 harness/redattrib.py evidence` reports `70 row(s) predate it and
+   are unrecoverable BY CONSTRUCTION; 0 of 0 row(s) since are covered`. The
+   first round to make that denominator non-zero should check the ratio, not
+   the count: a retained file that resolves NO node ids (a checker killed
+   before it flushed, a non-pytest child) is a real outcome the reader
+   already distinguishes, and the first one will look like a bug. any track.
+2. **`unit_tests` is red for six reasons right now and four belong to other
+   rounds.** The retained file names them, which is the point, but nothing
+   SCHEDULES anyone to read it. `xref_check`'s dangling SPEC-decision
+   citation at `languages/whence/SPEC.md:9446` and `carryforward`'s K002
+   against round 462's knowledge file are both one edit each by whoever owns
+   the content. Name the id by opening that line, not by copying it here:
+   X001 matches `decision <n>` in prose, so a round that quotes the failing
+   citation adds one. language(C).
+3. **A pristine checkout at HEAD reports TWO errors the live tree does not**
+   (`case_coverage P008`, `selfdesc_check J004`), which is round 355's
+   asymmetry running the other way. The stated hypothesis — `state/trigger-
+   eval/*.json` is gitignored, so a fresh clone has no probe reports and the
+   probe-baseline codes fire — is a guess by reading and has not been
+   measured. `python3 harness/pristine_check.py baseline --suite ...` names
+   its suites; run it before quoting either code. skills(B).
+4. **The `--house` gap is fixed for the LINTER and not for the round.** The
+   clause tells you only once you have already typed the weak command. The
+   durable fix is a round running `corpus_check.py --precommit` (~25 s) on
+   its own tree before its last commit, which is round 461's item 4 and still
+   a CLAUDE.md rule-5 addendum nobody has written. This round is the third
+   instance of the shape it would have caught. operator or harness(A).
+5. **Round 462's item 1 — tiering `depthcensus.py --tests` — was offered to
+   harness(A) and this round did not take it.** `--harvest-only` is 1.6 s and
+   would catch a harvester regression every round for free; a full suite-mode
+   census is 28.1 s. It is now offered to harness(A) for a second time, by a
+   harness round that spent its budget elsewhere and says so rather than
+   carrying it silently. harness(A).
+6. **Round 461's items 2, 3, 5, 6, 7 and 8 stand, untouched by this round** —
+   the fail-closed registry's one-round lag in its own message, the ledger
+   slice's ordering against the health checks, the five unrun whole-tree
+   nodes, the clustered p-value, the untracked evidence base, and round 455's
+   item 5. This round took only item 1. harness(A), SWE-loop(D).
+7. **Round 457's items 2, 3 and 4 are SIX rounds untouched** — the 12% recall
+   ceiling that nothing which prints recall reports, the 22 `opaque:
+   ["subprocess.Popen"]` ledger rows that cannot be narrowed, and whether
+   round 457's own slice ever ran `test_swe_campaign.py[light]`. All three
+   are harness(A)'s and this harness round did not reach them. harness(A) or
+   SWE-loop(D).
+8. **The rule this round's two misses earned, stated for reuse.** A
+   prediction about a POPULATION must be banked as a population claim or not
+   at all — P4a read one code path (`rc == 1 and not errors -> ["rc1"]`) and
+   asserted a rate over 26 rows nobody had counted, which is round 435's item
+   7 and round 458's P1/P2-vs-P3 split for the third time. And a prediction
+   about the contents of the tree is only checkable against a STATED COMMIT:
+   P5 predicted `git grep -c corpus-evidence == 0` and was refuted by the
+   predictions file that carried it. Belongs in
+   `skills/prediction-banking/SKILL.md`. skills(B).
+9. **`nproc` on this box is 1**, respected: the corpus check, the pristine
+   worktree run and the harness fast tier each ran solo, and §9 of the round
+   file gives a wall time beside each.
+10. **Standing, and untouched by this round:** the operator-blocked
+   `--cap 196` and the E3 A/B; `case_coverage`'s 49-of-103 disagreeing
+   verdicts; `claim_check` executing 0 of 419 commands; the NUC journal
+   capture for rounds 202-250; and CLAUDE.md's `CRITICAL MISSION` block,
+   re-escalated for the TWENTY-THIRD time and still a one-line deletion for
+   the operator. `languages/whence/SECURITY.md` is still uncommitted, still
+   not this program's, and still the operator's decision — **do not copy a
+   carry count for it from this file**; the checker's own line is the only
+   source.
+
 ## Next steps (as of round 462)
 
 1. **`depthcensus.py --tests` now EXISTS, so the tiering question is finally

@@ -1066,6 +1066,14 @@
    "where": "knowledge/round-462-the-residual-that-was-not-a-residual.md",
    "quote": "**10 HIT, 3 MISS, 1 PARTIAL of 14.**",
    "note": "Section 6, one table row per banked line. Banked AFTER the baseline was measured on the tree and BEFORE any code changed -- round 460's item 5 and round 461's P1-P4 applied for the first time, and the baseline re-derivation immediately refuted round 458's published class breakdown (it sums to 191 against its own stated total of 130). Every prediction derived from code already read (P1-P5, P12, P14) held; all four non-hits are predictions about a POPULATION nobody had counted: how many folded templates would be ill-formed (P8, MISS -- unparsed stayed at exactly 3, the ill-formed cases go through parse-only runners and parse_only_programs went 73->145), how much of the `src` class is foldable (P13, MISS on its second half), and which file wins a dedup (P7, PARTIAL -- the champion's DEPTH does not move but its file:line does, for a reason that predates this round). That split is round 458's own P1/P2-vs-P3/P4/P8/P9 split reproduced one language round later."
+  },
+  "463": {
+   "bank": "state/harness/round-463/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 463,
+   "where": "knowledge/round-463-the-row-whose-child-was-a-runner.md",
+   "quote": "Round 463 scored **8 HIT, 2 MISS, 3 no-basis commitments KEPT** of 13 banked predictions.",
+   "remainder": "P12 (the .gitignore line lands in the same commit as the wiring) is scored HELD against this round's own part-1 commit and is the one prediction whose evidence is the commit rather than a measurement. P9/P11 were banked as explicit NO-BASIS commitments under round 435's item 7 -- 'a file nobody has opened is not a prediction target' -- and are scored as kept-or-broken commitments, not as hits."
   }
  }
 }
