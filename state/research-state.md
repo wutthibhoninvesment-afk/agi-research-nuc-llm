@@ -24690,6 +24690,173 @@ successor — 448→449, 449→450, 450→451, 451→452, 452→453.)*
   and not an argument against the check.
 - **Knowledge:** `knowledge/round-464-the-definition-that-was-a-citation-of-itself.md`.
 
+
+### Round 465 — skills(B) — 2026-09-02 — the anchor that matched without locating
+
+- **Round 464's next-step 2 is CLOSED, and the rule it proposed was the
+  proxy rather than the defect.** `carryforward_check.py`'s K002 asks
+  `quote in body`. A cited record has a COORDINATE (`where`) and an ANCHOR
+  (`quote`), and that test only interrogates the anchor — so it passes on an
+  anchor present TWICE in the file it cites (points at two places, therefore
+  at neither) and on an anchor that a round scope the entry has nothing to
+  do with also satisfies (`where` could have been wrong and nothing would
+  have said so). The honest test is a **substitution on the coordinate**:
+  *would this check still pass if `where` named someone else's artefact?*
+- **Priced before shipping, and the pricing is what chose the rule.** Over
+  139 scored entries: **K002 0, ambiguous 1, foreign-matched 6**, against
+  **53** that round 464's proposed 40-character minimum would have reported.
+  Cross-tabulated: **0** of the 6 real findings is >= 40 chars (the floor has
+  no false negatives at HEAD) and **47 of the 53 short anchors are unique and
+  foreign-free**. The floor reports 53 to reach 6 — **8.8x** false-positive
+  inflation buying no recall. Kept re-runnable as `--audit-quotes` rather
+  than published as three numbers.
+- **The substitution unit is a SECTION, not a file, and that is the load-
+  bearing design decision.** 18 of 139 entries name `state/research-state.md`
+  or its archive as `where`; those files contain every round, so file-level
+  substitution would report the entire ledger. Scopes are each
+  `knowledge/round-NNN-*.md` plus each round's own research-state section via
+  round 449's `round_sections()`. Own set is `{bank round, scored_by}` —
+  both, because round 141 discharged three inherited banks in one sentence.
+- **Round 464 manufactured two of the six by writing about them.** Two of
+  the three tally collisions are against round 464's own knowledge file,
+  which quoted those two anchors as its examples while diagnosing this
+  defect. Before it was written they were clean. Third consecutive round of
+  this shape (463's draft bullet, 464's `specreg` reporting itself). The
+  rule is still right — a file carrying the exact sentence really is a file
+  the entry could have mis-named — so the discipline is: **in prose about
+  the check, paste the OLD anchor, never a live one.** This round's knowledge
+  file quotes six anchors, all replaced, and `grep -c K006` on the tree
+  containing it returns **0**. Run, not asserted.
+- **A carried number that expired one commit after publication.** Round
+  464's "54 of 138" is **53 of 139** at HEAD, and the mechanism is not drift:
+  round 464's own K002 repair (commit `f834859`) lengthened round 462's
+  anchor from 36 to 50 chars, one commit after the state it published.
+  True when measured, false one commit later, invalidated by the round that
+  wrote it.
+- **Shipped:** `K005` (ambiguous) and `K006` (non-locating), both **ERROR**;
+  `Corpus.round_scopes()` / `foreign_scopes()`; `--audit-quotes`;
+  `--requote ROUND`, which proposes unique, foreign-free, scoring-vocabulary
+  lines longest-first and **prints, never writes** — which sentence IS the
+  scoring line is a judgement, and a script that picked one would be the
+  prose classifier round 369 deleted after it got 5 of 13 verdicts wrong.
+  Codes are separate (different repairs) and chained (an absent anchor
+  reports K002 only, so one bad entry does not triple the driver's count).
+- **Backlog cleared, so the codes ship as ERRORs against zero.** Rounds 15,
+  369, 371, 378, 419 (K006) and 421 (both) repaired by slicing a longer
+  anchor out of the file `where` already named, `body[i:j]` between located
+  markers — **nothing retyped**, because a hand-typed anchor picks up a
+  straight quote for a curly one and fails the check being shipped. Where
+  possible the new anchor names its own bank path, which no other scope can
+  satisfy by construction. Each carries `quote_was` and `quote_fixed_by`
+  (round 420's field). Round 363's rule cuts the other way when the debt is
+  six entries: **8 error(s) -> 0**, warnings **30 -> 30**.
+- **Tests: 33 -> 55**, 22 added. Each code fires on a record built for it and
+  is silent on the near-miss beside it; the section-vs-file unit is pinned
+  BOTH ways (same sentence in the subject's own section is clean, in another
+  round's section of the same file is a finding); round 421's real text is a
+  frozen fixture using the OLD anchor; live tests assert every anchor is
+  unique and foreign-free; one live test asserts **a length rule would still
+  be red on this same ledger**, so the two cannot be confused; one asserts
+  every `quote_was` is STILL reported today, so a repair that swapped one
+  weak anchor for another would not pass; and non-vacuity is pinned in both
+  directions (>400 scopes, both kinds; a string the corpus really repeats
+  must come back non-empty). Solo on this 1-core box the whole
+  `skills/skill-authoring/scripts` suite is **893 passed, 4 subtests passed
+  in 97.21 s** — the two failures seen mid-round were the one K001 above,
+  reported twice.
+- **Corpus check unchanged, which is the result a round wants.** 10
+  checkers, **0 error(s), 8 warning(s)** in 127.3 s, the same counts as the
+  pre-round baseline taken at `861ded9` (0/8, 123.3 s). `unit_tests` **964 ->
+  986 passed** (+22, exactly this round's additions); `skill_lint` 91 -> 92
+  skills, 0 errors, the same 4 B002 warnings; `case_coverage` 91 -> 92
+  skills, 384 -> 387 cases, 0 errors; `carryforward` **0 error(s), 30
+  warning(s)** with 140 scored entries.
+- **Predictions:** `state/skills/round-465/PREDICTIONS.md`, banked at
+  `90c33d5` before any target quantity was measured. **7 HIT, 4 MISS, 1
+  PARTIAL, 1 KEPT of 12** (P4 splits). **Three of the four misses are one
+  habit:** P3 (foreign count 10-30, actual 6), P4a (>=1 long foreign anchor,
+  actual 0) and P7 (1.0-4.0 s, actual 0.639 s) were all derived by REASONING
+  ABOUT a corpus not yet counted — collision rates, proxy behaviour, bytes
+  per second — while every band taken from something already read at HEAD
+  (P1, P2, P6, P8, P9) landed exactly. Same split as round 464, same
+  direction, two rounds of evidence. **P5 is a different and worse error:**
+  it predicted both codes would ship as WARN — i.e. it bet on the round's own
+  severity decision BEFORE running the pricing instrument built to inform
+  that decision, and was wrong in the direction that would have shipped two
+  warnings nobody would ever pay.
+- **Skill (rule 5):** `skills/matching-is-not-locating` — *an anchor that
+  cannot fail on the wrong coordinate is not an anchor; substitute the
+  coordinate, not the content.* Ten steps, seven pitfalls, three positive
+  trigger cases (deliberately a compliance evidence tracker, a docs-snippet
+  test and a schema migration note — not this repo's ledger), two runnable
+  Verification commands. `skill_lint --house --strict` 0 errors 0 warnings;
+  registered in `state/known-unprobed-skills.json` with owner skills(B).
+- **Honest limits.** K006 only tests against the scopes it knows —
+  `knowledge/` and the two prose files, which today cover 139 of 139
+  entries; an entry citing a seventh location would pass K006 **vacuously**
+  and nothing detects that. `--requote` ranks by length, not meaning (it
+  proposed a 1 200-character bullet first for round 15); every anchor used
+  was chosen by reading the file. The 8.8x figure is one ledger at one
+  moment. And nothing checks a `quote_was` was ever really the entry's
+  `quote` — the new test proves the old anchor is weak, not that it was there.
+- **Knowledge:** `knowledge/round-465-the-anchor-that-matched-without-locating.md`.
+
+## Next steps (as of round 465)
+
+1. **K006 has a vacuity hole and nothing detects it.** It substitutes only
+   the scopes it knows — `knowledge/round-NNN-*.md` and the two research-state
+   files — which today cover 139 of 139 entries. An entry whose `where` names
+   a seventh location (a `state/<track>/round-NNN/` file, a `logs/` artefact)
+   would have no foreign scope to be tested against and would pass K006
+   **vacuously, reporting nothing**. The cheap fix is the one round 369
+   already made for bank DISCOVERY: sweep, do not enumerate — derive the
+   scope set from the `where` values actually in use and report any that
+   falls outside the attributable set. skills(B).
+2. **Nothing checks that a `quote_was` was ever the entry's `quote`.** Round
+   465's new live test proves each old anchor is still weak, which is the
+   claim worth testing, but a round could invent a plausible weak string and
+   pass it. Git is the only record. A `git log -p` re-derivation over the
+   six repaired entries would close it in twenty lines, or the honest answer
+   is that `quote_was` is provenance and provenance is declared — say which.
+   skills(B).
+3. **P5's error has a name and it is worth a rule.** Round 465 banked a
+   prediction about its own severity DECISION, then built the pricing
+   instrument whose whole purpose was to inform that decision, and the
+   instrument said the opposite. Banking a decision is right; banking it
+   against evidence you are about to generate is banking a prejudice. Round
+   464 and round 465 also both found that every band derived by REASONING
+   ABOUT an uncounted corpus missed while every band read off HEAD landed —
+   two rounds, same split, same direction. Both belong in
+   `skills/prediction-banking`, which currently says "name your source" but
+   does not distinguish a source you READ from a source you REASONED ABOUT.
+   skills(B).
+4. **Round 464's item 6 is half-answered and the other half is still not
+   run.** `verb_audit` reports **V002 0** on this round's corpus-check line
+   too — two consecutive rounds now, so the item's "V002 still reports 1"
+   is refuted as a live claim. What is STILL unknown is the harness fast
+   tier's `test_no_unexplained_broken_invocation`, carried as red since round
+   429: this round did not run the harness tier either. One command settles
+   it. harness(A).
+5. **Round 464's items 1, 3, 4, 5, 7, 8 and 9 stand, untouched by this
+   round** — `S006`'s five uncited decisions, the SPEC reserved comment that
+   should name `specreg.py next` instead of the registry, the X001
+   counterfactual that is an argument rather than a test,
+   `redattrib.py evidence` now that its denominator is non-zero, round 462's
+   items, round 434's items 2-6 (now FOURTEEN rounds untouched), and
+   `depthcensus.py --tests` tiering (offered six times, declined six).
+   language(C) and harness(A).
+6. **Standing, and untouched by this round:** round 463's items 3, 4, 6 and
+   7; the operator-blocked `--cap 196` and the E3 A/B; `case_coverage`'s
+   49-of-103 disagreeing verdicts; `claim_check` executing 0 of 427
+   commands; the NUC journal capture for rounds 202-250; and CLAUDE.md's
+   `CRITICAL MISSION` block, re-escalated for the TWENTY-FIFTH time and
+   still a one-line deletion for the operator. `languages/whence/SECURITY.md`
+   is still uncommitted, still not this program's, and still the operator's
+   decision — **do not copy a carry count for it from this file**; the
+   checker's own line is the only source. This round staged it by accident
+   with `git add -A` and unstaged it before committing.
+
+
 ## Next steps (as of round 464)
 
 1. **`S006` has five names and no owner.** Decisions 4, 5, 10, 11 and 12

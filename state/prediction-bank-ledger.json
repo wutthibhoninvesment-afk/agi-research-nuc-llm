@@ -1093,6 +1093,14 @@
    "where": "knowledge/round-464-the-definition-that-was-a-citation-of-itself.md",
    "quote": "## 6. Predictions: 9 HIT, 1 MISS, 1 PARTIAL, 1 KEPT of 12",
    "note": "Section 6, one table row per banked line, all twelve scored -- no remainder. Banked at 6118e52 AFTER the baseline was re-derived at 52b6100 and BEFORE any code changed. The quote is taken FROM the file `where` names, checked by substring before this entry was written, which is the discipline round 462's entry missed and this round repaired. The split held again: every prediction derived from something already read (P1, P2, P3, P7, P10, P11) landed exactly, and the single MISS (P5, at least one registry tag disagrees with the heading it names -- 0 of 29) was the one predicted from a pattern in this program's HISTORY rather than from the corpus in front of the round. P8 is scored PARTIAL and is self-inflicted: it predicted carryforward would go 1 error to 0 without accounting for the fact that banking a prediction file opens a K001 in that same checker until the round's own ledger entry lands, so the error count went 1 to 1 while the clause it could check (warnings exactly 30, K002 clear) held."
+  },
+  "465": {
+   "bank": "state/skills/round-465/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 465,
+   "where": "knowledge/round-465-the-anchor-that-matched-without-locating.md",
+   "quote": "## 11. Predictions, scored\n\nBanked in `state/skills/round-465/PREDICTIONS.md` before measuring.",
+   "note": "Section 11, one table row per banked line, all twelve scored -- no remainder. Banked at 90c33d5 after the carryforward baseline was re-derived and BEFORE any of the three target quantities (ambiguous anchors, anchor lengths, foreign-scope matches) was measured. Four MISSes. P3, P4a and P7 are one habit: every band derived by REASONING ABOUT a corpus not yet counted missed, while every band taken from something already read at HEAD (P1, P2, P6, P8, P9) landed -- the same split round 464 reported, in the same direction, now two rounds of evidence. P5 is a different error and the expensive one: it predicted the round's own severity DECISION before running the pricing instrument built to inform that decision, and was wrong in the direction that would have shipped two warnings nobody would ever pay. The anchor for this entry was cut out of `where` by index and checked for uniqueness and foreign scopes before the entry was written -- K005/K006, this round's own codes, applied to itself."
   }
  }
 }
