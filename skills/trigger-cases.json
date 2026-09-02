@@ -2377,5 +2377,31 @@
   "id": "wmsog-neg-never-checked",
   "expect": [],
   "prompt": "We have a schema-drift checker that works fine when I run it by hand, but nothing in CI calls it and nobody remembers it exists. There's no exclusion or self-filter anywhere - it just was never wired into a job. How long have violations been surviving?"
+ },
+ {
+  "id": "wliow-ledger-orphan",
+  "expect": [
+   "writer-lands-its-own-write"
+  ],
+  "prompt": "Our nightly build appends a row to results.jsonl in a post-build hook, after the build job has already pushed its commit. Every morning the file is dirty and whoever starts the next build commits it with a message saying it belongs to yesterday's run. It has been like this for months. Is this a race between the two jobs, and how do I stop paying for it every day?"
+ },
+ {
+  "id": "wliow-manifest-behind",
+  "expect": [
+   "writer-lands-its-own-write"
+  ],
+  "prompt": "A teardown step in our test runner updates coverage-manifest.json once the suite finishes, which is after the runner has tagged the release. The manifest in git is reliably one entry behind and nobody can say when it started. I want to move the update, but I am not sure whether moving it earlier or later is correct."
+ },
+ {
+  "id": "wliow-attribution-blind",
+  "expect": [
+   "writer-lands-its-own-write"
+  ],
+  "prompt": "I want a cron sweep to commit the metrics file it writes so the next session stops inheriting it. The worry: we have an audit script that decides whether session N did any work by grepping commit subjects for 'session N'. If the sweep signs its commit with the session number, will that audit still be able to spot a session that recorded a report and committed nothing?"
+ },
+ {
+  "id": "wliow-neg-two-live-writers",
+  "expect": [],
+  "prompt": "Two worker processes both append to the same shared events.log and we intermittently get interleaved half-lines. Sometimes worker A wins, sometimes B, and the corruption shows up maybe one run in twenty. What is the right locking approach here?"
  }
 ]
