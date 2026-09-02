@@ -10,18 +10,21 @@ from swe.equivalence import (escalate, escalation_corpus, level_reached, filter_
 from swe.fuzz import WHENCE_ROOT
 from swe.killers import load_whence
 from swe.mutation import generate
+from tests.whence_anchor import reachable_concat_mutant
 
 
 def _concat_mutant():
-    """Same anchor swe.killers' own test uses: the `+` -> `-` arith mutant on
-    the string-concat closure site, which crashes on two strings."""
-    with open(os.path.join(WHENCE_ROOT, "whence", "interp.py")) as f:
-        src = f.read()
-    candidates = [m for m in generate(src, "whence/interp.py")
-                  if m.op == "arith" and '"concat"' in src.splitlines()[m.lineno - 1]
-                  and "x + y" in src.splitlines()[m.lineno - 1]]
-    assert candidates, "no arith mutant on a \"concat\" line with x + y — re-anchor"
-    return candidates[0]
+    """The `+` -> `-` arith mutant on a string-concat site, which crashes on
+    two strings.
+
+    This used to be a hand-rolled copy of `swe.killers`' own selection, and
+    its docstring said so ("Same anchor swe.killers' own test uses") — a
+    cross-file claim with no reader, which round 437 falsified by
+    re-anchoring killers alone. Round 445 made the claim true by construction
+    instead: `tests/whence_anchor` is now the single definition, and it
+    ITERATES to a candidate that really kills, which this copy never did.
+    """
+    return reachable_concat_mutant()[0]
 
 
 def _equivalent_mutant():

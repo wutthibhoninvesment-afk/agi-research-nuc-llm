@@ -9,6 +9,7 @@ from swe.killers import (load_whence, behaviour, find_killer, corpus, render_tes
                          Killer, CANONICAL_HELPER_SRC, compare, TIMEOUT_RETRY_FACTOR)
 import swe.killers as K
 from swe.mutation import generate, Mutant
+from tests.whence_anchor import reachable_concat_mutant
 
 
 def test_load_whence_isolates_packages():
@@ -35,37 +36,25 @@ def test_behaviour_is_plain_data_and_stable():
 
 
 def test_find_killer_for_a_real_semantic_mutant():
-    with open(os.path.join(WHENCE_ROOT, "whence", "interp.py")) as f:
-        src = f.read()
     # string concat: an arith mutant on a line that builds a "concat"
     # provenance. The arith mutant turns `+` into `-`, which crashes on
     # strings. Re-anchored in rounds 20, 109 and 437 (process rule 7); the
     # standing instruction has always been "every arith mutant on a line
     # containing `"concat"` is a legitimate anchor", so round 437 dropped the
-    # extra `x + y` clause that had narrowed it to ONE line.
+    # extra `x + y` clause that had narrowed it to ONE line — v0.27 (round
+    # 368) had deleted the inline site that clause named, and the surviving
+    # concat sites spell their operands `l + r`. The fixture had been pinned
+    # to a spelling, not to a behaviour.
     #
-    # That clause is why this test was red: v0.27 (round ~370) deleted the
-    # inline string-concat case it named — `interp.py` says so in a comment
-    # at the site, "the inline string-concat case is GONE, deliberately" —
-    # and the surviving concat sites spell their operands `l + r`. The
-    # fixture was pinned to a spelling, not to a behaviour.
-    #
-    # Iterating the candidates rather than taking the first is deliberate:
-    # a concat site can be unreachable for two string literals (that is
-    # exactly what happened to v0.6's `binop` line), and "no anchor at all"
-    # is the failure worth reporting, not "the first one I tried".
-    candidates = [m for m in generate(src, "whence/interp.py")
-                  if m.op == "arith" and '"concat"' in src.splitlines()[m.lineno - 1]]
-    assert candidates, "no arith mutant on a `\"concat\"` line — re-anchor (rule 7)"
-    orig = load_whence(WHENCE_ROOT, "orig")
-    progs = ['let a = "x" + "y"\n', "let b = 1\n"]
-    for m in candidates:
-        k = find_killer(m, progs, orig, WHENCE_ROOT)
-        if k.found:
-            break
-    assert k.found, ("no `\"concat\"` arith mutant is reachable from two string "
-                     "literals — re-anchor (rule 7); tried %s"
-                     % [c.id for c in candidates])
+    # Round 445 moved the selection AND the iterate-until-one-kills step into
+    # `tests/whence_anchor`, because round 437 fixed this copy and not
+    # `test_swe_equivalence.py`'s identical one. Both details are load-bearing
+    # and the second is the one the other copy lacked: a concat site can be
+    # unreachable for two string literals (exactly what happened to v0.6's
+    # `binop` line, and what is true of `candidates[0]` at HEAD), so "no
+    # anchor at all" — not "the first one I tried" — is the failure to report.
+    m, k = reachable_concat_mutant(tag="orig")
+    assert k.found
     assert k.tried == 1
     # the shrinker may have minimised the literals; the sum must still differ
     assert k.expected["vals"]["a"] != k.mutant_behaviour.get("vals", {}).get("a")
