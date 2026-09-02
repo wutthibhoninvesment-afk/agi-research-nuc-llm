@@ -245,12 +245,16 @@ Computed once and reused now.
 
 ## 4. The enforcer the rule never got
 
-Round 448's rule lived in prose. The only test naming it,
-`test_round_448_is_in_the_log_because_round_442_left_a_hole`, asserts a
-historical fact about rounds 442 and 448 and would pass forever regardless of
-what round 460 does. **Nothing in the repo failed when an E round ran and
-appended nothing** — verified by grep: the log has exactly two readers under
-`nuc/`, and `test_sysstat_archive.py`'s is a comment.
+Round 448's rule lived in prose. **Nothing in the repo failed when an E round
+ran and appended nothing.** The falsifier, run against the tree round 454
+inherited (`git show 2099e31^:nuc/tests/test_reachability_check.py`): exactly
+one test reads the live log's round SET at all —
+`test_round_448_is_in_the_log_because_round_442_left_a_hole`, line 3092 — and
+it asserts a historical fact about two specific round numbers, so it passes
+forever regardless of what round 460 does. (The two other real-log `round`
+assertions are `record["round"] == 310` on a synthetic record and an
+`ongoing`/`end_round` consistency check; neither has anything to do with
+coverage. `test_sysstat_archive.py` mentions the log only in a docstring.)
 
 `reachability_check.py coverage`:
 
