@@ -168,5 +168,42 @@ set -e
 echo "$summary"
 if [ $summary_rc -ne 0 ] || [ $audit_rc -ne 0 ]; then rc=1; fi
 
+# ---------------------------------------------------------------------------
+# Round 460 (NUC-integration E): the strict instruments, as a DIAGNOSTIC line.
+#
+# `reachability_check.py` ships three checks with a `--strict` mode whose whole
+# purpose is to exit non-zero, and NOTHING runs them. They run when an E round
+# remembers to type them, which is every sixth round at best -- round 454 built
+# `coverage --strict` and called it "the enforcer the rule never had", and it
+# has no enforcer of its own. Round 460 measured the cost of that: `lastseen-
+# drift --strict` has been exiting 1 since round 448 introduced it, and no
+# round file says so, because nothing asked.
+#
+# Printed, NOT folded into `rc`, and that is deliberate on two counts:
+#
+#   1. The `nuc-checks ... (pytest rc=N, audit rc=N)` line below is PARSED by
+#      `harness/driver_health.py` and pinned by `harness/tests/
+#      test_nuc_health_line.py`. Flipping it to FAIL while it still reports
+#      only two of three exit codes would make the driver's summary say
+#      something untrue. Widening it is harness(A)'s artifact -- the same
+#      handoff this file's header makes twice already (round 388 -> 409 for the
+#      driver wiring, round 442 for the general interpreter fix).
+#   2. `lastseen-drift` going red is NOT a break. Round 448 established that
+#      tailscale recomputes `LastSeen`, and the check reports that fact. A
+#      health check that goes FAIL every round for a state the program has
+#      decided to keep gets ignored and then uninstalled -- this file's own
+#      header says so about `constant_audit`'s bare grade.
+#
+# So: make it visible every round, let the round that widens the contract
+# decide which of the three belong in the exit code. `coverage` and
+# `precision-audit` are the two that mean "a published conclusion is wrong";
+# `lastseen-drift` means "the field moved again".
+set +e
+_cov=$("$NUC_PY" nuc/reachability_check.py coverage --strict >/dev/null 2>&1; echo $?)
+_prec=$("$NUC_PY" nuc/reachability_check.py precision-audit --strict >/dev/null 2>&1; echo $?)
+_drift=$("$NUC_PY" nuc/reachability_check.py lastseen-drift --strict >/dev/null 2>&1; echo $?)
+set -e
+echo "nuc-instruments coverage=$_cov precision-audit=$_prec lastseen-drift=$_drift (diagnostic only, not in the exit code)"
+
 echo "nuc-checks $([ $rc -eq 0 ] && echo PASS || echo FAIL) (pytest rc=$pytest_rc, audit rc=$audit_rc)"
 exit $rc

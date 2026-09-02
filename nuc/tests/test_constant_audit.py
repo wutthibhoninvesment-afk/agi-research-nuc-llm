@@ -294,3 +294,40 @@ def test_the_fast_check_runs_green_on_this_tree():
     assert proc.returncode == 0, proc.stdout[-3000:]
     assert "nuc-checks PASS" in proc.stdout
     assert "constant-audit" in proc.stdout
+
+
+# ------------------------------------- round 460: the strict-instrument line
+
+def test_the_fast_check_reports_every_strict_instrument_exit_code():
+    """`reachability_check.py` ships three `--strict` modes whose whole point
+    is to exit non-zero, and until round 460 nothing ran them -- they ran when
+    an E round remembered, i.e. every sixth round at best. `lastseen-drift
+    --strict` had been exiting 1 since round 448 and no round file said so.
+
+    Nested-guarded so this does not re-enter the pytest leg."""
+    env = dict(os.environ, NUC_FAST_CHECK_NESTED="1")
+    out = subprocess.run(["bash", str(SCRIPT), "--co", "-q"], cwd=str(REPO),
+                         capture_output=True, text=True, env=env).stdout
+    line = [l for l in out.splitlines() if l.startswith("nuc-instruments ")]
+    assert len(line) == 1, out[-2000:]
+    for name in ("coverage=", "precision-audit=", "lastseen-drift="):
+        assert name in line[0]
+    assert "diagnostic only" in line[0]
+    # it must come BEFORE the line driver_health.py parses, so a reader sees
+    # the codes next to the verdict rather than after it. Anchored on the
+    # VERDICT line, not on the `nuc-checks ` prefix: `nuc-checks interpreter:`
+    # shares that prefix and sits at index 0, which is how the first cut of
+    # this assertion managed to compare a real offset against zero.
+    assert out.index("nuc-instruments ") < out.index("nuc-checks PASS")
+
+
+def test_the_strict_line_does_not_change_the_parsed_verdict_line():
+    """`harness/driver_health.py` parses `nuc-checks ... (pytest rc=N, audit
+    rc=N)`. Round 460 deliberately did NOT widen that contract -- it is
+    harness(A)'s artifact, the same handoff this file's header makes twice."""
+    body = SCRIPT.read_text()
+    assert 'nuc-checks $([ $rc -eq 0 ] && echo PASS || echo FAIL) ' \
+           '(pytest rc=$pytest_rc, audit rc=$audit_rc)' in body
+    verdict_echo = body[body.index('echo "nuc-checks $([ $rc -eq 0 ]'):]
+    assert "_drift" not in verdict_echo
+    assert "_cov" not in verdict_echo and "_prec" not in verdict_echo
