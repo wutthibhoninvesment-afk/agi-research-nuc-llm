@@ -141,7 +141,7 @@ CHECKPIN_JSON=/tmp/cp.json python3 checkpin.py run \
 # expected: 22 pins: 22 guarded, 0 finding(s), 0 error(s), score 100%
 # expected: CONTROL NC01: inert (n_red=0), ... -> HELD
 python3 -m pytest tests/test_checkpin.py -q
-# expected: 22 passed
+# expected: >= 54 passed (round 459)
 ```
 
 `state/whence/round-414/run-before.json` holds the same registry against the

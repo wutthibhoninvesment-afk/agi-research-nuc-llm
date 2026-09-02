@@ -121,9 +121,15 @@ Ordinary code then wraps the result — `[[rec]]` is two deeper — so the
 
 Run in `languages/whence/`:
 
-    python3 -m pytest -c pytest.ini tests/test_testcorpus_census.py -q
+```bash
+cd languages/whence
+python3 -m pytest -c pytest.ini tests/test_testcorpus_census.py -q
+# expected: >= 18 passed (round 459 made this a floor: the census suite
+#           only grows, and this skill's own point is that a number quoted
+#           without its runner's parameters is not a fact)
+```
 
-Expect `18 passed`. Five of those tests are this skill executed against the
+Five of those tests are this skill executed against the
 instance it came from:
 
 * `test_the_generated_killer_suite_runs_every_program_at_500` — step 2, the
@@ -137,8 +143,13 @@ instance it came from:
 
 Step 6 is `tests/test_v44.py::test_max_depth_bounds_recursion_and_not_value_depth`:
 
-    python3 -m pytest -c pytest.ini \
-      tests/test_v44.py::test_max_depth_bounds_recursion_and_not_value_depth -q
+```bash
+python3 -m pytest -c pytest.ini \
+  tests/test_v44.py::test_max_depth_bounds_recursion_and_not_value_depth -q
+# expected: 1 passed  (an EQUALITY on purpose: a single named test is not a
+#           monotone count — it is one test, and 2 would mean something
+#           changed underneath the name)
+```
 
-Expect `1 passed`; it asserts `[300, 301, 302, 305]` — the superlative
+It asserts `[300, 301, 302, 305]` — the superlative
 falsified at four points.

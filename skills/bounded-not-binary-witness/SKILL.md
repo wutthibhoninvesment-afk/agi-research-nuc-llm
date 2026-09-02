@@ -95,7 +95,7 @@ strength.** Applying it is what forces the honest downgrade.
 Applied in `nuc/reachability_check.py` (round 358). Reproduce:
 
 ```
-python3 -m pytest nuc/tests/test_reachability_check.py -q      # 165 passed
+python3 -m pytest nuc/tests/test_reachability_check.py -q      # >= 230 passed (round 459)
 python3 nuc/reachability_check.py continuity \
   --boot-history state/nuc-boot-history-r358/list-boots-r358.json
 python3 nuc/reachability_check.py continuity \

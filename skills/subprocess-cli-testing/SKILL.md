@@ -90,7 +90,10 @@ in-process. Proven layering: Whence, 8 subprocess / 105 total, 0.2s.
 ```bash
 # from the repo root (an absolute ~/... path here rots when the repo moves):
 cd languages/whence && python3 -m pytest tests/test_examples.py -q
-# expected: 8 passed, < 1s  (reference implementation of this skill)
+# expected: >= 21 passed, < 1s  (reference implementation of this skill;
+#           round 459 re-derived 21 and made it a floor — the count grows
+#           whenever somebody adds an example, and only shrinks if one is
+#           deleted, which is the event worth a red line.)
 ```
 - [ ] Every shipped example has a test asserting exit code + key substrings
 - [ ] One deliberately-failing example asserts exit 1 + diagnostic

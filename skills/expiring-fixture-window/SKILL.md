@@ -138,7 +138,8 @@ Against the tree this skill was written from (`nuc/`, round 382):
 
 ```
 $ python3 -m pytest nuc/tests/test_reachability_check.py -q
-203 passed
+# expected: >= 230 passed (round 459; was written as a bare output line,
+#           which parses as a COMMAND — see claim_check's C005)
 
 # the expired fixture, before the fix
 E       assert 15108.0 <= 301.0          # == the full 376->382 gap, 4h11m48s

@@ -132,8 +132,11 @@ Round 369's live corpus, for reference — the numbers here are what that round
 measured and a later round should expect them to have MOVED, not to match:
 
 ```
-carryforward: 49 bank(s) (+2 unnumbered), 45 scored, 4 unscored,
-              0 error(s), 6 warning(s)
+# carryforward: 49 bank(s) (+2 unnumbered), 45 scored, 4 unscored,
+#               0 error(s), 6 warning(s)
+# (round 369's numbers, quoted as a SHAPE. Commented because a fence is a
+#  command context: uncommented, `0 error(s)...` parses as a program named
+#  `0` and the command above it loses its claim — claim_check C005.)
 ```
 
 The tests, including the four frozen scanner regressions:

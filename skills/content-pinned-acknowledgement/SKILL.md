@@ -164,7 +164,7 @@ python3 -m pytest -q skills/session-inheritance-audit/scripts/test_check_round_r
 python3 harness/pristine_check.py dirt
 #   "pinned-waiver (escalation, suite-neutral)  languages/whence/SECURITY.md"
 #   and 0 blocking, with no --allow-dirty typed anywhere
-python3 -m pytest -q harness/tests/test_pristine_check.py     # 62 passed
+python3 -m pytest -q harness/tests/test_pristine_check.py     # >= 128 passed (round 459)
 ```
 
 A correct implementation shows these shapes rather than these values:

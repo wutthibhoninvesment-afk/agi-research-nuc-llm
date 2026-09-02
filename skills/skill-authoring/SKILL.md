@@ -341,7 +341,7 @@ absolute `cd ~/agi-research` used to open this block and had been dead since
 the workspace was renamed — see `claim_check.py`'s C001.)
 ```bash
 python3 -m unittest discover -s skills/skill-authoring/scripts -v
-# expected: Ran 458 tests, OK  (skill_lint + trigger_eval + claim_check
+# expected: Ran >= 865 tests, OK  (skill_lint + trigger_eval + claim_check
 #           + xref_check + state_claim_check + case_coverage, offline).
 #           Re-derived round 357 (+21 test_case_coverage.py, +7 from 352-356);
 #           was 430 in 351, 364 in 346, 316 in 345, 247 before
@@ -352,7 +352,12 @@ python3 -m unittest discover -s skills/skill-authoring/scripts -v
 python3 skills/skill-authoring/scripts/skill_lint.py --house skills/<name>/
 # expected: 1 skill(s), 0 error(s), 0 warning(s), exit 0   <- the bar for a new skill
 python3 skills/skill-authoring/scripts/skill_lint.py --house --strict skills/
-# expected: 27 skill(s), 0 error(s), 0 warning(s), exit 0. Warning-free since
+# expected: >= 86 skill(s), 0 error(s), 3 warning(s), exit 1. NOT warning-free:
+# round 459 re-derived this and `--strict` really does exit 1 today. The
+# `exit 0` this line claimed had been false since at least round 441, which
+# measured it and did not correct it. `0 error(s)` stays an EQUALITY on
+# purpose: errors move in both directions, so a bound would hide a fix as
+# readily as a regression. Warning-free since
 # round 339 split fuzz-mutate-kill-loop under the 400-line B002 threshold;
 # before that a known B002 made --strict exit 1, so a pre-339 report saying
 # "exit 1" is not evidence of a regression. Re-derived round 357: this said
@@ -361,13 +366,13 @@ python3 skills/skill-authoring/scripts/skill_lint.py --house --strict skills/
 # earlier. It is caught only by `claim_check.py --run` (the static tier reads
 # paths, not numbers), and nothing ran that either; see C002 below.
 python3 skills/skill-authoring/scripts/claim_check.py skills/
-# expected: 27 skill(s), 0 stale claim(s), exit 0 (static; --run also executes
+# expected: >= 86 skill(s), 0 stale claim(s), exit 0 (static; --run also executes
 # the `auto` commands and diffs their output against these very claims).
 # Round 351 re-derived this: it said 22 while the corpus held 23, because the
 # figure was copied forward by every round that added a skill without re-running
 # the sweep — the same rot in the file that documents the rot.
 python3 skills/skill-authoring/scripts/case_coverage.py --list
-# expected: "27 skill(s), 105 case(s) (17 negative); … 0 error(s)", exit 0.
+# expected: ">= 86 skill(s), >= 105 case(s) (17 negative); … 0 error(s)", exit 0.
 # P001/P002 are the free half of the checklist below, asserted by
 # test_case_coverage.py: `unittest discover` now fails when a skill enters
 # the corpus with no cases — how rounds 354/355/356 each added one unnoticed.

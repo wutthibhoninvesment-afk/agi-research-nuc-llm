@@ -234,7 +234,7 @@ python3 xref_check.py --historical         # dated records, reported not errored
 
 ```bash
 cd skills/skill-authoring/scripts
-python3 -m unittest test_xref_check      # expected: Ran 64 tests, OK
+python3 -m unittest test_xref_check      # expected: Ran >= 112 tests, OK (round 459)
 cd ../../.. && python3 skills/skill-authoring/scripts/xref_check.py
 # expected: "0 NEW", exit 0; X001 registry ok 13 entries, X002 registry empty
 python3 -c "import json;d=json.load(open('state/known-dangling-citations.json'));print(len(d['citations']))"

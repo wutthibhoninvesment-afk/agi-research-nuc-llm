@@ -144,7 +144,7 @@ $ python3 nuc/reachability_check.py journal-boots \
 # expected: per-boot timeout_s spanning ~60 to 3600, every row sized_from=measured
 
 $ python3 -m pytest nuc/tests/test_reachability_check.py -q
-# expected: 179 passed
+# expected: >= 230 passed (round 459)
 ```
 
 Measured spread that motivated it: 7 boots of ONE machine, entry density

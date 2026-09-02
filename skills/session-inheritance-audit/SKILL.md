@@ -275,7 +275,7 @@ python3 skills/session-inheritance-audit/scripts/check_round_recorded.py
 # (a dead acknowledgement), does. Add an entry only after a round has
 # actually inspected THAT EXACT diff and recorded why.
 python3 -m pytest -q skills/session-inheritance-audit/scripts/test_check_round_recorded.py    # 93 passed (round 397)
-python3 -m pytest -q harness/tests/test_roundheadings.py                                     # 43 passed (round 397)
+python3 -m pytest -q harness/tests/test_roundheadings.py                                     # >= 44 passed (round 459)
 python3 -m harness.roundheadings state/research-state.md state/research-state-archive.md
 # the shared heading definition the detector now reads with. Prints every
 # recognised entry, the round set it accounts for, and every heading that has

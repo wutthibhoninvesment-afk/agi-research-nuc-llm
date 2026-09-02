@@ -114,7 +114,7 @@ way, at character 617 of 1942.
 ## Verification
 
 ```sh
-python3 -m pytest harness/tests/test_procreap.py -q     # 45 passed
+python3 -m pytest harness/tests/test_procreap.py -q     # >= 46 passed (round 459)
 python3 harness/procreap.py scan --no-record            # rc 0 clean / 1 residue
 python3 harness/procreap.py status                      # "no recorded scan" if none
 ```
