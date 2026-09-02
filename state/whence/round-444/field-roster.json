@@ -1,0 +1,29 @@
+{
+ "_comment": "Round 444 (language C). The LIVE MEMBERSHIP of the field corpus: which .lang files in languages/whence/examples/ were written by the Hermes gateway (a separate autonomous system that shares this repo) rather than by this project, with the md5s of the bytes last declared. This file is the SELECTOR -- curecheck.field_roster_names() reads it and nothing else -- and it is re-declarable BY DESIGN: when the gateway adds or drops a program, a round updates this file and says so. It is NOT evidence for anything. Round 384's state/whence/round-384/field-names.json stays FROZEN and stays the attestation for whence/foreign.py's entry rule (a): a name is in FOREIGN_NAMES because THAT measurement, over THOSE bytes, saw it. Between round 395 (which made the census the selector) and this round one file answered both questions, and the two came apart when the fifteenth program arrived -- it could not join the subject set without editing the evidence.",
+ "round": 444,
+ "captured_utc": "2026-09-02T02:52:19Z",
+ "n_files": 15,
+ "supersedes_as_selector": "state/whence/round-384/field-names.json",
+ "attestation_census": "state/whence/round-384/field-names.json",
+ "_attestation_rule": "A member this roster declares that the frozen census does NOT name has attested nothing, and no FOREIGN_NAMES entry may cite it. If such a member DOES contain an unbound identifier the census has not already seen, a NEW census must be captured deliberately (curecheck.unbound_identifier_census reproduces round 384's exactly, so the cost is one command) and cited by round number. tests/test_field_corpus_selector.py::test_a_roster_member_outside_the_frozen_census_attests_nothing_new is that rule, executable, on every fast tier.",
+ "members_outside_the_frozen_census": [
+  "agi_buy_and_hold.lang"
+ ],
+ "file_md5": {
+  "agi_buy_and_hold.lang": "b567a36caa1f467bb3eeb7824b7beada",
+  "cognitive_verifier.lang": "7e6a6e4508ed822f4060a9f11a06651b",
+  "cognitive_verifier_v2.lang": "dffc29dab2a9cc7cfa2c9414af215004",
+  "cognitive_verifier_v3.lang": "364b41c38ca086c0de8949671bf67884",
+  "expense_tracker.lang": "0743f416b159897a4352f5bee9bb483c",
+  "mini_agi_guardian.lang": "7e8b71a43cb11ffef08808c104ef3621",
+  "nano_reasoner.lang": "256e8794756b2d1984a6adcec02fae1c",
+  "prod_demo_v1.lang": "0062aaa4a55efc267340e840eafebca3",
+  "prod_demo_v3.lang": "e18be88edb92ac066ba87a290f672104",
+  "prod_demo_v4.lang": "c0623f94576415cf404ba1cfe444e66f",
+  "prod_demo_v5.lang": "80eec2658bd5d55586c4b9231c87cc28",
+  "prod_showcase_final.lang": "44a9a18a093e4cb9e2e81fd274e15206",
+  "test_simple.lang": "097b0fce685434e2562ed39ff3ab1cc5",
+  "whenceguard_auditor.lang": "5af80d066d4c91025130c97408a230d4",
+  "whenceguard_v2.lang": "d13f25b435b3676006b1aa525df661dd"
+ }
+}

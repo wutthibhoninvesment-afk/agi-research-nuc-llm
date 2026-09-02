@@ -831,23 +831,152 @@ AGI_ROOT = _AGI_ROOT
 FIELD_CENSUS = os.path.join(
     _AGI_ROOT, "state", "whence", "round-384", "field-names.json")
 
+#: The LIVE roster: which `.lang` files in `examples/` are the field corpus
+#: right now, with the md5s of the bytes last declared. Separate from
+#: `FIELD_CENSUS` since round 444 --- see `_roster_md5`. Membership may be
+#: re-declared whenever the gateway adds or drops a program; the census may
+#: not, because `FOREIGN_NAMES` cites it.
+FIELD_ROSTER = os.path.join(
+    _AGI_ROOT, "state", "whence", "round-444", "field-roster.json")
 
-def _census_md5():
-    """`{basename: md5}` --- round 384's frozen census, read once per call.
 
-    The ONE reader of the census file in this repo's runtime code. Round 410
-    made it one: `_corpus_unchanged()` in `tests/test_v33.py` and
-    `tests/test_v34.py` were a second and third, byte-identical to each
-    other, and being three copies was not the defect --- answering two
-    different questions with one answer was. See `field_corpus_skip_reason`.
+def frozen_census():
+    """Round 384's whole census object --- the ATTESTATION evidence.
+
+    Read by `whence/foreign.py`'s entry rule (a) and its tests. This is the
+    half of round 384's file that must never move: it records WHICH bytes
+    attested each name in `FOREIGN_NAMES`, and a name is in that table
+    because this measurement said so.
     """
     with open(FIELD_CENSUS, encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+def _roster_md5():
+    """`{basename: md5}` --- the LIVE membership of the field corpus.
+
+    Round 444 split this away from `frozen_census`. Between round 395 (which
+    made the census the selector) and round 444 one file answered two
+    questions with opposite freshness requirements:
+
+      * *which bytes attested `println`?* --- FROZEN. It is the evidence a
+        name entered `whence/foreign.py`'s table, and re-taking it would
+        retroactively rewrite the reason an entry exists.
+      * *which files ARE the field corpus?* --- LIVE. It is the subject set
+        of every corpus-derived test, so it must describe `examples/` as it
+        is now or every "for all" assertion is about the wrong population.
+
+    A fifteenth gateway program arrived on 2026-09-01 and the two answers
+    came apart for the first time: it could not be added to the subject set
+    without editing the attestation. Round 410 had already written this
+    defect's name, about a different pair --- "being three copies was not
+    the defect, answering two different questions with one answer was".
+    """
+    with open(FIELD_ROSTER, encoding="utf-8") as fh:
         return {os.path.basename(k): v
                 for k, v in json.load(fh)["file_md5"].items()}
 
 
-def field_census_names():
-    return sorted(_census_md5())
+def field_roster_names():
+    """The declared membership of the field corpus, sorted. THE selector."""
+    return sorted(_roster_md5())
+
+
+#: Names bound by a `let` or an `fn` in the same file are not foreign, and
+#: neither are the builtins or the keywords. What is left is what a real
+#: author reached for that this language does not have --- round 384's
+#: "lexical census", reconstructed as CODE by round 444.
+#:
+#: Round 384 wrote the census as DATA with no producer: `grep -rn
+#: unbound_identifier_counts --include=*.py` found only readers, in three
+#: test files, for sixty rounds. Its stated reason was sound at the time ---
+#: "a test that re-derived this census would be pinning a live file" --- and
+#: it expired fifteen rounds later, when round 410 built
+#: `field_corpus_skip_reason`, the guard that makes reading those live files
+#: safe. Nobody re-read the reason after its premise changed.
+def unbound_identifier_census(paths, builtins=None):
+    """`{counts, files, n_files, file_md5}` over the given `.lang` files.
+
+    LEXICAL, not semantic, and that is required rather than convenient: ten
+    of the fifteen field programs do not parse, so there is no AST to ask.
+    A NAME token counts when it is bound by no `let` and no `fn` header
+    anywhere in its own file, is not a builtin, and is not a keyword.
+
+    Binding is file-wide and order-free (a use above its `let` still counts
+    as bound) because the question is "does this program mean a Whence name
+    here", not "is this program well-scoped" --- the programs that need the
+    answer are the ones that do not parse.
+
+    Verified against round 384: over that round's own fourteen files this
+    reproduces `unbound_identifier_counts` and `unbound_identifier_files`
+    EXACTLY, key set and integers, which is what makes it the instrument
+    rather than a second opinion. See
+    `tests/test_field_corpus_selector.py::test_the_reconstructed_census_
+    reproduces_round_384_exactly`.
+    """
+    from whence.lexer import KEYWORDS, tokenize
+    if builtins is None:
+        from whence.interp import Interpreter
+        builtins = set(Interpreter(out=lambda s: None).globals.vars)
+    counts = collections.Counter()
+    files = collections.defaultdict(set)
+    md5s = {}
+    for path in sorted(paths, key=os.path.basename):
+        name = os.path.basename(path)
+        with open(path, "rb") as fh:
+            raw = fh.read()
+        md5s[name] = hashlib.md5(raw).hexdigest()
+        toks = tokenize(raw.decode("utf-8"))
+        bound = _bound_names(toks)
+        for t in toks:
+            if (t.type == "NAME" and t.value not in bound
+                    and t.value not in builtins and t.value not in KEYWORDS):
+                counts[t.value] += 1
+                files[t.value].add(name)
+    return {
+        "n_files": len(md5s),
+        "file_md5": dict(sorted(md5s.items())),
+        "unbound_identifier_counts": dict(counts.most_common()),
+        "unbound_identifier_files": {k: sorted(v)
+                                     for k, v in sorted(files.items())},
+    }
+
+
+def _bound_names(toks):
+    """Every name a `let` or an `fn` header binds, anywhere in one file.
+
+    Three binder shapes and no others, because Whence has no others:
+    `let NAME`, `fn NAME(params)` and the anonymous `fn(params)`. A
+    parameter is a NAME whose predecessor token is `(` or `,`, which is
+    what keeps a type annotation's `p: T` from binding `T` --- `T` sits
+    after `:` and stays foreign, correctly, since a name used only as an
+    annotation is still a name this file never bound.
+    """
+    bound = set()
+    n = len(toks)
+    for i, t in enumerate(toks):
+        if t.type != "KW" or t.value not in ("let", "fn"):
+            continue
+        j = i + 1
+        if t.value == "let":
+            if j < n and toks[j].type == "NAME":
+                bound.add(toks[j].value)
+            continue
+        if j < n and toks[j].type == "NAME":        # named fn
+            bound.add(toks[j].value)
+            j += 1
+        if j < n and toks[j].type == "(":
+            j += 1
+            depth = 1
+            while j < n and depth:
+                if toks[j].type == "(":
+                    depth += 1
+                elif toks[j].type == ")":
+                    depth -= 1
+                elif toks[j].type == "NAME" and toks[j - 1].type in ("(", ","):
+                    bound.add(toks[j].value)
+                j += 1
+    return bound
 
 
 def field_programs(root=None):
@@ -871,16 +1000,26 @@ def field_programs(root=None):
     event could not help: the FILES had not moved (same names, same md5s),
     only their git status had, and the guard is a census of files.
 
-    The authority is now `state/whence/round-384/field-names.json`, which has
-    declared these fourteen names since round 384 and is what
-    `_corpus_unchanged()` already trusts — so this is not a new hand-written
-    list, it is the list the repo already had, read instead of re-derived
-    from a proxy. Round 386's live property is kept as a CHECK rather than as
-    the source: `field_corpus_drift()` still asks git, and reports an
-    untracked `.lang` the census does not name.
+    The authority is a DECLARED list rather than a derived one — round 395
+    used `state/whence/round-384/field-names.json`, which had named these
+    fourteen since round 384 and which `_corpus_unchanged()` already
+    trusted, so it was not a new hand-written list but the list the repo
+    already had, read instead of re-derived from a proxy. Round 386's live
+    property is kept as a CHECK rather than as the source:
+    `field_corpus_drift()` still asks git, and reports an untracked `.lang`
+    the roster does not name.
+
+    ROUND 444 moved the authority off the census and onto `FIELD_ROSTER`,
+    without changing the shape above. Round 395 had made ONE file answer
+    both "which files are the corpus" (live) and "which bytes attested
+    `println`" (frozen), and a fifteenth gateway program made those two
+    answers incompatible: it belongs in the subject set and it attested
+    nothing, so adding it to the census would have edited the evidence for
+    `FOREIGN_NAMES` in order to fix a selector. The roster is re-declarable;
+    the census is not.
     """
     root = root or _HERE
-    paths = [os.path.join(root, "examples", n) for n in field_census_names()]
+    paths = [os.path.join(root, "examples", n) for n in field_roster_names()]
     return sorted(p for p in paths if os.path.exists(p))
 
 
@@ -893,11 +1032,12 @@ def field_programs(root=None):
 #: add --detach /tmp/x HEAD` produces a tree without it, at every commit,
 #: forever.
 FIELD_CORPUS_ABSENT_REASON = (
-    "the 14-file field corpus is absent from this checkout: round 402 named "
-    "all fourteen in .gitignore, so they exist only in a working tree the "
-    "Hermes gateway has written into and in no checkout of any commit. A "
-    "test whose subject is that corpus has no subject here — this is not a "
-    "regression in anything this project wrote.")
+    "the 15-file field corpus is absent from this checkout: round 402 named "
+    "fourteen of them in .gitignore and round 444 the fifteenth, so they "
+    "exist only in a working tree the Hermes gateway has written into and "
+    "in no checkout of any commit. A test whose subject is that corpus has "
+    "no subject here — this is not a regression in anything this project "
+    "wrote.")
 
 
 def field_corpus_absent(root=None):
@@ -905,8 +1045,8 @@ def field_corpus_absent(root=None):
 
     All-or-nothing on purpose, and the two halves are different facts:
 
-      * NONE of the fourteen present — this checkout was never the tree the
-        gateway writes into. Nothing about it is evidence, so a corpus test
+      * NONE of the declared programs present — this checkout was never the
+        tree the gateway writes into. Nothing about it is evidence, so a corpus test
         should SKIP.
       * SOME present and some not — DRIFT. The gateway deleted or renamed a
         program, `field_corpus_drift` will name it, and the tests must stay
@@ -923,14 +1063,14 @@ def field_corpus_absent(root=None):
     file round 395 wrote next, or to `test_v24.py`.
     """
     root = root or _HERE
-    declared = field_census_names()
+    declared = field_roster_names()
     return bool(declared) and len(field_corpus_missing(root)) == len(declared)
 
 
 def field_corpus_missing(root=None):
     """Declared programs that are not on disk under `root`, sorted.
 
-    One computation of "which of the fourteen are gone", used by
+    One computation of "which of the declared programs are gone", used by
     `field_corpus_absent` (are they ALL gone?), by `field_corpus_skip_reason`
     (are SOME gone?) and by `field_corpus_drift` (which ones, and is there
     anything undeclared next to them?). Round 410 split it out because the
@@ -938,20 +1078,22 @@ def field_corpus_missing(root=None):
     twice, for an answer the third already had.
     """
     root = root or _HERE
-    return sorted(n for n in field_census_names()
+    return sorted(n for n in field_roster_names()
                   if not os.path.exists(os.path.join(root, "examples", n)))
 
 
 #: Why a corpus-derived NUMBER is not a regression when the corpus moves.
-#: `%s` is the name of the first program whose bytes differ from round 384's
-#: census. Distinct from `FIELD_CORPUS_ABSENT_REASON` on purpose: that one
+#: `%s` is the name of the first program whose bytes differ from the ones
+#: `FIELD_ROSTER` declared (round 384's census until round 444 split the two;
+#: the md5s the two files share are identical, so this changed no verdict). Distinct from `FIELD_CORPUS_ABSENT_REASON` on purpose: that one
 #: says the subject was never here, this one says the subject is here and is
 #: a different subject. Round 395's `_corpus_unchanged()` produced ONE
 #: sentence, `field corpus moved: missing: X`, for both --- so in a fresh
 #: `git worktree`, where nothing had moved and nothing had been rewritten,
 #: seven tests skipped saying the gateway had rewritten a file.
 FIELD_CORPUS_CHANGED_REASON = (
-    "the field corpus has been REWRITTEN since round 384's census (%s). The "
+    "the field corpus has been REWRITTEN since the roster was captured "
+    "(%s). The "
     "Hermes gateway is a separate autonomous system that shares this repo "
     "and may rewrite its programs without notice, so a corpus-derived "
     "number is NEW INFORMATION rather than a regression in anything this "
@@ -971,13 +1113,13 @@ def field_corpus_changed(root=None):
     unreachable.
     """
     root = root or _HERE
-    census = _census_md5()
-    for name in sorted(census):
+    roster = _roster_md5()
+    for name in sorted(roster):
         path = os.path.join(root, "examples", name)
         if not os.path.exists(path):
             continue
         with open(path, "rb") as fh:
-            if hashlib.md5(fh.read()).hexdigest() != census[name]:
+            if hashlib.md5(fh.read()).hexdigest() != roster[name]:
                 return name
     return None
 
@@ -991,10 +1133,10 @@ def field_corpus_skip_reason(root=None):
     the fourth:
 
       * **none of the declared programs present.** This checkout was never
-        the tree the gateway writes into; round 402 named all fourteen in
-        `.gitignore`, so no checkout of any commit has them. A test whose
-        subject is the corpus has no subject -> SKIP, with
-        `FIELD_CORPUS_ABSENT_REASON`.
+        the tree the gateway writes into; round 402 named fourteen of them
+        in `.gitignore` and round 444 the fifteenth, so no checkout of any
+        commit has them. A test whose subject is the corpus has no subject
+        -> SKIP, with `FIELD_CORPUS_ABSENT_REASON`.
       * **all present, one rewritten.** The gateway moved; the measurement
         is about a different corpus than the one the number was frozen
         against -> SKIP, with `FIELD_CORPUS_CHANGED_REASON`.
@@ -1010,10 +1152,10 @@ def field_corpus_skip_reason(root=None):
     Round 395's `_corpus_unchanged()` collapsed the first and third into the
     second: any missing file returned `"missing: X"`, which skipped, under a
     reason string that said the corpus had MOVED. Two costs, and the quiet
-    one is worse. Loud: in every `git worktree` --- where all fourteen are
-    absent for a reason that has nothing to do with the gateway --- seven
-    tests announced a rewrite that had not happened. Quiet: if the gateway
-    DELETES one of the fourteen, the seven tests that measure the corpus go
+    one is worse. Loud: in every `git worktree` --- where every declared
+    program is absent for a reason that has nothing to do with the gateway
+    --- seven tests announced a rewrite that had not happened. Quiet: if the
+    gateway DELETES one of them, the seven tests that measure the corpus go
     silent about it, and the drift report that would have named the file is
     in a different file that nobody has to read.
 
@@ -1023,7 +1165,7 @@ def field_corpus_skip_reason(root=None):
     """
     root = root or _HERE
     missing = field_corpus_missing(root)
-    declared = field_census_names()
+    declared = field_roster_names()
     if declared and len(missing) == len(declared):
         return FIELD_CORPUS_ABSENT_REASON
     if missing:
@@ -1057,7 +1199,7 @@ def field_corpus_drift(root=None):
     )
     untracked = {os.path.basename(n) for n in proc.stdout.split("\n")
                  if n.endswith(".lang")}
-    declared = set(field_census_names())
+    declared = set(field_roster_names())
     return sorted(untracked - declared), field_corpus_missing(root)
 
 

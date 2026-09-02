@@ -144,18 +144,20 @@ OUR_EXAMPLES = (
     "sales.lang", "self_eval.lang", "self_host.lang", "shapes.lang",
     "show.lang", "tco.lang",
 )
-# The other fourteen are the FIELD CORPUS, and their names are NOT repeated
-# here: `state/whence/round-384/field-names.json` has declared them since
-# round 384. Round 410 made `curecheck` the ONE reader of that file — this
+# The other fifteen are the FIELD CORPUS, and their names are NOT repeated
+# here: `state/whence/round-444/field-roster.json` declares them (round 384's
+# census did, until round 444 split the frozen ATTESTATION away from the live
+# MEMBERSHIP — see `curecheck._roster_md5`). Round 410 made `curecheck` the
+# ONE reader of the declared list — this
 # module used to open and parse it itself, which was the fourth copy of the
 # same six lines. Still read lazily, inside the test: a module-level read is
 # what took this file's collection down in the first place, and
-# `field_census_names()` opens the file when it is called and not on import.
+# `field_roster_names()` opens the file when it is called and not on import.
 
 
 def _field_corpus():
     import curecheck as C
-    return set(C.field_census_names())
+    return set(C.field_roster_names())
 
 
 def _tracked_examples():

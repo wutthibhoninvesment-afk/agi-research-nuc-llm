@@ -22,6 +22,35 @@ census correctly says so, which is why that guard could not catch this.
 
 The authority is now the census itself, and round 386's live property is kept
 as a REPORT (`field_corpus_drift`) rather than as the selector.
+
+Round 444 (language C) — WHICH declared list, and the second question it was
+already answering.
+
+Making the census the selector fixed round 393's bug and created a slower one.
+`state/whence/round-384/field-names.json` is EVIDENCE: it is why each key of
+`whence/foreign.py`'s `FOREIGN_NAMES` is allowed to exist, under an entry rule
+that says a name qualifies if "the FROZEN field census attests it". From round
+395 it was also the SUBJECT SET of every corpus-derived test. Those two jobs
+have opposite freshness requirements, and for 49 rounds nothing forced the
+issue because the gateway added no programs.
+
+On 2026-09-01 it added a fifteenth, `agi_buy_and_hold.lang`, and
+`test_the_live_tree_has_no_drift` went red — correctly. The only way to green
+it through the census was to edit the evidence for `FOREIGN_NAMES` in order to
+fix a selector, and the measurement says the fifteenth program attests
+NOTHING: `curecheck.unbound_identifier_census` finds zero unbound identifiers
+in it (it is the first gateway program that parses AND runs clean). So the
+edit would have moved `n_files` 14 -> 15 in a file whose own comment calls
+itself frozen, to record a member that contributed no evidence.
+
+The two are separate files now. The census is untouched and stays the
+attestation; `state/whence/round-444/field-roster.json` is the membership and
+is re-declarable by design. The tests below carry the split: everything about
+WHICH FILES reads the roster, `test_v32.py`'s census-integrity pins still say
+round 384 and n_files 14, and two new tests keep the seam honest — one
+re-derives round 384's census from its own files with the generator that round
+never wrote, and one refuses a roster member that attests something new
+without a fresh census.
 """
 import hashlib
 import json
@@ -37,7 +66,7 @@ sys.path.insert(0, ROOT)
 
 import curecheck as C                                        # noqa: E402
 
-CENSUS_NAMES = C.field_census_names()
+ROSTER_NAMES = C.field_roster_names()      # round 444: the LIVE membership
 
 
 def _git(repo, *args):
@@ -50,7 +79,7 @@ def _fake_root(tmp_path, extra=None, commit_all=True):
     root = str(tmp_path)
     ex = os.path.join(root, "examples")
     os.makedirs(ex, exist_ok=True)
-    for n in CENSUS_NAMES:
+    for n in ROSTER_NAMES:
         with open(os.path.join(ex, n), "w") as f:
             f.write("let x = 1\n")
     _git(root, "init", "-q")
@@ -73,17 +102,26 @@ needs_field_corpus = pytest.mark.skipif(
     C.field_corpus_absent(), reason=C.FIELD_CORPUS_ABSENT_REASON)
 
 
-def test_the_census_declares_fourteen_names():
-    """Checkout-independent: the census is a TRACKED json file. Kept out of
-    the skipif below so that a corrupted census is still a red test in a
-    fresh checkout, where the directory half has nothing to say."""
-    assert len(CENSUS_NAMES) == 14
+def test_the_roster_declares_fifteen_names_and_the_census_still_declares_14():
+    """Checkout-independent: both files are TRACKED json. Kept out of the
+    skipif below so that a corrupted roster is still a red test in a fresh
+    checkout, where the directory half has nothing to say.
+
+    The two numbers differing is the round-444 split, asserted rather than
+    described: membership grew, evidence did not."""
+    assert len(ROSTER_NAMES) == 15
+    assert C.frozen_census()["n_files"] == 14
+    assert C.frozen_census()["round"] == 384
+    # and the roster is a SUPERSET — the census's fourteen are still members,
+    # so no `FOREIGN_NAMES` entry is attested by a file that has left the
+    # corpus.
+    assert set(C.frozen_census()["file_md5"]) <= set(ROSTER_NAMES)
 
 
 @needs_field_corpus
-def test_the_census_and_the_directory_still_agree():
+def test_the_roster_and_the_directory_still_agree():
     got = {os.path.basename(p) for p in C.field_programs()}
-    assert got == set(CENSUS_NAMES)
+    assert got == set(ROSTER_NAMES)
 
 
 def test_the_selector_is_indifferent_to_git_tracking_status(tmp_path):
@@ -99,10 +137,12 @@ def test_the_selector_is_indifferent_to_git_tracking_status(tmp_path):
         return [n for n in proc.stdout.split("\n") if n.endswith(".lang")]
 
     assert old_selector(committed) == []          # what round 393 produced
-    assert len(old_selector(untracked)) == 14     # what round 386 measured
+    # round 386 measured 14 here; `_fake_root` builds one file per ROSTER
+    # member, so this number tracks the roster and is 15 from round 444.
+    assert len(old_selector(untracked)) == len(ROSTER_NAMES) == 15
 
-    assert len(C.field_programs(committed)) == 14
-    assert len(C.field_programs(untracked)) == 14
+    assert len(C.field_programs(committed)) == 15
+    assert len(C.field_programs(untracked)) == 15
 
 
 def test_absence_is_all_or_nothing_so_real_drift_still_fails(tmp_path):
@@ -113,20 +153,20 @@ def test_absence_is_all_or_nothing_so_real_drift_still_fails(tmp_path):
     the event `field_corpus_drift` exists to report: the gateway deleting or
     renaming a program. So the predicate answers a different question —
     "was this checkout ever the tree the gateway writes into?" — for which
-    the only honest evidence is NONE of the fourteen being present. Thirteen
-    of fourteen is drift, and drift is red.
+    the only honest evidence is NONE of the declared programs being present.
+    Fourteen of fifteen is drift, and drift is red.
     """
     root = _fake_root(tmp_path / "full", commit_all=False)
     assert C.field_corpus_absent(root) is False
 
-    os.remove(os.path.join(root, "examples", CENSUS_NAMES[0]))
-    assert C.field_corpus_absent(root) is False, "13 of 14 must NOT skip"
+    os.remove(os.path.join(root, "examples", ROSTER_NAMES[0]))
+    assert C.field_corpus_absent(root) is False, "14 of 15 must NOT skip"
     undeclared, missing = C.field_corpus_drift(root)
-    assert missing == [CENSUS_NAMES[0]] and undeclared == []
+    assert missing == [ROSTER_NAMES[0]] and undeclared == []
 
-    for n in CENSUS_NAMES[1:]:
+    for n in ROSTER_NAMES[1:]:
         os.remove(os.path.join(root, "examples", n))
-    assert C.field_corpus_absent(root) is True, "0 of 14 is a fresh checkout"
+    assert C.field_corpus_absent(root) is True, "0 of 15 is a fresh checkout"
 
 
 def test_the_skip_reason_names_the_cause_and_not_just_the_symptom():
@@ -164,12 +204,22 @@ def test_the_live_tree_has_no_drift():
 
 
 @needs_field_corpus
-def test_ten_of_the_fourteen_still_fail_to_parse():
+def test_ten_of_the_fifteen_still_fail_to_parse():
     """The number `test_v33.py` and `test_v34.py` publish, asserted here
     against the selector directly so a selector fault reads as a selector
-    fault rather than as `assert 0 == 10`."""
+    fault rather than as `assert 0 == 10`.
+
+    Round 444: the DENOMINATOR moved 14 -> 15 and the numerator did not.
+    `agi_buy_and_hold.lang` is the fifth gateway program that parses, so the
+    published "ten still fail" survived a corpus change unaltered — which is
+    exactly the event that would otherwise have been read as a regression.
+    It is also the only one of the fifteen that uses Whence's `check` at all
+    (4, all passing) and, at 85 lines, by far the largest that parses; the
+    other four that parse are 2 to 48 lines, and three of them run only by
+    DROPPING misses (`println`), which `run.py` reports and the exit code
+    does not."""
     rows = C.survey(C.field_programs())
-    assert len(rows) == 14
+    assert len(rows) == 15
     assert len([r for r in rows if not r["parses"]]) == 10
 
 
@@ -213,55 +263,60 @@ def _old_corpus_unchanged(root, census_path):
     return None
 
 
-def _census_root(tmp_path, name):
-    """A tree whose `examples/` holds the census's files with the census's
-    OWN bytes, plus a census file that describes them.
+def _roster_root(tmp_path, name):
+    """A tree whose `examples/` holds the roster's files with the roster's
+    OWN bytes, plus a roster file that describes them.
 
     `_fake_root` above writes `let x = 1` into every file and is compared
-    against the real census, so every file there reads as `changed`. The md5
-    guard needs a tree where nothing has changed, so this one writes a census
+    against the real roster, so every file there reads as `changed`. The md5
+    guard needs a tree where nothing has changed, so this one writes a roster
     of what it wrote.
+
+    Round 444: the md5 half of the guard reads `FIELD_ROSTER`, not
+    `FIELD_CENSUS` — "have these bytes been rewritten since we declared
+    them" is a membership question. The file's SHAPE is unchanged, which is
+    why `_old_corpus_unchanged` below can still be handed the same path.
     """
     root = str(tmp_path / name)
     ex = os.path.join(root, "examples")
     os.makedirs(ex)
     md5 = {}
-    for i, n in enumerate(CENSUS_NAMES):
+    for i, n in enumerate(ROSTER_NAMES):
         body = ("let x = %d\n" % i).encode()
         with open(os.path.join(ex, n), "wb") as f:
             f.write(body)
         md5["examples/" + n] = hashlib.md5(body).hexdigest()
-    census = os.path.join(root, "field-names.json")
-    with open(census, "w", encoding="utf-8") as f:
-        json.dump({"round": 384, "n_files": len(md5), "file_md5": md5}, f)
-    return root, census
+    roster = os.path.join(root, "field-roster.json")
+    with open(roster, "w", encoding="utf-8") as f:
+        json.dump({"round": 444, "n_files": len(md5), "file_md5": md5}, f)
+    return root, roster
 
 
-def _skip_reason_against(root, census_path, monkeypatch):
-    """`field_corpus_skip_reason` with the census file redirected."""
-    monkeypatch.setattr(C, "FIELD_CENSUS", census_path)
+def _skip_reason_against(root, roster_path, monkeypatch):
+    """`field_corpus_skip_reason` with the roster file redirected."""
+    monkeypatch.setattr(C, "FIELD_ROSTER", roster_path)
     return C.field_corpus_skip_reason(root)
 
 
 def test_the_corpus_states_get_different_answers(
         tmp_path, monkeypatch):
-    root, census = _census_root(tmp_path, "three")
+    root, roster = _roster_root(tmp_path, "three")
 
     # 1. all present, all as frozen -> run.
-    assert _skip_reason_against(root, census, monkeypatch) is None
+    assert _skip_reason_against(root, roster, monkeypatch) is None
 
     # 2. one rewritten -> skip, and the reason says REWRITTEN and names it.
-    victim = os.path.join(root, "examples", CENSUS_NAMES[0])
+    victim = os.path.join(root, "examples", ROSTER_NAMES[0])
     open(victim, "wb").write(b"let x = 999\n")
-    reason = _skip_reason_against(root, census, monkeypatch)
+    reason = _skip_reason_against(root, roster, monkeypatch)
     assert reason is not None and "REWRITTEN" in reason
-    assert CENSUS_NAMES[0] in reason
-    assert C.field_corpus_changed(root) == CENSUS_NAMES[0]
+    assert ROSTER_NAMES[0] in reason
+    assert C.field_corpus_changed(root) == ROSTER_NAMES[0]
 
     # 3. none present at all -> skip, and the reason is the OTHER one.
-    for n in CENSUS_NAMES:
+    for n in ROSTER_NAMES:
         os.remove(os.path.join(root, "examples", n))
-    reason = _skip_reason_against(root, census, monkeypatch)
+    reason = _skip_reason_against(root, roster, monkeypatch)
     assert reason == C.FIELD_CORPUS_ABSENT_REASON
     assert "REWRITTEN" not in reason
 
@@ -275,17 +330,17 @@ def test_the_old_helper_skipped_the_one_state_that_must_stay_red(
     helper answered it with a SKIP whose sentence said the corpus had moved.
     The new one returns None — the seven tests behind it RUN, and go red.
     """
-    root, census = _census_root(tmp_path, "drift")
-    gone = CENSUS_NAMES[0]
+    root, roster = _roster_root(tmp_path, "drift")
+    gone = ROSTER_NAMES[0]
     os.remove(os.path.join(root, "examples", gone))
 
-    old = _old_corpus_unchanged(root, census)
+    old = _old_corpus_unchanged(root, roster)
     assert old == "missing: examples/%s" % gone       # old: skip
     assert "moved" not in old                          # ... under this reason:
     assert ("field corpus moved: %s" % old).startswith("field corpus moved")
 
-    assert _skip_reason_against(root, census, monkeypatch) is None, (
-        "13 of 14 is drift and drift must stay RED")
+    assert _skip_reason_against(root, roster, monkeypatch) is None, (
+        "14 of 15 is drift and drift must stay RED")
     assert C.field_corpus_absent(root) is False
     assert C.field_corpus_changed(root) is None, (
         "an absent file is not a rewritten one")
@@ -297,14 +352,14 @@ def test_the_old_helper_also_misdescribed_a_fresh_checkout(
     """The loud half of the same conflation, and the one every `git worktree`
     hit: nothing had moved, nothing had been rewritten, and seven tests said
     `field corpus moved`."""
-    root, census = _census_root(tmp_path, "fresh")
-    for n in CENSUS_NAMES:
+    root, roster = _roster_root(tmp_path, "fresh")
+    for n in ROSTER_NAMES:
         os.remove(os.path.join(root, "examples", n))
 
-    old = _old_corpus_unchanged(root, census)
+    old = _old_corpus_unchanged(root, roster)
     assert old is not None and old.startswith("missing: ")
 
-    new = _skip_reason_against(root, census, monkeypatch)
+    new = _skip_reason_against(root, roster, monkeypatch)
     assert new == C.FIELD_CORPUS_ABSENT_REASON
     assert ".gitignore" in new and "not a regression" in new
 
@@ -321,22 +376,126 @@ def test_a_rewritten_corpus_does_not_hide_a_missing_one(tmp_path, monkeypatch):
     the one that can be a mistake, so drift is checked FIRST and this asserts
     the order rather than the outcome of one arm.
     """
-    root, census = _census_root(tmp_path, "both")
-    monkeypatch.setattr(C, "FIELD_CENSUS", census)
-    os.remove(os.path.join(root, "examples", CENSUS_NAMES[0]))
-    open(os.path.join(root, "examples", CENSUS_NAMES[1]), "wb").write(b"x\n")
+    root, roster = _roster_root(tmp_path, "both")
+    monkeypatch.setattr(C, "FIELD_ROSTER", roster)
+    os.remove(os.path.join(root, "examples", ROSTER_NAMES[0]))
+    open(os.path.join(root, "examples", ROSTER_NAMES[1]), "wb").write(b"x\n")
 
     # both facts are true at once, and each predicate reports its own
-    assert C.field_corpus_missing(root) == [CENSUS_NAMES[0]]
-    assert C.field_corpus_changed(root) == CENSUS_NAMES[1]
+    assert C.field_corpus_missing(root) == [ROSTER_NAMES[0]]
+    assert C.field_corpus_changed(root) == ROSTER_NAMES[1]
     # ... and the decision is the drift one.
     assert C.field_corpus_skip_reason(root) is None, (
         "a rewrite must not buy a deletion a skip")
 
 
+# --------------------------------------------------------------------------
+# Round 444 — the census gets the generator round 384 did not write
+# --------------------------------------------------------------------------
+
+#: ABSENT *or* REWRITTEN, not just absent: these two read the corpus's BYTES,
+#: so a gateway rewrite makes them measure a different subject. That is what
+#: `field_corpus_skip_reason` is for, and it is the guard whose existence
+#: (round 410) retired round 384's reason for having no generator at all.
+_CENSUS_SKIP = C.field_corpus_skip_reason()
+census_pin = pytest.mark.skipif(_CENSUS_SKIP is not None,
+                                reason=_CENSUS_SKIP or "")
+
+
+@census_pin
+def test_the_reconstructed_census_reproduces_round_384_exactly():
+    """Round 384 wrote the census as DATA WITH NO PRODUCER.
+
+    `grep -rn unbound_identifier_counts --include=*.py` over this repo finds
+    three READERS (this file's siblings `test_v32.py`, `test_v33.py`) and no
+    writer. So for sixty rounds the numbers behind every `FOREIGN_NAMES`
+    entry — `println` 34, `zero_point_zero` 11, `catch` 6 — could be quoted
+    and could not be re-derived, and "re-make the census" (round 440's
+    next-step 4) had no command behind it.
+
+    Its stated reason was good and it EXPIRED: "a test that re-derived this
+    census would be pinning a live file". True in round 384. Round 410 built
+    `field_corpus_skip_reason`, which is precisely the machine for reading a
+    live file safely — skip when it moved, say which file, never edit the
+    number to be quiet. Nobody re-read the reason after its premise changed.
+
+    This asserts the strongest thing available: EXACT reproduction, key set
+    and integers, of both payload maps, over round 384's own fourteen files.
+    Anything weaker (a subset, a spot-check on `println`) would let a
+    generator that mis-binds parameters pass."""
+    frozen = C.frozen_census()
+    paths = [os.path.join(ROOT, "examples", n) for n in frozen["file_md5"]]
+    got = C.unbound_identifier_census(paths)
+    assert got["unbound_identifier_counts"] == \
+        frozen["unbound_identifier_counts"]
+    assert got["unbound_identifier_files"] == \
+        frozen["unbound_identifier_files"]
+    assert got["file_md5"] == frozen["file_md5"]
+    assert got["n_files"] == frozen["n_files"] == 14
+
+
+@census_pin
+def test_a_roster_member_outside_the_frozen_census_attests_nothing_new():
+    """The rule that keeps the split honest, in the only direction it can
+    break.
+
+    A roster member the census never saw is NOT evidence — no
+    `FOREIGN_NAMES` entry may cite it, because the entry rule cites the
+    census by path. That is safe exactly while such a member introduces no
+    unbound identifier the census has not already attested. Today it holds
+    vacuously and loudly: `agi_buy_and_hold.lang` has ZERO unbound
+    identifiers — 85 lines and not one `println`, where 10 of the other 14
+    reach for it.
+
+    When it stops holding — a sixteenth program that reaches for `foreach`,
+    say — this goes red and names the word, which is the round's whole
+    thesis working: a NEW census must then be captured deliberately and
+    cited by round number, and `unbound_identifier_census` makes that one
+    command instead of a lost method."""
+    frozen = C.frozen_census()
+    attested = set(frozen["unbound_identifier_counts"])
+    extras = [n for n in ROSTER_NAMES if n not in frozen["file_md5"]]
+    assert extras == ["agi_buy_and_hold.lang"], extras
+    got = C.unbound_identifier_census(
+        [os.path.join(ROOT, "examples", n) for n in extras])
+    new = sorted(set(got["unbound_identifier_counts"]) - attested)
+    assert new == [], (
+        "roster member(s) %s attest names the frozen census does not have: "
+        "%s. Capture a NEW census with "
+        "`curecheck.unbound_identifier_census` and cite it by round number "
+        "— do not add them to round 384's file." % (extras, new))
+
+
+def test_the_generator_binds_the_three_things_whence_binds(tmp_path):
+    """Checkout-independent unit test for `_bound_names`, so the two pins
+    above are not the only thing standing between a wrong binder and a
+    silently different census. Whence has three binder shapes and no more:
+    `let NAME`, `fn NAME(params)`, and the anonymous `fn(params)`."""
+    def census(src):
+        f = tmp_path / "p.lang"
+        f.write_text(src)
+        return C.unbound_identifier_census([str(f)])[
+            "unbound_identifier_counts"]
+
+    assert census("let x = 1\nx\n") == {}
+    assert census("fn f(a, b) { a + b }\nf(1, 2)\n") == {}
+    assert census("let g = fn(a) { a * 2 }\ng(1)\n") == {}
+    # a use ABOVE its binder is still bound: the question is "does this file
+    # mean a Whence name here", not "is this file well-scoped" — and ten of
+    # the fifteen programs do not parse, so there is no scope to ask.
+    assert census("q\nlet q = 1\nq\n") == {}
+    # foreign words, keywords and builtins
+    assert census("println(1)\n") == {"println": 1}
+    assert census("if true { 1 } else { 2 }\n") == {}
+    assert census("print(str(1))\n") == {}
+    # a type annotation's name is NOT bound by the parameter it annotates
+    assert census("fn f(p: T) { p }\nf(1)\n") == {"T": 1}
+
+
 # --- the "one home" pin ----------------------------------------------------
 
-#: Every file allowed to read round 384's census, and why. The shape is
+#: Every file allowed to read a declared list's `file_md5` payload — round
+#: 384's census, and since round 444 the roster too — and why. The shape is
 #: `harness/tests/test_pristine_check.py::test_the_curated_corpus_rule_is_
 #: duplicated_only_where_declared`'s: a copy is not forbidden, it is
 #: DECLARED, so making a fourth one costs a red test that names the rule.
@@ -347,8 +506,10 @@ CENSUS_READERS = {
         "parses a census because the code being falsified parsed one. It is "
         "never called on the live tree — every caller passes a tmp_path.",
     "curecheck.py":
-        "the reader. `_census_md5()` is the one place the file is parsed, "
-        "and `FIELD_CENSUS` the one place its path is spelled.",
+        "the reader, and since round 444 the reader of BOTH declared lists: "
+        "`frozen_census()` parses the census (evidence) and `_roster_md5()` "
+        "the roster (membership), with `FIELD_CENSUS` and `FIELD_ROSTER` "
+        "the one place each path is spelled.",
     "tests/test_v32.py":
         "the census's OWN integrity test — it asserts what the file says "
         "about itself (round, n_files, the builtin set at capture), which "

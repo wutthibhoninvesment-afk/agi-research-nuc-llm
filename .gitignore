@@ -111,6 +111,13 @@ state/nuc-swap-watch-*/poll.log
 # The FILES ARE STILL ON DISK and are still read as the cure system's
 # field corpus by curecheck.py, tests/test_v22.py, test_v33.py, test_v34.py
 # and test_field_corpus_selector.py, none of which care about tracking.
+# Round 444 added the FIFTEENTH, agi_buy_and_hold.lang (gateway-written
+# 2026-09-01 23:12 UTC), in the same commit that DECLARED it in the new
+# membership roster state/whence/round-444/field-roster.json. That order
+# is round 441's rule and it is not cosmetic: `curecheck.field_corpus_
+# drift()` computes `untracked - declared`, so an ignore line alone
+# turns a real drift report green by hiding the file from git rather
+# than by declaring it. Ignore only what is already declared.
 languages/whence/examples/cognitive_verifier.lang
 languages/whence/examples/cognitive_verifier_v2.lang
 languages/whence/examples/cognitive_verifier_v3.lang
@@ -125,3 +132,4 @@ languages/whence/examples/prod_showcase_final.lang
 languages/whence/examples/test_simple.lang
 languages/whence/examples/whenceguard_auditor.lang
 languages/whence/examples/whenceguard_v2.lang
+languages/whence/examples/agi_buy_and_hold.lang

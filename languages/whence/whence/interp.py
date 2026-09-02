@@ -2683,8 +2683,12 @@ def _sig_text(name):
 # own fix, after an operator bug report whose real content was "the message
 # is true and I still do not know what to type". `unbound name 'x'` is that
 # same message at that same half strength, and it is the most common runtime
-# miss in the field corpus — the 14 machine-written programs no round wrote
+# miss in the field corpus — the machine-written programs no round wrote
 # that sit untracked in `examples/` (`state/known-standing-dirty-paths.json`).
+# Fourteen when this table was built; fifteen since round 444, which is why
+# the entry rule below cites the FROZEN census by path and not the corpus:
+# membership is re-declarable (`state/whence/round-444/field-roster.json`),
+# attestation is not.
 #
 # The table is small and the ENTRY RULE is what keeps it small. A name
 # qualifies only if
