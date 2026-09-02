@@ -272,60 +272,60 @@ episodes). The owner-opens-its-own rate ranges across the four from **0/16**
 to **8/8**. Ownership predicts nothing on its own.
 
 What predicts it is the assertion's **subject scope** — whose work can turn
-it red, which is a different question from which suite it LIVES in:
+it red, which is a different question from which suite it LIVES in. Measured
+over all four runners' retained logs, 578 runs, 31 distinct failing nodes,
+81 episodes (round 461; round 455's three-runner numbers in brackets):
 
 | subject scope | invisible to opener | visible | rate |
 |---|---|---|---|
-| whole-tree (any change in the repo can break it) | 12 | 4 | **75%** |
-| own-suite (only the hosting area can) | 1 | 8 | **11%** |
+| whole-tree — any change in the repo can break it | 53 [12] | 4 [4] | **93%** [75%] |
+| shared-corpus — a tree EVERY contributor writes | 8 | 0 | **100%** |
+| shared-file-own-content — shared file, one writer's region | 0 | 1 | 0% |
+| own-suite — only the hosting area can | 0 [1] | 8 [8] | **0%** [11%] |
 
-Fisher exact, two-sided, n=25: **p = 0.0036**. And every one of the four
-"visible" whole-tree episodes belonged to the change that WROTE the check;
-each later one was opened by someone who was not running that suite at any
-point. A runner whose subject is confined to its owner's territory has a
-floor of one and no visibility problem at all — the owner both breaks it and
-sees it. A runner hosting a whole-tree assertion has a second, larger
+Fisher exact, two-sided, whole-tree vs own-suite: **p = 9.8e-08**, n=65
+(round 455's three-runner table: p = 0.0036, n=25). **Read the direction, not
+the p-value**: episodes within one runner are not independent — one change
+routinely trips several checkers in the same run — so the interval is
+narrower than the data earns. The direction is not in doubt at any
+reasonable discount.
+
+Every "visible" whole-tree episode belonged to the change that WROTE the
+check; each later one was opened by someone who was not running that suite
+at any point. A runner whose subject is confined to its owner's territory has
+a floor of one and no visibility problem at all — the owner both breaks it
+and sees it. A runner hosting a whole-tree assertion has a second, larger
 problem underneath the floor, and moving the runner earlier does not touch
 it: **the person who broke the rule never runs that suite.**
 
 So compute the number that separates the two — the **invisible-open rate**,
 the share of episodes whose opening change could not have seen the red by
-running the suite it normally runs. Measured there: **15/28 = 54%**. Half the
-latency is not scheduling.
+running the suite it normally runs. Measured there: **65/78 = 83%** (three
+runners: 15/28 = 54%). Most of the latency is not scheduling.
 
-To get under the floor, do not add a checker and do not move the runner
-earlier — make the checkers that exist **runnable by the person about to
-commit**, which needs one property: fast enough that they will run it. Price
-them individually; cost is almost never evenly spread. In the measured case
-one checker was **79.6% of a 124.74s total**, and dropping it left **25.4s**
-that still caught **all 19** violations the last offending change shipped.
+### Three findings that only appear once you have TWO runners
 
-Three rules make the subset trustworthy, and each is a real failure if
-skipped:
+Each is measured and worked through in
+[references/detection-latency-floor.md](references/detection-latency-floor.md);
+the one-line forms:
 
-* **Classify each red assertion by subject scope, and host the whole-tree ones
-  where everyone will run them — or tell everyone they own them.** The
-  membership rule that works is *has actually gone red*, taken from the
-  runner's retained logs rather than detected from source. Detection from
-  source was tried and failed in both directions: a loose AST/regex rule for
-  "test resolves the repo root, takes no tmp fixture" returned **2053**
-  candidates where the true count was single digits, and tightening it to a
-  body-local root walk-up returned **59** — a set that omitted the two files
-  responsible for 15 of 18 reds, because they reach the tree through an
-  imported helper. A bounded set of ~20 nodes classified by hand, fail-closed
-  so the next one to break classifies itself, beats both.
-* **Define the preset by what it EXCLUDES, never by an inclusion list.** An
-  inclusion list rots silently by omission — the same repo's docstring said
-  "five" checkers for two checkers' worth of drift. As an exclusion, a new
-  checker joins automatically and anyone removing one must give a *measured*
-  reason, enforced by a test.
-* **An unknown name must be an error, not an empty run**, and **a subset run
-  must not print a summary a full run could have printed** — carry the
-  skipped names in the line, and keep the clause empty for a full run so the
-  line stays byte-identical.
-* **Prove the flag moves the LIST, not a label** (see
-  `named-guardian-must-go-red`), and expect some findings to be structurally
-  un-catchable pre-commit because their evidence is written last.
+* **A fourth subject scope: the corpus everyone writes.** A runner guarding a
+  directory every contributor is *required* to add to is neither
+  `whole-tree` (a change outside it cannot break it) nor `own-suite` (0 of 46
+  episodes were opened by the owning team). It is also the one scope where
+  making the checker cheap enough to run at commit time reaches the person
+  who broke it.
+* **The floor under the floor.** A checker whose evidence is the runner's own
+  log cannot fire in the unit that breaks it — that unit's log is still being
+  written by the run the checker is part of. Its floor is TWO, the episode is
+  attributed to an innocent author, and running the runner earlier makes it
+  worse. Post-run automation is a second source of the same unattributable red.
+* **Two runners, two log grammars.** A parser built for the first gives a
+  plausible wrong answer on the second rather than an error — one called 68 of
+  91 healthy runs "could not run". Print a `GRAMMAR GAP` naming what is
+  unmeasured, then write a second parser rather than loosening the first.
+  Expect a finest unit coarser than a test, rows that are neither red nor
+  green, and reconcile against the runner's own verdict as a SET UNION.
 
 Full measurement, the cost table, the episode breakdown and the worked design:
 `references/detection-latency-floor.md`.

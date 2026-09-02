@@ -117,6 +117,18 @@ that the field was never wrong.
 - **Predicting the breakage before measuring it.** The outcome numbers are
   usually much better than the argument for measuring them implies; the
   finding is the *shape*, not the size. Bank the prediction, then measure.
+- **Asserting the absence of a ROW when you mean the absence of EVIDENCE.**
+  The same confusion, written into a test instead of a dashboard. A round
+  pinned "this unit has never produced a ledger row" as `unit not in seen`,
+  meaning "it has never been evidence". Two rounds later a scheduled slice
+  attempted the unit, it timed out at 3000 s, and the runner appended a row
+  with `outcome: "timeout"` — membership arrived, evidence did not, and the
+  assertion went red while everything it was written to protect was still
+  true. A timeout row is neither a pass nor a fail; the state machine
+  reading it already classified it as inconclusive and was right. Write the
+  predicate over the OUTCOME field (`outcome in ("passed", "failed")`), and
+  pin the row's actual value positively as well, so that the day the unit
+  really finishes the test breaks on purpose rather than by accident.
 
 ## Verification
 
