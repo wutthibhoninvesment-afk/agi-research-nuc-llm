@@ -352,7 +352,12 @@ python3 -m unittest discover -s skills/skill-authoring/scripts -v
 python3 skills/skill-authoring/scripts/skill_lint.py --house skills/<name>/
 # expected: 1 skill(s), 0 error(s), 0 warning(s), exit 0   <- the bar for a new skill
 python3 skills/skill-authoring/scripts/skill_lint.py --house --strict skills/
-# expected: >= 86 skill(s), 0 error(s), 3 warning(s), exit 1. NOT warning-free:
+# expected: >= 86 skill(s), 0 error(s), 4 warning(s), exit 1. NOT warning-free:
+# The 4th is THIS FILE (B002, body 405 lines): round 459's own corrections
+# to this block pushed it over the 400-line threshold, and the round's
+# after-pass caught it. `warning(s)` stays an EQUALITY because a warning
+# can be fixed as well as added -- it is two-sided, unlike `skill(s)`,
+# whose floor stayed correctly silent when the same pass saw 87.
 # round 459 re-derived this and `--strict` really does exit 1 today. The
 # `exit 0` this line claimed had been false since at least round 441, which
 # measured it and did not correct it. `0 error(s)` stays an EQUALITY on

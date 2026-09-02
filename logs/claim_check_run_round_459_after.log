@@ -1,0 +1,12 @@
+skills/citation-registry-integrity/SKILL.md:237: UNQUANTIFIED C003 claim 'expected: Ran >= 112 tests, OK (round 459)' states no checkable number; ran it anyway for the exit code only
+skills/content-pinned-acknowledgement/SKILL.md:154: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+skills/content-pinned-acknowledgement/SKILL.md:159: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+skills/content-pinned-acknowledgement/SKILL.md:164: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+skills/session-inheritance-audit/SKILL.md:252: UNQUANTIFIED C003 claim "only the CURRENT session's stub" states no checkable number; ran it anyway for the exit code only
+skills/session-inheritance-audit/SKILL.md:253: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+skills/skill-authoring/SKILL.md:343: UNQUANTIFIED C003 claim 'expected: Ran >= 865 tests, OK  (skill_lint + trigger_eval + claim_check + xref_check + state_claim_check + case_coverage, offline). Re-derived round 357 (+21 test_case_coverage.py, +7 from 352-356); was 430 in 351, 364 in 346, 316 in 345, 247 before test_xref_check.py, so an older lower count is not a regression. (Round 345 re-derived this TWICE: its first figure, 311, was stale within the hour because the same round then added 5 tests. Re-derive this LAST.)' states no checkable number; ran it anyway for the exit code only
+skills/skill-authoring/SKILL.md:354: STALE C002 claim says warnings=3, observed warnings=4
+skills/obligation-ledger/SKILL.md:145: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+claim_check: 12 skill(s), 53 command(s): 23 auto-checkable, 30 manual (bare `cd` 3, environment 1, expensive 1, mutating 1, placeholder 3, unknown program 21)
+claim_check: 0 uncommented expectation(s) invisible to the number tier; 0 command(s) declined by --budget; 285.6s elapsed
+claim_check: 48 path(s) resolved, 1 unresolvable-by-design (scratch/placeholder/output/unanchored); 1 stale claim(s) of 71 checked; coverage 48/49 paths, 23/53 commands

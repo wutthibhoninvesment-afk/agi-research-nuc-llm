@@ -1,0 +1,18 @@
+skills/kill-what-you-launched/SKILL.md:117: STALE C002 claim says passed=45, observed passed=46
+skills/measured-budget-sizing/SKILL.md:146: STALE C002 claim says passed=179, observed passed=230
+skills/probe-where-the-rules-disagree/SKILL.md:143: STALE C002 claim says passed=22, observed passed=54
+skills/session-inheritance-audit/SKILL.md:252: UNQUANTIFIED C003 claim "only the CURRENT session's stub" states no checkable number; ran it anyway for the exit code only
+skills/session-inheritance-audit/SKILL.md:253: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+skills/session-inheritance-audit/SKILL.md:278: STALE C002 claim says passed=43, observed passed=44
+skills/skill-authoring/SKILL.md:343: STALE C002 claim says ran_tests=458, observed ran_tests=865
+skills/skill-authoring/SKILL.md:354: STALE C002 claim says exit=0, observed exit=1
+skills/skill-authoring/SKILL.md:354: STALE C002 claim says skills=27, observed skills=86
+skills/skill-authoring/SKILL.md:354: STALE C002 claim says warnings=0, observed warnings=3
+skills/skill-authoring/SKILL.md:363: STALE C002 claim says skills=27, observed skills=86
+skills/skill-authoring/SKILL.md:369: STALE C002 claim says skills=27, observed skills=86
+skills/subprocess-cli-testing/SKILL.md:92: STALE C002 claim says passed=8, observed passed=21
+skills/obligation-ledger/SKILL.md:136: UNCOMMENTED C005 expectation written as a bare line, not a `#` comment: '0 error(s), 6 warning(s)' parses as a COMMAND, so the real command above it has an empty claim and is never number-checked
+skills/obligation-ledger/SKILL.md:142: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+claim_check: 7 skill(s), 32 command(s): 15 auto-checkable, 17 manual (bare `cd` 1, environment 1, mutating 1, placeholder 3, unknown program 11)
+claim_check: 1 uncommented expectation(s) invisible to the number tier; 0 command(s) declined by --budget; 202.9s elapsed
+claim_check: 31 path(s) resolved, 1 unresolvable-by-design (scratch/placeholder/output/unanchored); 11 stale claim(s) of 46 checked; coverage 31/32 paths, 15/32 commands

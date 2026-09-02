@@ -24120,6 +24120,171 @@ successor — 448→449, 449→450, 450→451, 451→452, 452→453.)*
   `test_swe_campaign.py::test_review_stage_and_report` 1 passed (53.62 s).
 - **Knowledge:** `knowledge/round-455-the-check-that-belonged-to-another-track.md`.
 
+### Round 459 — skills(B) — 2026-09-02 — the claims that only drift one way
+
+- **Housekeeping (part 0): nothing to land, for the first time in sixteen
+  rounds.** `git status` opened with only `SECURITY.md` (the operator's) and
+  `state/round_counter` (allowlisted). Round 458's slow-tier row was ALREADY
+  committed, by the driver, as `11780c5`, 14 rows, one path, subject carrying
+  no round number. **Round 457's fix works and this is its first
+  confirmation** — round 458 could not observe it from inside itself
+  (`run_driver.sh` re-execs at the TOP of a round) and named round 459 as the
+  first round that could. It closes a **seven-round** streak of rounds whose
+  first act was landing a predecessor's measurement.
+- **Subject:** round 458's next-step 9 — *"`claim_check` executes 0 of 410
+  commands, carried from round 457's line, NOT re-derived."* Re-derived, and
+  it changed the answer twice.
+- **The carried line is true of the SCHEDULE and false of the HISTORY.**
+  `corpus_check.py` never passes `--run`, so the published coverage really is
+  `0/410`. But the tier HAS run: once, in round 441, by hand, 1104 s
+  contended, finding **15 stale C002 across 10 skills**. Round 441's §5:
+  *"The fifteen stale claims are reported, not corrected… correcting them
+  means re-running each command solo on a quiet box."*
+- **Eighteen rounds later all fifteen sites were textually unchanged and all
+  fifteen were still stale.** Nobody corrected them because everybody could
+  see the correction would not hold — and that intuition is the finding.
+  **Fourteen of the fifteen are a suite or corpus size**, and in this program
+  rounds add tests and skills and delete neither. An equality on a monotone
+  number is a fact about the artefact AND the unrecorded moment it was read;
+  re-deriving it writes a fresh equality and restarts the same clock. **The
+  measured length of that clock is about eighteen rounds.**
+- **Repaired, all fifteen, each re-derived solo at HEAD and written as a
+  BOUND:** `bounded-not-binary-witness` 165→`>=230`;
+  `citation-registry-integrity` Ran 64→`>=112`; `colocated-model-lane`
+  276→`>=869` (125 s, so a 90 s cap reports it as a TIMEOUT — it took a
+  240 s pass to get a number); `content-pinned-acknowledgement` 62→`>=128`;
+  `kill-what-you-launched` 45→`>=46`; `measured-budget-sizing` 179→`>=230`;
+  `probe-where-the-rules-disagree` 22→`>=54`; `session-inheritance-audit`
+  43→`>=44`; `subprocess-cli-testing` 8→`>=21`; `skill-authoring` ×5 (Ran
+  458→`>=865`, 27→`>=86` skills at three sites, and the one that is NOT a
+  grown number: `--strict` claims `exit 0` and really **exits 1** with 3
+  warnings, false since at least round 441). **`0 error(s)` deliberately left
+  an EQUALITY** — errors move both ways and a bound there hides a repair as
+  readily as a regression.
+- **Where the rot is worst is where the rules are written.** Five of the
+  fifteen are in `skills/skill-authoring/SKILL.md`, whose block already
+  contains two paragraphs narrating its own past staleness and had gone stale
+  again underneath them.
+- **Instrument (`claim_check.py`, +188):** `claim_constraints()` reads four
+  floor spellings (`>=`, `≥`, `at least N`, `N+`) — it understood **zero**
+  before, so the bounds would have been prose; `claim_metrics()` keeps its
+  exact old signature because `state_claim_check.py:748` consumes it.
+  `--ledger` writes one JSON row per executed command, flushed per skill so a
+  kill keeps the prefix. `--budget N` stops executing at N seconds and reports
+  **every declined command by name as C006**, so a truncated sweep cannot read
+  as a clean one. **A floor is not a mute button:**
+  `test_a_floor_ABOVE_the_observation_is_still_a_finding` pins that `>= 9`
+  against an observed 7 is reported.
+- **Three ways a Verification block can be invisible, all three found and
+  fixed.** (1) `C005`, new: an expectation written as a bare output line
+  parses as a COMMAND, so the real command above it has an empty claim. Round
+  441 found ONE by hand, called it "a finding of its own", and never gave it a
+  detector — **the detector found a second immediately**
+  (`obligation-ledger:136`). (2) An INDENTED code block: round 458's
+  `number-belongs-to-its-runner` used one, so **claim_check parsed zero
+  commands from the newest skill in the corpus**; `skill_lint` H005 passes and
+  H006 stays silent (it needs a `references/*.md` to blame), and the only
+  thing that noticed was `test_claim_check.py::test_only_the_known_prose_
+  only_skills_parse_to_zero_commands`, **red since round 458 landed**, which
+  `--precommit` does not run. (3) A fenced block of sample output.
+- **Cost, measured for the first time:** `state/skills/round-459/claim-run.jsonl`,
+  **66 rows over 30 skills, 707 s of command time, 2 timeouts, 18 non-zero
+  exits of 66.** Five commands hold ~68 % of the 707 s (125 s, 96, 90, 90,
+  74). The tier is not expensive on average — it is expensive in a handful of
+  places, which is why an unbounded version is one nobody schedules.
+- **Three of the 17 C002s are the INSTRUMENT's fault:**
+  `copied-mirror-drift:179/184/185` all exit 4 (pytest usage error) because
+  the block's earlier `cd harness` leaves cwd in `harness/` while the paths
+  read `harness/tests/…`; the C004 gate resolves them against `repo_root` and
+  lets them through. Reported, not repaired.
+- **Predictions: 5 clean HITs, 1 split, 2 MISSes, 2 unresolvable-as-posed, 1
+  reported** (`state/skills/round-459/PREDICTIONS.md`, banked at `46a98c7`
+  before any run). **P3 is the instructive miss:** the bank reasoned
+  "monotone ⇒ it grew", but monotone only says it did not shrink — **only 5
+  of 15 moved in 18 rounds**, and the six that sat still are exactly the ones
+  where a fresh equality would have looked durable. **A direction is not a
+  rate**, and this round nearly wrote the kind of claim it was sent to repair.
+  P2 and P4 are unresolvable because the corpus-wide sweep was stopped at 23
+  of 86 skills to spend the rest of the budget on the 12 skills the repairs
+  needed; quoting 17-over-30 as 17-over-86 would have been cheaper and wrong.
+- **Skill (rule 5):** `skills/floor-not-equality-for-a-monotone-claim` — *a
+  documented expectation about a number that can only move one way belongs as
+  a bound in that direction.* 3 positive trigger cases + 1 NEGATIVE (the
+  two-sided `0 error(s)` case, because this skill's failure mode is
+  over-application), and a Verification block whose three commands were run as
+  written. Registered unprobed with an owner; the note deliberately does not
+  restate the batch count as a numeral, since rounds 457 and 458 each tripped
+  J005 doing exactly that.
+- **Tests:** `test_claim_check.py` at HEAD was **1 failed, 99 passed** (the
+  failure was round 458's, not this round's — verified by re-running it with
+  this round's `claim_check.py` stashed). Now **120 passed, 4 subtests, 9.56
+  s** — **+20 new tests** (floors, floor comparison, ledger, budget, C005)
+  and round 458's red fixed at its cause.
+  `skill_lint --house` on the new skill: 1 skill, 0 errors, 0 warnings.
+  `case_coverage`: **0 errors**. `selfdesc_check`: 0 errors, 0 warnings.
+- **Knowledge:** `knowledge/round-459-the-claims-that-only-drift-one-way.md`.
+
+## Next steps (as of round 459)
+
+1. **Nothing schedules the execution tier, and now there is no cost excuse.**
+   `--budget N` makes it a bounded job that reports what it declined.
+   `corpus_check.py` still does not pass `--run`, so the published coverage is
+   `0/413 commands`. The decision is now a number: ~700 s buys 30 skills, and
+   a 240 s cap is needed for `colocated-model-lane` alone. Either wire a
+   budgeted `--run` into a tier, or write down that it is deliberately
+   manual. skills(B) or harness(A).
+2. **The corpus-wide sweep has still never completed.** 30 of 87 skills
+   executed at HEAD across three passes. `fuzz-mutate-kill-loop` — round
+   441's 400 s outlier and the single largest unknown in the cost model —
+   was **not reached by any pass this round**. skills(B).
+3. **`copied-mirror-drift:179/184/185` are a real instrument bug**, not stale
+   claims: three commands run from the wrong cwd and exit 4, and `claim_check`
+   reports them as `C002`. The C004 gate resolves paths against
+   `[pending_cwd or cwd, repo_root]`; execution uses `cwd`. Whoever fixes it
+   should make the gate and the runner agree on ONE base list. skills(B).
+4. **Fourteen floors are now load-bearing and none of them has ever gone
+   red.** A floor that cannot fire is a deleted check. The cheapest proof is
+   the one this round did NOT run: point one floor at a suite with a
+   deselect, or temporarily delete a test, and confirm the C002 appears.
+   Until then the conversion is verified by unit test only. skills(B).
+5. **`skill_lint`'s H006 has a precondition it does not need.** It fires only
+   when a `references/*.md` carries the missing commands, so a Verification
+   section with NO fenced command and no `references/` dir — round 458's —
+   passes silently. Dropping the `moved` precondition and keeping it as
+   detail is a small change with a live case. skills(B).
+6. **`--precommit` does not run `test_claim_check.py`**, which is how a red
+   test survived a round boundary. Round 458 reported `9 checkers, 0 errors`
+   while leaving a corpus test red. Either the precommit set or the claim is
+   wrong. harness(A) or skills(B).
+7. **Round 458's items 1, 2, 3 and 5 stand, untouched by this round** —
+   `depthcensus.py` unwired into any tier, the harvester's 257-program
+   residual, `FULL_SHOW_NODES` vs `DEFAULT_MAX_DEPTH` being the same number
+   with nothing asserting it, and `self_eval.lang`'s `reify` depth bound.
+   language(C).
+8. **Round 457's items 2 and 3 stand** — the 12 % slow-tier recall ceiling
+   that nothing reports, and round 361's scoped freshness rescuing 3 units of
+   33. Round 457's item 5 is PARTLY closed: `known-unprobed-skills.json` has
+   not "stopped growing at round 451" — rounds 457, 458 and 459 each added
+   one, so that observation was already false when written. harness(A).
+9. **Older language(C) carries, NOT re-derived here** — round 456's items 3
+   and 9, and round 434's items 2-6 (the atom table's decided-precondition
+   risk, the 7 `append_only`/`refusal` residuals, CP03p, `classify` 161 vs
+   `checkpin run` 162), standing untouched for the eleventh round.
+   language(C).
+10. **`nproc` on this box is 1**, respected: the sweep ran with nothing else
+   in flight, which is the whole reason round 441 could not do the repair.
+   Round 441's 1104 s is contended and is an upper bound, not a runtime; this
+   round's 707 s is command time over 66 commands and is not comparable to it.
+   Do not put the two numbers in one column.
+11. **Standing, and not touched by this round:** the NUC `retention
+   --strict` deadline; the `%vmeff` residual; `case_coverage`'s 49-of-103
+   disagreeing verdicts; `selfdesc_check`'s prose-field coverage; and
+   CLAUDE.md's `CRITICAL MISSION` block, unresolved since round 408 and still
+   a one-line deletion for the operator. `languages/whence/SECURITY.md` is
+   still uncommitted, still not this program's, and still the operator's
+   decision — do not copy a carry count for it from this file; the record-gap
+   checker's own line is the only source.
+
 ### Round 458 — language(C) — 2026-09-02 — the depth that belonged to a runner
 
 - **Housekeeping (part 0):** landed `state/slow-tier-ledger.jsonl`, one

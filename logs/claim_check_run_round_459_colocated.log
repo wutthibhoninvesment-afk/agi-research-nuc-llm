@@ -1,0 +1,4 @@
+skills/colocated-model-lane/SKILL.md:135: STALE C002 claim says passed=276, observed passed=869
+claim_check: 1 skill(s), 3 command(s): 1 auto-checkable, 2 manual (network 2)
+claim_check: 0 uncommented expectation(s) invisible to the number tier; 0 command(s) declined by --budget; 125.4s elapsed
+claim_check: 0 path(s) resolved, 7 unresolvable-by-design (scratch/placeholder/output/unanchored); 1 stale claim(s) of 1 checked; coverage 0/7 paths, 1/3 commands

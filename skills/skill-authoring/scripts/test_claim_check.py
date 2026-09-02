@@ -949,6 +949,16 @@ class TestFloorClaims(unittest.TestCase):
         self.assertEqual(got["errors"], ("==", 0))
         self.assertEqual(got["skills"], (">=", 27))
 
+    def test_a_floor_works_on_a_PREFIX_shaped_metric(self):
+        # `\bRan (\d+) tests?\b` wants the number immediately after the word,
+        # so `Ran >= 865 tests` matched NOTHING and the claim degraded to
+        # `C003 unquantified` -- a floor that switches the check off. Round
+        # 459 shipped that bug into `skill-authoring`'s own block and its own
+        # after-pass caught it.
+        self.assertEqual(
+            claim_check.claim_constraints("expected: Ran >= 865 tests, OK"),
+            {"ran_tests": (">=", 865)})
+
     def test_a_less_than_is_not_read_as_a_floor(self):
         self.assertEqual(claim_check.claim_constraints("expected: <= 5 failed"),
                          {"failed": ("==", 5)})

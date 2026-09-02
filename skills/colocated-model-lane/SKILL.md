@@ -132,7 +132,8 @@ python3 nuc/fast_lane.py handoff ./olmoe_merged jab@box '~/models/olmoe' --key ~
 
 ## Verification
 ```bash
-perl -e 'alarm 300; exec @ARGV' python3 -m pytest -q nuc/tests           # 276 passed (incl. taskscript)
+perl -e 'alarm 300; exec @ARGV' python3 -m pytest -q nuc/tests           # >= 869 passed (round 459, incl. taskscript;
+#   takes ~125 s solo on a 1-core box, so a 90 s claim_check cap reports it as a TIMEOUT rather than a number)
 python3 nuc/fast_lane.py handoff ./olmoe_merged jab@box '~/m' | grep -c "'~"   # expected: 0
 python3 nuc/fast_lane.py handoff ./olmoe_merged jab@box '~/m' | grep -c 8001   # expected: 0
 ```

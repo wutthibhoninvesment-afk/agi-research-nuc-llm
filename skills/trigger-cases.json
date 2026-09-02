@@ -2429,5 +2429,31 @@
   "id": "nbir-neg-missing-denominator",
   "expect": [],
   "prompt": "Our nightly audit prints '0 stale entries' and everyone treats it as clean. I do not think it says how many entries it looked at, and I suspect on some nights it enters no tier at all and still prints zero. How should the summary line be written so that zero means something?"
+ },
+ {
+  "id": "floor-verif",
+  "expect": [
+   "floor-not-equality-for-a-monotone-claim"
+  ],
+  "prompt": "I'm adding a Verification block to a new SKILL.md. The command is `python3 -m pytest -q harness/tests/test_procreap.py` and it printed 46 passed just now. How should I write the expected line so it doesn't go stale the moment somebody adds a test?"
+ },
+ {
+  "id": "floor-stale",
+  "expect": [
+   "floor-not-equality-for-a-monotone-claim"
+  ],
+  "prompt": "Our doc checker just flagged eleven expected-output claims across the repo as stale. Every one of them says a smaller number than the suite actually prints now. I'm about to go through and update each one to the current count \u2014 anything I should do differently?"
+ },
+ {
+  "id": "floor-assert",
+  "expect": [
+   "floor-not-equality-for-a-monotone-claim"
+  ],
+  "prompt": "This test asserts `len(REGISTRY) == 103` on a registry we only ever append to, and it breaks every time anyone registers a new entry. What's the right assertion here?"
+ },
+ {
+  "id": "floor-neg-twosided",
+  "expect": [],
+  "prompt": "Our linter's summary line says `0 error(s), 0 warning(s)` and I want the README to document that as the expected clean state. Errors get introduced and fixed all the time. How should I write it?"
  }
 ]

@@ -720,47 +720,62 @@ EXIT_RE = re.compile(r"\bexit (\d+)\b")
 #
 # Four spellings, all found in this corpus's prose: `>= 207 passed`,
 # `\u2265 207 passed`, `at least 207 passed`, `207+ passed`.
-FLOOR_PREFIX_RE = re.compile(
-    r"(?:>=|\u2265|at least|no fewer than|minimum(?: of)?)\s*$", re.I)
-
-
-def _constraint_at(claim, m):
-    """`">="` if the number matched at `m` is written as a FLOOR, else `"=="`.
-
-    The 24-character lookbehind is a window, not a parse: it has to reach
-    over `expected: ` and a `**` or two without reaching back into the
-    PREVIOUS metric of a multi-metric claim (`0 error(s), >= 27 skill(s)`),
-    whose nearest neighbour in this corpus is 26 characters away.
-    """
-    before = claim[max(0, m.start(1) - 24):m.start(1)]
-    if FLOOR_PREFIX_RE.search(before):
-        return ">="
-    if claim[m.end(1):m.end(1) + 1] == "+":
-        return ">="
-    return "=="
-
-
-#: `207+ passed` never reaches `_constraint_at`, because `METRICS`'s
-#: `\b(\d+) passed\b` wants ONE space and finds `+ `. Normalising it here --
-#: on the CLAIM side only -- keeps the fourth spelling working without
-#: touching the regexes that also read a command's real output, where a
-#: trailing `+` would mean nothing. Caught by the test that asserted all four
-#: spellings, which is why all four were listed rather than the three that
-#: happened to work.
+FLOOR_MARK_RE = re.compile(
+    r"(?:>=|\u2265|at least|no fewer than|minimum(?: of)?)\s*(?=\d)", re.I)
+#: `207+ passed` -- the trailing spelling.
 PLUS_FLOOR_RE = re.compile(r"\b(\d+)\+(?=\s)")
 
 
+def _normalise_floors(claim):
+    r"""`(text with the floor markers removed, offsets of the marked digits)`.
+
+    Removing them is not cosmetic. `METRICS`'s prefix-shaped patterns --
+    `\bRan (\d+) tests?\b` -- want the number IMMEDIATELY after the word, so
+    `Ran >= 865 tests` matches nothing at all and the claim degrades to
+    `C003 unquantified`: a floor that silently switches the check OFF. This
+    round wrote exactly that bug into `skill-authoring`'s own block and its
+    own after-pass caught it, which is the pitfall the round's skill warns
+    about, committed by the round that wrote the warning.
+    """
+    text, offsets, last = [], set(), 0
+    for m in PLUS_FLOOR_RE.finditer(claim):
+        text.append(claim[last:m.start()])
+        offsets.add(sum(len(s) for s in text))
+        text.append(m.group(1))
+        last = m.end()
+    text.append(claim[last:])
+    claim, last, out, more = "".join(text), 0, [], set()
+    for m in FLOOR_MARK_RE.finditer(claim):
+        out.append(claim[last:m.start()])
+        more.add(sum(len(s) for s in out))
+        last = m.end()
+    out.append(claim[last:])
+    # Offsets from the first pass shift by however much the second pass cut
+    # before them; recompute rather than track, since both passes are rare.
+    joined = "".join(out)
+    shifted = set()
+    for off in offsets:
+        head = claim[:off]
+        shifted.add(off - sum(len(m.group(0)) for m in FLOOR_MARK_RE.finditer(head)))
+    return joined, more | shifted
+
+
 def claim_constraints(claim):
-    """Metric name -> (op, asserted integer), for every metric in `claim`."""
-    claim = PLUS_FLOOR_RE.sub(r">= \1", claim)
+    """Metric name -> (op, asserted integer), for every metric in `claim`.
+
+    `op` is `"=="` for a bare number and `">="` for a FLOOR. Four spellings:
+    `>= 230 passed`, `\u2265 230 passed`, `at least 230 passed`, `230+ passed`.
+    """
+    text, floors = _normalise_floors(claim)
     out = {}
     for name, rx in METRICS:
-        m = rx.search(claim)
+        m = rx.search(text)
         if m:
-            out[name] = (_constraint_at(claim, m), int(m.group(1)))
-    m = EXIT_RE.search(claim)
+            out[name] = (">=" if m.start(1) in floors else "==",
+                         int(m.group(1)))
+    m = EXIT_RE.search(text)
     if m:
-        out["exit"] = (_constraint_at(claim, m), int(m.group(1)))
+        out["exit"] = (">=" if m.start(1) in floors else "==", int(m.group(1)))
     return out
 
 
