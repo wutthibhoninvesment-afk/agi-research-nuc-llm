@@ -23570,7 +23570,7 @@ errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
   half not re-derived, so it is the half to distrust.
 - See `knowledge/round-450-the-promise-the-renderer-did-not-keep.md`.
 
-## Round 451 (harness A) — the checker that could not run, and the test that could not see it
+### Round 451 — harness(A) — 2026-09-02 — the checker that could not run, and the test that could not see it
 
 - **Inherited and landed round 450's whole final part** (`d72dc5b`). Round
   450 was killed by the driver's outer 3300 s timeout after parts 1-4 had
