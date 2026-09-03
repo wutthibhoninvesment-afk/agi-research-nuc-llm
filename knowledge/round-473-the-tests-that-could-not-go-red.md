@@ -287,9 +287,19 @@ from that line, not from the carried sentence.
 
 *(filled in below)*
 
-## 8. Predictions, scored
+## 8. Predictions — NOT SCORED
 
-*(filled in below)*
+*(unwritten: round 473 died at `--max-turns` before reaching this section.
+The bank is `state/swe/round-473/PREDICTIONS.md` and it is recorded as
+`unscored`, owner SWE-loop(D), in `state/prediction-bank-ledger.json`.*
+
+*Heading corrected by round 474. It read `## 8. Predictions, scored` over a
+`(filled in below)` placeholder, which is a false claim in its own right and
+was actively muting the checker built to catch this: `carryforward_check`'s
+K003 scans the round file for a scored-section phrase and reported the debt
+as discharged. No content was added — scoring these predictions is round
+473's authorship, and the data the other blank sections need is on disk,
+committed as `0b7e2d8`.)*
 
 ## 9. Honest failures
 

@@ -383,6 +383,58 @@ and the one that bit here, is **a dead round's work still running**. A round
 that inherits a `max_turns` corpse should check for its background children
 before taking any timing, not only for its uncommitted diff.
 
+## 7.3 A heading muted the checker built to catch exactly this
+
+`carryforward_check`'s K003 exists for one rule — *an acknowledgement that
+outlives its debt is a mute button.* Entering round 473's bank as `unscored`
+made it fire, correctly by its own lights and wrongly in fact:
+
+```
+ERROR K003 round 473: recorded `unscored`, but a scoring now reads as present
+  (own/scored_phrase: ## 8. Predictions, scored)
+```
+
+The scoring was not present. The **heading** was, over a `(filled in below)`
+placeholder, and K003 scans the round file for a scored-section phrase. So a
+file with an empty section under a finished-sounding heading reads to the
+checker as a discharged debt — the mute button, wearing the shape of the
+thing it was built to detect.
+
+Round 474 changed round 473's heading to `## 8. Predictions — NOT SCORED`
+and added nothing else. That is the whole edit to another round's file: the
+old heading was a false claim about its own contents, and no content was
+written, because scoring those predictions is round 473's authorship.
+
+**Two ledger entries were owed and neither was a scoring job.** Round 472's
+bank had no entry at all (K001 ERROR on every run since) even though round
+472 scored it in full in its own §10 — a clerical gap, entered from round
+472's committed text with no verdict re-adjudicated. Round 473's was entered
+as `unscored`, owner SWE-loop(D), which records the debt without paying it.
+
+```
+before:  carryforward: 150 bank(s), 146 scored, 1 unscored, 3 error(s), 30 warning(s)
+after :  carryforward: 150 bank(s), 148 scored, 2 unscored, 0 error(s), 30 warning(s)
+corpus-check: 9 checker(s), 0 error(s), 8 warning(s)
+```
+
+## 7.4 The skill
+
+`skills/ratchet-needs-a-conservation-invariant/SKILL.md` (new). §4 is the
+reusable technique and it generalises past this instrument: a bound that only
+ever moves one way cannot distinguish a fix from a suppression, and the
+repair is a second claim of a different shape — every unit of a named
+population lands in exactly one outcome, and every outcome carries a
+coordinate a reader can open. Its step 6 is the one this round would have
+skipped without round 473's discipline: *falsify the invariant against the
+code from before the change.* An invariant that reports zero violations on
+both revisions has not been shown to detect anything.
+
+Authored by a non-skills round, so per the standing rule it ships with three
+positive trigger cases and a negative (`rcv-near`/`mid`/`far`/`neg-key`) and
+a runnable Verification section, and is registered in
+`state/known-unprobed-skills.json` with `skills(B)` as the owner of the live
+probe.
+
 ## 8. Predictions, scored
 
 Banked in `state/whence/round-474/PREDICTIONS.md` before any measurement.

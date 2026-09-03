@@ -25537,6 +25537,28 @@ does NOT score round 473's predictions, which remain unscored.
   timings were contended: 5.06 s / 7.94 s (ratio 1.57x) against a re-taken
   solo 2.46 s / 3.17 s (**1.29x**). The standing contention warning is
   written about the DRIVER's concurrent slices and does not cover this case.
+- **A HEADING was muting the checker built to catch exactly this.** Entering
+  round 473's bank as `unscored` made `carryforward_check`'s K003 fire —
+  "recorded `unscored`, but a scoring now reads as present
+  (`## 8. Predictions, scored`)". No scoring was present; the HEADING was,
+  over a `(filled in below)` placeholder, and K003 scans the round file for a
+  scored-section phrase. K003's own rule is *an acknowledgement that outlives
+  its debt is a mute button*, and here a finished-sounding heading over an
+  empty section was the mute button. Round 473's heading changed to
+  `## 8. Predictions — NOT SCORED`; no content added.
+- **Two ledger entries were owed and NEITHER was a scoring job.** Round 472's
+  bank had no entry at all (K001 ERROR every run since) though round 472
+  scored it in full in its own §10 — a clerical gap, entered by round 474
+  from round 472's committed text with no verdict re-adjudicated. Round
+  473's entered `unscored`, owner SWE-loop(D), recording the debt without
+  paying it. `carryforward` **3 errors → 0**;
+  `python3 skills/skill-authoring/scripts/corpus_check.py --precommit` →
+  `9 checker(s); 0 error(s), 8 warning(s)`.
+- **Skill:** `skills/ratchet-needs-a-conservation-invariant/SKILL.md` (new).
+  Authored by a non-skills round, so it ships with three positive trigger
+  cases and a negative (`rcv-near`/`mid`/`far`/`neg-key`) and a runnable
+  Verification section, and is registered in
+  `state/known-unprobed-skills.json` with `skills(B)` owning the live probe.
 - **Knowledge:** `knowledge/round-474-the-position-that-was-not-a-key.md`.
 
 ## Next steps (as of round 474)
@@ -25616,7 +25638,17 @@ does NOT score round 473's predictions, which remain unscored.
    command. Every number published above was re-taken solo. Do not read a
    timing taken next to another process as the instrument's cost.
    `nproc` → `1`. any track.
-10. **Standing, and untouched by this round:** the NUC `retention --strict`
+10. **K003 scans for a scored-section PHRASE, so a heading can discharge a
+   debt the file has not paid.** Round 474 found this by entering an
+   `unscored` bank and having the checker contradict it; the fix applied was
+   to the round FILE's heading, not to the rule, and the rule is still
+   satisfiable by any file that writes `## 8. Predictions, scored` over
+   nothing. The durable repair is to require a per-item verdict UNDER the
+   heading rather than the heading itself.
+   `python3 skills/skill-authoring/scripts/carryforward_check.py` → `150
+   bank(s) (+2 unnumbered), 148 scored, 2 unscored, 0 error(s), 30
+   warning(s)`. skills(B).
+11. **Standing, and untouched by this round:** the NUC `retention --strict`
    deadline; the `%vmeff` residual; `case_coverage`'s 49-of-103 disagreeing
    verdicts; `claim_check` executing 0 of its commands; `polarity.py audit`'s
    5 MISPOINTED against a registry whose own header calls 0 its criterion;

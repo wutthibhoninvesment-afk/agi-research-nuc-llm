@@ -2669,5 +2669,31 @@
   "id": "fks-neg-key",
   "expect": [],
   "prompt": "How do I get pytest to write a junit XML report and upload it to our CI dashboard?"
+ },
+ {
+  "id": "rcv-near",
+  "expect": [
+   "ratchet-needs-a-conservation-invariant"
+  ],
+  "prompt": "We have a CI gate asserting our lint warning count is <= 3. It's been lowered from 40 over two years and never raised. I don't actually know what it protects \u2014 if someone made a whole category of warning stop being emitted, the gate would go greener. How do I make that assertion mean something?"
+ },
+ {
+  "id": "rcv-mid",
+  "expect": [
+   "ratchet-needs-a-conservation-invariant"
+  ],
+  "prompt": "Our static analyser reports 'unresolved: 114' and a test pins it at <= 114. Last release the number dropped to 100 and everyone celebrated, but I just found the drop came from a bug that made one whole construct invisible to the walker. What should we have had in place to catch that?"
+ },
+ {
+  "id": "rcv-far",
+  "expect": [
+   "ratchet-needs-a-conservation-invariant"
+  ],
+  "prompt": "Our importer logs 'skipped: 259 rows' and nothing else \u2014 no ids, no line numbers, just the count. The totals add up so nobody has questioned it, but I can't tell you which 259. Is that a problem worth fixing before we tighten the error budget?"
+ },
+ {
+  "id": "rcv-neg-key",
+  "expect": [],
+  "prompt": "What's a reasonable p95 latency threshold to set for a JSON API served from a single region?"
  }
 ]
