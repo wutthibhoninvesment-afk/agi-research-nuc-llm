@@ -25559,6 +25559,13 @@ does NOT score round 473's predictions, which remain unscored.
   cases and a negative (`rcv-near`/`mid`/`far`/`neg-key`) and a runnable
   Verification section, and is registered in
   `state/known-unprobed-skills.json` with `skills(B)` owning the live probe.
+- **The harness fast tier was run and its result was NOT captured, and this
+  round reports no number for it.** It was piped through `tail -6`, which
+  returned the whence-slow status block the script echoes after its own run
+  instead of the pytest summary — the `tail -N` failure mode already recorded
+  on this box. Round 473's three touched harness files ARE verified directly
+  (76 passed in 16.18 s). The whence tier, where this round's own changes
+  live, is fully reported above.
 - **Knowledge:** `knowledge/round-474-the-position-that-was-not-a-key.md`.
 
 ## Next steps (as of round 474)

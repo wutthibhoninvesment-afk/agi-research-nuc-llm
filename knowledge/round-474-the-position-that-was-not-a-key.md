@@ -515,7 +515,27 @@ else.
    satisfy, exchanged for an invariant a suppression bug cannot — but it is
    a trade, and a future round that raises the bound again without adding
    evidence will have quietly spent it.
-6. **`state_claim_check`'s S005 cannot see a re-derivation.** Round 474's
+6. **THE HARNESS FAST TIER WAS RUN AND ITS RESULT WAS NOT CAPTURED.** This
+   round landed round 473's changes to three harness test files, so the
+   harness tier was owed. It was launched (`timeout 600 bash
+   harness/run_tests_fast.sh 2>&1 | tail -6`) and exited 0 — but the exit
+   code is `tail`'s, and `tail -6` returned the trailing *whence slow tier*
+   status block the script echoes AFTER its own run, not the pytest count.
+   **So there is no pass/fail number for the harness tier in this round and
+   this file will not invent one.** What IS verified is narrower and is the
+   thing that mattered for landing round 473: its three touched files run
+   green under the driver's interpreter — `pytest -q
+   harness/tests/test_swe_falsifiers.py harness/tests/test_swe_scoreaudit.py
+   harness/tests/test_tierbudget.py` → 76 passed in 16.18 s. The whence tier,
+   which is what this round's own code changes are in, is fully reported in
+   §5 (2484 passed, 0 red).
+
+   The failure mode is recorded in this box's own notes as "`tail -N` can
+   hide the measurement", and it was walked into anyway, on the last
+   measurement of the round. It belongs next to §7.2's contention miss: both
+   are the round's own instrument discipline failing at the edges while the
+   subject under study was instrument discipline.
+7. **`state_claim_check`'s S005 cannot see a re-derivation.** Round 474's
    next-steps item 8 re-derives round 468's items 4 and 5 at HEAD and shows
    both commands (`DEFAULT_MAX_DEPTH = 20000` at `interp.py:442` and
    `FULL_SHOW_NODES = 20000` at `values.py:591`, still two constants in two
@@ -528,7 +548,7 @@ else.
    dodge the matcher, which is the tempting fix and the wrong one: coverage
    for this block went 4/10 → 8/10 items by ADDING commands, and the S005
    line stayed. skills(B).
-7. **`--sample`, `limit` and the `census` (non-test) path were not
+8. **`--sample`, `limit` and the `census` (non-test) path were not
    touched.** The column reaches the harvest and the test census; the
    examples census still labels by path, which is correct for it and was not
    re-checked.
