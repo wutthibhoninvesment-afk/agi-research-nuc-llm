@@ -1,6 +1,6 @@
 ---
 name: prediction-banking
-description: Use when the user is about to benchmark, optimize, A/B test, or experiment whose result will be compared with an expectation, and wants that expectation written down BEFORE the numbers exist so the result can be scored honestly. Symptoms: speedup estimates that are always 2–4× off; "did the optimization actually work or is this wishful thinking"; nobody agreed beforehand what would count as a win; "how confident should we be in this number"; "write down what we expect first". Covers a predictions file with explicit bands, two band classes (computed quantities: narrow bands centred on the computation; machine-state quantities: warm/cold branches, wide bands), lower bound = the floor worth betting on, base-rate bets, amendments logged before the measurement, and HIT/MISS scoring that names each miss's mechanism. NOT for statistical or ML forecasting, prediction-market code, or reporting an existing measurement; if no number will be measured and then compared with an expectation, this skill does not apply.
+description: Use when the user is about to benchmark, optimize, A/B test, or experiment whose result will be compared with an expectation, and wants that expectation written down BEFORE the numbers exist so the result can be scored honestly. Symptoms: speedup estimates that are always 2–4× off; "did the optimization actually work or is this wishful thinking"; nobody agreed beforehand what would count as a win; "write down what we expect first". Covers a predictions file with explicit bands, two band classes (computed: narrow bands centred on the computation; machine-state: warm/cold branches), lower bound = the floor worth betting on, base-rate bets, amendments logged before the measurement, a STRUCTURAL/RATE tag per line, a read-set, and HIT/MISS scoring a parser checks against the table it came from. NOT for statistical or ML forecasting, prediction-market code, or reporting an existing measurement; if no number will be measured and then compared with an expectation, this skill does not apply.
 ---
 
 # Banking predictions before measuring
@@ -189,7 +189,76 @@ and only needs reporting; one-off numbers nobody will act on.
     that will settle it, and that command is runnable before the work
     starts.
 
-13. **Turn the miss pattern into a rule, once.** After scoring, look at the
+14. **Tag every line STRUCTURAL or RATE, and a structural line with a
+    COUNT in it is a RATE.** "The class has 13 live instances and they all
+    share a mechanism" is two predictions: one about the mechanism, one
+    about the number, and only the first is structural. Round 468 of this
+    program made the rule from one bank. Round 471 tested it over the whole
+    corpus — **1 528 scored prediction rows in 111 files, every bank the
+    ledger records** — and it holds with room to spare:
+
+        rows whose text contains an integer   1 081 rows   67.3 %
+        rows with no integer                    447 rows   79.0 %
+        gap -11.6 points, z = -4.48, two-sided p < 0.0001
+
+    A count does not merely add risk, it costs about **a sixth of your hit
+    rate**. Bank it as a rate: a band, a counter, and the arithmetic it came
+    from. Checkable outcome: every line carries `STRUCTURAL` or `RATE`, and
+    no line tagged `STRUCTURAL` contains a number.
+
+15. **Say whether you have READ the thing you are predicting about, in the
+    line, and keep a read-set at the top of the bank.** Round 470 observed
+    that the only structural line in its bank that HIT was the one whose
+    subject its own §0.1 recorded as already opened, and proposed the rule.
+    Round 471 tested the nearest mechanical proxy the corpus records — does
+    the prediction's text name a repo path — over all 1 528 rows:
+
+        rows naming a repo path      95 rows   59.8 %
+        rows naming none          1 433 rows   71.5 %
+        gap -11.7 points, z = -2.39, two-sided p = 0.017
+
+    and it survives stratification by step 14's integer test, so it is not
+    the count effect wearing a hat:
+
+                        has an integer      no integer
+        names a path    53.3 % (n=60)       71.9 % (n=32)
+        no path         68.2 % (n=981)      79.6 % (n=401)
+
+    Read that carefully before believing it: naming a file is a proxy for
+    *betting on a specific mechanism in specific code*, not for having read
+    it, and 95 rows is a small cell. What it supports is the weaker,
+    sufficient claim — **a prediction about the internals of a named artefact
+    is the most expensive kind you can write**, and the bank should say
+    whether you opened it. Write a `## 0.1 What had already been looked at`
+    section listing READ and NOT READ, and tag each structural line against
+    it.
+
+    This practice is older than the rule. `bank_audit.py bank` over the 125
+    banks on disk finds **13** that declare some form of read-set (rounds
+    384, 386, 387, 398, 401, 407, 411, 428, 438, 446, 456, 470 and 471) —
+    round 471 predicted 1-3, having derived its baseline from a grep for the
+    single phrase round 470 happened to use. *A baseline scoped to one
+    phrasing is not a measurement of the population.*
+
+16. **Score the bank with a parser, not by eye — your headline is a
+    sentence and your table is data.** Round 471 walked every scored bank
+    the ledger records and compared each round's published HIT count against
+    the table in the file it cites. Six banks disagreed with the same row
+    count on both sides; five are real miscounts (rounds 112, 374, 393, 400
+    and 428, each off by exactly one prediction) and one is a labelling
+    convention (round 437 counts a "HIT with a correction" as a split).
+    Three more headlines do not sum to their own "of N" (rounds 380, 414,
+    416); round 380's says `11 HIT, 2 HALF, 3 MISS of 14` where the terms
+    sum to 16 and the table holds **8** hits.
+
+    Eight of 145 published scores are wrong, and — this is the reassuring
+    half — **the errors split three understating and three overstating.**
+    It is arithmetic, not self-flattery. But every one of them was copied
+    into `state/prediction-bank-ledger.json` verbatim and would have been
+    quoted forward. Checkable outcome: the parser's tally and your headline
+    agree before the headline is written.
+
+17. **Turn the miss pattern into a rule, once.** After scoring, look at the
    misses together: optimism clustered on machine-state timings → the
    warm/cold rule; misses on the upside after an optimism lesson →
    over-padding; "P1 missed by a hair" → lower-bound-at-point-estimate.
@@ -234,6 +303,22 @@ and only needs reporting; one-off numbers nobody will act on.
   re-centres every band above it and the bank still scores well. Sweep
   baselines by what they DERIVE FROM — a corpus rate drifts every round, a
   constant does not — and re-run the corpus ones.
+- **A headline that does not sum to its own table.** The cheapest defect
+  in this whole skill and the one that survives longest, because a scored
+  bank looks finished. Three of this program's rounds published a tally
+  whose own terms do not add up to the total in the same sentence, and five
+  more published a HIT count their own table contradicts. Nobody noticed
+  for up to 91 rounds. Count the rows.
+- **A baseline scoped to one phrasing, then used to predict a population.**
+  Round 471 grepped for the exact sentence round 470 had used, found one
+  bank, and banked "1-3 banks corpus-wide". Thirteen banks had been
+  declaring their read-set for eighty rounds under other words. The
+  absence you measured is the absence of your query, not of the thing.
+- **A structural prediction about code you have not opened.** It scores
+  like a guess because it is one — see step 15 — and it is the most
+  seductive line in any bank, because the mechanism you imagine is always
+  cleaner than the one on disk.
+
 - **Bands so loose they can't miss** ("wall time 1–60 min") prove
   nothing; if a computable effect gets a 3× band, the computation was
   skipped.
@@ -269,6 +354,31 @@ print('%d of %d rounds recorded; median %.1f min; p25-p75 %.1f-%.1f min'
 # it printed `232 of 276 rounds recorded; median 20.9 min; p25-p75
 # 11.4-34.3 min`. The numbers WILL drift; that is the point of the command.
 ```
+
+```bash
+# Round 471's instrument. Audits ONE bank against the mechanical half of
+# every step above, and walks the whole corpus for scoring defects.
+python3 skills/prediction-banking/scripts/bank_audit.py bank \
+    state/skills/round-471/PREDICTIONS.md
+#   [x] banked_before / baseline_command / class_tag / rate_rule_468
+#   [x] read_set_470 / no_basis / counter_named        [-] = not applicable
+python3 skills/prediction-banking/scripts/bank_audit.py rows knowledge/round-NNN-*.md
+#   one line per scored prediction; the tally must equal your headline
+python3 skills/prediction-banking/scripts/bank_audit.py corpus     # ~20 s
+#   sections A/B/C are the scoring cross-checks, D/E the two rules above,
+#   F the drift. At round 471: 1528 rows, 70.8% lifetime, median bank 73.5%,
+#   p25-p75 63.3-82.1%, first-30-files 66.1% vs last-30 72.5%.
+# Compliance of the corpus with this file's own rules, by era:
+python3 skills/prediction-banking/scripts/bank_audit.py bank --quiet \
+    'state/*/round-*/PREDICTIONS.md' 'state/round-*-predictions.md'
+#   125 banks: banked_before 66%, baseline_command 48%, class_tag 54%,
+#   no_basis 14%, contention 28% of the 46 with a duration band.
+#   Restricted to banks from round 449 on: 100%, 74%, 53%, 58%, 60%.
+#   WRITING THE RULE DOWN IS WHAT MOVED THEM -- except class_tag, which is
+#   flat at ~55% and is the one this file has never made checkable.
+python3 -m pytest -q skills/prediction-banking/scripts/test_bank_audit.py
+```
+
 - [ ] Every quantity has a class tag and a band derived from a number in the file
 - [ ] Every baseline row carries the command that produced it, run this session
 - [ ] Amendments are timestamped and precede their measurement
@@ -285,3 +395,9 @@ print('%d of %d rounds recorded; median %.1f min; p25-p75 %.1f-%.1f min'
       under (solo, or under an N-way concurrent run)
 - [ ] Every count line names its counter and carries the command that
       settles it
+- [ ] Every line is tagged STRUCTURAL or RATE, and no STRUCTURAL line
+      contains a number
+- [ ] The bank has a read-set section, and every structural line says
+      whether its subject is in the READ half
+- [ ] `bank_audit.py rows` over the scored file tallies to the headline you
+      published, and the headline's own terms sum to its own "of N"

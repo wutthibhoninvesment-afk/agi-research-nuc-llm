@@ -1,0 +1,150 @@
+== corpus ==
+scored banks in ledger      : 145
+distinct files cited        : 134
+files yielding >=1 row      : 111
+files claimed by >1 bank    : 11 [('round-026-whence-v08-chain-w', [24, 26]), ('round-106-nuc-e4-fast-lane-i', [100, 106]), ('round-109-harness-completion', [31, 109]), ('round-131-swe-loop-campaign-', [125, 131]), ('round-346-nuc-e-deleted-vs-n', [340, 346]), ('round-371-the-signal-that-co', [23, 371]), ('round-378-the-deferral-that-', [362, 368, 378]), ('round-387-the-replay-that-co', [386, 387]), ('round-407-the-verdict-that-w', [401, 407]), ('research-state-archive.md', [15, 17, 25, 27, 29, 30, 105, 112, 123, 129, 135, 139]), ('research-state.md', [346, 358, 361, 365, 367, 413])]
+prediction rows parsed      : 1528  (deduped by file:line)
+tally                       : {'HIT': 990, 'MISS': 378, 'OTHER': 54, 'HALF': 106}
+lifetime hit rate           : 70.8% over 1474 scorable rows
+per-file rate (>=3 rows, 110 files): median 73.5%  p25-p75 63.3-82.1%  min 0.0% (round-458-the-depth-that-belonged-)  max 100.0% (round-373-adjudicated-is-not-unatt)
+
+== A. headline whose own terms do not sum to its own 'of N' (5) ==
+  round-369-the-obligation-with-no-registry.md         terms=8 'of 12'
+      **6 clear misses, 1 partial, 1 not established, 1 unresolved, of 12.** The pattern: every miss about the HISTO
+  round-380-the-precondition-that-was-a-grep.md        terms=16 'of 14'
+      **11 HIT, 2 HALF, 3 MISS of 14** (P11 pending §8).
+  round-414-the-probe-that-agreed-with-both-rules.md   terms=14 'of 13'
+      Its bank is scored in this round's research-state entry for round 413 — **10 HIT / 1 PARTIAL / 1 MISS / 2 UNSC
+  round-416-the-direction-nobody-mutated.md            terms=11 'of 10'
+      By class: mechanism 3/5, outcome 7 HIT / 1 PARTIAL / 3 MISS of 10.**
+  round-426-the-precondition-that-was-a-sentence.md    terms=31 'of 18'
+      Measured cost: 16 of 93 checks that actually went red are discarded by the filter on `self_host.lang`, and the
+
+== B. headline HIT count vs the table in the SAME file (25) ==
+  round-105-skills-baseline-diff-regression-catc table 10 HIT of 13 rows | headline 11 HIT of 15
+      Ledger: **P 11 HIT / 4 MISS** (P3b, P6, P8, P12-recall), A 1/1 (P7 as amended).
+  round-112-nuc-e4-verdict-e5-errand-taskscript. table  5 HIT of 12 rows | headline 67 HIT of 67
+      M1 HIT (identical md5s), M2 HIT (4.0 min / 3.67 GB), M3 shard 1 **MISS** (33.7 vs 40–70 MB/s) / shar
+  round-358-nuc-e-the-witness-that-claimed-too-m table 10 HIT of 14 rows | headline 11 HIT of 15
+      Final tally: **11 HIT, 1 MISS, 3 UNRESOLVED**.
+  round-369-the-obligation-with-no-registry.md   table  3 HIT of 12 rows | headline  0 HIT of  8
+      **6 clear misses, 1 partial, 1 not established, 1 unresolved, of 12.** The pattern: every miss about
+  round-380-the-precondition-that-was-a-grep.md  table  8 HIT of 13 rows | headline 11 HIT of 16
+      **11 HIT, 2 HALF, 3 MISS of 14** (P11 pending §8).
+  round-381-the-verdict-that-was-one-draw.md     table 18 HIT of 31 rows | headline 20 HIT of 35
+      **20 HIT, 10 MISS, 1 HALF, 3 VOID, 1 UNSCORED of 35.**
+  round-382-nuc-e-the-fixture-that-expired-and-t table 10 HIT of 18 rows | headline 11 HIT of 19
+      **11 HIT, 5 HALF, 3 MISS of 19.**
+  round-384-the-cure-that-was-never-rendered.md  table 10 HIT of 16 rows | headline 11 HIT of 17
+      **11 HIT, 2 HALF, 4 MISS of 17.**
+  round-385-the-tier-that-was-a-name-not-a-cost. table  8 HIT of 15 rows | headline  9 HIT of 16
+      **9 HIT, 3 HALF, 4 MISS of 16** (P1-P15, with P4 split).
+  round-402-the-binding-table-that-knew-whether- table 12 HIT of 15 rows | headline 14 HIT of 16
+      **14 HIT, 1 MISS, 1 unscorable-by-my-own-ordering, of 16.**
+  round-411-the-second-door-that-skipped-the-gat table  9 HIT of 17 rows | headline  6 HIT of 13
+      **outcome 6 HIT, 2 HALF, 5 MISS of 13
+  round-418-nuc-e-the-eviction-the-promise-chann table 17 HIT of 20 rows | headline 16 HIT of 19
+      `nuc/predictions-e-round418.md`, 22 items. **16 HIT, 1 PARTIAL, 2 MISS, 3 DISCLOSED-as-bookkeeping**
+  round-426-the-precondition-that-was-a-sentence table 11 HIT of 18 rows | headline 16 HIT of 20
+      Scored against `run-plus.json`, the run the bank was written for. **16 HIT, 4 MISS**, and every miss
+  round-431-the-checker-that-was-clean-and-the-e table 15 HIT of 21 rows | headline 16 HIT of 22
+      **16 HIT (one bounded), 4 MISS, 2 PARTIAL of 22.** The two that matter are A6 and E3, and they are t
+  round-432-the-one-hop-that-decided-one.md      table 15 HIT of 21 rows | headline 13 HIT of 19
+      **13 HIT (two vacuous and disclosed), 5 MISS, 1 PARTIAL of 19.** The two that matter are C4 and E3, 
+  round-437-the-timeout-that-was-not-a-differenc table  5 HIT of 10 rows | headline  4 HIT of 10
+      **4 hit, 5 miss, 1 split.** The misses are the round: D1/D3/D4 were all downstream of accepting roun
+  round-438-the-criterion-that-passed-in-the-cir table  4 HIT of  8 rows | headline  5 HIT of  9
+      **Score: 5 HIT, 2 MISS, 2 banked as no-basis and reported, of 9.**
+  round-446-the-rule-and-the-predicate-that-test table  4 HIT of  6 rows | headline  5 HIT of  7
+      Banked in `state/whence/round-446/PREDICTIONS.md` before measuring. **5 HIT, 1 MISS, 1 PARTIAL, 1 ab
+  round-448-the-deadline-that-was-not-a-calendar table 13 HIT of 17 rows | headline 17 HIT of 21
+      Written before the first `ssh`, before `retention` was run, and before `capture_plan`'s body was ope
+  round-454-the-observation-that-bought-ignoranc table  7 HIT of 10 rows | headline  6 HIT of  9
+      **6 HIT, 1 PARTIAL, 2 MISS of 9.**
+  round-455-the-check-that-belonged-to-another-t table  8 HIT of 12 rows | headline  7 HIT of 11
+      Banked in `state/swe/round-455/PREDICTIONS.md` before any of section 3-5 was measured. **7 hits, 3 m
+  round-459-the-claims-that-only-drift-one-way.m table  7 HIT of 11 rows | headline  0 HIT of  5
+      **5 clean HITs, 1 split, 2 MISSes, 2 unresolvable-as-posed, 1 reported.**
+  round-464-the-definition-that-was-a-citation-o table  9 HIT of 11 rows | headline  6 HIT of  8
+      * **1 quote occurs TWICE in its `where` file** (round 421, `**6 hits, 2 misses.**`).
+  round-468-the-counter-that-could-only-be-belie table  7 HIT of 13 rows | headline  4 HIT of  8
+      **It did not.** §1 scored 4 HIT / 3 MISS / 1 PARTIAL
+  round-469-the-tier-that-had-no-slot.md         table  6 HIT of 10 rows | headline  4 HIT of  8
+      The eight with counts went 4 HIT / 3 MISS / 1 PARTIAL.
+
+== C. ledger quote vs the cited file's table -- CONFIRMED (same row count, different HIT count) (6) ==
+  r112  round-112-nuc-e4-verdict-e5-errand-tasks table  5 HIT of 12 | quote  6 HIT of 12
+      R1–R12): **6 HIT / 6 MISS**
+  r374  round-374-a-fix-inherits-the-shape-of-it table 10 HIT of 11 | quote  9 HIT of 11
+      9 HIT / 2 MISS
+  r393  round-393-the-repeats-that-were-one-draw table  9 HIT of 15 | quote  8 HIT of 15
+      Predictions scored — 8 HIT / 1 HALF / 6 MISS
+  r400  round-400-nuc-e-the-archive-that-predate table 18 HIT of 23 | quote 17 HIT of 23
+      **17 HIT / 6 MISS of 23 scored.**
+  r428  round-428-the-decider-that-answered-a-di table  4 HIT of 15 | quote  5 HIT of 15
+      **5 HIT, 3 PARTIAL, 7 MISS of 15.**
+  r437  round-437-the-timeout-that-was-not-a-dif table  5 HIT of 10 | quote  4 HIT of 10
+      **4 hit, 5 miss, 1 split.**
+
+== C. ledger quote vs the cited file's table -- CANDIDATE (row counts differ too) (20) ==
+  r105  round-105-skills-baseline-diff-regressio table 10 HIT of 13 | quote 11 HIT of 15
+      - **Predictions 11 HIT / 4 MISS**
+  r373  round-373-adjudicated-is-not-unattribute table  9 HIT of  9 | quote 10 HIT of 10
+      10 HIT / 0 MISS, plus one supplementary HIT
+  r380  round-380-the-precondition-that-was-a-gr table  8 HIT of 13 | quote 11 HIT of 16
+      **11 HIT, 2 HALF, 3 MISS of 14**
+  r381  round-381-the-verdict-that-was-one-draw. table 18 HIT of 31 | quote 20 HIT of 35
+      **20 HIT, 10 MISS, 1 HALF, 3 VOID, 1 UNSCORED of 35.**
+  r382  round-382-nuc-e-the-fixture-that-expired table 10 HIT of 18 | quote 11 HIT of 19
+      **11 HIT, 5 HALF, 3 MISS of 19.**
+  r384  round-384-the-cure-that-was-never-render table 10 HIT of 16 | quote 11 HIT of 17
+      **11 HIT, 2 HALF, 4 MISS of 17
+  r385  round-385-the-tier-that-was-a-name-not-a table  8 HIT of 15 | quote  9 HIT of 16
+      **9 HIT, 3 HALF, 4 MISS of 16
+  r402  round-402-the-binding-table-that-knew-wh table 12 HIT of 15 | quote 14 HIT of 16
+      **14 HIT, 1 MISS, 1 unscorable-by-my-own-ordering, of 16.**
+  r411  round-411-the-second-door-that-skipped-t table  9 HIT of 17 | quote  6 HIT of 13
+      outcome 6 HIT, 2 HALF, 5 MISS of 13
+  r418  round-418-nuc-e-the-eviction-the-promise table 17 HIT of 20 | quote 16 HIT of 19
+      16 HIT, 1 PARTIAL, 2 MISS,
+  r431  round-431-the-checker-that-was-clean-and table 15 HIT of 21 | quote 16 HIT of 22
+      **16 HIT (one bounded), 4 MISS, 2 PARTIAL of 22.**
+  r432  round-432-the-one-hop-that-decided-one.m table 15 HIT of 21 | quote 13 HIT of 19
+      **13 HIT (two vacuous and disclosed), 5 MISS, 1 PARTIAL of 19.**
+  r436  round-436-the-population-the-regex-chose table 18 HIT of 28 | quote 21 HIT of 36
+      **21 HIT / 2 PARTIAL / 7 MISS / 6 unevaluable, of 36.**
+  r438  round-438-the-criterion-that-passed-in-t table  4 HIT of  8 | quote  5 HIT of  9
+      **Score: 5 HIT, 2 MISS, 2 banked as no-basis and reported, of 9.**
+  r443  round-443-the-race-that-was-not-schedula table 10 HIT of 10 | quote 11 HIT of 12
+      **11 HIT, 0 MISS, 1 deliberate omission of 12**
+  r446  round-446-the-rule-and-the-predicate-tha table  4 HIT of  6 | quote  5 HIT of  7
+      **5 HIT, 1 MISS, 1 PARTIAL, 1 abstention honoured, of 7 + 1.**
+  r448  round-448-the-deadline-that-was-not-a-ca table 13 HIT of 17 | quote 17 HIT of 21
+      **17 HIT / 1 MISS / 1 PARTIAL / 2 no-basis-reported of 21 scoreable.**
+  r454  round-454-the-observation-that-bought-ig table  7 HIT of 10 | quote  6 HIT of  9
+      **6 HIT, 1 PARTIAL, 2 MISS of 9.**
+  r455  round-455-the-check-that-belonged-to-ano table  8 HIT of 12 | quote  7 HIT of 11
+      **7 hits, 3 misses, 1 unresolvable-as-posed.**
+  r459  round-459-the-claims-that-only-drift-one table  7 HIT of 11 | quote  0 HIT of  5
+      **5 clean HITs, 1 split, 2 MISSes, 2 unresolvable-as-posed, 1 reported.**
+
+== D. round 468's rule ==
+  yes: round 468: a COUNT in the pr   1081 rows  67.3% over 1041
+  no                                   447 rows  79.0% over 433
+  gap -11.6 points   z = -4.48   two-sided p = 0.0000
+
+== E. round 470's rule, through the only proxy on disk ==
+  yes: round 470 proxy: the text NA     95 rows  59.8% over 92
+  no                                  1433 rows  71.5% over 1382
+  gap -11.7 points   z = -2.39   two-sided p = 0.0168
+
+== E2. 2x2: is the path effect just the count effect again? ==
+                         has an integer           no integer
+  names a path           53.3% (n=60)             71.9% (n=32)
+  no path                68.2% (n=981)            79.6% (n=401)
+
+== F. drift, by round of the FILE (not of the bank) ==
+  first 30 files  r26-r375   346 rows  66.1% over 323
+  last 30 files   r437-r470   331 rows  72.5% over 313
+
+wrote logs/round-471-corpus.json

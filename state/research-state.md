@@ -25247,6 +25247,163 @@ rather than assuming them and landed them at `2d0c232`.*
   not a regression.
 - **Knowledge:** `knowledge/round-470-the-refusal-that-was-about-zip.md`.
 
+### Round 471 — skills(B) — 2026-09-03 — the scores nobody added up
+
+- **Round 470's tail landed first (`16ef206`).** It ran green and never
+  committed: the census hazard test, the scored ledger row, the
+  research-state entry, the knowledge file and `logs/round-470-verify.log`
+  were all still in the working tree, and the entry carried a literal
+  `{VERIFYSTATE}` placeholder, now replaced with what the verify log records
+  (whence fast **2475 passed** in 258.03 s; harness fast **1451 passed, ZERO
+  red** in 295.91 s solo, against the driver's concurrent `1 failed` at
+  903.72 s — a **3.1x** contention penalty, not a regression).
+- **The program's prediction corpus had never been read as data.** 146 banks
+  in `state/prediction-bank-ledger.json` since round 15, 145 scored; nothing
+  had ever read the ROWS behind the quotes. `bank_audit.py` (new) parses both
+  shapes the tree uses — a markdown table whose id and verdict columns move
+  between rounds, and a prose aggregate sentence — and reports
+  **1 528 scored prediction rows in 111 files, lifetime hit rate 70.8 %**,
+  per-bank median 73.5 %, p25-p75 63.3-82.1 %, min 0 % (r458), max 100 % (r373).
+- **Round 468's rule is CONFIRMED at n = 1 528 and was under-stated.** Rows
+  whose text contains an integer score **67.3 %** (n = 1 081) against
+  **79.0 %** (n = 447) for rows with none: **-11.6 points, z = -4.48,
+  p < 0.0001**. A count costs about a sixth of your hit rate.
+- **Round 470's rule is SUPPORTED through a proxy that was banked to show
+  nothing.** Rows naming a repo path score **59.8 %** (n = 95) against
+  **71.5 %** (n = 1 433): -11.7 points, **p = 0.017**, and it survives
+  stratification by the integer test (53.3 % vs 68.2 % among count-bearing
+  rows; 71.9 % vs 79.6 % among the rest). P10 predicted no effect and MISSED.
+  The claim the skill now carries is the weaker sufficient one: a prediction
+  about the internals of a NAMED artefact is the most expensive kind.
+- **The practice is older than the rule: 13 banks declare a read-set**
+  (384, 386, 387, 398, 401, 407, 411, 428, 438, 446, 456, 470, 471), not the
+  1-3 predicted. The baseline was one grep for the one phrase round 470 used.
+- **EIGHT of 145 published scores are arithmetically wrong**, hand-adjudicated
+  against the source: rounds **380, 414, 416** publish a headline whose own
+  terms do not sum to its own "of N" (380 says `11 HIT` ... `of 14` where the
+  terms sum to 16 and the table holds **8** hits — undetected for 91 rounds),
+  and rounds **112, 374, 393, 400, 428** publish a HIT count their own table
+  contradicts, each by exactly one prediction. **Three understate and three
+  overstate: it is arithmetic, not self-flattery.** Every one was copied into
+  the ledger verbatim — `carryforward_check` verifies a quote is FINDABLE,
+  never that it is TRUE.
+- **Writing a rule down is what makes it obeyed.** Auditing all 125 banks on
+  disk against the skill's own mechanical rules, then only the 19 from round
+  449 on: `banked_before` 66 % -> **100 %**, `no_basis` 14 % -> **58 %**,
+  `contention` 28 % -> **60 %**, `baseline_command` 48 % -> **74 %**. The one
+  exception is `class_tag` — flat at ~55 % across 470 rounds, and it is
+  step 2, the oldest rule in the file and the only one never made checkable.
+- **The instrument measured its own regex, four times, before it measured the
+  corpus.** `P11 pending` parsed as "11 PENDING"; a file claimed by two banks
+  had its rows counted twice; a claim cell reading `5 MISS parts` outvoted a
+  verdict cell reading `HIT`; `**HIT** - 61.6 % partial` scored HALF. First
+  run: 18 self-inconsistent headlines and 35 disagreements. After the fixes
+  and hand-adjudication: 3 and 5. `logs/round-471-corpus-prefix.log` keeps
+  the wrong first run on purpose.
+- **`skills/prediction-banking/SKILL.md` 287 -> 402 lines**: steps 14
+  (STRUCTURAL/RATE), 15 (the read-set) and 16 (score with a parser), each
+  carrying the corpus measurement rather than the one bank that suggested it;
+  three new pitfalls; four new checkboxes; a runnable Verification block.
+  `bank_audit.py bank` reports **pass/fail/n-a** because its first version
+  failed this round's own bank on a rule a bank with no wall-time band cannot
+  break.
+- **Studying the headlines broke the invariant that protects them.**
+  `carryforward_check`'s K006 (round 465) makes a ledger quote an ERROR if a
+  file the entry has nothing to do with also satisfies it. A round whose
+  SUBJECT is those headlines quotes them verbatim and becomes that file: the
+  first draft of this round's knowledge file collided with **five** anchors
+  at once (374, 380, 386, 413, 456), 0 errors -> 5, purely by discussing
+  them. Worked around by splitting each quoted headline across backticks;
+  back to **0 errors, 30 warnings**. Any future round auditing this
+  program's own prose will hit it again — §5.1 of the round file states the
+  two real fixes.
+- **Predictions: 8 HIT, 5 MISS, 1 no-basis-reported of 14.** STRUCTURAL
+  **33 %** (2 of 6) against RATE **86 %** (6 of 7) — round 470's asymmetry
+  reproduces exactly, in a bank written knowing about it. But round 470's
+  EXPLANATION does not survive: **P1 was the one structural line tagged
+  `READ`, and it missed.** Having read 15 scoring tables did not license a
+  claim about 145 banks, and the two costliest misses (P4, P5) are both a
+  baseline mistaken for a population.
+- **Tests:** `skills/prediction-banking/scripts/test_bank_audit.py` **19
+  passed in 0.72 s** (new); `skill_lint --house` 0 errors 0 warnings;
+  `bank_audit.py corpus` rc 0. All solo — `nproc` is 1. **`bash skills/run_checks_fast.sh`: corpus-check 10 checkers, 0 errors, 8 warnings, unit_tests 986 passed in 115.03 s, RC=0** — red on the first run (2 errors, one ellipsis in a path in the new Verification block) and fixed in-round. `state_claim_check` coverage **2/10 items (20 %) → 7/8 (88 %)**, by writing this block's items in the grammar `--list` says the checker reads.
+- **Knowledge:** `knowledge/round-471-the-scores-nobody-added-up.md`.
+
+## Next steps (as of round 471)
+
+1. **`bank_audit.py corpus` is not scheduled, and everything this program
+   builds and does not schedule rots.** It runs in ~20 s and its A/B/C
+   sections are ERROR-shaped. Wire it into `corpus_check.py` as an
+   eleventh checker.
+   `python3 skills/skill-authoring/scripts/corpus_check.py --list` → names
+   ten checkers today and bank_audit is not one of them.
+   `python3 skills/prediction-banking/scripts/bank_audit.py corpus` → rc 0
+   and a lifetime hit rate of 70.8 percent over 1474 scorable rows.
+   skills(B).
+2. **The eight wrong scores are FOUND, not REPAIRED** — rounds 112, 374,
+   380, 393, 400, 414, 416, 428. Repair means editing eight historical
+   knowledge files and eight ledger quotes, which is an authorship question
+   (correct the record, or annotate it?) not a mechanical one. Decide once
+   and do all eight the same way.
+   `python3 skills/prediction-banking/scripts/bank_audit.py rows knowledge/round-380-the-precondition-that-was-a-grep.md`
+   → 13 rows of which 8 are HIT against a published eleven.
+   `test_bank_audit.py::test_round_380s_headline_does_not_sum_to_its_own_of_n`
+   goes RED on repair — that is deliberate, not a bug. skills(B).
+3. **`class_tag` is the rule that never moved: ~55 % before and after, over
+   470 rounds.** Every other numbered rule in the skill roughly doubled once
+   it was written down. The difference is that `class_tag` is only checkable
+   as "the word appears somewhere in the file". Make it per-LINE or drop the
+   claim.
+   `python3 skills/prediction-banking/scripts/bank_audit.py bank --quiet state/skills/round-471/PREDICTIONS.md`
+   → eight checks of which class_tag is one and seven of the eight pass.
+   skills(B).
+4. **A THIRD verdict shape exists and 11 banks use it** — rounds 17, 21, 27,
+   29, 101, 113, 139, 145, 366, 433, 456 record per-prediction verdicts in
+   running prose (`**P1 MISS**`, `A5, A6 HIT; A7 MISS`) and aggregates in
+   words (round 456's bolded "Two of seven" sentence). They are excluded from every number
+   this round published, so **1 528 rows and 70.8 % are lower bounds over
+   ~93 % of the banks, not all of them.** Do not quote them as totals.
+   `python3 skills/prediction-banking/scripts/bank_audit.py rows knowledge/round-456-the-values-nothing-kept.md`
+   → zero rows because that file writes its verdicts as prose.
+   skills(B).
+5. **Round 470's next-steps 1, 2, 3, 5, 6, 7 and 8 are UNTOUCHED by this
+   round**, and they belong to language(C) and harness(A): `parametrize` is
+   worth ONE residual row and not four; the harvester's per-SCOPE
+   environment mis-attributes programs when two loops share a name;
+   `file:line` is not a key for a source position and `(file, line, col)`
+   is; 26 of the 28 `whence_slow` units are stale at this HEAD; round 468's
+   items 4 and 5. language(C) / harness(A).
+6. **`state_claim_check` reports the live block at 2 checkable claims of 10
+   items (20 %), down from round 469's 5 of 9 (56 %), and that is a property
+   of how a block is WRITTEN.** Round 471 verified the checker is unchanged
+   (`git log 2d0c232..HEAD -- skills/skill-authoring/scripts/state_claim_check.py`
+   is empty) and that its own diagnosis names round 470's block. Every item
+   above carries a runnable command for that reason. Whoever writes the next
+   block should run
+   `python3 skills/skill-authoring/scripts/state_claim_check.py state/research-state.md`
+   before publishing it.
+   `python3 skills/skill-authoring/scripts/state_claim_check.py --list state/research-state.md`
+   → the kinds it can check are citation and reference and absence and a
+   backticked command followed by an arrow. any track.
+7. **`nproc` on this box is 1 and this round respected it** — every suite ran
+   solo, and the one contended number in the tree (round 470's driver
+   health-check calling the harness tier `1 failed` at 903.72 s where the
+   solo run was 295.91 s with zero red) is now recorded next to its solo
+   twin. Do not read a timing red taken under contention as a regression.
+8. **Standing, and untouched by this round:** the NUC `retention --strict`
+   deadline; `case_coverage`'s 49-of-103 disagreeing verdicts; `claim_check`
+   executing 0 of its commands; the NUC journal capture for rounds 202-250;
+   round 467's items 1-5, which round 470's item 10 flagged as asserted
+   verbatim by two next-steps blocks with nothing re-deriving them
+   (`state_claim_check` reports this as `CARRIED S005` on every run); and
+   CLAUDE.md's `CRITICAL MISSION` block, still a one-line deletion for the
+   operator. Round 470 established that the ordinal in that sentence is NOT
+   a count and should stop being incremented; the derivable number is
+   `grep -c "re-escalated for the" state/research-state.md`.
+   `languages/whence/SECURITY.md` is still uncommitted, still not this
+   program's, still the operator's decision — the checker's own line is the
+   only source for its carry count.
+
 ## Next steps (as of round 470)
 
 1. **`@pytest.mark.parametrize` is the last un-modelled ITERATION PROTOCOL in
