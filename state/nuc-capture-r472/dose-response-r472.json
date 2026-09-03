@@ -1,0 +1,1860 @@
+{
+  "capture": "state/nuc-capture-r424",
+  "pooled_days": [
+    "2026-08-23",
+    "2026-08-24",
+    "2026-08-25",
+    "2026-08-26",
+    "2026-08-27",
+    "2026-08-28",
+    "2026-08-29",
+    "2026-08-30",
+    "2026-08-31",
+    "2026-09-01"
+  ],
+  "min_bytes": 4825665,
+  "window_s": 3601,
+  "n_rounds_asked": 54,
+  "n_scored": 42,
+  "untestable": [
+    {
+      "round": 316,
+      "why": "no NUC contact in the transcript",
+      "n_calls": 0,
+      "n_logins": 0
+    },
+    {
+      "round": 322,
+      "why": "no NUC contact in the transcript",
+      "n_calls": 0,
+      "n_logins": 0
+    },
+    {
+      "round": 328,
+      "why": "no NUC contact in the transcript",
+      "n_calls": 0,
+      "n_logins": 0
+    },
+    {
+      "round": 340,
+      "why": "no NUC contact in the transcript",
+      "n_calls": 0,
+      "n_logins": 0
+    },
+    {
+      "round": 346,
+      "why": "no NUC contact in the transcript",
+      "n_calls": 0,
+      "n_logins": 0
+    },
+    {
+      "round": 436,
+      "why": "no NUC contact in the transcript",
+      "n_calls": 0,
+      "n_logins": 0
+    },
+    {
+      "round": 442,
+      "why": "first contact 2026-09-02T01:10:40Z is outside the pooled sar window 2026-08-23..2026-09-01",
+      "n_logins": 3
+    },
+    {
+      "round": 448,
+      "why": "first contact 2026-09-02T06:31:32Z is outside the pooled sar window 2026-08-23..2026-09-01",
+      "n_logins": 2
+    },
+    {
+      "round": 454,
+      "why": "first contact 2026-09-02T12:36:41Z is outside the pooled sar window 2026-08-23..2026-09-01",
+      "n_logins": 2
+    },
+    {
+      "round": 460,
+      "why": "first contact 2026-09-02T19:33:13Z is outside the pooled sar window 2026-08-23..2026-09-01",
+      "n_logins": 5
+    },
+    {
+      "round": 466,
+      "why": "first contact 2026-09-03T00:59:37Z is outside the pooled sar window 2026-08-23..2026-09-01",
+      "n_logins": 4
+    },
+    {
+      "round": 472,
+      "why": "first contact 2026-09-03T08:32:08Z is outside the pooled sar window 2026-08-23..2026-09-01",
+      "n_logins": 2
+    }
+  ],
+  "n_full_record": 28,
+  "n_partial_record": 4,
+  "n_no_record": 10,
+  "dose_response": {
+    "response": "swap_bytes",
+    "n": 28,
+    "response_total": 2382643200,
+    "response_median": 0,
+    "table": {
+      "n_logins": {
+        "rho": 0.2568,
+        "n": 28,
+        "trials": 20000,
+        "n_ge_observed": 3695,
+        "p_two_sided": 0.18475,
+        "p_floor": 5e-05,
+        "null": "shuffle which dose belongs to which window; both marginals held exactly fixed",
+        "is_control": false,
+        "dose_min": 2,
+        "dose_max": 32
+      },
+      "n_calls": {
+        "rho": 0.2414,
+        "n": 28,
+        "trials": 20000,
+        "n_ge_observed": 4272,
+        "p_two_sided": 0.2136,
+        "p_floor": 5e-05,
+        "null": "shuffle which dose belongs to which window; both marginals held exactly fixed",
+        "is_control": false,
+        "dose_min": 2,
+        "dose_max": 27
+      },
+      "box_seconds": {
+        "rho": 0.1547,
+        "n": 28,
+        "trials": 20000,
+        "n_ge_observed": 8634,
+        "p_two_sided": 0.4317,
+        "p_floor": 5e-05,
+        "null": "shuffle which dose belongs to which window; both marginals held exactly fixed",
+        "is_control": false,
+        "dose_min": 2.035,
+        "dose_max": 593.16
+      },
+      "bytes_returned": {
+        "rho": 0.0964,
+        "n": 28,
+        "trials": 20000,
+        "n_ge_observed": 12484,
+        "p_two_sided": 0.6242,
+        "p_floor": 5e-05,
+        "null": "shuffle which dose belongs to which window; both marginals held exactly fixed",
+        "is_control": false,
+        "dose_min": 2223,
+        "dose_max": 80818
+      },
+      "bytes_landed": {
+        "rho": -0.2767,
+        "n": 28,
+        "trials": 20000,
+        "n_ge_observed": 3098,
+        "p_two_sided": 0.1549,
+        "p_floor": 5e-05,
+        "null": "shuffle which dose belongs to which window; both marginals held exactly fixed",
+        "is_control": false,
+        "dose_min": 0,
+        "dose_max": 315069
+      },
+      "bytes_moved": {
+        "rho": -0.0018,
+        "n": 28,
+        "trials": 20000,
+        "n_ge_observed": 19854,
+        "p_two_sided": 0.9927,
+        "p_floor": 5e-05,
+        "null": "shuffle which dose belongs to which window; both marginals held exactly fixed",
+        "is_control": false,
+        "dose_min": 2223,
+        "dose_max": 329039
+      },
+      "local_calls": {
+        "rho": -0.3279,
+        "n": 28,
+        "trials": 20000,
+        "n_ge_observed": 1743,
+        "p_two_sided": 0.08715,
+        "p_floor": 5e-05,
+        "null": "shuffle which dose belongs to which window; both marginals held exactly fixed",
+        "is_control": true,
+        "dose_min": 8,
+        "dose_max": 127
+      },
+      "local_bytes": {
+        "rho": -0.3985,
+        "n": 28,
+        "trials": 20000,
+        "n_ge_observed": 742,
+        "p_two_sided": 0.0371,
+        "p_floor": 5e-05,
+        "null": "shuffle which dose belongs to which window; both marginals held exactly fixed",
+        "is_control": true,
+        "dose_min": 8317,
+        "dose_max": 216039
+      },
+      "transcript_bytes": {
+        "rho": 0.3735,
+        "n": 28,
+        "trials": 20000,
+        "n_ge_observed": 1010,
+        "p_two_sided": 0.0505,
+        "p_floor": 5e-05,
+        "null": "shuffle which dose belongs to which window; both marginals held exactly fixed",
+        "is_control": true,
+        "dose_min": 334803,
+        "dose_max": 1813908
+      }
+    },
+    "strongest_dose": "bytes_landed",
+    "strongest_control": "local_bytes",
+    "dose_beats_every_control": false,
+    "verdict": "NULL: no dose reaches p<=0.05. The cost of an E-round window does not scale with what the round did to the box, so round 466's coincidence is not shown to be causal by this test."
+  },
+  "dose_response_UNSTRATIFIED_do_not_quote": {
+    "response": "swap_bytes",
+    "n": 42,
+    "response_total": 2386427904,
+    "response_median": 0,
+    "table": {
+      "n_logins": {
+        "rho": 0.4146,
+        "n": 42,
+        "trials": 20000,
+        "n_ge_observed": 132,
+        "p_two_sided": 0.0066,
+        "p_floor": 5e-05,
+        "null": "shuffle which dose belongs to which window; both marginals held exactly fixed",
+        "is_control": false,
+        "dose_min": 1,
+        "dose_max": 32
+      },
+      "n_calls": {
+        "rho": 0.418,
+        "n": 42,
+        "trials": 20000,
+        "n_ge_observed": 124,
+        "p_two_sided": 0.0062,
+        "p_floor": 5e-05,
+        "null": "shuffle which dose belongs to which window; both marginals held exactly fixed",
+        "is_control": false,
+        "dose_min": 1,
+        "dose_max": 27
+      },
+      "box_seconds": {
+        "rho": 0.2166,
+        "n": 42,
+        "trials": 20000,
+        "n_ge_observed": 3409,
+        "p_two_sided": 0.17045,
+        "p_floor": 5e-05,
+        "null": "shuffle which dose belongs to which window; both marginals held exactly fixed",
+        "is_control": false,
+        "dose_min": 2.035,
+        "dose_max": 593.16
+      },
+      "bytes_returned": {
+        "rho": 0.3337,
+        "n": 42,
+        "trials": 20000,
+        "n_ge_observed": 608,
+        "p_two_sided": 0.0304,
+        "p_floor": 5e-05,
+        "null": "shuffle which dose belongs to which window; both marginals held exactly fixed",
+        "is_control": false,
+        "dose_min": 64,
+        "dose_max": 80818
+      },
+      "bytes_landed": {
+        "rho": -0.1277,
+        "n": 42,
+        "trials": 20000,
+        "n_ge_observed": 8411,
+        "p_two_sided": 0.42055,
+        "p_floor": 5e-05,
+        "null": "shuffle which dose belongs to which window; both marginals held exactly fixed",
+        "is_control": false,
+        "dose_min": 0,
+        "dose_max": 2896862
+      },
+      "bytes_moved": {
+        "rho": 0.217,
+        "n": 42,
+        "trials": 20000,
+        "n_ge_observed": 3322,
+        "p_two_sided": 0.1661,
+        "p_floor": 5e-05,
+        "null": "shuffle which dose belongs to which window; both marginals held exactly fixed",
+        "is_control": false,
+        "dose_min": 64,
+        "dose_max": 2910939
+      },
+      "local_calls": {
+        "rho": -0.3888,
+        "n": 42,
+        "trials": 20000,
+        "n_ge_observed": 236,
+        "p_two_sided": 0.0118,
+        "p_floor": 5e-05,
+        "null": "shuffle which dose belongs to which window; both marginals held exactly fixed",
+        "is_control": true,
+        "dose_min": 8,
+        "dose_max": 127
+      },
+      "local_bytes": {
+        "rho": -0.3624,
+        "n": 42,
+        "trials": 20000,
+        "n_ge_observed": 413,
+        "p_two_sided": 0.02065,
+        "p_floor": 5e-05,
+        "null": "shuffle which dose belongs to which window; both marginals held exactly fixed",
+        "is_control": true,
+        "dose_min": 8317,
+        "dose_max": 238402
+      },
+      "transcript_bytes": {
+        "rho": 0.2283,
+        "n": 42,
+        "trials": 20000,
+        "n_ge_observed": 2874,
+        "p_two_sided": 0.1437,
+        "p_floor": 5e-05,
+        "null": "shuffle which dose belongs to which window; both marginals held exactly fixed",
+        "is_control": true,
+        "dose_min": 334803,
+        "dose_max": 1813908
+      }
+    },
+    "strongest_dose": "n_calls",
+    "strongest_control": "local_calls",
+    "dose_beats_every_control": true,
+    "verdict": "CONFOUNDED: the strongest dose (n_calls) is matched or beaten by a control (local_calls) that cannot touch the box. Whatever this measures is about when rounds run, not what they do.",
+    "warning": "pooled over windows the sar record does not cover; a down-round window has a zero response BY CONSTRUCTION and two probe calls, so this table measures the box's power state. Kept to show the size of the error."
+  },
+  "windows_shift_null": {
+    "n_windows": 28,
+    "whole_day_shifts": false,
+    "restricted_to_round_days": false,
+    "shift_group_days": [
+      "2026-08-23",
+      "2026-09-01"
+    ],
+    "trials": 2000,
+    "observed_bytes": 2382643200,
+    "null_mean_bytes": 4566864089.1,
+    "null_median_bytes": 2335604736,
+    "null_p95_bytes": 15255379968,
+    "p_bytes": 0.4965,
+    "observed_costly_buckets": 14,
+    "null_mean_costly": 7.027,
+    "null_median_costly": 7,
+    "null_p95_costly": 14,
+    "p_costly": 0.072,
+    "p_floor": 0.0005
+  },
+  "windows_shift_null_whole_day": {
+    "n_windows": 28,
+    "whole_day_shifts": true,
+    "restricted_to_round_days": false,
+    "shift_group_days": [
+      "2026-08-23",
+      "2026-09-01"
+    ],
+    "trials": 9,
+    "observed_bytes": 2382643200,
+    "null_mean_bytes": 4469538816.0,
+    "null_median_bytes": 4881039360,
+    "null_p95_bytes": 9240846336,
+    "p_bytes": 0.6666666666666666,
+    "observed_costly_buckets": 14,
+    "null_mean_costly": 7.0,
+    "null_median_costly": 6,
+    "null_p95_costly": 12,
+    "p_costly": 0.0,
+    "p_floor": 0.1111111111111111
+  },
+  "windows_shift_null_round_days_only": {
+    "n_windows": 28,
+    "whole_day_shifts": false,
+    "restricted_to_round_days": true,
+    "shift_group_days": [
+      "2026-08-26",
+      "2026-08-31"
+    ],
+    "trials": 2000,
+    "observed_bytes": 2382643200,
+    "null_mean_bytes": 1841408520.2,
+    "null_median_bytes": 1363550208,
+    "null_p95_bytes": 4594802688,
+    "p_bytes": 0.2795,
+    "observed_costly_buckets": 14,
+    "null_mean_costly": 6.707,
+    "null_median_costly": 6,
+    "null_p95_costly": 11,
+    "p_costly": 0.0095,
+    "p_floor": 0.0005
+  },
+  "windows_shift_null_round_days_whole_day": {
+    "n_windows": 28,
+    "whole_day_shifts": true,
+    "restricted_to_round_days": true,
+    "shift_group_days": [
+      "2026-08-26",
+      "2026-08-31"
+    ],
+    "trials": 5,
+    "observed_bytes": 2382643200,
+    "null_mean_bytes": 1936195584.0,
+    "null_median_bytes": 1357381632,
+    "null_p95_bytes": 5165408256,
+    "p_bytes": 0.2,
+    "observed_costly_buckets": 14,
+    "null_mean_costly": 7.8,
+    "null_median_costly": 7,
+    "null_p95_costly": 14,
+    "p_costly": 0.2,
+    "p_floor": 0.2
+  },
+  "covered_rate_null": {
+    "n_windows": 28,
+    "expected_buckets_per_window": 7,
+    "shift_group_days": [
+      "2026-08-26",
+      "2026-08-31"
+    ],
+    "observed_windows_with_a_costly_bucket": 11,
+    "observed_rate": 0.3929,
+    "trials": 2000,
+    "n_draws_scored": 2000,
+    "n_draws_skipped_no_coverage": 0,
+    "mean_covered_windows_per_draw": null,
+    "null_mean_rate": 0.2766,
+    "null_median_rate": 0.2727272727272727,
+    "null_p95_rate": 0.42857142857142855,
+    "n_draws_ge_observed": 256,
+    "p_value": 0.128,
+    "p_floor": 0.0005,
+    "null": "circular shift of the whole window train within the days E rounds occupy, scored as a rate over the windows each draw places on fully-recorded ground"
+  },
+  "dose_vs_scopes": {
+    "n_windows": 28,
+    "n_exact": 7,
+    "n_within_2": 16,
+    "frac_within_2": 0.5714285714285714,
+    "total_logins_transcript": 331,
+    "total_scopes_journal": 543,
+    "ratio_journal_over_transcript": 1.6404833836858006,
+    "rho": 0.6718977514744222,
+    "rows": [
+      {
+        "round": 154,
+        "n_logins_transcript": 17,
+        "n_session_scopes_journal": 16,
+        "delta": -1
+      },
+      {
+        "round": 160,
+        "n_logins_transcript": 15,
+        "n_session_scopes_journal": 25,
+        "delta": 10
+      },
+      {
+        "round": 166,
+        "n_logins_transcript": 32,
+        "n_session_scopes_journal": 31,
+        "delta": -1
+      },
+      {
+        "round": 178,
+        "n_logins_transcript": 11,
+        "n_session_scopes_journal": 11,
+        "delta": 0
+      },
+      {
+        "round": 202,
+        "n_logins_transcript": 14,
+        "n_session_scopes_journal": 11,
+        "delta": -3
+      },
+      {
+        "round": 208,
+        "n_logins_transcript": 17,
+        "n_session_scopes_journal": 18,
+        "delta": 1
+      },
+      {
+        "round": 214,
+        "n_logins_transcript": 5,
+        "n_session_scopes_journal": 4,
+        "delta": -1
+      },
+      {
+        "round": 220,
+        "n_logins_transcript": 2,
+        "n_session_scopes_journal": 2,
+        "delta": 0
+      },
+      {
+        "round": 226,
+        "n_logins_transcript": 10,
+        "n_session_scopes_journal": 10,
+        "delta": 0
+      },
+      {
+        "round": 232,
+        "n_logins_transcript": 5,
+        "n_session_scopes_journal": 5,
+        "delta": 0
+      },
+      {
+        "round": 238,
+        "n_logins_transcript": 4,
+        "n_session_scopes_journal": 4,
+        "delta": 0
+      },
+      {
+        "round": 244,
+        "n_logins_transcript": 7,
+        "n_session_scopes_journal": 6,
+        "delta": -1
+      },
+      {
+        "round": 250,
+        "n_logins_transcript": 9,
+        "n_session_scopes_journal": 8,
+        "delta": -1
+      },
+      {
+        "round": 256,
+        "n_logins_transcript": 11,
+        "n_session_scopes_journal": 11,
+        "delta": 0
+      },
+      {
+        "round": 262,
+        "n_logins_transcript": 13,
+        "n_session_scopes_journal": 12,
+        "delta": -1
+      },
+      {
+        "round": 268,
+        "n_logins_transcript": 14,
+        "n_session_scopes_journal": 13,
+        "delta": -1
+      },
+      {
+        "round": 274,
+        "n_logins_transcript": 17,
+        "n_session_scopes_journal": 15,
+        "delta": -2
+      },
+      {
+        "round": 280,
+        "n_logins_transcript": 11,
+        "n_session_scopes_journal": 11,
+        "delta": 0
+      },
+      {
+        "round": 286,
+        "n_logins_transcript": 8,
+        "n_session_scopes_journal": 5,
+        "delta": -3
+      },
+      {
+        "round": 352,
+        "n_logins_transcript": 13,
+        "n_session_scopes_journal": 64,
+        "delta": 51
+      },
+      {
+        "round": 358,
+        "n_logins_transcript": 18,
+        "n_session_scopes_journal": 82,
+        "delta": 64
+      },
+      {
+        "round": 364,
+        "n_logins_transcript": 3,
+        "n_session_scopes_journal": 69,
+        "delta": 66
+      },
+      {
+        "round": 370,
+        "n_logins_transcript": 19,
+        "n_session_scopes_journal": 27,
+        "delta": 8
+      },
+      {
+        "round": 376,
+        "n_logins_transcript": 9,
+        "n_session_scopes_journal": 18,
+        "delta": 9
+      },
+      {
+        "round": 382,
+        "n_logins_transcript": 10,
+        "n_session_scopes_journal": 14,
+        "delta": 4
+      },
+      {
+        "round": 388,
+        "n_logins_transcript": 11,
+        "n_session_scopes_journal": 17,
+        "delta": 6
+      },
+      {
+        "round": 394,
+        "n_logins_transcript": 17,
+        "n_session_scopes_journal": 22,
+        "delta": 5
+      },
+      {
+        "round": 400,
+        "n_logins_transcript": 9,
+        "n_session_scopes_journal": 12,
+        "delta": 3
+      }
+    ],
+    "why": "the transcript and the journal are independent records of the same logins; agreement validates the dose, disagreement IS the finding"
+  },
+  "scope_provenance": {
+    "n_scopes": 1401,
+    "first_transcript_date": "2026-08-26",
+    "n_untestable_before_transcripts": 292,
+    "n_testable": 1109,
+    "n_matched": 454,
+    "frac_matched": 0.40937781785392247,
+    "match_s": 120,
+    "n_calls": 344,
+    "unmatched_sample": [
+      {
+        "at_utc": "2026-08-26T00:51:32Z",
+        "nearest_call_delta_s": 58905
+      },
+      {
+        "at_utc": "2026-08-26T01:50:40Z",
+        "nearest_call_delta_s": 55357
+      },
+      {
+        "at_utc": "2026-08-26T01:51:00Z",
+        "nearest_call_delta_s": 55337
+      },
+      {
+        "at_utc": "2026-08-26T01:51:27Z",
+        "nearest_call_delta_s": 55310
+      },
+      {
+        "at_utc": "2026-08-26T01:51:30Z",
+        "nearest_call_delta_s": 55307
+      },
+      {
+        "at_utc": "2026-08-26T01:53:37Z",
+        "nearest_call_delta_s": 55180
+      },
+      {
+        "at_utc": "2026-08-26T01:55:52Z",
+        "nearest_call_delta_s": 55045
+      },
+      {
+        "at_utc": "2026-08-26T01:55:53Z",
+        "nearest_call_delta_s": 55044
+      },
+      {
+        "at_utc": "2026-08-26T01:55:58Z",
+        "nearest_call_delta_s": 55039
+      },
+      {
+        "at_utc": "2026-08-26T01:56:02Z",
+        "nearest_call_delta_s": 55035
+      },
+      {
+        "at_utc": "2026-08-26T01:58:42Z",
+        "nearest_call_delta_s": 54875
+      },
+      {
+        "at_utc": "2026-08-26T03:19:11Z",
+        "nearest_call_delta_s": 50046
+      },
+      {
+        "at_utc": "2026-08-26T03:19:23Z",
+        "nearest_call_delta_s": 50034
+      },
+      {
+        "at_utc": "2026-08-26T03:19:35Z",
+        "nearest_call_delta_s": 50022
+      },
+      {
+        "at_utc": "2026-08-26T03:19:38Z",
+        "nearest_call_delta_s": 50019
+      },
+      {
+        "at_utc": "2026-08-26T03:19:41Z",
+        "nearest_call_delta_s": 50016
+      },
+      {
+        "at_utc": "2026-08-26T03:22:00Z",
+        "nearest_call_delta_s": 49877
+      },
+      {
+        "at_utc": "2026-08-26T03:22:46Z",
+        "nearest_call_delta_s": 49831
+      },
+      {
+        "at_utc": "2026-08-26T03:23:42Z",
+        "nearest_call_delta_s": 49775
+      },
+      {
+        "at_utc": "2026-08-26T03:23:43Z",
+        "nearest_call_delta_s": 49774
+      }
+    ],
+    "why": "this is the fraction of the box's logins that are this program -- the number round 466 could not compute because the reachability log holds one row per round"
+  },
+  "scored": [
+    {
+      "round": 154,
+      "first_contact_utc": "2026-08-26T17:13:17Z",
+      "window_utc": [
+        "2026-08-26T17:08:17Z",
+        "2026-08-26T18:08:17Z"
+      ],
+      "abs_lo": 320897,
+      "abs_hi": 324497,
+      "n_calls": 15,
+      "n_logins": 17,
+      "n_scp": 2,
+      "box_seconds": 31.895,
+      "bytes_returned": 11001,
+      "bytes_landed": 22742,
+      "bytes_moved": 33743,
+      "local_calls": 29,
+      "local_bytes": 21660,
+      "transcript_bytes": 1079040,
+      "n_buckets": 7,
+      "n_buckets_expected": 7,
+      "fully_covered": true,
+      "record_coverage": "full",
+      "n_costly_buckets": 1,
+      "swap_bytes": 147529728
+    },
+    {
+      "round": 160,
+      "first_contact_utc": "2026-08-26T18:42:04Z",
+      "window_utc": [
+        "2026-08-26T18:37:04Z",
+        "2026-08-26T19:37:04Z"
+      ],
+      "abs_lo": 326224,
+      "abs_hi": 329824,
+      "n_calls": 12,
+      "n_logins": 15,
+      "n_scp": 2,
+      "box_seconds": 133.145,
+      "bytes_returned": 6022,
+      "bytes_landed": 0,
+      "bytes_moved": 6022,
+      "local_calls": 13,
+      "local_bytes": 14549,
+      "transcript_bytes": 885758,
+      "n_buckets": 7,
+      "n_buckets_expected": 7,
+      "fully_covered": true,
+      "record_coverage": "full",
+      "n_costly_buckets": 2,
+      "swap_bytes": 405848064
+    },
+    {
+      "round": 166,
+      "first_contact_utc": "2026-08-26T20:53:15Z",
+      "window_utc": [
+        "2026-08-26T20:48:15Z",
+        "2026-08-26T21:48:15Z"
+      ],
+      "abs_lo": 334095,
+      "abs_hi": 337695,
+      "n_calls": 27,
+      "n_logins": 32,
+      "n_scp": 6,
+      "box_seconds": 593.16,
+      "bytes_returned": 25084,
+      "bytes_landed": 6113,
+      "bytes_moved": 31197,
+      "local_calls": 11,
+      "local_bytes": 26388,
+      "transcript_bytes": 1024173,
+      "n_buckets": 7,
+      "n_buckets_expected": 7,
+      "fully_covered": true,
+      "record_coverage": "full",
+      "n_costly_buckets": 1,
+      "swap_bytes": 10518528
+    },
+    {
+      "round": 172,
+      "first_contact_utc": "2026-08-26T23:27:10Z",
+      "window_utc": [
+        "2026-08-26T23:22:10Z",
+        "2026-08-27T00:22:10Z"
+      ],
+      "abs_lo": 343330,
+      "abs_hi": 346930,
+      "n_calls": 8,
+      "n_logins": 9,
+      "n_scp": 2,
+      "box_seconds": 128.702,
+      "bytes_returned": 9640,
+      "bytes_landed": 0,
+      "bytes_moved": 9640,
+      "local_calls": 18,
+      "local_bytes": 25502,
+      "transcript_bytes": 1003221,
+      "n_buckets": 6,
+      "n_buckets_expected": 7,
+      "fully_covered": false,
+      "record_coverage": "partial",
+      "n_costly_buckets": 0,
+      "swap_bytes": 442368
+    },
+    {
+      "round": 178,
+      "first_contact_utc": "2026-08-27T03:14:22Z",
+      "window_utc": [
+        "2026-08-27T03:09:22Z",
+        "2026-08-27T04:09:22Z"
+      ],
+      "abs_lo": 356962,
+      "abs_hi": 360562,
+      "n_calls": 10,
+      "n_logins": 11,
+      "n_scp": 2,
+      "box_seconds": 214.667,
+      "bytes_returned": 6688,
+      "bytes_landed": 1416,
+      "bytes_moved": 8104,
+      "local_calls": 27,
+      "local_bytes": 54056,
+      "transcript_bytes": 954173,
+      "n_buckets": 7,
+      "n_buckets_expected": 7,
+      "fully_covered": true,
+      "record_coverage": "full",
+      "n_costly_buckets": 0,
+      "swap_bytes": 0
+    },
+    {
+      "round": 184,
+      "first_contact_utc": "2026-08-27T05:27:24Z",
+      "window_utc": [
+        "2026-08-27T05:22:24Z",
+        "2026-08-27T06:22:24Z"
+      ],
+      "abs_lo": 364944,
+      "abs_hi": 368544,
+      "n_calls": 3,
+      "n_logins": 3,
+      "n_scp": 0,
+      "box_seconds": 49.733,
+      "bytes_returned": 274,
+      "bytes_landed": 0,
+      "bytes_moved": 274,
+      "local_calls": 66,
+      "local_bytes": 151836,
+      "transcript_bytes": 781310,
+      "n_buckets": 0,
+      "n_buckets_expected": 7,
+      "fully_covered": false,
+      "record_coverage": "none",
+      "n_costly_buckets": 0,
+      "swap_bytes": 0
+    },
+    {
+      "round": 190,
+      "first_contact_utc": "2026-08-27T07:56:43Z",
+      "window_utc": [
+        "2026-08-27T07:51:43Z",
+        "2026-08-27T08:51:43Z"
+      ],
+      "abs_lo": 373903,
+      "abs_hi": 377503,
+      "n_calls": 1,
+      "n_logins": 4,
+      "n_scp": 0,
+      "box_seconds": 20.216,
+      "bytes_returned": 426,
+      "bytes_landed": 0,
+      "bytes_moved": 426,
+      "local_calls": 36,
+      "local_bytes": 59136,
+      "transcript_bytes": 500834,
+      "n_buckets": 0,
+      "n_buckets_expected": 7,
+      "fully_covered": false,
+      "record_coverage": "none",
+      "n_costly_buckets": 0,
+      "swap_bytes": 0
+    },
+    {
+      "round": 196,
+      "first_contact_utc": "2026-08-27T10:52:35Z",
+      "window_utc": [
+        "2026-08-27T10:47:35Z",
+        "2026-08-27T11:47:35Z"
+      ],
+      "abs_lo": 384455,
+      "abs_hi": 388055,
+      "n_calls": 2,
+      "n_logins": 3,
+      "n_scp": 0,
+      "box_seconds": 26.266,
+      "bytes_returned": 769,
+      "bytes_landed": 0,
+      "bytes_moved": 769,
+      "local_calls": 12,
+      "local_bytes": 14923,
+      "transcript_bytes": 740927,
+      "n_buckets": 0,
+      "n_buckets_expected": 7,
+      "fully_covered": false,
+      "record_coverage": "none",
+      "n_costly_buckets": 0,
+      "swap_bytes": 0
+    },
+    {
+      "round": 202,
+      "first_contact_utc": "2026-08-27T13:16:17Z",
+      "window_utc": [
+        "2026-08-27T13:11:17Z",
+        "2026-08-27T14:11:17Z"
+      ],
+      "abs_lo": 393077,
+      "abs_hi": 396677,
+      "n_calls": 11,
+      "n_logins": 14,
+      "n_scp": 0,
+      "box_seconds": 34.89,
+      "bytes_returned": 4289,
+      "bytes_landed": 17595,
+      "bytes_moved": 21884,
+      "local_calls": 17,
+      "local_bytes": 31063,
+      "transcript_bytes": 346771,
+      "n_buckets": 7,
+      "n_buckets_expected": 7,
+      "fully_covered": true,
+      "record_coverage": "full",
+      "n_costly_buckets": 0,
+      "swap_bytes": 0
+    },
+    {
+      "round": 208,
+      "first_contact_utc": "2026-08-27T16:26:31Z",
+      "window_utc": [
+        "2026-08-27T16:21:31Z",
+        "2026-08-27T17:21:31Z"
+      ],
+      "abs_lo": 404491,
+      "abs_hi": 408091,
+      "n_calls": 16,
+      "n_logins": 17,
+      "n_scp": 3,
+      "box_seconds": 344.678,
+      "bytes_returned": 35652,
+      "bytes_landed": 0,
+      "bytes_moved": 35652,
+      "local_calls": 21,
+      "local_bytes": 36536,
+      "transcript_bytes": 1318379,
+      "n_buckets": 7,
+      "n_buckets_expected": 7,
+      "fully_covered": true,
+      "record_coverage": "full",
+      "n_costly_buckets": 2,
+      "swap_bytes": 1066254336
+    },
+    {
+      "round": 214,
+      "first_contact_utc": "2026-08-27T19:15:44Z",
+      "window_utc": [
+        "2026-08-27T19:10:44Z",
+        "2026-08-27T20:10:44Z"
+      ],
+      "abs_lo": 414644,
+      "abs_hi": 418244,
+      "n_calls": 4,
+      "n_logins": 5,
+      "n_scp": 0,
+      "box_seconds": 186.101,
+      "bytes_returned": 6263,
+      "bytes_landed": 0,
+      "bytes_moved": 6263,
+      "local_calls": 8,
+      "local_bytes": 8317,
+      "transcript_bytes": 911843,
+      "n_buckets": 7,
+      "n_buckets_expected": 7,
+      "fully_covered": true,
+      "record_coverage": "full",
+      "n_costly_buckets": 1,
+      "swap_bytes": 47628288
+    },
+    {
+      "round": 220,
+      "first_contact_utc": "2026-08-27T21:49:51Z",
+      "window_utc": [
+        "2026-08-27T21:44:51Z",
+        "2026-08-27T22:44:51Z"
+      ],
+      "abs_lo": 423891,
+      "abs_hi": 427491,
+      "n_calls": 2,
+      "n_logins": 2,
+      "n_scp": 0,
+      "box_seconds": 2.035,
+      "bytes_returned": 2524,
+      "bytes_landed": 0,
+      "bytes_moved": 2524,
+      "local_calls": 48,
+      "local_bytes": 77855,
+      "transcript_bytes": 834174,
+      "n_buckets": 7,
+      "n_buckets_expected": 7,
+      "fully_covered": true,
+      "record_coverage": "full",
+      "n_costly_buckets": 0,
+      "swap_bytes": 0
+    },
+    {
+      "round": 226,
+      "first_contact_utc": "2026-08-28T00:55:37Z",
+      "window_utc": [
+        "2026-08-28T00:50:37Z",
+        "2026-08-28T01:50:37Z"
+      ],
+      "abs_lo": 435037,
+      "abs_hi": 438637,
+      "n_calls": 9,
+      "n_logins": 10,
+      "n_scp": 2,
+      "box_seconds": 188.438,
+      "bytes_returned": 6146,
+      "bytes_landed": 1408,
+      "bytes_moved": 7554,
+      "local_calls": 36,
+      "local_bytes": 64276,
+      "transcript_bytes": 529527,
+      "n_buckets": 7,
+      "n_buckets_expected": 7,
+      "fully_covered": true,
+      "record_coverage": "full",
+      "n_costly_buckets": 0,
+      "swap_bytes": 0
+    },
+    {
+      "round": 232,
+      "first_contact_utc": "2026-08-28T03:15:54Z",
+      "window_utc": [
+        "2026-08-28T03:10:54Z",
+        "2026-08-28T04:10:54Z"
+      ],
+      "abs_lo": 443454,
+      "abs_hi": 447054,
+      "n_calls": 5,
+      "n_logins": 5,
+      "n_scp": 0,
+      "box_seconds": 5.441,
+      "bytes_returned": 5265,
+      "bytes_landed": 2002,
+      "bytes_moved": 7267,
+      "local_calls": 30,
+      "local_bytes": 126503,
+      "transcript_bytes": 1363958,
+      "n_buckets": 7,
+      "n_buckets_expected": 7,
+      "fully_covered": true,
+      "record_coverage": "full",
+      "n_costly_buckets": 0,
+      "swap_bytes": 0
+    },
+    {
+      "round": 238,
+      "first_contact_utc": "2026-08-28T05:54:55Z",
+      "window_utc": [
+        "2026-08-28T05:49:55Z",
+        "2026-08-28T06:49:55Z"
+      ],
+      "abs_lo": 452995,
+      "abs_hi": 456595,
+      "n_calls": 4,
+      "n_logins": 4,
+      "n_scp": 0,
+      "box_seconds": 13.669,
+      "bytes_returned": 2925,
+      "bytes_landed": 0,
+      "bytes_moved": 2925,
+      "local_calls": 32,
+      "local_bytes": 39903,
+      "transcript_bytes": 819075,
+      "n_buckets": 7,
+      "n_buckets_expected": 7,
+      "fully_covered": true,
+      "record_coverage": "full",
+      "n_costly_buckets": 1,
+      "swap_bytes": 256745472
+    },
+    {
+      "round": 244,
+      "first_contact_utc": "2026-08-28T07:48:27Z",
+      "window_utc": [
+        "2026-08-28T07:43:27Z",
+        "2026-08-28T08:43:27Z"
+      ],
+      "abs_lo": 459807,
+      "abs_hi": 463407,
+      "n_calls": 6,
+      "n_logins": 7,
+      "n_scp": 0,
+      "box_seconds": 136.883,
+      "bytes_returned": 3370,
+      "bytes_landed": 0,
+      "bytes_moved": 3370,
+      "local_calls": 20,
+      "local_bytes": 44593,
+      "transcript_bytes": 698442,
+      "n_buckets": 7,
+      "n_buckets_expected": 7,
+      "fully_covered": true,
+      "record_coverage": "full",
+      "n_costly_buckets": 0,
+      "swap_bytes": 0
+    },
+    {
+      "round": 250,
+      "first_contact_utc": "2026-08-28T09:12:49Z",
+      "window_utc": [
+        "2026-08-28T09:07:49Z",
+        "2026-08-28T10:07:49Z"
+      ],
+      "abs_lo": 464869,
+      "abs_hi": 468469,
+      "n_calls": 9,
+      "n_logins": 9,
+      "n_scp": 0,
+      "box_seconds": 43.49,
+      "bytes_returned": 8769,
+      "bytes_landed": 641,
+      "bytes_moved": 9410,
+      "local_calls": 26,
+      "local_bytes": 41289,
+      "transcript_bytes": 334803,
+      "n_buckets": 7,
+      "n_buckets_expected": 7,
+      "fully_covered": true,
+      "record_coverage": "full",
+      "n_costly_buckets": 0,
+      "swap_bytes": 0
+    },
+    {
+      "round": 256,
+      "first_contact_utc": "2026-08-28T11:23:09Z",
+      "window_utc": [
+        "2026-08-28T11:18:09Z",
+        "2026-08-28T12:18:09Z"
+      ],
+      "abs_lo": 472689,
+      "abs_hi": 476289,
+      "n_calls": 10,
+      "n_logins": 11,
+      "n_scp": 2,
+      "box_seconds": 14.011,
+      "bytes_returned": 3240,
+      "bytes_landed": 0,
+      "bytes_moved": 3240,
+      "local_calls": 21,
+      "local_bytes": 43457,
+      "transcript_bytes": 694470,
+      "n_buckets": 7,
+      "n_buckets_expected": 7,
+      "fully_covered": true,
+      "record_coverage": "full",
+      "n_costly_buckets": 0,
+      "swap_bytes": 0
+    },
+    {
+      "round": 262,
+      "first_contact_utc": "2026-08-28T13:35:01Z",
+      "window_utc": [
+        "2026-08-28T13:30:01Z",
+        "2026-08-28T14:30:01Z"
+      ],
+      "abs_lo": 480601,
+      "abs_hi": 484201,
+      "n_calls": 12,
+      "n_logins": 13,
+      "n_scp": 2,
+      "box_seconds": 22.604,
+      "bytes_returned": 4259,
+      "bytes_landed": 0,
+      "bytes_moved": 4259,
+      "local_calls": 19,
+      "local_bytes": 80402,
+      "transcript_bytes": 1080939,
+      "n_buckets": 7,
+      "n_buckets_expected": 7,
+      "fully_covered": true,
+      "record_coverage": "full",
+      "n_costly_buckets": 1,
+      "swap_bytes": 104816640
+    },
+    {
+      "round": 268,
+      "first_contact_utc": "2026-08-28T16:11:35Z",
+      "window_utc": [
+        "2026-08-28T16:06:35Z",
+        "2026-08-28T17:06:35Z"
+      ],
+      "abs_lo": 489995,
+      "abs_hi": 493595,
+      "n_calls": 13,
+      "n_logins": 14,
+      "n_scp": 1,
+      "box_seconds": 85.642,
+      "bytes_returned": 5095,
+      "bytes_landed": 0,
+      "bytes_moved": 5095,
+      "local_calls": 38,
+      "local_bytes": 49670,
+      "transcript_bytes": 1813908,
+      "n_buckets": 7,
+      "n_buckets_expected": 7,
+      "fully_covered": true,
+      "record_coverage": "full",
+      "n_costly_buckets": 0,
+      "swap_bytes": 1130496
+    },
+    {
+      "round": 274,
+      "first_contact_utc": "2026-08-28T18:02:29Z",
+      "window_utc": [
+        "2026-08-28T17:57:29Z",
+        "2026-08-28T18:57:29Z"
+      ],
+      "abs_lo": 496649,
+      "abs_hi": 500249,
+      "n_calls": 12,
+      "n_logins": 17,
+      "n_scp": 3,
+      "box_seconds": 25.203,
+      "bytes_returned": 18653,
+      "bytes_landed": 0,
+      "bytes_moved": 18653,
+      "local_calls": 24,
+      "local_bytes": 67074,
+      "transcript_bytes": 1045761,
+      "n_buckets": 7,
+      "n_buckets_expected": 7,
+      "fully_covered": true,
+      "record_coverage": "full",
+      "n_costly_buckets": 1,
+      "swap_bytes": 136544256
+    },
+    {
+      "round": 280,
+      "first_contact_utc": "2026-08-28T20:06:59Z",
+      "window_utc": [
+        "2026-08-28T20:01:59Z",
+        "2026-08-28T21:01:59Z"
+      ],
+      "abs_lo": 504119,
+      "abs_hi": 507719,
+      "n_calls": 11,
+      "n_logins": 11,
+      "n_scp": 1,
+      "box_seconds": 98.062,
+      "bytes_returned": 9085,
+      "bytes_landed": 137824,
+      "bytes_moved": 146909,
+      "local_calls": 18,
+      "local_bytes": 50091,
+      "transcript_bytes": 823786,
+      "n_buckets": 7,
+      "n_buckets_expected": 7,
+      "fully_covered": true,
+      "record_coverage": "full",
+      "n_costly_buckets": 0,
+      "swap_bytes": 0
+    },
+    {
+      "round": 286,
+      "first_contact_utc": "2026-08-28T21:42:08Z",
+      "window_utc": [
+        "2026-08-28T21:37:08Z",
+        "2026-08-28T22:37:08Z"
+      ],
+      "abs_lo": 509828,
+      "abs_hi": 513428,
+      "n_calls": 6,
+      "n_logins": 8,
+      "n_scp": 1,
+      "box_seconds": 15.04,
+      "bytes_returned": 2223,
+      "bytes_landed": 0,
+      "bytes_moved": 2223,
+      "local_calls": 20,
+      "local_bytes": 34080,
+      "transcript_bytes": 793868,
+      "n_buckets": 7,
+      "n_buckets_expected": 7,
+      "fully_covered": true,
+      "record_coverage": "full",
+      "n_costly_buckets": 1,
+      "swap_bytes": 79945728
+    },
+    {
+      "round": 292,
+      "first_contact_utc": "2026-08-28T23:46:01Z",
+      "window_utc": [
+        "2026-08-28T23:41:01Z",
+        "2026-08-29T00:41:01Z"
+      ],
+      "abs_lo": 517261,
+      "abs_hi": 520861,
+      "n_calls": 2,
+      "n_logins": 2,
+      "n_scp": 0,
+      "box_seconds": 3.198,
+      "bytes_returned": 940,
+      "bytes_landed": 0,
+      "bytes_moved": 940,
+      "local_calls": 18,
+      "local_bytes": 86348,
+      "transcript_bytes": 430432,
+      "n_buckets": 6,
+      "n_buckets_expected": 7,
+      "fully_covered": false,
+      "record_coverage": "partial",
+      "n_costly_buckets": 0,
+      "swap_bytes": 3342336
+    },
+    {
+      "round": 298,
+      "first_contact_utc": "2026-08-29T02:10:47Z",
+      "window_utc": [
+        "2026-08-29T02:05:47Z",
+        "2026-08-29T03:05:47Z"
+      ],
+      "abs_lo": 525947,
+      "abs_hi": 529547,
+      "n_calls": 2,
+      "n_logins": 2,
+      "n_scp": 0,
+      "box_seconds": 40.282,
+      "bytes_returned": 522,
+      "bytes_landed": 0,
+      "bytes_moved": 522,
+      "local_calls": 22,
+      "local_bytes": 24122,
+      "transcript_bytes": 840770,
+      "n_buckets": 1,
+      "n_buckets_expected": 7,
+      "fully_covered": false,
+      "record_coverage": "partial",
+      "n_costly_buckets": 0,
+      "swap_bytes": 0
+    },
+    {
+      "round": 304,
+      "first_contact_utc": "2026-08-29T03:58:07Z",
+      "window_utc": [
+        "2026-08-29T03:53:07Z",
+        "2026-08-29T04:53:07Z"
+      ],
+      "abs_lo": 532387,
+      "abs_hi": 535987,
+      "n_calls": 2,
+      "n_logins": 2,
+      "n_scp": 0,
+      "box_seconds": 20.421,
+      "bytes_returned": 1407,
+      "bytes_landed": 0,
+      "bytes_moved": 1407,
+      "local_calls": 52,
+      "local_bytes": 78829,
+      "transcript_bytes": 1658815,
+      "n_buckets": 0,
+      "n_buckets_expected": 7,
+      "fully_covered": false,
+      "record_coverage": "none",
+      "n_costly_buckets": 0,
+      "swap_bytes": 0
+    },
+    {
+      "round": 310,
+      "first_contact_utc": "2026-08-29T05:41:38Z",
+      "window_utc": [
+        "2026-08-29T05:36:38Z",
+        "2026-08-29T06:36:38Z"
+      ],
+      "abs_lo": 538598,
+      "abs_hi": 542198,
+      "n_calls": 1,
+      "n_logins": 1,
+      "n_scp": 0,
+      "box_seconds": 10.077,
+      "bytes_returned": 74,
+      "bytes_landed": 0,
+      "bytes_moved": 74,
+      "local_calls": 28,
+      "local_bytes": 55672,
+      "transcript_bytes": 1183032,
+      "n_buckets": 0,
+      "n_buckets_expected": 7,
+      "fully_covered": false,
+      "record_coverage": "none",
+      "n_costly_buckets": 0,
+      "swap_bytes": 0
+    },
+    {
+      "round": 334,
+      "first_contact_utc": "2026-08-29T12:47:18Z",
+      "window_utc": [
+        "2026-08-29T12:42:18Z",
+        "2026-08-29T13:42:18Z"
+      ],
+      "abs_lo": 564138,
+      "abs_hi": 567738,
+      "n_calls": 1,
+      "n_logins": 2,
+      "n_scp": 0,
+      "box_seconds": 11.105,
+      "bytes_returned": 276,
+      "bytes_landed": 0,
+      "bytes_moved": 276,
+      "local_calls": 96,
+      "local_bytes": 159626,
+      "transcript_bytes": 929436,
+      "n_buckets": 0,
+      "n_buckets_expected": 7,
+      "fully_covered": false,
+      "record_coverage": "none",
+      "n_costly_buckets": 0,
+      "swap_bytes": 0
+    },
+    {
+      "round": 352,
+      "first_contact_utc": "2026-08-30T02:21:08Z",
+      "window_utc": [
+        "2026-08-30T02:16:08Z",
+        "2026-08-30T03:16:08Z"
+      ],
+      "abs_lo": 612968,
+      "abs_hi": 616568,
+      "n_calls": 11,
+      "n_logins": 13,
+      "n_scp": 1,
+      "box_seconds": 96.758,
+      "bytes_returned": 8346,
+      "bytes_landed": 3042,
+      "bytes_moved": 11388,
+      "local_calls": 70,
+      "local_bytes": 149994,
+      "transcript_bytes": 816151,
+      "n_buckets": 7,
+      "n_buckets_expected": 7,
+      "fully_covered": true,
+      "record_coverage": "full",
+      "n_costly_buckets": 0,
+      "swap_bytes": 0
+    },
+    {
+      "round": 358,
+      "first_contact_utc": "2026-08-30T05:49:09Z",
+      "window_utc": [
+        "2026-08-30T05:44:09Z",
+        "2026-08-30T06:44:09Z"
+      ],
+      "abs_lo": 625449,
+      "abs_hi": 629049,
+      "n_calls": 16,
+      "n_logins": 18,
+      "n_scp": 1,
+      "box_seconds": 176.089,
+      "bytes_returned": 7397,
+      "bytes_landed": 7012,
+      "bytes_moved": 14409,
+      "local_calls": 96,
+      "local_bytes": 145680,
+      "transcript_bytes": 906341,
+      "n_buckets": 7,
+      "n_buckets_expected": 7,
+      "fully_covered": true,
+      "record_coverage": "full",
+      "n_costly_buckets": 0,
+      "swap_bytes": 0
+    },
+    {
+      "round": 364,
+      "first_contact_utc": "2026-08-30T10:01:17Z",
+      "window_utc": [
+        "2026-08-30T09:56:17Z",
+        "2026-08-30T10:56:17Z"
+      ],
+      "abs_lo": 640577,
+      "abs_hi": 644177,
+      "n_calls": 3,
+      "n_logins": 3,
+      "n_scp": 0,
+      "box_seconds": 2.564,
+      "bytes_returned": 3094,
+      "bytes_landed": 834,
+      "bytes_moved": 3928,
+      "local_calls": 81,
+      "local_bytes": 138902,
+      "transcript_bytes": 776780,
+      "n_buckets": 7,
+      "n_buckets_expected": 7,
+      "fully_covered": true,
+      "record_coverage": "full",
+      "n_costly_buckets": 0,
+      "swap_bytes": 0
+    },
+    {
+      "round": 370,
+      "first_contact_utc": "2026-08-30T14:57:11Z",
+      "window_utc": [
+        "2026-08-30T14:52:11Z",
+        "2026-08-30T15:52:11Z"
+      ],
+      "abs_lo": 658331,
+      "abs_hi": 661931,
+      "n_calls": 17,
+      "n_logins": 19,
+      "n_scp": 2,
+      "box_seconds": 423.091,
+      "bytes_returned": 14138,
+      "bytes_landed": 19594,
+      "bytes_moved": 33732,
+      "local_calls": 68,
+      "local_bytes": 139461,
+      "transcript_bytes": 865020,
+      "n_buckets": 7,
+      "n_buckets_expected": 7,
+      "fully_covered": true,
+      "record_coverage": "full",
+      "n_costly_buckets": 1,
+      "swap_bytes": 6832128
+    },
+    {
+      "round": 376,
+      "first_contact_utc": "2026-08-30T19:54:19Z",
+      "window_utc": [
+        "2026-08-30T19:49:19Z",
+        "2026-08-30T20:49:19Z"
+      ],
+      "abs_lo": 676159,
+      "abs_hi": 679759,
+      "n_calls": 8,
+      "n_logins": 9,
+      "n_scp": 1,
+      "box_seconds": 9.65,
+      "bytes_returned": 27183,
+      "bytes_landed": 10419,
+      "bytes_moved": 37602,
+      "local_calls": 86,
+      "local_bytes": 147500,
+      "transcript_bytes": 992668,
+      "n_buckets": 7,
+      "n_buckets_expected": 7,
+      "fully_covered": true,
+      "record_coverage": "full",
+      "n_costly_buckets": 0,
+      "swap_bytes": 0
+    },
+    {
+      "round": 382,
+      "first_contact_utc": "2026-08-31T00:05:49Z",
+      "window_utc": [
+        "2026-08-31T00:00:49Z",
+        "2026-08-31T01:00:49Z"
+      ],
+      "abs_lo": 691249,
+      "abs_hi": 694849,
+      "n_calls": 8,
+      "n_logins": 10,
+      "n_scp": 2,
+      "box_seconds": 9.019,
+      "bytes_returned": 11797,
+      "bytes_landed": 6127,
+      "bytes_moved": 17924,
+      "local_calls": 127,
+      "local_bytes": 209088,
+      "transcript_bytes": 1159367,
+      "n_buckets": 7,
+      "n_buckets_expected": 7,
+      "fully_covered": true,
+      "record_coverage": "full",
+      "n_costly_buckets": 0,
+      "swap_bytes": 344064
+    },
+    {
+      "round": 388,
+      "first_contact_utc": "2026-08-31T04:52:42Z",
+      "window_utc": [
+        "2026-08-31T04:47:42Z",
+        "2026-08-31T05:47:42Z"
+      ],
+      "abs_lo": 708462,
+      "abs_hi": 712062,
+      "n_calls": 10,
+      "n_logins": 11,
+      "n_scp": 1,
+      "box_seconds": 11.461,
+      "bytes_returned": 35327,
+      "bytes_landed": 8831,
+      "bytes_moved": 44158,
+      "local_calls": 105,
+      "local_bytes": 204411,
+      "transcript_bytes": 1133129,
+      "n_buckets": 7,
+      "n_buckets_expected": 7,
+      "fully_covered": true,
+      "record_coverage": "full",
+      "n_costly_buckets": 0,
+      "swap_bytes": 0
+    },
+    {
+      "round": 394,
+      "first_contact_utc": "2026-08-31T09:10:58Z",
+      "window_utc": [
+        "2026-08-31T09:05:58Z",
+        "2026-08-31T10:05:58Z"
+      ],
+      "abs_lo": 723958,
+      "abs_hi": 727558,
+      "n_calls": 16,
+      "n_logins": 17,
+      "n_scp": 1,
+      "box_seconds": 54.093,
+      "bytes_returned": 80818,
+      "bytes_landed": 10596,
+      "bytes_moved": 91414,
+      "local_calls": 87,
+      "local_bytes": 140076,
+      "transcript_bytes": 1226575,
+      "n_buckets": 7,
+      "n_buckets_expected": 7,
+      "fully_covered": true,
+      "record_coverage": "full",
+      "n_costly_buckets": 0,
+      "swap_bytes": 0
+    },
+    {
+      "round": 400,
+      "first_contact_utc": "2026-08-31T13:16:20Z",
+      "window_utc": [
+        "2026-08-31T13:11:20Z",
+        "2026-08-31T14:11:20Z"
+      ],
+      "abs_lo": 738680,
+      "abs_hi": 742280,
+      "n_calls": 8,
+      "n_logins": 9,
+      "n_scp": 1,
+      "box_seconds": 27.541,
+      "bytes_returned": 13970,
+      "bytes_landed": 315069,
+      "bytes_moved": 329039,
+      "local_calls": 81,
+      "local_bytes": 216039,
+      "transcript_bytes": 1265664,
+      "n_buckets": 7,
+      "n_buckets_expected": 7,
+      "fully_covered": true,
+      "record_coverage": "full",
+      "n_costly_buckets": 2,
+      "swap_bytes": 118505472
+    },
+    {
+      "round": 406,
+      "first_contact_utc": "2026-08-31T17:55:58Z",
+      "window_utc": [
+        "2026-08-31T17:50:58Z",
+        "2026-08-31T18:50:58Z"
+      ],
+      "abs_lo": 755458,
+      "abs_hi": 759058,
+      "n_calls": 1,
+      "n_logins": 1,
+      "n_scp": 0,
+      "box_seconds": 10.116,
+      "bytes_returned": 64,
+      "bytes_landed": 0,
+      "bytes_moved": 64,
+      "local_calls": 89,
+      "local_bytes": 171223,
+      "transcript_bytes": 1067448,
+      "n_buckets": 0,
+      "n_buckets_expected": 7,
+      "fully_covered": false,
+      "record_coverage": "none",
+      "n_costly_buckets": 0,
+      "swap_bytes": 0
+    },
+    {
+      "round": 412,
+      "first_contact_utc": "2026-08-31T22:11:30Z",
+      "window_utc": [
+        "2026-08-31T22:06:30Z",
+        "2026-08-31T23:06:30Z"
+      ],
+      "abs_lo": 770790,
+      "abs_hi": 774390,
+      "n_calls": 1,
+      "n_logins": 2,
+      "n_scp": 0,
+      "box_seconds": 25.103,
+      "bytes_returned": 251,
+      "bytes_landed": 0,
+      "bytes_moved": 251,
+      "local_calls": 90,
+      "local_bytes": 170423,
+      "transcript_bytes": 951714,
+      "n_buckets": 0,
+      "n_buckets_expected": 7,
+      "fully_covered": false,
+      "record_coverage": "none",
+      "n_costly_buckets": 0,
+      "swap_bytes": 0
+    },
+    {
+      "round": 418,
+      "first_contact_utc": "2026-09-01T03:08:21Z",
+      "window_utc": [
+        "2026-09-01T03:03:21Z",
+        "2026-09-01T04:03:21Z"
+      ],
+      "abs_lo": 788601,
+      "abs_hi": 792201,
+      "n_calls": 2,
+      "n_logins": 3,
+      "n_scp": 0,
+      "box_seconds": 30.441,
+      "bytes_returned": 1232,
+      "bytes_landed": 0,
+      "bytes_moved": 1232,
+      "local_calls": 109,
+      "local_bytes": 179875,
+      "transcript_bytes": 967075,
+      "n_buckets": 0,
+      "n_buckets_expected": 7,
+      "fully_covered": false,
+      "record_coverage": "none",
+      "n_costly_buckets": 0,
+      "swap_bytes": 0
+    },
+    {
+      "round": 424,
+      "first_contact_utc": "2026-09-01T08:10:06Z",
+      "window_utc": [
+        "2026-09-01T08:05:06Z",
+        "2026-09-01T09:05:06Z"
+      ],
+      "abs_lo": 806706,
+      "abs_hi": 810306,
+      "n_calls": 9,
+      "n_logins": 12,
+      "n_scp": 0,
+      "box_seconds": 39.481,
+      "bytes_returned": 14077,
+      "bytes_landed": 2896862,
+      "bytes_moved": 2910939,
+      "local_calls": 103,
+      "local_bytes": 149828,
+      "transcript_bytes": 1046794,
+      "n_buckets": 1,
+      "n_buckets_expected": 7,
+      "fully_covered": false,
+      "record_coverage": "partial",
+      "n_costly_buckets": 0,
+      "swap_bytes": 0
+    },
+    {
+      "round": 430,
+      "first_contact_utc": "2026-09-01T13:52:00Z",
+      "window_utc": [
+        "2026-09-01T13:47:00Z",
+        "2026-09-01T14:47:00Z"
+      ],
+      "abs_lo": 827220,
+      "abs_hi": 830820,
+      "n_calls": 3,
+      "n_logins": 3,
+      "n_scp": 0,
+      "box_seconds": 4.091,
+      "bytes_returned": 4670,
+      "bytes_landed": 44072,
+      "bytes_moved": 48742,
+      "local_calls": 114,
+      "local_bytes": 238402,
+      "transcript_bytes": 1220975,
+      "n_buckets": 0,
+      "n_buckets_expected": 7,
+      "fully_covered": false,
+      "record_coverage": "none",
+      "n_costly_buckets": 0,
+      "swap_bytes": 0
+    }
+  ],
+  "scope_split": {
+    "match_s": 120,
+    "n_scopes": 1401,
+    "n_before_the_transcript_corpus": 292,
+    "n_ours": 454,
+    "n_theirs": 655,
+    "frac_ours": 0.40937781785392247,
+    "chance_match_rate": 0.0423,
+    "n_calls": 344,
+    "why": "the sentence `the scopes are this program`s footprints` is a claim about THIS fraction, not about the probe-side one"
+  },
+  "scope_split_nulls": {
+    "ours": {
+      "n_fires": 454,
+      "shift_group_days": [
+        "2026-08-26",
+        "2026-09-01"
+      ],
+      "n_landed_on_covered_ground": 442,
+      "frac_landed": 0.9736,
+      "observed_fires_in_a_costly_bucket": 96,
+      "observed_rate": 0.21719,
+      "trials": 2000,
+      "n_draws_scored": 2000,
+      "n_draws_skipped": 0,
+      "null_mean_rate": 0.0468,
+      "null_median_rate": 0.03929,
+      "null_p95_rate": 0.12536,
+      "n_draws_ge_observed": 0,
+      "p_value": 0.0,
+      "p_floor": 0.0005,
+      "null": "circular shift within the population's own day range, scored as a rate over the fires each draw places on fully-recorded ground"
+    },
+    "theirs": {
+      "n_fires": 655,
+      "shift_group_days": [
+        "2026-08-26",
+        "2026-09-01"
+      ],
+      "n_landed_on_covered_ground": 642,
+      "frac_landed": 0.9802,
+      "observed_fires_in_a_costly_bucket": 27,
+      "observed_rate": 0.04206,
+      "trials": 2000,
+      "n_draws_scored": 2000,
+      "n_draws_skipped": 0,
+      "null_mean_rate": 0.05287,
+      "null_median_rate": 0.03929,
+      "null_p95_rate": 0.16538,
+      "n_draws_ge_observed": 930,
+      "p_value": 0.465,
+      "p_floor": 0.0005,
+      "null": "circular shift within the population's own day range, scored as a rate over the fires each draw places on fully-recorded ground"
+    },
+    "verdict": "the association is carried by THIS PROGRAM's logins"
+  }
+}

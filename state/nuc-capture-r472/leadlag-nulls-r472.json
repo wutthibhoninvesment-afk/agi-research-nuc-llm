@@ -1,0 +1,624 @@
+{
+  "whole_day_shifts": {
+    "ours": {
+      "n_fires": 454,
+      "shift_group_days": [
+        "2026-08-26",
+        "2026-09-01"
+      ],
+      "n_landed_on_covered_ground": 442,
+      "frac_landed": 0.9736,
+      "observed_fires_in_a_costly_bucket": 96,
+      "observed_rate": 0.21719,
+      "trials": 9,
+      "offsets_were_explicit": true,
+      "n_draws_scored": 9,
+      "n_draws_skipped": 0,
+      "null_mean_rate": 0.06672,
+      "null_median_rate": 0.01712,
+      "null_p95_rate": 0.21719,
+      "n_draws_ge_observed": 1,
+      "n_identity_draws": 1,
+      "n_draws_ge_observed_excluding_identity": 0,
+      "p_value": 0.1111111111111111,
+      "p_value_excluding_identity": 0.0,
+      "p_floor": 0.1111111111111111,
+      "null": "circular shift within the population's own day range, scored as a rate over the fires each draw places on fully-recorded ground"
+    },
+    "theirs": {
+      "n_fires": 655,
+      "shift_group_days": [
+        "2026-08-26",
+        "2026-09-01"
+      ],
+      "n_landed_on_covered_ground": 642,
+      "frac_landed": 0.9802,
+      "observed_fires_in_a_costly_bucket": 27,
+      "observed_rate": 0.04206,
+      "trials": 9,
+      "offsets_were_explicit": true,
+      "n_draws_scored": 9,
+      "n_draws_skipped": 0,
+      "null_mean_rate": 0.04202,
+      "null_median_rate": 0.0317,
+      "null_p95_rate": 0.14085,
+      "n_draws_ge_observed": 2,
+      "n_identity_draws": 1,
+      "n_draws_ge_observed_excluding_identity": 1,
+      "p_value": 0.2222222222222222,
+      "p_value_excluding_identity": 0.1111111111111111,
+      "p_floor": 0.1111111111111111,
+      "null": "circular shift within the population's own day range, scored as a rate over the fires each draw places on fully-recorded ground"
+    },
+    "all scopes": {
+      "n_fires": 1401,
+      "shift_group_days": [
+        "2026-08-23",
+        "2026-09-01"
+      ],
+      "n_landed_on_covered_ground": 1374,
+      "frac_landed": 0.9807,
+      "observed_fires_in_a_costly_bucket": 284,
+      "observed_rate": 0.2067,
+      "trials": 9,
+      "offsets_were_explicit": true,
+      "n_draws_scored": 9,
+      "n_draws_skipped": 0,
+      "null_mean_rate": 0.04743,
+      "null_median_rate": 0.03623,
+      "null_p95_rate": 0.11503,
+      "n_draws_ge_observed": 0,
+      "n_identity_draws": 0,
+      "n_draws_ge_observed_excluding_identity": 0,
+      "p_value": 0.0,
+      "p_value_excluding_identity": 0.0,
+      "p_floor": 0.1111111111111111,
+      "null": "circular shift within the population's own day range, scored as a rate over the fires each draw places on fully-recorded ground"
+    },
+    "published services": {
+      "n_fires": 647,
+      "shift_group_days": [
+        "2026-08-23",
+        "2026-09-01"
+      ],
+      "n_landed_on_covered_ground": 309,
+      "frac_landed": 0.4776,
+      "observed_fires_in_a_costly_bucket": 52,
+      "observed_rate": 0.16828,
+      "trials": 9,
+      "offsets_were_explicit": true,
+      "n_draws_scored": 9,
+      "n_draws_skipped": 0,
+      "null_mean_rate": 0.04902,
+      "null_median_rate": 0.02865,
+      "null_p95_rate": 0.14286,
+      "n_draws_ge_observed": 0,
+      "n_identity_draws": 0,
+      "n_draws_ge_observed_excluding_identity": 0,
+      "p_value": 0.0,
+      "p_value_excluding_identity": 0.0,
+      "p_floor": 0.1111111111111111,
+      "null": "circular shift within the population's own day range, scored as a rate over the fires each draw places on fully-recorded ground"
+    }
+  },
+  "lead_lag": {
+    "ours": {
+      "n_fires": 454,
+      "interval_s": 600,
+      "profile": [
+        {
+          "offset_s": -3600,
+          "offset_buckets": -6.0,
+          "n_landed": 448,
+          "n_costly": 5,
+          "rate": 0.011160714285714286
+        },
+        {
+          "offset_s": -3000,
+          "offset_buckets": -5.0,
+          "n_landed": 454,
+          "n_costly": 7,
+          "rate": 0.015418502202643172
+        },
+        {
+          "offset_s": -2400,
+          "offset_buckets": -4.0,
+          "n_landed": 451,
+          "n_costly": 3,
+          "rate": 0.0066518847006651885
+        },
+        {
+          "offset_s": -1800,
+          "offset_buckets": -3.0,
+          "n_landed": 451,
+          "n_costly": 12,
+          "rate": 0.026607538802660754
+        },
+        {
+          "offset_s": -1200,
+          "offset_buckets": -2.0,
+          "n_landed": 448,
+          "n_costly": 13,
+          "rate": 0.029017857142857144
+        },
+        {
+          "offset_s": -600,
+          "offset_buckets": -1.0,
+          "n_landed": 446,
+          "n_costly": 24,
+          "rate": 0.053811659192825115
+        },
+        {
+          "offset_s": 0,
+          "offset_buckets": 0.0,
+          "n_landed": 442,
+          "n_costly": 96,
+          "rate": 0.2171945701357466
+        },
+        {
+          "offset_s": 600,
+          "offset_buckets": 1.0,
+          "n_landed": 436,
+          "n_costly": 43,
+          "rate": 0.09862385321100918
+        },
+        {
+          "offset_s": 1200,
+          "offset_buckets": 2.0,
+          "n_landed": 440,
+          "n_costly": 27,
+          "rate": 0.06136363636363636
+        },
+        {
+          "offset_s": 1800,
+          "offset_buckets": 3.0,
+          "n_landed": 438,
+          "n_costly": 7,
+          "rate": 0.01598173515981735
+        },
+        {
+          "offset_s": 2400,
+          "offset_buckets": 4.0,
+          "n_landed": 444,
+          "n_costly": 0,
+          "rate": 0.0
+        },
+        {
+          "offset_s": 3000,
+          "offset_buckets": 5.0,
+          "n_landed": 442,
+          "n_costly": 0,
+          "rate": 0.0
+        },
+        {
+          "offset_s": 3600,
+          "offset_buckets": 6.0,
+          "n_landed": 444,
+          "n_costly": 1,
+          "rate": 0.0022522522522522522
+        }
+      ],
+      "rate_at_zero": 0.2171945701357466,
+      "peak_offset_s": 0,
+      "peak_is_at_zero": true,
+      "mean_rate_before": 0.023778026054560943,
+      "mean_rate_after": 0.02970357949778586,
+      "asymmetry_after_minus_before": 0.005925553443224915,
+      "why": "a shift null rejects chance; only the SHAPE of the displacement profile separates a cost from a shared clock"
+    },
+    "theirs": {
+      "n_fires": 655,
+      "interval_s": 600,
+      "profile": [
+        {
+          "offset_s": -3600,
+          "offset_buckets": -6.0,
+          "n_landed": 651,
+          "n_costly": 10,
+          "rate": 0.015360983102918587
+        },
+        {
+          "offset_s": -3000,
+          "offset_buckets": -5.0,
+          "n_landed": 649,
+          "n_costly": 14,
+          "rate": 0.02157164869029276
+        },
+        {
+          "offset_s": -2400,
+          "offset_buckets": -4.0,
+          "n_landed": 640,
+          "n_costly": 9,
+          "rate": 0.0140625
+        },
+        {
+          "offset_s": -1800,
+          "offset_buckets": -3.0,
+          "n_landed": 641,
+          "n_costly": 5,
+          "rate": 0.0078003120124804995
+        },
+        {
+          "offset_s": -1200,
+          "offset_buckets": -2.0,
+          "n_landed": 641,
+          "n_costly": 2,
+          "rate": 0.0031201248049922
+        },
+        {
+          "offset_s": -600,
+          "offset_buckets": -1.0,
+          "n_landed": 643,
+          "n_costly": 16,
+          "rate": 0.024883359253499222
+        },
+        {
+          "offset_s": 0,
+          "offset_buckets": 0.0,
+          "n_landed": 642,
+          "n_costly": 27,
+          "rate": 0.04205607476635514
+        },
+        {
+          "offset_s": 600,
+          "offset_buckets": 1.0,
+          "n_landed": 652,
+          "n_costly": 9,
+          "rate": 0.013803680981595092
+        },
+        {
+          "offset_s": 1200,
+          "offset_buckets": 2.0,
+          "n_landed": 655,
+          "n_costly": 2,
+          "rate": 0.0030534351145038168
+        },
+        {
+          "offset_s": 1800,
+          "offset_buckets": 3.0,
+          "n_landed": 655,
+          "n_costly": 1,
+          "rate": 0.0015267175572519084
+        },
+        {
+          "offset_s": 2400,
+          "offset_buckets": 4.0,
+          "n_landed": 653,
+          "n_costly": 10,
+          "rate": 0.015313935681470138
+        },
+        {
+          "offset_s": 3000,
+          "offset_buckets": 5.0,
+          "n_landed": 653,
+          "n_costly": 19,
+          "rate": 0.02909647779479326
+        },
+        {
+          "offset_s": 3600,
+          "offset_buckets": 6.0,
+          "n_landed": 654,
+          "n_costly": 49,
+          "rate": 0.07492354740061162
+        }
+      ],
+      "rate_at_zero": 0.04205607476635514,
+      "peak_offset_s": 3600,
+      "peak_is_at_zero": false,
+      "mean_rate_before": 0.014466487977363877,
+      "mean_rate_after": 0.02295296575503764,
+      "asymmetry_after_minus_before": 0.008486477777673761,
+      "why": "a shift null rejects chance; only the SHAPE of the displacement profile separates a cost from a shared clock"
+    },
+    "all scopes": {
+      "n_fires": 1401,
+      "interval_s": 600,
+      "profile": [
+        {
+          "offset_s": -3600,
+          "offset_buckets": -6.0,
+          "n_landed": 1389,
+          "n_costly": 25,
+          "rate": 0.017998560115190784
+        },
+        {
+          "offset_s": -3000,
+          "offset_buckets": -5.0,
+          "n_landed": 1393,
+          "n_costly": 33,
+          "rate": 0.023689877961234746
+        },
+        {
+          "offset_s": -2400,
+          "offset_buckets": -4.0,
+          "n_landed": 1379,
+          "n_costly": 26,
+          "rate": 0.01885424220449601
+        },
+        {
+          "offset_s": -1800,
+          "offset_buckets": -3.0,
+          "n_landed": 1383,
+          "n_costly": 35,
+          "rate": 0.025307302964569775
+        },
+        {
+          "offset_s": -1200,
+          "offset_buckets": -2.0,
+          "n_landed": 1375,
+          "n_costly": 59,
+          "rate": 0.04290909090909091
+        },
+        {
+          "offset_s": -600,
+          "offset_buckets": -1.0,
+          "n_landed": 1368,
+          "n_costly": 132,
+          "rate": 0.09649122807017543
+        },
+        {
+          "offset_s": 0,
+          "offset_buckets": 0.0,
+          "n_landed": 1374,
+          "n_costly": 284,
+          "rate": 0.2066957787481805
+        },
+        {
+          "offset_s": 600,
+          "offset_buckets": 1.0,
+          "n_landed": 1378,
+          "n_costly": 196,
+          "rate": 0.14223512336719885
+        },
+        {
+          "offset_s": 1200,
+          "offset_buckets": 2.0,
+          "n_landed": 1386,
+          "n_costly": 141,
+          "rate": 0.10173160173160173
+        },
+        {
+          "offset_s": 1800,
+          "offset_buckets": 3.0,
+          "n_landed": 1385,
+          "n_costly": 46,
+          "rate": 0.0332129963898917
+        },
+        {
+          "offset_s": 2400,
+          "offset_buckets": 4.0,
+          "n_landed": 1388,
+          "n_costly": 20,
+          "rate": 0.01440922190201729
+        },
+        {
+          "offset_s": 3000,
+          "offset_buckets": 5.0,
+          "n_landed": 1386,
+          "n_costly": 32,
+          "rate": 0.023088023088023088
+        },
+        {
+          "offset_s": 3600,
+          "offset_buckets": 6.0,
+          "n_landed": 1390,
+          "n_costly": 62,
+          "rate": 0.04460431654676259
+        }
+      ],
+      "rate_at_zero": 0.2066957787481805,
+      "peak_offset_s": 0,
+      "peak_is_at_zero": true,
+      "mean_rate_before": 0.037541717037459614,
+      "mean_rate_after": 0.05988021383758254,
+      "asymmetry_after_minus_before": 0.022338496800122926,
+      "why": "a shift null rejects chance; only the SHAPE of the displacement profile separates a cost from a shared clock"
+    },
+    "published services": {
+      "n_fires": 647,
+      "interval_s": 600,
+      "profile": [
+        {
+          "offset_s": -3600,
+          "offset_buckets": -6.0,
+          "n_landed": 445,
+          "n_costly": 9,
+          "rate": 0.020224719101123594
+        },
+        {
+          "offset_s": -3000,
+          "offset_buckets": -5.0,
+          "n_landed": 393,
+          "n_costly": 13,
+          "rate": 0.03307888040712468
+        },
+        {
+          "offset_s": -2400,
+          "offset_buckets": -4.0,
+          "n_landed": 397,
+          "n_costly": 13,
+          "rate": 0.0327455919395466
+        },
+        {
+          "offset_s": -1800,
+          "offset_buckets": -3.0,
+          "n_landed": 451,
+          "n_costly": 13,
+          "rate": 0.028824833702882482
+        },
+        {
+          "offset_s": -1200,
+          "offset_buckets": -2.0,
+          "n_landed": 448,
+          "n_costly": 9,
+          "rate": 0.020089285714285716
+        },
+        {
+          "offset_s": -600,
+          "offset_buckets": -1.0,
+          "n_landed": 384,
+          "n_costly": 18,
+          "rate": 0.046875
+        },
+        {
+          "offset_s": 0,
+          "offset_buckets": 0.0,
+          "n_landed": 309,
+          "n_costly": 52,
+          "rate": 0.16828478964401294
+        },
+        {
+          "offset_s": 600,
+          "offset_buckets": 1.0,
+          "n_landed": 594,
+          "n_costly": 13,
+          "rate": 0.021885521885521887
+        },
+        {
+          "offset_s": 1200,
+          "offset_buckets": 2.0,
+          "n_landed": 642,
+          "n_costly": 16,
+          "rate": 0.024922118380062305
+        },
+        {
+          "offset_s": 1800,
+          "offset_buckets": 3.0,
+          "n_landed": 639,
+          "n_costly": 18,
+          "rate": 0.028169014084507043
+        },
+        {
+          "offset_s": 2400,
+          "offset_buckets": 4.0,
+          "n_landed": 641,
+          "n_costly": 16,
+          "rate": 0.0249609984399376
+        },
+        {
+          "offset_s": 3000,
+          "offset_buckets": 5.0,
+          "n_landed": 640,
+          "n_costly": 22,
+          "rate": 0.034375
+        },
+        {
+          "offset_s": 3600,
+          "offset_buckets": 6.0,
+          "n_landed": 639,
+          "n_costly": 13,
+          "rate": 0.02034428794992175
+        }
+      ],
+      "rate_at_zero": 0.16828478964401294,
+      "peak_offset_s": 0,
+      "peak_is_at_zero": true,
+      "mean_rate_before": 0.03030638514416051,
+      "mean_rate_after": 0.025776156789991764,
+      "asymmetry_after_minus_before": -0.004530228354168747,
+      "why": "a shift null rejects chance; only the SHAPE of the displacement profile separates a cost from a shared clock"
+    }
+  },
+  "random_shifts": {
+    "ours": {
+      "n_fires": 454,
+      "shift_group_days": [
+        "2026-08-26",
+        "2026-09-01"
+      ],
+      "n_landed_on_covered_ground": 442,
+      "frac_landed": 0.9736,
+      "observed_fires_in_a_costly_bucket": 96,
+      "observed_rate": 0.21719,
+      "trials": 2000,
+      "offsets_were_explicit": false,
+      "n_draws_scored": 2000,
+      "n_draws_skipped": 0,
+      "null_mean_rate": 0.0468,
+      "null_median_rate": 0.03929,
+      "null_p95_rate": 0.12536,
+      "n_draws_ge_observed": 0,
+      "n_identity_draws": 0,
+      "n_draws_ge_observed_excluding_identity": 0,
+      "p_value": 0.0,
+      "p_value_excluding_identity": 0.0,
+      "p_floor": 0.0005,
+      "null": "circular shift within the population's own day range, scored as a rate over the fires each draw places on fully-recorded ground"
+    },
+    "theirs": {
+      "n_fires": 655,
+      "shift_group_days": [
+        "2026-08-26",
+        "2026-09-01"
+      ],
+      "n_landed_on_covered_ground": 642,
+      "frac_landed": 0.9802,
+      "observed_fires_in_a_costly_bucket": 27,
+      "observed_rate": 0.04206,
+      "trials": 2000,
+      "offsets_were_explicit": false,
+      "n_draws_scored": 2000,
+      "n_draws_skipped": 0,
+      "null_mean_rate": 0.05287,
+      "null_median_rate": 0.03929,
+      "null_p95_rate": 0.16538,
+      "n_draws_ge_observed": 930,
+      "n_identity_draws": 0,
+      "n_draws_ge_observed_excluding_identity": 930,
+      "p_value": 0.465,
+      "p_value_excluding_identity": 0.465,
+      "p_floor": 0.0005,
+      "null": "circular shift within the population's own day range, scored as a rate over the fires each draw places on fully-recorded ground"
+    },
+    "all scopes": {
+      "n_fires": 1401,
+      "shift_group_days": [
+        "2026-08-23",
+        "2026-09-01"
+      ],
+      "n_landed_on_covered_ground": 1374,
+      "frac_landed": 0.9807,
+      "observed_fires_in_a_costly_bucket": 284,
+      "observed_rate": 0.2067,
+      "trials": 2000,
+      "offsets_were_explicit": false,
+      "n_draws_scored": 2000,
+      "n_draws_skipped": 0,
+      "null_mean_rate": 0.05345,
+      "null_median_rate": 0.0479,
+      "null_p95_rate": 0.11121,
+      "n_draws_ge_observed": 2,
+      "n_identity_draws": 0,
+      "n_draws_ge_observed_excluding_identity": 2,
+      "p_value": 0.001,
+      "p_value_excluding_identity": 0.001,
+      "p_floor": 0.0005,
+      "null": "circular shift within the population's own day range, scored as a rate over the fires each draw places on fully-recorded ground"
+    },
+    "published services": {
+      "n_fires": 647,
+      "shift_group_days": [
+        "2026-08-23",
+        "2026-09-01"
+      ],
+      "n_landed_on_covered_ground": 309,
+      "frac_landed": 0.4776,
+      "observed_fires_in_a_costly_bucket": 52,
+      "observed_rate": 0.16828,
+      "trials": 2000,
+      "offsets_were_explicit": false,
+      "n_draws_scored": 2000,
+      "n_draws_skipped": 0,
+      "null_mean_rate": 0.05128,
+      "null_median_rate": 0.02821,
+      "null_p95_rate": 0.17442,
+      "n_draws_ge_observed": 112,
+      "n_identity_draws": 0,
+      "n_draws_ge_observed_excluding_identity": 112,
+      "p_value": 0.056,
+      "p_value_excluding_identity": 0.056,
+      "p_floor": 0.0005,
+      "null": "circular shift within the population's own day range, scored as a rate over the fires each draw places on fully-recorded ground"
+    }
+  }
+}

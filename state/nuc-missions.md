@@ -2942,3 +2942,169 @@ confirmed is 29h50m36s, 9m24s short.
    evidence still stands behind the first: three episodes in ten days, one of
    which killed the engine, against a directly measured 30.0 GiB peak on a
    31.2 GiB box.
+
+## Round 472 (NUC-integration E) — 2026-09-03, box **DOWN** the whole round; SEVENTH consecutive down window (436, 442, 448, 454, 460, 466, 472), one continuous outage. All findings are offline work on round 424's banked capture and on this repo's own driver transcripts
+
+**Reachability.** Two probes, one per documented path, both before any code
+ran; CLAUDE.md's two-failure rule fired after the second.
+
+- tailnet `ssh -o ConnectTimeout=15 -i ~/.ssh/id_ed25519 jab@100.78.44.111`
+  issued 2026-09-03T08:32:08Z -> `Connection timed out`, rc 255, by 08:32:23Z.
+- LAN `ssh -i ~/.ssh/id_ed25519_nuc jab@192.168.1.37` at 08:32:32Z -> same,
+  **and the key still does not exist on this host**, so that path proves
+  nothing either way.
+- `tailscale status --json` at 08:33:02Z: `Online false`, `LastSeen
+  2026-09-01T18:27:56.1Z` — **byte-identical to rounds 448, 454, 460 AND
+  466**, so 436/442/448/454/460/466/472 is ONE outage. Plaintext: `active;
+  relay "sin"; offline, last seen 1d ago, tx 12168 rx 0`.
+- `status` after the row was appended: **37h26m00s confirmed**, upper bracket
+  38h28m42s. Passes the longest completed streak in this log (19h38m06s) by a
+  **definite 15h03m33s** and the longest unobserved one (14h00m00s) by
+  23h26m00s. The CONFIRMED figure is quoted everywhere in this round; round
+  466 mixed the brackets in prose and scored itself a PARTIAL for it.
+- Round 472's row appended with `replay`, reading
+  `state/nuc-capture-r472/tailscale-status-r472.json`. Log now 63 rows.
+- **Zero ssh sessions succeeded: nothing was read from or written to the box,
+  port 8001 was never contacted, no engine request of any kind was made.**
+- Round 460's item 1 ran FIRST: `coverage --strict` **0**,
+  `precision-audit --strict` **0**, `lastseen-drift --strict` **1** — the
+  state rounds 460 and 466 left, the last for the documented reason. Re-run
+  after the append: identical.
+
+**Round 466's item 3 is ANSWERED, and the answer is NULL.** The dose comes
+from `logs/round-<N>.json` (the driver's own transcripts, millisecond
+timestamps, every shell command), the response from the sar record; neither
+file knows about the other. Every round is scored over the same 3601 s window,
+because window length is itself a dose. Negative controls — the round's LOCAL
+work, which cannot touch the box — are in the same table as the doses.
+
+**Over all 42 scorable rounds the experiment says the observer costs the box:
+`n_calls` rho +0.418, p 0.0062. It is the box's POWER SWITCH.** Ten of those
+42 windows have zero sar buckets because the box was down, so their response
+is zero by construction — and a down round makes two probe calls instead of
+fifteen. Restricted to the **28 full-record windows**: **no dose reaches
+p <= 0.05**; the strongest is `bytes_landed` at rho **−0.277** (wrong sign),
+and the two terms nearest significance are the CONTROLS `local_bytes`
+(p 0.037) and `transcript_bytes` (p 0.051). The unstratified table ships under
+the key `dose_response_UNSTRATIFIED_do_not_quote`.
+
+**The dose had to be fixed twice before it was a dose at all.** (a) A heredoc
+BODY quoting an ssh line — round 424's own prediction file — scores as a
+login on any substring test. (b) Round 424 pulled 3.26 MB off the box with
+`ssh ... > file`, so the transcript holds 489 bytes: **`bytes_returned` 14 077
+vs `bytes_landed` 2 896 862, a factor of 206, and round 424 used NO scp**, so
+an scp-only fix misses it entirely. Scored on stdout the heaviest round in the
+corpus reads as one of the lightest — the exact direction that manufactures a
+null.
+
+**Three nulls, each fixing the last, each moving the p-value the same way.**
+Window-level, same 28 windows, only the null's SUPPORT changes: random shift
+over the whole span p 0.072 -> restricted to the days E rounds can occupy
+(08-26..08-31, since the driver log begins round 152 on 08-26) **p 0.0095** ->
+**coverage-conditional rate, so a window shifted onto DOWNTIME cannot count as
+a miss: 11/28 = 0.393 vs null 0.277, p 0.128, NOT significant.** Separately,
+null 1's bytes reading (`obs 2.383 GB vs null MEAN 4.567 GB`) inverts once the
+median is shown: **null median 2.336 GB**, essentially equal to the
+observation. `null_median_*` is now reported beside every mean.
+
+**Round 466's own statistic re-run under the corrected null, and the split
+that reconciles everything.** `shift_null_covered` scores a rate over fires
+that land on covered ground:
+
+| population | fires | landed | rate obs | null | p |
+|---|---|---|---|---|---|
+| published `.service` | 647 | **47.8 %** | 0.168 | 0.051 | **0.056** |
+| session scopes ONLY | 1401 | **98.1 %** | 0.207 | 0.053 | **0.0010** |
+
+The scope result SURVIVES; **the published service population's does not**
+(0.0005 -> 0.056), and the reason is the middle column — services spend more
+than half their fires on ground the record does not cover.
+
+**41 %, not "the scopes are ours".** Round 466 wrote that from a PROBE-side
+rate (33/35 log rows). The transcripts answer the scope side: of 1109 testable
+scopes (292 predate the transcript corpus and are UNTESTABLE), **454 are ours
+(40.9 %) and 655 are not (59.1 %)**, against a 4.23 % chance match rate. Split
+and re-null: **ours 0.2172 vs 0.0468, p 0.0000** (and p 0.0000 under whole-day
+shifts once the identity draw is removed — `ours` spans 7 days, so 7 x 86400
+IS the identity); **not-ours 0.0421 vs 0.0529, p 0.4650**. The entire
+association is this program's own logins; the box's other 655 logins are
+chance.
+
+**Lead-lag says cost, not shared clock.** Costly-bucket rate by displacement
+in 600 s buckets — `ours` peaks at zero (0.217, ~14x its far field) with a
+right shoulder (+1 0.099, +2 0.061) about twice the left; `not ours` has no
+peak at zero at all; `published services` peaks at zero with NO shoulder
+(+1 0.022), i.e. co-location without persistence. **Caveat kept in the round
+file: a round makes ~12 logins over 10-25 min, so part of the right shoulder
+is within-round clustering, not persistence. The peak at zero is unaffected;
+the asymmetry is suggestive, not established.**
+
+**What that leaves.** At login-instant resolution (n=454) the coincidence is
+strong and robust; at round-window resolution (n=28) and at
+how-much-the-round-did resolution (n=28) there is nothing. Together those say
+**if the logins cost memory the cost is per-login and roughly fixed, not
+proportional to the work** — plausible on a box at 92 % memory used, and NOT
+established.
+
+**Round 466's item 2 is DECIDED: do NOT exclude `session-*.scope`.**
+`LEDGER_EXCLUDE_UNITS` is untouched and a test holds it at
+`("sysstat-collect",)`. Both tables (`perturbation.py exclusion`): widened
+WITH scopes **44/52, 31 839 289 344 B, 94.04 %**; WITHOUT **19/52,
+9 039 863 808 B, 26.70 %** — byte-identical to the published population, so
+the 40 non-session fires the widening adds contribute nothing. Excluding costs
+−25 buckets, −22.80 GB, −67.34 pp. Three reasons: it would be a silent
+67-point move; round 466's "hiding it is worse than naming it" is
+strengthened, not weakened, by the split; and the *reason* for excluding got
+weaker — `sysstat-collect` is excluded because its fire IS the bucket's cost,
+whereas the lead-lag shoulder says a login's cost outlives the login.
+
+**Round 424 is the observer's largest intervention and the instrument cannot
+see it.** 2 896 862 bytes landed, 9x the next round — and its window scores
+`record_coverage: partial, 1 bucket`, because **round 424's capture IS the end
+of the record**. Round 430 is `none`. The six most recent E rounds are
+untestable because the box has been down since 09-01 and no capture has been
+taken since.
+
+**Tests: `nuc/tests` 946 -> 995, all green, 229.5 s** (the fast check's nested
+pytest is most of that); the round-472 file is 49 tests in 15 s. **One test
+went red on its first run and the TEST was wrong** — the "no association"
+stratum was built as a perfect rank correlation. Then **every falsifier was
+mutation-tested**: 10 mutations, first pass killed 7, **three survived** — a
+DEAD `via_variable` disjunct, a wrap test whose tail was empty because the
+pooled window opens at 14:02 on day 0, and `n_identity_draws` untested in
+`shift_null_covered` *while deciding a published p-value*. All three fixed;
+10 of 10 now go red. Round 466's F1/F7 lesson recurring: first-run silence
+does not reveal an unfalsifiable test, mutation does.
+
+**E-mission status: E1-E5 all still DONE; nothing new unchecked.**
+
+**Next E round, in order:**
+1. **`coverage --strict`, `precision-audit --strict`, `lastseen-drift
+   --strict` FIRST**, and quote the CONFIRMED bracket, not the upper one.
+2. **Deconfound the lead-lag shoulder.** The peak at zero is solid; the
+   asymmetry that makes it look like a cost rather than a co-location is
+   contaminated by within-round login clustering. The fix is a resampling that
+   keeps each round's login train intact and moves the train — i.e.
+   `shift_null_covered` applied per round window rather than to the pooled
+   population. If the shoulder survives that, the causal reading has real
+   support; if it does not, §4b of the round file should be withdrawn loudly.
+3. **`lead_lag_profile` has no null.** It reports rates, and "0.217 vs 0.015"
+   is currently read by eye. Give it the same shift machinery the other
+   statistics have, or stop putting numbers next to each other in a table that
+   invites subtraction.
+4. **Mutation-test the round-466 block too.** This round mutation-tested only
+   its own code and found 3 of 10 falsifiers unfalsifiable. `test_perturbation.py`
+   has never been through that pass and it carries every published number in
+   this track.
+5. **If the box comes up:** capture `sa*` FIRST — every window-level result
+   here is limited by a record that ends when round 424 copied it, and the
+   six most recent E rounds are untestable for want of a newer capture. Then
+   READ `Persistent=` (round 448's §2 correction is wrong in the dangerous
+   direction if it says `true`), then a journal interior covering rounds
+   202-250 for round 460's seven `REBOOT_ONLY` gaps.
+6. **Round 436's items 4, 5 and 9 STILL stand, untouched for a fifth round** —
+   the `commit` channel vs the 9.25 GB weights load, `Consumed` coverage at 4
+   of 26 units, and the separability route. Item 6 stays CLOSED.
+7. **Still blocked on the operator:** `--cap 196` (band [129, 204],
+   `bounded_by: engine_lru`, 1.096 GB margin — **twenty-sixth** round
+   unchanged) and the E3 A/B with its full six-gate table.

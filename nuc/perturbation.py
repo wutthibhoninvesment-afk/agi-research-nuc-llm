@@ -47,6 +47,7 @@ CLI
 from __future__ import annotations
 
 import argparse
+import bisect
 import json
 import math
 import os
@@ -3664,6 +3665,14 @@ class BucketMap:
         self.interval_s = interval_s
         self.exclude_units = tuple(exclude_units)
         self._map: dict = {}
+        # round 472: the same ledger entries, kept for EVERY bucket rather
+        # than only the costly ones. A dose-response needs an untruncated
+        # response variable -- restricting it to buckets above the costly
+        # threshold would censor exactly the cheap windows the hypothesis
+        # predicts for cheap rounds. Filled from the same `cost_ledger`
+        # entries as `_map`, so it inherits `verify()` for free.
+        self._map_any: dict = {}
+        self.all_bucket_bytes: dict = {}
         self.costly: set = set()
         self.bucket_bytes: dict = {}
         for di, (t, date) in enumerate(self.tables):
@@ -3679,6 +3688,8 @@ class BucketMap:
                 sod = _hms_to_s(e["at_utc"].split("T")[1][:8])
                 key = (date, e["bucket_end"])
                 self._map[(di, sod)] = key if e["costly"] else None
+                self._map_any[(di, sod)] = key
+                self.all_bucket_bytes[key] = e["bucket_bytes"]
                 if e["costly"]:
                     self.costly.add(key)
                     self.bucket_bytes[key] = e["bucket_bytes"]
@@ -3686,6 +3697,59 @@ class BucketMap:
             cost_ledger([], t, d, interval_s, min_bytes=min_bytes,
                         exclude_units=(), channel=channel)["n_buckets"]
             for t, d in self.tables)
+        self._build_runs()
+
+    # -- round 472: contiguous-run index over `_map_any`, for span queries
+    def _build_runs(self) -> None:
+        """`_map_any` collapsed to maximal runs of one bucket key.
+
+        Read OFF the finished map, never recomputed from the sar rows, so it
+        inherits whatever `cost_ledger` decided about post-restart rows, wide
+        buckets and undefined ones. It exists because the honest per-second
+        scan is O(window) and the circular-shift null over 30 windows x 2000
+        offsets is 216 million lookups -- minutes of wall clock on a 1-core
+        box for an answer that is 7 buckets wide. `verify_runs()` re-derives
+        the scan's answer for a sample of spans and must agree exactly.
+        """
+        self._starts: list = []
+        self._run_keys: list = []
+        prev = object()
+        for s in range(self.span_s):
+            k = self._map_any.get((s // 86400, s % 86400))
+            if k != prev:
+                self._starts.append(s)
+                self._run_keys.append(k)
+                prev = k
+        self._starts.append(self.span_s)
+
+    def _runs_in(self, a: int, b: int) -> set:
+        i = bisect.bisect_right(self._starts, a) - 1
+        hit = set()
+        while i < len(self._run_keys) and self._starts[i] <= b:
+            k = self._run_keys[i]
+            if k is not None:
+                hit.add(k)
+            i += 1
+        return hit
+
+    def verify_runs(self, spans: Iterable) -> dict:
+        """The run index against the per-second scan, for given spans."""
+        bad = []
+        for a, b in spans:
+            fast = self.span_buckets(a, b)
+            slow = set()
+            for s in range(a, b + 1):
+                v = self._map_any.get(((s % self.span_s) // 86400,
+                                       (s % self.span_s) % 86400))
+                if v is not None:
+                    slow.add(v)
+            if fast != slow:
+                bad.append({"span": [a, b], "only_fast": sorted(map(str, fast - slow)),
+                            "only_slow": sorted(map(str, slow - fast))})
+        return {"n_spans": len(list(spans)) if not isinstance(spans, list)
+                            else len(spans),
+                "n_divergent": len(bad), "identical": not bad,
+                "divergences": bad}
 
     # -- population -> absolute seconds, with the ledger's own exclusions ----
     def seconds(self, fires: Iterable) -> list:
@@ -3708,6 +3772,46 @@ class BucketMap:
             if v is not None:
                 hit.add(v)
         return hit
+
+    # -- round 472: an ISO instant, and a contiguous span, in map coordinates
+    def abs_second(self, at_utc: str):
+        """Absolute offset of an ISO instant in the pooled window, or None.
+
+        `None` means the instant's DATE is not one of the pooled day-files --
+        not that it is quiet. Callers must report those as untestable.
+        """
+        date, rest = at_utc.split("T")
+        if date not in self.days:
+            return None
+        return self.days.index(date) * 86400 + _hms_to_s(rest[:8])
+
+    def span_buckets(self, a: int, b: int, shift_s: int = 0) -> set:
+        """Every bucket any second of [a, b] falls in, wrapped in the window.
+
+        Costly or not. `b` is inclusive; a zero-length span is one second, not
+        zero, because an instant still lands in a bucket.
+        """
+        if b < a:
+            a, b = b, a
+        if b - a + 1 >= self.span_s:
+            return {k for k in self._run_keys if k is not None}
+        lo = (a + shift_s) % self.span_s
+        hi = lo + (b - a)
+        if hi < self.span_s:
+            return self._runs_in(lo, hi)
+        # the shift wrapped the window past the end of the pooled span
+        return self._runs_in(lo, self.span_s - 1) | self._runs_in(
+            0, hi - self.span_s)
+
+    def span_bytes(self, a: int, b: int, shift_s: int = 0) -> int:
+        """Channel bytes of the distinct buckets [a, b] touches.
+
+        Distinct: a bucket is charged ONCE however many of its seconds the
+        span covers. `bucket_bytes` is a property of the bucket -- the same
+        refusal to divide that `cost_ledger` documents.
+        """
+        return sum(self.all_bucket_bytes[k]
+                   for k in self.span_buckets(a, b, shift_s))
 
     def verify(self, fires: Iterable) -> dict:
         """The map's answer against `cost_ledger`'s own, for one population."""
@@ -3800,6 +3904,184 @@ def shift_null(bmap: BucketMap, fires: Iterable, trials: int = SHIFT_NULL_TRIALS
     }
 
 
+def shift_null_covered(bmap: BucketMap, fires: Iterable,
+                       trials: int = SHIFT_NULL_TRIALS,
+                       seed: int = 20260903,
+                       restrict_to_population_days: bool = True,
+                       shifts: Iterable = None) -> dict:
+    """`shift_null`, with the record's own holes taken out of the null.
+
+    Round 472. `shift_null` counts DISTINCT costly buckets named, and shifts
+    the fire train over the whole pooled span. Both choices leak:
+
+    * a fire shifted onto a stretch the sar record does not cover lands in NO
+      bucket, so it can never be costly. The box was down for hours inside
+      this window (rounds 184/190/196 and the whole 298-346 outage), so a
+      sizeable share of every null draw is spent on ground where a hit is
+      impossible. That depresses the null and inflates every effect measured
+      against it.
+    * a population that only exists on some days -- this program's own logins
+      begin when the driver does -- is compared against draws that place it on
+      days it could not occupy.
+
+    So this scores a RATE over LANDED fires: of the fires a draw places on
+    fully-recorded ground, what fraction sit in a costly bucket? Observed and
+    null are then the same quantity and the holes cancel. It is strictly a
+    companion to `shift_null`, not a replacement: the distinct-bucket count
+    answers "how much of the record does this population reach", which is a
+    real question with a real answer. It is the CAUSAL reading of that count
+    that needs this.
+    """
+    secs = bmap.seconds(fires)
+    if not secs:
+        raise PerturbationError("population has no fire in the pooled window")
+    if restrict_to_population_days:
+        day_lo, day_hi = min(secs) // 86400, max(secs) // 86400
+        base, span = day_lo * 86400, (day_hi - day_lo + 1) * 86400
+    else:
+        day_lo, day_hi = 0, len(bmap.days) - 1
+        base, span = 0, bmap.span_s
+
+    def rate(shift):
+        landed = hot = 0
+        for x in secs:
+            t = base + (x - base + shift) % span
+            k = bmap._map_any.get((t // 86400, t % 86400))
+            if k is None:
+                continue
+            landed += 1
+            if k in bmap.costly:
+                hot += 1
+        return landed, hot
+
+    obs_landed, obs_hot = rate(0)
+    if not obs_landed:
+        raise PerturbationError("no fire of this population lands on covered "
+                                "ground")
+    obs = obs_hot / obs_landed
+    rng = random.Random(seed)
+    # `shifts` replaces the random draws with explicit offsets -- round 466's
+    # F7 lesson, applied here on purpose. It is what makes WHOLE-DAY shifts
+    # reachable: a random offset destroys time-of-day alignment along with
+    # everything else, so a population and a bucket set driven by a COMMON
+    # daily period would be scored as an effect. Whole-day offsets preserve
+    # time-of-day exactly and destroy only the day-to-day alignment.
+    offsets = ([int(x) for x in shifts] if shifts is not None
+               else [rng.randrange(span) for _ in range(trials)])
+    trials = len(offsets)
+    draws, ge, skipped, identity = [], 0, 0, 0
+    for off in offsets:
+        landed, hot = rate(off)
+        if not landed:
+            skipped += 1
+            continue
+        r = hot / landed
+        draws.append(r)
+        if r >= obs - 1e-12:
+            ge += 1
+            if off % span == 0:
+                identity += 1
+    if not draws:
+        raise PerturbationError("no draw landed a fire on covered ground")
+    draws.sort()
+    n = len(draws)
+    return {
+        "n_fires": len(secs),
+        "shift_group_days": [bmap.days[day_lo], bmap.days[day_hi]],
+        "n_landed_on_covered_ground": obs_landed,
+        "frac_landed": round(obs_landed / len(secs), 4),
+        "observed_fires_in_a_costly_bucket": obs_hot,
+        "observed_rate": round(obs, 5),
+        "trials": trials,
+        "offsets_were_explicit": shifts is not None,
+        "n_draws_scored": n,
+        "n_draws_skipped": skipped,
+        "null_mean_rate": round(sum(draws) / n, 5),
+        "null_median_rate": round(draws[n // 2], 5),
+        "null_p95_rate": round(draws[min(n - 1, int(0.95 * n))], 5),
+        "n_draws_ge_observed": ge,
+        # Round 466's F7 field, and it earns its keep on the FIRST use here:
+        # whole-day offsets over a population whose own day range is 7 days
+        # include 7 x 86400, which is the identity mod the span. Without this
+        # the one tie it produces reads as a draw that beat the observation.
+        "n_identity_draws": identity,
+        "n_draws_ge_observed_excluding_identity": ge - identity,
+        "p_value": ge / n,
+        "p_value_excluding_identity": (ge - identity) / n,
+        "p_floor": 1.0 / n,
+        "null": "circular shift within the population's own day range, scored "
+                "as a rate over the fires each draw places on fully-recorded "
+                "ground",
+    }
+
+
+def lead_lag_profile(bmap: BucketMap, fires: Iterable,
+                     offsets_s: Iterable = None,
+                     interval_s: int = SAR_INTERVAL_S) -> dict:
+    """The costly-bucket rate of a population displaced by +/- k buckets.
+
+    Round 472. A circular-shift null says the alignment is not chance; it does
+    not say the alignment is CAUSAL, because a population and a bucket set
+    driven by a common period are aligned without either causing the other,
+    and a random shift destroys that alignment exactly as it destroys a causal
+    one.
+
+    A cause has a shape the coincidence does not: it should peak at zero and
+    it should not be symmetric. Memory pressure created by a login is in the
+    login's own bucket and the ones after it, never in the bucket twenty
+    minutes BEFORE. So the profile is the discriminator -- a sharp peak at
+    zero with a heavier right tail is what a cost looks like; a flat or
+    periodic profile, or one as high at -3 as at +3, is what a shared clock
+    looks like.
+
+    Displacement is NOT circular here: a fire pushed off the recorded ground
+    is dropped from that offset's denominator, which is why the rate is
+    reported with its own `n_landed` at every offset.
+    """
+    secs = bmap.seconds(fires)
+    if not secs:
+        raise PerturbationError("population has no fire in the pooled window")
+    if offsets_s is None:
+        offsets_s = [k * interval_s for k in range(-6, 7)]
+    rows = []
+    for off in offsets_s:
+        landed = hot = 0
+        for x in secs:
+            t = x + off
+            if not (0 <= t < bmap.span_s):
+                continue
+            k = bmap._map_any.get((t // 86400, t % 86400))
+            if k is None:
+                continue
+            landed += 1
+            if k in bmap.costly:
+                hot += 1
+        rows.append({"offset_s": off, "offset_buckets": off / interval_s,
+                     "n_landed": landed, "n_costly": hot,
+                     "rate": (hot / landed) if landed else None})
+    at0 = next((r for r in rows if r["offset_s"] == 0), None)
+    have = [r for r in rows if r["rate"] is not None and r["offset_s"] != 0]
+    peak = max((r for r in rows if r["rate"] is not None),
+               key=lambda r: r["rate"])
+    left = [r["rate"] for r in have if r["offset_s"] < 0]
+    right = [r["rate"] for r in have if r["offset_s"] > 0]
+    return {
+        "n_fires": len(secs),
+        "interval_s": interval_s,
+        "profile": rows,
+        "rate_at_zero": at0["rate"] if at0 else None,
+        "peak_offset_s": peak["offset_s"],
+        "peak_is_at_zero": bool(at0 and peak["offset_s"] == 0),
+        "mean_rate_before": (sum(left) / len(left)) if left else None,
+        "mean_rate_after": (sum(right) / len(right)) if right else None,
+        "asymmetry_after_minus_before": (
+            (sum(right) / len(right)) - (sum(left) / len(left))
+            if left and right else None),
+        "why": ("a shift null rejects chance; only the SHAPE of the "
+                "displacement profile separates a cost from a shared clock"),
+    }
+
+
 def population_coverage(sar_text: str, journal_text: str,
                         populations: dict,
                         channel: Channel = SWAP_CHANNEL,
@@ -3829,6 +4111,8 @@ def population_coverage(sar_text: str, journal_text: str,
             "frac_bytes_named": (sum(bmap.bucket_bytes[b] for b in hit)
                                  / total_bytes if total_bytes else None),
             "shift_null": shift_null(bmap, fires, trials, seed),
+            "shift_null_covered": shift_null_covered(bmap, fires, trials,
+                                                     seed),
             "unnamed": sorted(f"{a} {b}" for a, b in bmap.costly - hit),
         })
     return {
@@ -4016,6 +4300,73 @@ def observer_confounding(bmap: BucketMap, journal_text: str,
         "why": ("a scope population that names buckets uniformly over the "
                 "window is measuring the box; one whose buckets sit inside "
                 "this program's own round windows is measuring the program"),
+    }
+
+
+# Round 466 refused to take this decision alone and said exactly why:
+# `sysstat-collect` is excluded from the fire population because it WRITES the
+# bucket it would be charged for; a session scope would be excluded because it
+# IS the observer. Those are different reasons and the second one deserves a
+# written decision with both tables published, not a silent filter.
+SESSION_SCOPE_RE = re.compile(r"^session-\d+\.scope$")
+
+
+def is_session_scope(label: str) -> bool:
+    return bool(SESSION_SCOPE_RE.match(label))
+
+
+def session_exclusion_tables(sar_text: str, journal_text: str,
+                             kinds: Iterable = ("service", "scope"),
+                             channel: Channel = SWAP_CHANNEL,
+                             min_bytes=_UNSET,
+                             trials: int = SHIFT_NULL_TRIALS,
+                             seed: int = 20260903,
+                             bmap: BucketMap = None) -> dict:
+    """Round 466 item 2: BOTH tables for the session-scope exclusion.
+
+    Returns the widened population's coverage with session scopes IN and with
+    them OUT, the delta each way, and what the decision would do to every
+    number round 466 published. It does not apply an exclusion anywhere --
+    `LEDGER_EXCLUDE_UNITS` is untouched by this function on purpose, so that
+    reading the tables cannot move a published figure by itself.
+    """
+    kinds = tuple(kinds)
+    bmap = bmap or BucketMap(sar_text, journal_text, channel, min_bytes)
+    widened = parse_unit_starts_any_kind(journal_text, kinds)
+    kept = [e for e in widened if not is_session_scope(e.label)]
+    dropped = [e for e in widened if is_session_scope(e.label)]
+    pops = {
+        "published (PID-1 `Starting` .service)": parse_unit_starts(journal_text),
+        f"widened ({','.join(kinds)}) WITH session scopes": widened,
+        f"widened ({','.join(kinds)}) WITHOUT session scopes": kept,
+        "session scopes ONLY": dropped,
+    }
+    cov = population_coverage(sar_text, journal_text, pops, channel,
+                              min_bytes, trials, seed, bmap=bmap)
+    by = {r["population"]: r for r in cov["populations"]}
+    a = by[f"widened ({','.join(kinds)}) WITH session scopes"]
+    b = by[f"widened ({','.join(kinds)}) WITHOUT session scopes"]
+    return {
+        "n_widened_fires": len(widened),
+        "n_session_scope_fires": len(dropped),
+        "frac_of_widened_that_is_session_scopes":
+            (len(dropped) / len(widened) if widened else None),
+        "n_costly": len(bmap.costly),
+        "total_costly_bytes": sum(bmap.bucket_bytes.values()),
+        "coverage": cov,
+        "delta_if_excluded": {
+            "n_costly_named": b["n_costly_named"] - a["n_costly_named"],
+            "bytes_named": b["bytes_named"] - a["bytes_named"],
+            "frac_bytes_named": (None if a["frac_bytes_named"] is None
+                                 else round(b["frac_bytes_named"]
+                                            - a["frac_bytes_named"], 4)),
+        },
+        "decision_is_load_bearing": (a["n_costly_named"]
+                                     != b["n_costly_named"]),
+        "why": ("both tables, because the exclusion is not obviously right: "
+                "if this program's own traffic really costs the box four "
+                "gigabytes of swap, that is a fact about the deployment and "
+                "hiding it is worse than naming it"),
     }
 
 
@@ -4305,6 +4656,18 @@ def main(argv=None) -> int:
                            "program's own probes, i.e. if a scope-inclusive "
                            "fire population would be measuring the observer")
 
+    sx = sub.add_parser(
+        "exclusion",
+        help="round 466 item 2: both tables for the `session-*.scope` "
+             "exclusion decision, and what excluding would move")
+    sx.add_argument("--capture", required=True)
+    sx.add_argument("--journal", default=None)
+    sx.add_argument("--channel", default="swap", choices=sorted(CHANNELS))
+    sx.add_argument("--min-bytes", type=int, default=None)
+    sx.add_argument("--trials", type=int, default=SHIFT_NULL_TRIALS)
+    sx.add_argument("--seed", type=int, default=20260903)
+    sx.add_argument("--kinds", default="service,scope")
+
     sd = sub.add_parser(
         "direct",
         help="round 436: systemd's own per-invocation cgroup accounting, and "
@@ -4527,6 +4890,19 @@ def main(argv=None) -> int:
             sar_t, jr_t, pops, CHANNELS[args.channel],
             (_UNSET if args.min_bytes is None else args.min_bytes),
             trials=args.trials, seed=args.seed, bmap=bmap), indent=2))
+    elif args.mode == "exclusion":
+        cap = args.capture
+        sar_path = (cap if cap.endswith(".txt")
+                    else os.path.join(cap, "sar-all.txt"))
+        jrnl_path = args.journal or os.path.join(
+            os.path.dirname(sar_path) or ".", "journal-pid1-full.txt")
+        sar_t, jr_t = _load(sar_path), _load(jrnl_path)
+        print(json.dumps(session_exclusion_tables(
+            sar_t, jr_t,
+            tuple(x.strip() for x in args.kinds.split(",") if x.strip()),
+            CHANNELS[args.channel],
+            (_UNSET if args.min_bytes is None else args.min_bytes),
+            trials=args.trials, seed=args.seed), indent=2))
     elif args.mode == "observer":
         jr_t = _load(args.journal)
         rows = [json.loads(x) for x in _load(args.log).splitlines() if x.strip()]

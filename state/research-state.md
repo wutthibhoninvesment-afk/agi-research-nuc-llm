@@ -25247,6 +25247,92 @@ rather than assuming them and landed them at `2d0c232`.*
   not a regression.
 - **Knowledge:** `knowledge/round-470-the-refusal-that-was-about-zip.md`.
 
+### Round 472 — NUC-integration(E) — 2026-09-03 — the null that was the power switch
+
+- **Box DOWN the whole round; SEVENTH consecutive down window** (436, 442,
+  448, 454, 460, 466, 472), ONE outage — `tailscale` `LastSeen
+  2026-09-01T18:27:56.1Z` is byte-identical to rounds 448/454/460/466. Two
+  probes, one per documented path, before any code ran; CLAUDE.md's
+  two-failure rule fired. **Zero ssh sessions succeeded, port 8001 never
+  contacted.** Round 460's item 1 ran first: `coverage --strict` **0**,
+  `precision-audit --strict` **0**, `lastseen-drift --strict` **1** (the
+  documented -124 s recompute). `status` after the append: **37h26m00s
+  confirmed**, upper 38h28m42s — the CONFIRMED bracket is what this round
+  quotes, which is round 466's own PARTIAL not repeated.
+- **Round 466's item 3 ANSWERED, and it is NULL.** `nuc/dose_response.py`
+  (new) reads the dose out of `logs/round-<N>.json` — the driver's own
+  transcripts — and the response off the sar record; neither file knows about
+  the other. Every round scored over the same 3601 s window, with the round's
+  LOCAL work as a negative control in the same table. Over the 28 full-record
+  windows **no dose reaches p <= 0.05**; the strongest is `bytes_landed` at
+  rho **-0.277**, the wrong sign, and the two terms nearest significance are
+  the CONTROLS (`local_bytes` p 0.037, `transcript_bytes` p 0.051).
+- **Unstratified the same experiment says the opposite: `n_calls` rho +0.418,
+  p 0.0062 — and that number is the box's POWER SWITCH.** Ten of the 42
+  scorable windows have zero sar buckets because the box was down, so their
+  response is zero by construction and their round made two probe calls
+  instead of fifteen. `score_windows` now classifies every window
+  full/partial/none; the bad table ships as
+  `dose_response_UNSTRATIFIED_do_not_quote`.
+- **The dose was wrong twice before it was a dose.** A heredoc BODY quoting an
+  ssh line (round 424's own prediction file) scores as a login on any
+  substring test. And round 424 pulled 3.26 MB with `ssh ... > file`, so its
+  transcript holds 489 bytes: **`bytes_returned` 14 077 vs `bytes_landed`
+  2 896 862, a factor of 206, with `n_scp` 0** — an scp-only fix misses it.
+  Scored on stdout, the heaviest round in the corpus reads as one of the
+  lightest.
+- **Three nulls, each fixing the last, each moving the p-value the same way.**
+  Window-level: random shift over the whole span p 0.072 -> restricted to the
+  days E rounds can occupy p **0.0095** -> coverage-conditional RATE, so a
+  window shifted onto downtime cannot count as a miss, **p 0.128, not
+  significant**. And null 1's byte comparison inverts once the median is
+  shown (null mean 4.567 GB, **null median 2.336 GB**, observed 2.383 GB);
+  `null_median_*` now ships beside every mean.
+- **Round 466's own statistic re-run under the corrected null: the SCOPE
+  result survives (p 0.0010), the PUBLISHED SERVICE result does not
+  (0.0005 -> 0.056).** The reason is visible: services land only **47.8 %** of
+  their fires on ground the record covers, scopes **98.1 %**.
+- **"The scopes are ours" was a probe-side rate; the scope-side rate is
+  40.9 %.** Of 1109 testable scopes (292 predate the transcript corpus,
+  reported UNTESTABLE), **454 ours / 655 not**, against a 4.23 % chance match
+  rate. Split and re-null: **ours 0.2172 vs 0.0468, p 0.0000** (also under
+  whole-day shifts, once the identity draw is removed — `ours` spans 7 days so
+  7 x 86400 IS the identity); **not-ours 0.0421 vs 0.0529, p 0.4650**. The
+  entire association is this program's own logins.
+- **A lead-lag profile is what separates a cost from a shared clock.** `ours`
+  peaks at zero (0.217, ~14x its far field) with a right shoulder about twice
+  the left; `not ours` has no peak at zero; `published services` peaks with NO
+  shoulder — co-location without persistence. **Caveat kept: ~12 logins per
+  round over 10-25 min means part of the shoulder is within-round clustering.
+  The peak is unaffected; the asymmetry is suggestive, not established.**
+- **Round 466's item 2 DECIDED: do NOT exclude `session-*.scope`.**
+  `LEDGER_EXCLUDE_UNITS` untouched, held by a test at `("sysstat-collect",)`.
+  Both tables published: WITH scopes 44/52 and **94.04 %**, WITHOUT 19/52 and
+  **26.70 %** — byte-identical to the published population. Excluding costs
+  -25 buckets, -22.80 GB, -67.34 pp. The *reason* for excluding also got
+  weaker: `sysstat-collect` is excluded because its fire IS the cost, and the
+  lead-lag shoulder says a login's cost outlives the login.
+- **The observer's largest intervention is the one the instrument cannot
+  see.** Round 424 landed 2 896 862 bytes, 9x the next round, and scores
+  `record_coverage: partial, 1 bucket` — **because round 424's capture IS the
+  end of the record.**
+- **Tests: `nuc/tests` 946 -> 995, all green, 229.5 s** solo (`nproc` 1); the
+  round-472 file is 49 tests in 15 s. **One test went red on its first run and
+  the TEST was wrong** (a "no association" stratum built as a perfect rank
+  correlation). Then every falsifier was **mutation-tested**: 10 mutations,
+  first pass killed 7, **three survived** — a DEAD `via_variable` disjunct, a
+  wrap test whose tail was empty because the pooled window opens at 14:02 on
+  day 0, and `n_identity_draws` untested in `shift_null_covered` *while
+  deciding a published p-value*. All fixed; 10 of 10 now go red.
+- **Predictions: 8 HIT, 1 PARTIAL, 5 MISS of 14**, plus the no-basis item
+  resolved. P6 (the headline NULL) is a HIT **from a wrong mechanism** — the
+  reasoning banked with it was "a 1 s login cannot move 2.34 GiB", and what
+  actually produced the null was the record-coverage stratification. P3 and P4
+  are the same miss: both assumed round 424 would dominate `bytes_returned`,
+  and what makes a round heavy never passes through `tool_result` at all.
+- **Knowledge:** `knowledge/round-472-the-null-that-was-the-power-switch.md`.
+  Artefacts in `state/nuc-capture-r472/`.
+
 ### Round 471 — skills(B) — 2026-09-03 — the scores nobody added up
 
 - **Round 470's tail landed first (`16ef206`).** It ran green and never
@@ -25328,6 +25414,63 @@ rather than assuming them and landed them at `2d0c232`.*
   passed in 0.72 s** (new); `skill_lint --house` 0 errors 0 warnings;
   `bank_audit.py corpus` rc 0. All solo — `nproc` is 1. **`bash skills/run_checks_fast.sh`: corpus-check 10 checkers, 0 errors, 8 warnings, unit_tests 986 passed in 115.03 s, RC=0** — red on the first run (2 errors, one ellipsis in a path in the new Verification block) and fixed in-round. `state_claim_check` coverage **2/10 items (20 %) → 7/8 (88 %)**, by writing this block's items in the grammar `--list` says the checker reads.
 - **Knowledge:** `knowledge/round-471-the-scores-nobody-added-up.md`.
+
+## Next steps (as of round 472)
+
+1. **Mutation-test the falsifiers, on every track.** Round 472 mutation-tested
+   its own 49 new tests and **3 of 10 mutations survived** — three tests that
+   could not have gone red for ANY code change, one of them guarding a
+   published p-value. First-run silence does not reveal that; round 466's F1
+   and F7 found two of the same class by accident. `test_perturbation.py` and
+   the harness/whence fast tiers have never been through this pass and they
+   carry every published number in their tracks. any track.
+2. **A null's SUPPORT is a claim, and this program has been publishing it
+   unchecked.** Round 472 ran the same window-level question through four
+   nulls; the p-value went 0.072 -> 0.0095 -> 0.128 as the null's support was
+   corrected to match what the observation could have been, and the effect
+   ended at not-significant. Two rules fall out and belong in a skill:
+   **(a)** a shift null may only draw where the observation could have
+   occurred — calendar AND record coverage; **(b)** a heavy-tailed null
+   reported by its MEAN inverts the reader's conclusion, so publish the
+   median beside it (round 472: null mean 4.567 GB, null median 2.336 GB,
+   observed 2.383 GB — "below chance" by the mean, "at chance" by the median).
+   Both are one function's worth of work in
+   `skills/`-land and neither exists there today. skills(B).
+3. **Deconfound round 472's lead-lag shoulder or withdraw it.** The peak at
+   zero (`ours` 0.217 vs a 0.015 far field) is solid. The right-heavy
+   asymmetry that makes it read as a COST rather than a co-location is
+   contaminated by within-round login clustering — a round makes ~12 logins
+   over 10-25 minutes. Fix: resample per round window with the train intact.
+   `lead_lag_profile` also has **no null at all** today. NUC-integration(E).
+4. **Round 466's "the scopes are this program's own footprints" needs
+   amending in place.** The scope-side rate is **40.9 %**, not the probe-side
+   33/35 that sentence was written from; 59.1 % of this box's logins are not
+   ours and they behave exactly like chance. Round 466's addendum in
+   `state/nuc-missions.md` still carries the stronger sentence.
+   NUC-integration(E).
+5. **A capture is the end of its own record.** Round 424's is the newest sar
+   data this program has, so the round with the largest measured intervention
+   on the box is unscorable, and the six most recent E rounds are untestable.
+   The next up window should take `sa*` FIRST, before anything else.
+   NUC-integration(E).
+6. **Round 471's items 1-10 stand, unchecked by this round** — nothing in
+   round 472 touched `bank_audit.py` scheduling, the K006 self-collision, the
+   STRUCTURAL/RATE asymmetry, or the eight arithmetically-wrong published
+   scores. Re-derive before quoting.
+7. **Standing, and not touched by this round:** the `%vmeff` residual;
+   `case_coverage`'s 49-of-103 disagreeing verdicts; `claim_check` executing 0
+   of 311 commands; `polarity.py audit`'s 5 MISPOINTED against a registry
+   whose own header calls 0 its criterion; the J005 recall gap; `selfdesc_check`
+   at 1/26 prose fields; the fourteen-deep probe batch. And CLAUDE.md's
+   `CRITICAL MISSION` block, re-escalated for the **NINETEENTH** time and
+   still a one-line deletion for the operator. `languages/whence/SECURITY.md`
+   is still uncommitted, still not this program's, and still the operator's
+   decision — do not copy a carry count for it from this file; the checker's
+   own line is the only source.
+8. **Blocked on the operator, NUC:** `--cap 196` (band [129, 204],
+   `bounded_by: engine_lru`, 1.096 GB margin — **twenty-sixth** round
+   unchanged) and the E3 A/B with its full six-gate table. Round 436's OOM
+   evidence still stands behind the first.
 
 ## Next steps (as of round 471)
 
