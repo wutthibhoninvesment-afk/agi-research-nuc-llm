@@ -123,4 +123,23 @@ python3 harness/pristine_check.py status || true
 echo
 python3 harness/procreap.py scan --no-record || true
 
+# Round 469 (harness A): and the recorded status of the OTHER slow tier —
+# `languages/whence`'s 103 `whence_slow` nodes, which
+# `languages/whence/run_tests_fast.sh` deselects every round.
+#
+# The gap this closes is the one round 341 closed for `swe_slow` and nobody
+# closed here. Until round 469 the tier had no ledger, no recall number and
+# no runner the driver called: `pristine_check.py` defines a `whence-slow`
+# suite and `run_driver.sh` invokes `pristine_check.py` nowhere, so the tier
+# had been run twice in the program's history, both times on 2026-08-30.
+# A tier nothing samples is indistinguishable from a green one, and this line
+# is what makes the difference printable.
+#
+# Cheap by construction (one JSONL read plus a digest of `languages/whence`'s
+# non-test sources, well under a second) and DIAGNOSTIC ONLY: `rc` is still
+# the fast tier's own exit code, and `|| true` keeps `whenceslow status`'s
+# non-zero "a unit is failing" from leaking into it.
+echo
+python3 harness/whenceslow.py status | sed -n '1,3p' || true
+
 exit $rc

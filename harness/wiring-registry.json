@@ -86,6 +86,11 @@
       "via": "run_driver.sh:523",
       "via_kind": "path"
     },
+    "harness/run_whenceslow_slice.sh": {
+      "status": "wired",
+      "via": "run_driver.sh:750",
+      "via_kind": "path"
+    },
     "harness/swe/bench_prioritize.py": {
       "status": "manual",
       "owner": "SWE-loop(D)",
@@ -139,6 +144,11 @@
     "harness/swe/instrument.py": {
       "status": "wired",
       "via": "harness/tests/test_swe_spacewitness.py:-",
+      "via_kind": "import"
+    },
+    "harness/swe/killerrepin.py": {
+      "status": "wired",
+      "via": "harness/tests/test_swe_killerrepin.py:-",
       "via_kind": "import"
     },
     "harness/swe/killers.py": {
@@ -260,6 +270,16 @@
       "via": "harness/tests/test_verb_audit.py:-",
       "via_kind": "import"
     },
+    "harness/whenceslow.py": {
+      "status": "wired",
+      "via": "harness/run_tests_fast.sh:143",
+      "via_kind": "path"
+    },
+    "harness/wiring_audit.py": {
+      "status": "wired",
+      "via": "harness/tests/test_wiring_audit.py:-",
+      "via_kind": "import"
+    },
     "languages/whence/bench/bindline.py": {
       "status": "manual",
       "owner": "language(C)",
@@ -333,11 +353,6 @@
     "languages/whence/polarity.py": {
       "status": "wired",
       "via": "languages/whence/tests/test_polarity.py:-",
-      "via_kind": "import"
-    },
-    "harness/wiring_audit.py": {
-      "status": "wired",
-      "via": "harness/tests/test_wiring_audit.py:-",
       "via_kind": "import"
     },
     "languages/whence/run.py": {
@@ -640,11 +655,6 @@
       "status": "manual",
       "owner": "operator",
       "reason": "Operator tool: swaps the driver script. Only a human decides when; run_driver.sh re-execs itself (round 145) and must not also be swapping itself."
-    },
-    "harness/swe/killerrepin.py": {
-      "status": "wired",
-      "via": "harness/tests/test_swe_killerrepin.py:-",
-      "via_kind": "import"
     }
   },
   "_since_round": "`since_round` on an `unwired` entry is the round that DECLARED the debt, not a guess at when the file stopped being run. W005 therefore measures how long a declared, undischarged deferral has stood -- one full rotation (6 rounds) and it rides in the summary line. Dating it any other way would require inventing a number no record carries."

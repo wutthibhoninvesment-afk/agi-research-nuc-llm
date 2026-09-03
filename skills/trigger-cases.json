@@ -2617,5 +2617,31 @@
   "id": "ccu-neg-slow",
   "expect": [],
   "prompt": "Our test suite takes 6 minutes and 380 of the 420 seconds are in one file. I want to split that file so the slow cases run in a separate tier. What's a sensible way to pick the split point?"
+ },
+ {
+  "id": "ich-near",
+  "expect": [
+   "invalidation-ceiling-from-history"
+  ],
+  "prompt": "Our recorded test-coverage ledger has 0% recall: every entry is keyed on one sha over the whole project tree, and the tests live in a `tests/` directory inside that same tree, so any commit at all marks every entry stale. I want to split the digest into a subject half and a per-test-file dependency half. Sanity-check the design before I build it."
+ },
+ {
+  "id": "ich-mid",
+  "expect": [
+   "invalidation-ceiling-from-history"
+  ],
+  "prompt": "Our CI build cache is getting about a 4% hit rate. The cache key is a hash of the whole repo. The proposal on the table is to hash per-package and only rebuild packages whose transitive deps changed. Before I spend a sprint on it, is there a way to tell how much this will actually buy us?"
+ },
+ {
+  "id": "ich-far",
+  "expect": [
+   "invalidation-ceiling-from-history"
+  ],
+  "prompt": "I'm designing test impact analysis for our monorepo so PRs only run affected targets. I have the dependency graph working and the selection logic is correct. How should I argue for this in the design doc \u2014 what number makes the case, and what would make me wrong?"
+ },
+ {
+  "id": "ich-neg-key",
+  "expect": [],
+  "prompt": "What's a good way to compute a stable content hash of a directory in Python, ignoring __pycache__ and .git?"
  }
 ]

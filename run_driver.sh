@@ -728,6 +728,65 @@ TURN BUDGET (added round 391, harness A — measured, not advice). This session 
     fi
   fi
 
+  # Round 469 (harness A): the SIXTH check, and the second that MEASURES.
+  #
+  # `languages/whence`'s OWN slow tier — 103 `whence_slow` nodes across 27
+  # files, deselected by the `whence-health-check` above every round. Until
+  # round 469 it had no ledger, no recall number and no runner this driver
+  # called; `pristine_check.py` defines a `whence-slow` suite and this file
+  # invokes `pristine_check.py` nowhere, so the tier had been run twice in
+  # the program's history, both times on 2026-08-30.
+  #
+  # SEQUENTIAL, and deliberately AFTER the slow-tier slice rather than beside
+  # it. `nproc` is 1 here; two pytest processes at once each take about twice
+  # their solo time, and BOTH slices write a `seconds` field their planners
+  # read back as a cost estimate, so concurrency would re-order every future
+  # plan in both tiers.
+  #
+  # THE ADDED COST IS NOT SILENT: with the slow-tier slice's 240 s default
+  # this makes the driver's per-round measured budget 360 s, not 240.
+  # `DRIVER_WHENCESLOW_BUDGET_S=0` skips the slice and keeps the recall line.
+  # Diagnostic only and guarded on existence, exactly like the five above.
+  WHENCESLOW_SCRIPT="$WS/harness/run_whenceslow_slice.sh"
+  if [ -f "$WHENCESLOW_SCRIPT" ]; then
+    WHENCESLOW_LOG="$WS/logs/whenceslow_round_${ROUND}.log"
+    WHENCESLOW_RC=0
+    bash "$WHENCESLOW_SCRIPT" > "$WHENCESLOW_LOG" 2>&1 || WHENCESLOW_RC=$?
+    if [ "$WHENCESLOW_RC" -eq 0 ]; then
+      log "round $ROUND: whenceslow-slice OK ($(tail -n 1 "$WHENCESLOW_LOG" | tr -d '\r'))"
+    else
+      log "round $ROUND: whenceslow-slice ERROR — $(tail -n 5 "$WHENCESLOW_LOG" | tr '\n' ' ')"
+    fi
+
+    # Land the row the slice just wrote, for round 457's reason and under
+    # round 457's exact rules: one pathspec, no `git add`, the workspace must
+    # BE a repository root, and the round number goes in the BODY so
+    # `check_round_recorded.committed_per_git_log`'s subject grep cannot read
+    # a driver commit as the round having committed something itself.
+    WHENCESLOW_LEDGER_REL="state/whence-slow-ledger.jsonl"
+    WHENCESLOW_WS_TOP=$(git -C "$WS" rev-parse --show-toplevel 2>/dev/null || true)
+    WHENCESLOW_WS_REAL=$(cd "$WS" 2>/dev/null && pwd -P || echo "")
+    if [ -n "$WHENCESLOW_WS_TOP" ] && [ "$WHENCESLOW_WS_TOP" = "$WHENCESLOW_WS_REAL" ] \
+       && git -C "$WS" rev-parse --verify -q HEAD >/dev/null 2>&1; then
+      if ! git -C "$WS" ls-files --error-unmatch -- "$WHENCESLOW_LEDGER_REL" >/dev/null 2>&1; then
+        if [ -f "$WS/$WHENCESLOW_LEDGER_REL" ]; then
+          log "round $ROUND: whenceslow-ledger NOT COMMITTED — $WHENCESLOW_LEDGER_REL is untracked, and deciding to start tracking a file is a round's judgement, not a background job's"
+        fi
+      elif ! git -C "$WS" diff --quiet HEAD -- "$WHENCESLOW_LEDGER_REL" 2>/dev/null; then
+        WHENCESLOW_COMMIT_RC=0
+        git -C "$WS" commit -q \
+          -m "driver: whence-slow ledger append (post-round slice)" \
+          -m "Written by harness/run_whenceslow_slice.sh after round $ROUND's session exited. Committed here, scoped to this one path, because the round that paid for the measurement is already gone — see knowledge/round-469-*.md." \
+          -- "$WHENCESLOW_LEDGER_REL" >/dev/null 2>&1 || WHENCESLOW_COMMIT_RC=$?
+        if [ "$WHENCESLOW_COMMIT_RC" -eq 0 ]; then
+          log "round $ROUND: whenceslow-ledger committed ($(git -C "$WS" log -1 --format=%h 2>/dev/null))"
+        else
+          log "round $ROUND: whenceslow-ledger commit FAILED rc=$WHENCESLOW_COMMIT_RC — left for the next round to land by hand"
+        fi
+      fi
+    fi
+  fi
+
   # Safety valve (round 150+): if the log file exists but contains ZERO "type":"result""
   # entries, Claude Code likely crashed before sending its final response. Skip this round
   # and move on instead of treating it as a genuine failure (which could trigger false
