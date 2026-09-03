@@ -1,0 +1,1066 @@
+[
+ {
+  "rev": "d3286cf",
+  "subject": "Round 415 (harness A): the ordinal that was maintained and the claim that was not",
+  "date": "2026-09-01T01:20:41+00:00",
+  "status": "ok",
+  "counts": {
+   "held": 18,
+   "no_via": 25,
+   "unpinned": 61,
+   "lost": 4
+  },
+  "bad": [
+   [
+    "languages/whence/checkpin.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/curecheck.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/run.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/tests/test_timetravel.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ]
+  ],
+  "n_entries": 108
+ },
+ {
+  "rev": "d559846",
+  "subject": "Round 416 (language C): the direction nobody mutated",
+  "date": "2026-09-01T02:19:22+00:00",
+  "status": "ok",
+  "counts": {
+   "held": 18,
+   "no_via": 24,
+   "unpinned": 62,
+   "lost": 4
+  },
+  "bad": [
+   [
+    "languages/whence/checkpin.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/curecheck.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/run.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/tests/test_timetravel.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ]
+  ],
+  "n_entries": 108
+ },
+ {
+  "rev": "884e854",
+  "subject": "Round 419 (SWE-loop D): the engine that stopped at the door",
+  "date": "2026-09-01T04:13:56+00:00",
+  "status": "ok",
+  "counts": {
+   "held": 18,
+   "no_via": 23,
+   "unpinned": 64,
+   "lost": 4
+  },
+  "bad": [
+   [
+    "languages/whence/checkpin.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/curecheck.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/run.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/tests/test_timetravel.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ]
+  ],
+  "n_entries": 109
+ },
+ {
+  "rev": "cbc14e4",
+  "subject": "Round 421 (harness A): the verbs nobody ran",
+  "date": "2026-09-01T05:38:37+00:00",
+  "status": "ok",
+  "counts": {
+   "held": 18,
+   "no_via": 23,
+   "unpinned": 65,
+   "lost": 4
+  },
+  "bad": [
+   [
+    "languages/whence/checkpin.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/curecheck.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/run.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/tests/test_timetravel.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ]
+  ],
+  "n_entries": 110
+ },
+ {
+  "rev": "da616e3",
+  "subject": "Round 421 leftovers: register round 420's polarity.py in the wiring registry",
+  "date": "2026-09-01T05:44:19+00:00",
+  "status": "ok",
+  "counts": {
+   "held": 18,
+   "no_via": 23,
+   "unpinned": 66,
+   "lost": 4
+  },
+  "bad": [
+   [
+    "languages/whence/checkpin.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/curecheck.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/run.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/tests/test_timetravel.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ]
+  ],
+  "n_entries": 111
+ },
+ {
+  "rev": "f30c471",
+  "subject": "Rounds 422/423 leftovers, landed by round 425: the diff round 424 said it had landed",
+  "date": "2026-09-01T09:40:53+00:00",
+  "status": "ok",
+  "counts": {
+   "held": 18,
+   "no_via": 23,
+   "unpinned": 66,
+   "lost": 4
+  },
+  "bad": [
+   [
+    "languages/whence/checkpin.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/curecheck.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/run.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/tests/test_timetravel.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ]
+  ],
+  "n_entries": 111
+ },
+ {
+  "rev": "973c5ca",
+  "subject": "Round 431 leftovers, landed by round 432: the checker that was clean and the engine that was dead",
+  "date": "2026-09-01T16:30:20+00:00",
+  "status": "ok",
+  "counts": {
+   "held": 18,
+   "no_via": 23,
+   "unpinned": 68,
+   "lost": 4
+  },
+  "bad": [
+   [
+    "languages/whence/checkpin.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/curecheck.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/run.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/tests/test_timetravel.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ]
+  ],
+  "n_entries": 113
+ },
+ {
+  "rev": "67487a3",
+  "subject": "Round 438 tail, landed by round 439: the wiring fix that was verified but never committed",
+  "date": "2026-09-01T22:12:27+00:00",
+  "status": "ok",
+  "counts": {
+   "held": 18,
+   "no_via": 23,
+   "unpinned": 70,
+   "lost": 4
+  },
+  "bad": [
+   [
+    "languages/whence/checkpin.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/curecheck.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/run.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/tests/test_timetravel.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ]
+  ],
+  "n_entries": 115
+ },
+ {
+  "rev": "62b78c8",
+  "subject": "Round 439 (harness A), part 1: the driver now pays for a slow-tier slice instead of printing one",
+  "date": "2026-09-01T22:27:43+00:00",
+  "status": "ok",
+  "counts": {
+   "held": 19,
+   "no_via": 23,
+   "unpinned": 70,
+   "lost": 4
+  },
+  "bad": [
+   [
+    "languages/whence/checkpin.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/curecheck.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/run.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/tests/test_timetravel.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ]
+  ],
+  "n_entries": 116
+ },
+ {
+  "rev": "7f86b54",
+  "subject": "Round 442 (NUC-integration E), part 2: the health check and the round ran under different interpreters",
+  "date": "2026-09-02T01:45:27+00:00",
+  "status": "ok",
+  "counts": {
+   "held": 18,
+   "no_via": 23,
+   "unpinned": 70,
+   "lost": 4,
+   "drifted": 1
+  },
+  "bad": [
+   [
+    "languages/whence/checkpin.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/curecheck.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/run.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/tests/test_timetravel.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "nuc/constant_audit.py",
+    "nuc/run_checks_fast.sh:66",
+    "drifted",
+    [
+     146,
+     "path"
+    ]
+   ]
+  ],
+  "n_entries": 116
+ },
+ {
+  "rev": "d72dc5b",
+  "subject": "Round 450 (language C), part 5: the round record, landed by round 451",
+  "date": "2026-09-02T09:41:31+00:00",
+  "status": "ok",
+  "counts": {
+   "held": 18,
+   "no_via": 23,
+   "unpinned": 71,
+   "lost": 4,
+   "drifted": 1
+  },
+  "bad": [
+   [
+    "languages/whence/checkpin.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/curecheck.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/run.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/tests/test_timetravel.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "nuc/constant_audit.py",
+    "nuc/run_checks_fast.sh:66",
+    "drifted",
+    [
+     146,
+     "path"
+    ]
+   ]
+  ],
+  "n_entries": 117
+ },
+ {
+  "rev": "fcd711f",
+  "subject": "Round 455 (SWE-loop D), part 2: close the two-round-old wiring-audit red",
+  "date": "2026-09-02T13:37:58+00:00",
+  "status": "ok",
+  "counts": {
+   "held": 18,
+   "no_via": 23,
+   "unpinned": 73,
+   "lost": 4,
+   "drifted": 1
+  },
+  "bad": [
+   [
+    "languages/whence/checkpin.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/curecheck.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/run.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/tests/test_timetravel.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "nuc/constant_audit.py",
+    "nuc/run_checks_fast.sh:66",
+    "drifted",
+    [
+     146,
+     "path"
+    ]
+   ]
+  ],
+  "n_entries": 119
+ },
+ {
+  "rev": "5a27fe1",
+  "subject": "Round 455 (SWE-loop D), part 3: measure who can SEE each health check's red",
+  "date": "2026-09-02T13:53:59+00:00",
+  "status": "ok",
+  "counts": {
+   "held": 19,
+   "no_via": 23,
+   "unpinned": 74,
+   "lost": 4,
+   "drifted": 1
+  },
+  "bad": [
+   [
+    "languages/whence/checkpin.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/curecheck.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/run.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/tests/test_timetravel.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "nuc/constant_audit.py",
+    "nuc/run_checks_fast.sh:66",
+    "drifted",
+    [
+     146,
+     "path"
+    ]
+   ]
+  ],
+  "n_entries": 121
+ },
+ {
+  "rev": "bf2d7b6",
+  "subject": "Round 457 (harness A), part 2: the driver lands the row its own slice wrote",
+  "date": "2026-09-02T15:39:54+00:00",
+  "status": "ok",
+  "counts": {
+   "held": 19,
+   "no_via": 23,
+   "unpinned": 74,
+   "lost": 4,
+   "drifted": 1
+  },
+  "bad": [
+   [
+    "languages/whence/checkpin.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/curecheck.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/run.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/tests/test_timetravel.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "nuc/constant_audit.py",
+    "nuc/run_checks_fast.sh:66",
+    "drifted",
+    [
+     146,
+     "path"
+    ]
+   ]
+  ],
+  "n_entries": 121
+ },
+ {
+  "rev": "2b7bbaa",
+  "subject": "Round 460 (NUC E), part 3: two things nobody was running",
+  "date": "2026-09-02T20:21:16+00:00",
+  "status": "ok",
+  "counts": {
+   "held": 19,
+   "no_via": 23,
+   "unpinned": 74,
+   "lost": 4,
+   "drifted": 1
+  },
+  "bad": [
+   [
+    "languages/whence/checkpin.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/curecheck.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/run.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/tests/test_timetravel.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "nuc/constant_audit.py",
+    "nuc/run_checks_fast.sh:66",
+    "drifted",
+    [
+     146,
+     "path"
+    ]
+   ]
+  ],
+  "n_entries": 121
+ },
+ {
+  "rev": "285f0ca",
+  "subject": "Round 467 (SWE-loop D), part 1: eight red nodes, two files, neither author's suite",
+  "date": "2026-09-03T02:43:06+00:00",
+  "status": "ok",
+  "counts": {
+   "held": 20,
+   "no_via": 23,
+   "unpinned": 75,
+   "lost": 4,
+   "drifted": 1
+  },
+  "bad": [
+   [
+    "languages/whence/checkpin.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/curecheck.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/run.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/tests/test_timetravel.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "nuc/constant_audit.py",
+    "nuc/run_checks_fast.sh:66",
+    "drifted",
+    [
+     146,
+     "path"
+    ]
+   ]
+  ],
+  "n_entries": 123
+ },
+ {
+  "rev": "691596d",
+  "subject": "round 469 (harness A): a recorded evidence tier for whence_slow, 0% -> 100% recall",
+  "date": "2026-09-03T04:51:33+00:00",
+  "status": "ok",
+  "counts": {
+   "held": 22,
+   "no_via": 23,
+   "unpinned": 75,
+   "lost": 4,
+   "drifted": 1
+  },
+  "bad": [
+   [
+    "languages/whence/checkpin.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/curecheck.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/run.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/tests/test_timetravel.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "nuc/constant_audit.py",
+    "nuc/run_checks_fast.sh:66",
+    "drifted",
+    [
+     146,
+     "path"
+    ]
+   ]
+  ],
+  "n_entries": 125
+ },
+ {
+  "rev": "654a553",
+  "subject": "Round 473 (SWE-loop D): the tests that could not go red \u2014 landed by round 474",
+  "date": "2026-09-03T10:39:48+00:00",
+  "status": "ok",
+  "counts": {
+   "held": 22,
+   "no_via": 23,
+   "unpinned": 78,
+   "lost": 4,
+   "drifted": 1
+  },
+  "bad": [
+   [
+    "languages/whence/checkpin.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/curecheck.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/run.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/tests/test_timetravel.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "nuc/constant_audit.py",
+    "nuc/run_checks_fast.sh:66",
+    "drifted",
+    [
+     146,
+     "path"
+    ]
+   ]
+  ],
+  "n_entries": 128
+ },
+ {
+  "rev": "076c1f6",
+  "subject": "round 475 (harness A): the remedy that erased its own evidence",
+  "date": "2026-09-03T12:33:52+00:00",
+  "status": "ok",
+  "counts": {
+   "held": 23,
+   "no_via": 24,
+   "unpinned": 77,
+   "lost": 4,
+   "drifted": 1
+  },
+  "bad": [
+   [
+    "languages/whence/checkpin.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/curecheck.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/run.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/tests/test_timetravel.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "nuc/constant_audit.py",
+    "nuc/run_checks_fast.sh:66",
+    "drifted",
+    [
+     146,
+     "path"
+    ]
+   ]
+  ],
+  "n_entries": 129
+ },
+ {
+  "rev": "f0675aa",
+  "subject": "round 477 (skills B): the fix that would have blinded the auditor",
+  "date": "2026-09-03T17:10:32+00:00",
+  "status": "ok",
+  "counts": {
+   "held": 23,
+   "no_via": 23,
+   "unpinned": 80,
+   "lost": 4,
+   "drifted": 1
+  },
+  "bad": [
+   [
+    "languages/whence/checkpin.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/curecheck.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/run.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/tests/test_timetravel.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "nuc/constant_audit.py",
+    "nuc/run_checks_fast.sh:66",
+    "drifted",
+    [
+     146,
+     "path"
+    ]
+   ]
+  ],
+  "n_entries": 131
+ },
+ {
+  "rev": "5d75140",
+  "subject": "round 478 (NUC E): the receipt nobody read",
+  "date": "2026-09-03T17:31:56+00:00",
+  "status": "ok",
+  "counts": {
+   "held": 23,
+   "no_via": 23,
+   "unpinned": 80,
+   "lost": 4,
+   "drifted": 1
+  },
+  "bad": [
+   [
+    "languages/whence/checkpin.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/curecheck.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/run.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/tests/test_timetravel.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "nuc/constant_audit.py",
+    "nuc/run_checks_fast.sh:66",
+    "drifted",
+    [
+     146,
+     "path"
+    ]
+   ]
+  ],
+  "n_entries": 131
+ },
+ {
+  "rev": "aedad26",
+  "subject": "round 479 (SWE-loop D): land the diff its outer-timeout kill discarded",
+  "date": "2026-09-03T20:17:53+00:00",
+  "status": "ok",
+  "counts": {
+   "held": 23,
+   "no_via": 23,
+   "unpinned": 80,
+   "lost": 4,
+   "drifted": 2
+  },
+  "bad": [
+   [
+    "languages/whence/checkpin.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/curecheck.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/run.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/tests/test_timetravel.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "nuc/constant_audit.py",
+    "nuc/run_checks_fast.sh:66",
+    "drifted",
+    [
+     146,
+     "path"
+    ]
+   ],
+   [
+    "nuc/summary_fossil.py",
+    "nuc/tests/test_summary_fossil.py:20",
+    "drifted",
+    [
+     0,
+     "import"
+    ]
+   ]
+  ],
+  "n_entries": 132
+ },
+ {
+  "rev": "750fa77",
+  "subject": "round 480 (language C): v0.46 / decision 59 \u2014 a declared kind is a contract, and the hint that rides on it has a ceiling",
+  "date": "2026-09-03T21:00:58+00:00",
+  "status": "ok",
+  "counts": {
+   "held": 23,
+   "no_via": 23,
+   "unpinned": 80,
+   "lost": 4,
+   "drifted": 3
+  },
+  "bad": [
+   [
+    "languages/whence/checkpin.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/curecheck.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/orderhint.py",
+    "languages/whence/tests/test_v46.py:41",
+    "drifted",
+    [
+     0,
+     "import"
+    ]
+   ],
+   [
+    "languages/whence/run.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "languages/whence/tests/test_timetravel.py",
+    "harness/tests/test_swe_proc.py:-",
+    "lost",
+    null
+   ],
+   [
+    "nuc/constant_audit.py",
+    "nuc/run_checks_fast.sh:66",
+    "drifted",
+    [
+     146,
+     "path"
+    ]
+   ],
+   [
+    "nuc/summary_fossil.py",
+    "nuc/tests/test_summary_fossil.py:20",
+    "drifted",
+    [
+     0,
+     "import"
+    ]
+   ]
+  ],
+  "n_entries": 133
+ }
+]

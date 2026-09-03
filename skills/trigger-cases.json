@@ -2784,5 +2784,31 @@
    "count-carries-its-noun-and-denominator"
   ],
   "prompt": "Our weekly report says \"14 flaky tests\" with no denominator, so nobody can tell whether that is 14 out of 20 or 14 out of 4000. The number itself is fine -- we count a test as flaky when it fails and then passes on retry in the same CI run, which is unambiguous and the same for every test. I just want the line to carry enough context that a reader knows how bad it is. How should I word it?"
+ },
+ {
+  "id": "adf-near",
+  "expect": [
+   "audit-the-deriver-first"
+  ],
+  "prompt": "I wrote a checker that compares the line numbers in our CODEOWNERS-style provenance file against where the symbols actually are. First run flagged 40 entries. I spot-checked three and two of them are obviously right \u2014 the line it says is the line the function is on. Do I loosen the matcher?"
+ },
+ {
+  "id": "adf-mid",
+  "expect": [
+   "audit-the-deriver-first"
+  ],
+  "prompt": "Our cache-consistency job reports thousands of mismatches between the denormalised author_count column and a live COUNT(*). Half the 'mismatches' are rows where the live query returns 0 and the column is null, and our comparison renders both as '-'. Before I go and fix the data, how should I approach this?"
+ },
+ {
+  "id": "adf-far",
+  "expect": [
+   "audit-the-deriver-first"
+  ],
+  "prompt": "We keep a generated index of which config file sets each feature flag. I want to know how long it's been out of date, so I'm going to replay it over every commit for the last year and count the bad ones. Anything I should be careful about before I trust that number?"
+ },
+ {
+  "id": "adf-neg-key",
+  "expect": [],
+  "prompt": "Our reconciliation report is correct but unreadable \u2014 it prints one line per mismatched row and there are 4000 of them. I want to group them by table and show the top offenders. What's a good layout?"
  }
 ]

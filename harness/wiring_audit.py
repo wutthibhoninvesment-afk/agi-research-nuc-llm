@@ -427,16 +427,24 @@ def _parse_for_ast(raw):
 
 
 def _string_constants(tree, doc_ids):
-    """Every non-docstring string constant in Python source."""
+    """Every non-docstring string constant in Python source, WITH its line.
+
+    Round 481 (harness A): the three AST passes below used to return bare
+    values and `references()` recorded every edge they produced at line 0.
+    `ast` gives every node a 1-based `lineno` for free; dropping it cost the
+    graph the location of 721 of its 1043 edges — 69 % — and the loss was
+    invisible because the one renderer, `best[1] or "-"`, spells "line 0" and
+    "line unknown" identically. See `references()`.
+    """
     if tree is None:
         return []
-    return [n.value for n in ast.walk(tree)
+    return [(n.value, n.lineno) for n in ast.walk(tree)
             if isinstance(n, ast.Constant) and isinstance(n.value, str)
             and id(n) not in doc_ids]
 
 
 def _constructed_paths(tree):
-    """Fold path CONSTRUCTION into candidate path suffixes.
+    """Fold path CONSTRUCTION into candidate `(path suffix, line)` pairs.
 
     Unresolved arguments (a Name, a call, an f-string) contribute nothing and
     RESET the accumulation, so `os.path.join(s, "carryforward_check.py")`
@@ -494,7 +502,7 @@ def _constructed_paths(tree):
                 parts = []                          # unresolved: start over
         if parts:
             cand = "/".join(p.strip("/") for p in parts if p)
-            out.append(cand)
+            out.append((cand, node.lineno))
             if id(node) in pytest_ctx:
                 dir_ok.add(cand)
 
@@ -510,21 +518,22 @@ def _constructed_paths(tree):
             for side in (node.right, node.left):
                 if isinstance(side, ast.Constant) \
                         and isinstance(side.value, str) and side.value:
-                    out.append(side.value.strip("/"))
+                    out.append((side.value.strip("/"), side.lineno))
     return out, dir_ok
 
 
 def _imports(tree):
-    """`import a.b` / `from a.b import c` as dotted module names."""
+    """`import a.b` / `from a.b import c` as `(dotted name, line)` pairs."""
     if tree is None:
         return []
     out = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
-            out.extend(a.name for a in node.names)
+            out.extend((a.name, node.lineno) for a in node.names)
         elif isinstance(node, ast.ImportFrom) and node.module and not node.level:
-            out.append(node.module)
-            out.extend(node.module + "." + a.name for a in node.names)
+            out.append((node.module, node.lineno))
+            out.extend((node.module + "." + a.name, node.lineno)
+                       for a in node.names)
     return out
 
 
@@ -697,6 +706,22 @@ STRENGTH = {"import": 3, "dashm": 3, "dir": 2, "join": 2, "path": 1}
 WEAK_KINDS = ("path",)
 
 
+def edge_line(lineno):
+    """Render an edge's line for a human. `-` means THE GRAPH HAS NO LINE.
+
+    Round 481 (harness A): this used to be written inline as a falsy-or at
+    four sites, and for 66 rounds it was a lie by falsy-zero. The three
+    `ast` passes in `references()` recorded every edge they produced at line
+    0 — 721 of this tree's 1043 edges, 69 % — and rendering 0 that way
+    spells it identically to "no line is claimed". The registry's 80
+    `"<file>:-"` pins were read by round 475 as a convention; they were the
+    symptom. The passes now carry `node.lineno`, `test_wiring_audit.py` pins
+    that NO edge in this tree has line 0, and this function survives as the
+    honest renderer for a caller holding an edge that genuinely has none.
+    """
+    return str(lineno) if lineno else "-"
+
+
 def is_test_file(path):
     """A pytest file, by this repo's own two conventions."""
     return path.endswith(".py") and (
@@ -790,21 +815,21 @@ def references(root, path, index):
         # `os.path.join(root, "skills", "skill-authoring", "scripts")` — the
         # pytest root for 759 unit tests, syntactically nowhere near the
         # `subprocess.run` that executes it — is kept.
-        for s in _string_constants(tree, doc_ids):
+        for s, ln in _string_constants(tree, doc_ids):
             if "/" in s or s.endswith(".py") or s.endswith(".sh"):
-                add(s, 0, False)
+                add(s, ln, False)
         built, dir_ok = _constructed_paths(tree)
-        for s in built:
+        for s, ln in built:
             # No `"/" in s` requirement here, unlike the bare-constant pass
             # above: `os.path.join(root, "data")` is a whole path even though
             # the constant half has no separator in it. A directory only
             # counts when the join sits in a pytest argument list.
             if s:
-                add(s, 0, s in dir_ok, kind="join")
-        for dotted in _imports(tree):
+                add(s, ln, s in dir_ok, kind="join")
+        for dotted, ln in _imports(tree):
             for cand in module_to_paths(dotted, path):
                 if cand in index.files:
-                    put(cand, 0, "import")
+                    put(cand, ln, "import")
                     break
     return edges, ambiguous
 
@@ -881,19 +906,36 @@ class Graph:
     def best_incoming(self, path):
         """The best edge into `path` from anywhere inside the closure.
 
-        "Best" is `(shallowest source, then strongest kind)`. `why()` reports
-        the route the search took; this reports the best evidence that exists,
-        which is the question the registry actually asks. A file imported by a
-        test AND named in a refusal string must not be judged on whichever one
-        the traversal reached first.
+        "Best" is `(shallowest source, then strongest kind, then the source
+        path)`. `why()` reports the route the search took; this reports the
+        best evidence that exists, which is the question the registry
+        actually asks. A file imported by a test AND named in a refusal
+        string must not be judged on whichever one the traversal reached
+        first.
+
+        Round 481 (harness A): the source path is in the sort key, and the
+        scan runs over `sorted(self._reached)`, because WITHOUT THEM THIS
+        FUNCTION WAS NONDETERMINISTIC ACROSS PROCESSES. `_reached` is a set
+        of strings and CPython randomises string hashing per process, so a
+        tie — same depth, same kind, and `languages/whence/curecheck.py` is
+        imported by thirty-odd sibling test files at the same depth — was
+        broken by whatever order that process happened to iterate in. Three
+        consecutive runs on an unchanged tree named `tests/test_v24.py:159`,
+        `tests/test_lexer_guest_parity.py:420` and `tests/test_v34.py:58`.
+        Everything downstream inherited it: the `via` column
+        `cmd_bootstrap` proposes, the "strongest incoming edge" line of
+        `--why`, and the file:line inside every W003 and W006 finding. A
+        registry field generated by one draw from that distribution cannot
+        be re-derived by a later round, which is exactly what
+        `harness/viapin.py` has to do.
         """
         self.closure()
         best, best_key = None, None
-        for src in self._reached:
+        for src in sorted(self._reached):
             edge = self.edges.get(src, {}).get(path)
             if edge is None:
                 continue
-            key = (self._depth.get(src, 10 ** 6), -STRENGTH[edge[1]])
+            key = (self._depth.get(src, 10 ** 6), -STRENGTH[edge[1]], src)
             if best_key is None or key < best_key:
                 best, best_key = (src, edge[0], edge[1]), key
         return best
@@ -997,7 +1039,7 @@ def audit(root, graph=None, registry=None):
                 findings.append(("W003", path,
                                  "declared %s but IS reachable" % status
                                  + (" via %s:%s [%s]"
-                                    % (edge[0], edge[1] or "-", edge[2])
+                                    % (edge[0], edge_line(edge[1]), edge[2])
                                     if edge else "")))
         elif status not in ("wired", "unwired", "manual"):
             findings.append(("W004", path,
@@ -1011,7 +1053,7 @@ def audit(root, graph=None, registry=None):
                                  "reached ONLY as text inside a test "
                                  "(%s:%s) — nothing imports it and no runner "
                                  "is pointed at it"
-                                 % (edge[0], edge[1] or "-")))
+                                 % (edge[0], edge_line(edge[1]))))
         if status == "unwired" and rnd is not None:
             since = entry.get("since_round")
             if isinstance(since, int) and rnd - since >= ROTATION:
@@ -1156,12 +1198,12 @@ def cmd_closure(args, root):
             print("%s is itself a root" % args.why)
             return 0
         for src, ln, tgt, kind in chain:
-            print("%s:%s -[%s]-> %s" % (src, ln if ln else "-", kind, tgt))
+            print("%s:%s -[%s]-> %s" % (src, edge_line(ln), kind, tgt))
         best = g.best_incoming(args.why)
         if best and (best[0], best[1], best[2]) != (chain[-1][0], chain[-1][1],
                                                     chain[-1][3]):
             print("strongest incoming edge: %s:%s -[%s]->"
-                  % (best[0], best[1] or "-", best[2]))
+                  % (best[0], edge_line(best[1]), best[2]))
         return 0
     eps = [p for p in sorted(reached) if is_entry_point(root, p)]
     if args.json:
@@ -1232,7 +1274,7 @@ def cmd_bootstrap(args, root):
         if p in reached:
             best = g.best_incoming(p)
             entries[p] = {"status": "wired",
-                          "via": ("%s:%s" % (best[0], best[1] or "-"))
+                          "via": ("%s:%s" % (best[0], edge_line(best[1])))
                                  if best else "root",
                           "via_kind": best[2] if best else "root"}
         else:

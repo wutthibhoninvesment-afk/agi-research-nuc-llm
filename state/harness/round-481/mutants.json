@@ -1,0 +1,87 @@
+[
+ [
+  "V1 unpinned counted as an error",
+  "KILLED",
+  "3 failed, 17 passed in 20.50s"
+ ],
+ [
+  "V2 lost is not an error",
+  "KILLED",
+  "1 failed, 19 passed in 22.23s"
+ ],
+ [
+  "V3 drifted is not an error",
+  "KILLED",
+  "2 failed, 18 passed in 19.95s"
+ ],
+ [
+  "V4 fix always fills",
+  "KILLED",
+  "2 failed, 18 passed in 22.25s"
+ ],
+ [
+  "V5 fix repoints lost pins too",
+  "KILLED",
+  "3 failed, 17 passed in 22.30s"
+ ],
+ [
+  "V6 dump with ensure_ascii",
+  "KILLED",
+  "1 failed, 19 passed in 21.03s"
+ ],
+ [
+  "V7 dump with indent 4",
+  "KILLED",
+  "1 failed, 19 passed in 21.43s"
+ ],
+ [
+  "V9 write even with nothing to change",
+  "KILLED",
+  "1 failed, 19 passed in 22.50s"
+ ],
+ [
+  "W1 imports lose their line again",
+  "KILLED",
+  "3 failed, 3 passed, 62 deselected in 42.26s"
+ ],
+ [
+  "W2 string constants lose their line",
+  "KILLED",
+  "2 failed, 4 passed, 62 deselected in 39.12s"
+ ],
+ [
+  "W3 joins lose their line",
+  "KILLED",
+  "2 failed, 4 passed, 62 deselected in 40.07s"
+ ],
+ [
+  "W4 edge_line renders 0 as 0",
+  "KILLED",
+  "1 failed, 5 passed, 62 deselected in 39.59s"
+ ],
+ [
+  "W5 best_incoming tie-break unpinned",
+  "KILLED",
+  "1 failed, 5 passed, 62 deselected in 39.53s"
+ ],
+ [
+  "V8 a numeric pin with no edge is held",
+  "SURVIVED",
+  "20 passed in 19.99s"
+ ],
+ [
+  "V10 drifted pin suggests its own stale line",
+  "KILLED",
+  "2 failed, 18 passed in 21.02s"
+ ],
+ [
+  "W6 best_incoming: unsorted scan, src still in the key",
+  "SURVIVED",
+  "6 passed, 62 deselected in 45.49s"
+ ],
+ [
+  "W7 best_incoming: sorted scan, src dropped from the key",
+  "SURVIVED",
+  "6 passed, 62 deselected in 43.08s"
+ ]
+]

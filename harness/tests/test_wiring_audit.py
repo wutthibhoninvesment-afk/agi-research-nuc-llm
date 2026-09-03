@@ -730,3 +730,83 @@ class TestTokenRefs:
         argv = ["--repo-root", root, "token-refs", "S009", "--in",
                 "a/tool.py", "--expect-absent"]
         assert W.main(argv) == 0
+
+
+# --------------------------------------------------------------------------
+# Round 481 (harness A) — the line numbers the graph used to throw away
+# --------------------------------------------------------------------------
+
+class TestEdgeLines:
+    """Every edge carries the line it was found on, and the renderer's `-`
+    means *no line*, not *line zero*.
+
+    Until round 481 the three `ast` passes in `references()` passed the
+    literal `0` as the lineno, so 721 of this tree's 1043 edges — 69 %, every
+    `import`, every `os.path.join` fold, every bare string constant — had no
+    location. The single renderer was `lineno or "-"`, which spells 0 and
+    "unknown" identically, so the loss was invisible in `--why` traces, in
+    W003/W006 findings, and in the 80 `"<file>:-"` pins of the registry that
+    round 475 read as a convention.
+    """
+
+    def test_no_edge_in_this_tree_has_line_zero(self):
+        g = W.Graph(REPO)
+        g.closure()
+        zero = [(s, t, v) for s, d in g.edges.items()
+                for t, v in d.items() if not v[0]]
+        assert zero == [], zero[:10]
+
+    def test_an_import_edge_carries_the_import_line(self, tmp_path):
+        files = {"top.py": "import os\n\nimport tool\n" + MAIN,
+                 "tool.py": "x = 1\n"}
+        root = make_repo(tmp_path, files)
+        idx = W.Index(W.tracked_files(root))
+        edges, _ = W.references(root, "top.py", idx)
+        assert edges["tool.py"] == (3, "import")
+
+    def test_a_from_import_carries_its_line(self, tmp_path):
+        files = {"top.py": "\n\n\nfrom pkg import mod\n" + MAIN,
+                 "pkg/mod.py": "x = 1\n", "pkg/__init__.py": ""}
+        root = make_repo(tmp_path, files)
+        idx = W.Index(W.tracked_files(root))
+        edges, _ = W.references(root, "top.py", idx)
+        assert edges["pkg/mod.py"][0] == 4
+
+    def test_the_three_ast_passes_return_lines_with_their_values(self):
+        tree, docs = W._parse_for_ast('"""doc"""\nimport a.b\nX = "p/q.py"\n'
+                                      'import os\nY = os.path.join("r", "s")\n')
+        assert W._string_constants(tree, docs) == [("p/q.py", 3),
+                                                   ("r", 5), ("s", 5)]
+        assert W._constructed_paths(tree)[0] == [("r/s", 5)]
+        assert W._imports(tree) == [("a.b", 2), ("os", 4)]
+
+    def test_edge_line_renders_a_missing_line_as_a_dash(self):
+        assert W.edge_line(0) == "-"
+        assert W.edge_line(None) == "-"
+        assert W.edge_line(7) == "7"
+
+    def test_best_incoming_is_the_same_answer_in_two_processes(self):
+        """`_reached` is a set of strings and CPython randomises string
+        hashing per process, so a tie in `(depth, kind)` used to be broken by
+        iteration order. Three consecutive runs on an unchanged tree named
+        three different sources for `languages/whence/curecheck.py`, and the
+        `via` column `bootstrap` proposes is one draw from that
+        distribution.
+        """
+        prog = (
+            "import os, sys, json\n"
+            "sys.path.insert(0, %r)\n"
+            "import wiring_audit as W\n"
+            "g = W.Graph(%r)\n"
+            "g.closure()\n"
+            "print(json.dumps([g.best_incoming(p) for p in "
+            "sorted(g.node_set)[:400]]))\n" % (_HARNESS, REPO))
+        outs = []
+        for seed in ("0", "1", "2"):
+            env = dict(os.environ, PYTHONHASHSEED=seed,
+                       PYTHONDONTWRITEBYTECODE="1")
+            r = subprocess.run([sys.executable, "-c", prog], env=env,
+                               capture_output=True, text=True, timeout=600)
+            assert r.returncode == 0, r.stderr[-2000:]
+            outs.append(r.stdout)
+        assert outs[0] == outs[1] == outs[2]

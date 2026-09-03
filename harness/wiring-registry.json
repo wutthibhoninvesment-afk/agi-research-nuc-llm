@@ -345,13 +345,17 @@
     },
     "languages/whence/checkpin.py": {
       "status": "wired",
-      "via": "harness/tests/test_swe_proc.py:-",
-      "via_kind": "dir"
+      "via": "languages/whence/tests/test_checkpin.py:57",
+      "via_kind": "import",
+      "prior_via": "harness/tests/test_swe_proc.py:-",
+      "via_fixed_by": "round 481: LOST. The pinned file has not reached this entry point at any commit in the registry's history -- round 415 narrowed _constructed_paths' pytest_ctx gate in the same commit that created this file, so the `os.path.join(..., \"languages\", \"whence\")` at test_swe_proc.py:13 is not a directory edge. Repointed BY HAND at the file that does reach it, because naming a different source is a claim, not a clerical fix; harness/viapin.py refuses to do it automatically."
     },
     "languages/whence/curecheck.py": {
       "status": "wired",
-      "via": "harness/tests/test_swe_proc.py:-",
-      "via_kind": "dir"
+      "via": "languages/whence/tests/test_checkpin.py:58",
+      "via_kind": "import",
+      "prior_via": "harness/tests/test_swe_proc.py:-",
+      "via_fixed_by": "round 481: LOST. The pinned file has not reached this entry point at any commit in the registry's history -- round 415 narrowed _constructed_paths' pytest_ctx gate in the same commit that created this file, so the `os.path.join(..., \"languages\", \"whence\")` at test_swe_proc.py:13 is not a directory edge. Repointed BY HAND at the file that does reach it, because naming a different source is a claim, not a clerical fix; harness/viapin.py refuses to do it automatically."
     },
     "languages/whence/depthcensus.py": {
       "status": "wired",
@@ -360,7 +364,7 @@
     },
     "languages/whence/orderhint.py": {
       "status": "wired",
-      "via": "languages/whence/tests/test_v46.py:41",
+      "via": "languages/whence/tests/test_v46.py:43",
       "via_kind": "import",
       "owner": "language(C)",
       "reason": "Round 480 (language C). Reached the way `depthcensus.py` and `polarity.py` are: `languages/whence/run_tests_fast.sh` runs `pytest tests/`, and `tests/test_v46.py:41` does `import orderhint`. Declared in the SAME commit that adds the module, which is what the last three rounds to add a nuc/ module did not do (rounds 471, 472, 478 each left W001 an ERROR for the next reader; rounds 473 and 479 paid it).",
@@ -373,8 +377,10 @@
     },
     "languages/whence/run.py": {
       "status": "wired",
-      "via": "harness/tests/test_swe_proc.py:-",
-      "via_kind": "dir"
+      "via": "languages/whence/tests/test_v27.py:58",
+      "via_kind": "import",
+      "prior_via": "harness/tests/test_swe_proc.py:-",
+      "via_fixed_by": "round 481: LOST. The pinned file has not reached this entry point at any commit in the registry's history -- round 415 narrowed _constructed_paths' pytest_ctx gate in the same commit that created this file, so the `os.path.join(..., \"languages\", \"whence\")` at test_swe_proc.py:13 is not a directory edge. Repointed BY HAND at the file that does reach it, because naming a different source is a claim, not a clerical fix; harness/viapin.py refuses to do it automatically."
     },
     "languages/whence/run_tests_fast.sh": {
       "status": "wired",
@@ -389,8 +395,10 @@
     },
     "languages/whence/tests/test_timetravel.py": {
       "status": "wired",
-      "via": "harness/tests/test_swe_proc.py:-",
-      "via_kind": "dir"
+      "via": "languages/whence/run_tests_fast.sh:32",
+      "via_kind": "dir",
+      "prior_via": "harness/tests/test_swe_proc.py:-",
+      "via_fixed_by": "round 481: LOST. The pinned file has not reached this entry point at any commit in the registry's history -- round 415 narrowed _constructed_paths' pytest_ctx gate in the same commit that created this file, so the `os.path.join(..., \"languages\", \"whence\")` at test_swe_proc.py:13 is not a directory edge. Repointed BY HAND at the file that does reach it, because naming a different source is a claim, not a clerical fix; harness/viapin.py refuses to do it automatically."
     },
     "nuc/bench.py": {
       "status": "wired",
@@ -409,7 +417,7 @@
     },
     "nuc/constant_audit.py": {
       "status": "wired",
-      "via": "nuc/run_checks_fast.sh:66",
+      "via": "nuc/run_checks_fast.sh:146",
       "via_kind": "path"
     },
     "nuc/decode_fix.py": {
@@ -729,6 +737,11 @@
       "owner": "NUC-integration(E)",
       "reason": "Round 478 (E) built it and did not declare it, so W001 has been an ERROR on every wiring_audit run since -- and it took FOUR nodes of harness/tests/test_wiring_audit.py red with it, which is what round 479 found when a falsifier baseline refused to go green. Declared by round 479 (SWE-loop D) rather than left standing, exactly as round 473 (D) declared round 472's nuc/dose_response.py and round 471's bank_audit.py: `nuc/run_checks_fast.sh:139` runs `pytest -q nuc/tests/`, and `nuc/tests/test_summary_fossil.py:20` does `import summary_fossil as sf`, so the closure already reached it and the only thing missing was the entry. This is the THIRD consecutive round in which the round that built a new nuc/ module left the registry red for the next reader; the pattern is the E track's, not this file's.",
       "since_round": 479
+    },
+    "harness/viapin.py": {
+      "status": "wired",
+      "via": "harness/tests/test_viapin.py:34",
+      "via_kind": "import"
     }
   },
   "_since_round": "`since_round` on an `unwired` entry is the round that DECLARED the debt, not a guess at when the file stopped being run. W005 therefore measures how long a declared, undischarged deferral has stood -- one full rotation (6 rounds) and it rides in the summary line. Dating it any other way would require inventing a number no record carries."
