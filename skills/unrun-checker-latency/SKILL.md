@@ -284,11 +284,38 @@ over all four runners' retained logs, 578 runs, 31 distinct failing nodes,
 | own-suite — only the hosting area can | 0 [1] | 8 [8] | **0%** [11%] |
 
 Fisher exact, two-sided, whole-tree vs own-suite: **p = 9.8e-08**, n=65
-(round 455's three-runner table: p = 0.0036, n=25). **Read the direction, not
-the p-value**: episodes within one runner are not independent — one change
-routinely trips several checkers in the same run — so the interval is
-narrower than the data earns. The direction is not in doubt at any
-reasonable discount.
+(round 455's three-runner table: p = 0.0036, n=25). **That number is the
+ceiling of the evidence, not its centre — quote the rate, not the p.** Round
+467 built the producer (`redattrib.py scope-test`, which reproduces both
+published figures from their own tables before printing anything new) and ran
+four corrections on the same data. Every one made the p LARGER:
+
+| reading | p | what it stops assuming |
+|---|---|---|
+| naive Fisher over episodes | 6.1e-07 | — |
+| one row per NODE | 1.2e-04 | that one node's 27 reds are 27 observations |
+| scope labels shuffled across nodes | 5e-05 | that scope and node are independent |
+| **rigid rotation of the schedule** | **0.17** | that who was on duty is a free variable |
+| the wide row ALONE, no second row | 0.33 | that the narrow row carries information |
+
+Three lessons, and they are separable:
+
+* **The scheduler is not a free variable.** If contributors take the areas
+  in a fixed rota, the only null that preserves the shape is a rigid shift of
+  that rota — and a period-6 rota has SIX members, so the smallest p any such
+  test can return is 1/6. A number below the floor of your own null is not a
+  strong result; it is a result from a null that does not describe you.
+* **A row that is true by definition carries no evidence.** `own-suite`'s
+  definition here says the hosting area "can see it by running its own fast
+  tier". Half of the 2x2 was analytic. Removing it (the last row of the table)
+  leaves the association indistinguishable from the rota alone: 89% invisible
+  observed against a 78% null mean, p = 0.33.
+* **The RATE survives all of it.** 89% of wide-subject reds are opened by
+  someone who cannot see them, and the practical consequence — moving the
+  runner earlier does not touch that share — is a fact about the arrangement
+  that no p-value was ever needed to establish. What the correction kills is
+  the claim that the association was *discovered*; most of it is what a rota
+  produces mechanically.
 
 Every "visible" whole-tree episode belonged to the change that WROTE the
 check; each later one was opened by someone who was not running that suite

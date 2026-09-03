@@ -56,8 +56,21 @@ test_shape_needs_three_adjacent_tokens_on_both_sides`, while
 `logs/health_round_362.log` records the actual failure as
 `test_run_driver_whence_health_check.py::
 test_whence_health_check_fail_logged_when_script_fails`. The per-round logs
-carry every `FAILED <nodeid>` line and all 578 of them are retained (554 at
-round 455). The reconciliation printed by `attribute` is the guard on that
+carry every `FAILED <nodeid>` line and every one of them is retained -- under
+`logs/`, WHICH IS NOT IN GIT. `.gitignore` lines 28, 29, 35 and 60 exclude all
+four per-round health logs by pattern, so `git ls-files logs/` is 9 against
+the 602 this module reads at round 467. That is round 461's next-step 7 and
+round 460's item 3, and it has a consequence a reader hits before they hit the
+explanation: a fresh clone, or a `git worktree add HEAD --detach`, gives this
+module almost no evidence and its whole-tree tests then fail for want of data
+in a way that is indistinguishable from a real red. Round 461 measured it --
+4 failed, 15 passed in a pristine worktree where the truth was 2 failed, 17
+passed, two of the four being floods caused by the missing files. So
+`evidence_base` counts what this checkout can actually see, `attribute` prints
+a NO EVIDENCE BASE banner below `MIN_EVIDENCE_LOGS`, and the live tests skip
+with that reason instead of failing. Whether the logs BELONG in git is still
+the operator's question; reporting a wrong answer confidently while it is
+open is not. The reconciliation printed by `attribute` is the guard on that
 claim: every round the driver called FAIL or ERROR must be a round in which
 this parser found a red node or found something that could not report.
 
@@ -88,7 +101,9 @@ round as having broken the NUC suite, which it did not.
 
 import argparse
 import json
+import math
 import os
+import random
 import re
 import sys
 from collections import Counter, OrderedDict
@@ -116,6 +131,20 @@ SUITE_OWNER = {
     "nuc/tests": "NUC-integration(E)",
     "skills": "skills(B)",
 }
+
+
+#: Below this many retained per-round logs, no number this module produces is
+#: about the program's history -- it is about what a checkout happens to hold.
+#: The live tree is at 602; a fresh clone is at 0 (the 9 tracked files under
+#: `logs/` are not per-round health logs at all). Any floor in between
+#: separates the two cases; this one is deliberately far from both.
+MIN_EVIDENCE_LOGS = 50
+
+
+def evidence_base(root=ROOT):
+    """(n_logs, enough) -- how much of the retained corpus this checkout sees."""
+    n = sum(len(v) for v in read_logs(root).values())
+    return n, n >= MIN_EVIDENCE_LOGS
 
 
 def load_registry(root=ROOT):
@@ -399,6 +428,55 @@ def episodes_for(nodeid, rounds_in_order, red_rounds):
     return eps
 
 
+# ---------------------------------------------------------------------------
+# Round 467 (SWE-loop D). WHAT DECIDED THE LABEL, AND WHEN COULD ANYONE TELL.
+#
+# Two of round 461's next-steps, and they turn out to be the same worry seen
+# from two ends.
+#
+# Item 2 -- THE ONE-ROUND LAG. A fail-closed registry cannot fire in the round
+# that breaks it: the evidence it reads is `logs/<check>_round_<N>.log`, and
+# round N's copy is written by the run the assertion is part of. So R001 always
+# names a node opened by an EARLIER round while running inside a later one, and
+# the message said neither. `first_firable_round` is the earliest run of that
+# node's own check that could have seen the red, and the message now says both
+# numbers out loud so no future R001 misattributes itself to its reader.
+#
+# Item 3 of this round's own list -- WHAT DECIDED THE SCOPE. The invisible-open
+# rate and its p-value are computed over `subject_scope`, so a scope read off
+# the episode outcomes it is later used to explain is circular. `evidence` says
+# which, R005 makes it mandatory and R006 pins the one legitimate case: an
+# outcome-derived label may only be `environmental`, and `environmental` may
+# only be outcome-derived, because flakiness is invisible in a subject and a
+# subject is not evidence of flakiness.
+EVIDENCE_KINDS = ("subject", "outcome")
+
+
+def first_firable(open_round, runs, nodeid, obs):
+    """Earliest run of the node's own check that could have SEEN `open_round`.
+
+    The next round in that node's own observed run order. `None` means no
+    later run exists yet -- the red is still invisible to every check that
+    has ever run, which is the state a round's own uncommitted breakage is in.
+    """
+    suite = node_suite(nodeid)
+    prefix = next((p for p, (_r, sui) in CHECKS.items() if sui == suite), None)
+    if prefix is None:
+        return None
+    po = (obs or {}).get(prefix)
+    order = [r for r in sorted(runs.get(prefix, {}))
+             if po is None or nodeid in po.get(r, frozenset())]
+    return next((r for r in order if r > open_round), None)
+
+
+def _r001_message(open_round, open_track, firable):
+    return ("went red and has no registry entry -- FIRST RED in round %s's log "
+            "(%s), and the earliest run that could have seen it is round %s, so "
+            "the round reading this failure is not the round that caused it"
+            % (open_round, open_track or "track unknown",
+               firable if firable is not None else "none yet"))
+
+
 def analyse(root=ROOT):
     reg = load_registry(root)
     track_suites = reg["_track_suites"]
@@ -417,13 +495,28 @@ def analyse(root=ROOT):
     findings = []
     for nid in sorted(seen):
         if nid not in nodes_reg:
-            findings.append(("R001", nid, "went red and has no registry entry"))
+            first = min(seen[nid])
+            firable = first_firable(first, runs, nid, obs)
+            findings.append(("R001", nid, _r001_message(first, tracks.get(first),
+                                                        firable)))
     for nid, ent in sorted(nodes_reg.items()):
         if nid not in seen:
             findings.append(("R002", nid, "registry entry for a node that never went red"))
         if ent.get("subject_scope") not in scopes:
             findings.append(("R003", nid, "unknown subject_scope %r"
                              % ent.get("subject_scope")))
+        ev = ent.get("evidence")
+        if ev not in EVIDENCE_KINDS:
+            findings.append(("R005", nid, "evidence %r is not one of %s -- say "
+                             "what decided this scope before the headline is "
+                             "computed over it" % (ev, list(EVIDENCE_KINDS))))
+        elif (ev == "outcome") != (ent.get("subject_scope") == "environmental"):
+            findings.append(("R006", nid,
+                             "evidence %r with subject_scope %r -- an "
+                             "outcome-derived label is circular unless the "
+                             "scope IS about outcomes (`environmental`), and "
+                             "`environmental` cannot be read off a subject"
+                             % (ev, ent.get("subject_scope"))))
 
     node_rows, ep_rows = [], []
     for nid in sorted(seen):
@@ -445,16 +538,21 @@ def analyse(root=ROOT):
                        and suite in track_suites.get(opener, []))
             ep_rows.append({
                 "node": nid, "suite": suite, "owner": SUITE_OWNER.get(suite),
-                "scope": scope, "open": e["open"], "open_track": opener,
+                "scope": scope,
+                "evidence": nodes_reg.get(nid, {}).get("evidence", "UNDECLARED"), "open": e["open"], "open_track": opener,
                 "len": len(e["rounds"]), "close": e.get("close"),
                 "close_track": tracks.get(e.get("close")),
                 "born_red": born,
+                "opened_by_log_round": e["open"],
+                "first_firable_round": next((r for r in order if r > e["open"]),
+                                            None),
                 "opened_by_owner": (not born) and opener == SUITE_OWNER.get(suite),
                 "visible_to_opener": (not born) and bool(visible),
             })
         node_rows.append({
             "node": nid, "suite": suite, "owner": SUITE_OWNER.get(suite),
-            "scope": scope, "red_rounds": sorted(seen[nid]),
+            "scope": scope,
+            "evidence": nodes_reg.get(nid, {}).get("evidence", "UNDECLARED"), "red_rounds": sorted(seen[nid]),
             "n_red": len(seen[nid]), "episodes": len(eps),
         })
 
@@ -567,6 +665,15 @@ def cmd_attribute(args):
     t = res["totals"]
     print("red-attribution: %d per-round log(s), %d node(s) ever red, "
           "%d episode(s)" % (t["logs_read"], t["distinct_red_nodes"], t["episodes"]))
+    if t["logs_read"] < MIN_EVIDENCE_LOGS:
+        print("\nNO EVIDENCE BASE  this checkout holds %d per-round log(s), "
+              "below the floor of %d." % (t["logs_read"], MIN_EVIDENCE_LOGS))
+        print("                  `logs/*_round_*.log` is gitignored (.gitignore "
+              "28, 29, 35, 60), so a")
+        print("                  fresh clone or a pristine worktree cannot "
+              "reproduce this module.")
+        print("                  Every number below is about this directory, "
+              "not about the program.")
     hdr = ("%-21s %5s %5s %6s %5s %6s %9s %11s"
            % ("check", "runs", "red", "nodes", "eps", "unopnd", "own-opened", "invisible"))
     print(hdr); print("-" * len(hdr))
@@ -782,6 +889,398 @@ def cmd_evidence(args):
     return 0
 
 
+# ---------------------------------------------------------------------------
+# Round 467 (SWE-loop D). THE HEADLINE'S OWN P-VALUE.
+#
+# Round 461's next-step 6, in full: "Do not read the p-value as a significance
+# test. 46 of the 78 attributable episodes come from one runner and are not
+# independent -- 11 rounds open episodes on two or three checkers at once.
+# `p = 9.81e-08` is the direction, stated with a number that is narrower than
+# the data earns. Whoever quotes it should quote the caveat with it, or
+# compute a round-clustered version."
+#
+# Three things were wrong with the situation, not one.
+#
+# (1) NOTHING IN THE TREE COMPUTED IT. `9.81e-08` is published in
+#     `knowledge/round-461-*.md` and in `skills/unrun-checker-latency/
+#     SKILL.md` and was produced by a scratch calculation in the round that
+#     wrote them. A number with no producer cannot be re-derived, so
+#     `fisher_exact_2x2` is here and `test_the_published_p_values_are_
+#     reproduced` pins it against BOTH previously published tables.
+#
+# (2) THE CLUSTERING IS REAL and it is two-fold, not one-fold: one ROUND opens
+#     several episodes at once (round clustering) and one NODE contributes
+#     many episodes across rounds (node clustering, `unit_tests` alone is 27).
+#     `collapse_by_node` and `node_scope_null` answer the second;
+#     `rotation_shift_null` answers the first.
+#
+# (3) AND THE NULL MATTERS MORE THAN THE CLUSTERING. A round's TRACK is not a
+#     free parameter: `run_driver.sh` assigns it by round number mod 6. Round
+#     466 (NUC E) measured the same lesson on a different subject and wrote it
+#     down as `skills/null-must-preserve-the-shape` -- a uniform-placement
+#     null over a bursty population graded a real effect as below chance,
+#     while a circular-shift null that preserved the population's cadence gave
+#     p <= 0.0005. The shape here is the rotation, so the null that preserves
+#     it is a rigid rotation of the round -> track map. That null has only
+#     SIX distinct members, so the smallest p it can return is 1/6 -- a fact
+#     about the design, not about the data, and one no amount of extra rounds
+#     will move.
+#
+# The `own-suite` row deserves its own warning, printed with the table. Read
+# `_subject_scope`'s text for it: "the hosting track is the only track that
+# can open it, AND CAN SEE IT by running its own fast tier". The conclusion is
+# inside the definition. A 2x2 of whole-tree against own-suite therefore tests
+# an association one of whose rows is analytic, which is why `scope-test`
+# prints the whole-tree rate against the rotation's own base rate as well --
+# that comparison has no such row.
+SCOPE_TEST_ROWS = ("whole-tree", "own-suite")
+
+#: The two tables this module must reproduce before its new numbers are worth
+#: anything: (label, a, b, c, d, published p). Cells are
+#: (row-invisible, row-visible) for whole-tree then own-suite.
+PUBLISHED_TABLES = (
+    ("round 455", 12, 4, 1, 8, 0.0036),
+    ("round 461", 53, 4, 0, 8, 9.81e-08),
+)
+
+
+def fisher_exact_2x2(a, b, c, d):
+    """Two-sided Fisher exact p for [[a, b], [c, d]].
+
+    Sums the hypergeometric probability of every table with the same margins
+    whose probability does not exceed the observed one. Exact integer
+    binomials, so no lgamma cancellation to argue about at these sizes.
+    """
+    n = a + b + c + d
+    if n == 0:
+        return None
+    r1, r2, c1 = a + b, c + d, a + c
+    denom = math.comb(n, c1)
+
+    def prob(x):
+        return math.comb(r1, x) * math.comb(r2, c1 - x) / denom
+
+    lo, hi = max(0, c1 - r2), min(r1, c1)
+    p_obs = prob(a)
+    tol = p_obs * (1 + 1e-9)
+    return min(1.0, sum(prob(x) for x in range(lo, hi + 1) if prob(x) <= tol))
+
+
+def _visible(track, suite, track_suites):
+    return bool(track) and suite in track_suites.get(track, ())
+
+
+def _table(eps, rows=SCOPE_TEST_ROWS):
+    """(a, b, c, d) = (row0 invisible, row0 visible, row1 invisible, row1 visible)."""
+    out = []
+    for sc in rows:
+        sel = [e for e in eps if e["scope"] == sc]
+        out.append(sum(1 for e in sel if not e["vis"]))
+        out.append(sum(1 for e in sel if e["vis"]))
+    return tuple(out)
+
+
+def _stat(table):
+    """Difference in invisible RATE between the two rows; None if a row is empty."""
+    a, b, c, d = table
+    if a + b == 0 or c + d == 0:
+        return None
+    return a / (a + b) - c / (c + d)
+
+
+def scope_test_episodes(res, track_suites):
+    """The episodes the association may honestly be computed over.
+
+    Attributable (somebody opened it), and SUBJECT-derived (R006 already
+    guarantees that excludes exactly the `environmental` rows, whose label was
+    read off the verdict history the test would then explain).
+    """
+    return [{"node": e["node"], "suite": e["suite"], "scope": e["scope"],
+             "open": e["open"], "vis": e["visible_to_opener"]}
+            for e in res["episodes"]
+            if not e["born_red"] and e["evidence"] == "subject"]
+
+
+#: `run_driver.sh` picks a round's track by round number mod 6 (CLAUDE.md
+#: ground rule 6). This is the SHAPE any null over track labels must preserve.
+ROTATION_PERIOD = 6
+
+
+def rotation_residue_map(tracks, period=ROTATION_PERIOD):
+    """({residue: track}, [complaint]) over the driver's own `start` lines.
+
+    Derived from the record, never from CLAUDE.md, so a driver that stopped
+    obeying its own rule shows up here as a complaint instead of being
+    papered over by the constant it was supposed to follow.
+    """
+    by_res = OrderedDict()
+    for rnd, track in sorted(tracks.items()):
+        by_res.setdefault(rnd % period, Counter())[track] += 1
+    rot, problems = OrderedDict(), []
+    for res in sorted(by_res):
+        counts = by_res[res]
+        rot[res] = counts.most_common(1)[0][0]
+        if len(counts) > 1:
+            problems.append("residue %d ran %s" % (res, dict(counts)))
+    missing = [r for r in range(period) if r not in rot]
+    if missing:
+        problems.append("no round observed for residue(s) %s" % missing)
+    return rot, problems
+
+
+def rotation_shift_null(eps, tracks, track_suites, statfn=None,
+                        period=ROTATION_PERIOD):
+    """Rigidly rotate the driver's ROUND-NUMBER -> track rule; recompute.
+
+    Preserves every structural fact except the alignment between which track
+    ran and which node broke: the rounds, their order, each round's set of
+    opened episodes, each node's scope, the rotation's period, and the exact
+    multiset of track labels. Destroys only WHICH residue got which label.
+
+    A DEFECT THIS FUNCTION HAD, kept in the record because the number that
+    exposed it is the whole point. The first draft rotated the SEQUENCE of
+    observed labels by position -- `labels[(i + k) % n]` -- which sounds
+    identical and is not. `logs/driver.log` has no `start` line for rounds
+    229 and 313, so the observed sequence is 314 long over a 316-round span:
+    rotating it by position slides the labels ACROSS those two holes and
+    changes phase halfway through, manufacturing relabelings in which the
+    rotation is no longer period-6 at all. It reported 188 distinct
+    relabelings of 314 shifts and p = 0.0796. That is round 466's
+    `skills/null-must-preserve-the-shape` failing on the round that cited it:
+    the shape here is `track = f(round mod 6)`, and a positional rotation is
+    not a symmetry of it. Shifting the RESIDUE is, and gives exactly `period`
+    members -- which is also why `floor` below is 1/6 and not something a
+    larger corpus could improve.
+
+    `statfn` maps a list of episodes (each with `scope` and `vis`) to a float;
+    the default is the two-row rate difference, and `cmd_scope_test` also runs
+    it over a one-row statistic that has no analytic row in it.
+    """
+    statfn = statfn or (lambda e: _stat(_table(e)))
+    rot, problems = rotation_residue_map(tracks, period)
+    obs = statfn(eps)
+    stats, seen = [], {}
+    for k in range(period):
+        mapping = {r: rot[(r + k) % period] for r in rot}
+        key = tuple(mapping[e["open"] % period] for e in eps)
+        shifted = [dict(e, vis=_visible(mapping[e["open"] % period], e["suite"],
+                                        track_suites)) for e in eps]
+        stats.append(statfn(shifted))
+        seen.setdefault(key, k)
+    live = [st for st in stats if st is not None]
+    ge = sum(1 for st in stats if st is not None and obs is not None
+             and st >= obs - 1e-12)
+    return {
+        "observed": obs,
+        "period": period,
+        "shifts": period,
+        "distinct_relabelings": len(seen),
+        "n_ge_observed": ge,
+        "p": ge / period,
+        "floor": 1.0 / len(seen) if seen else None,
+        "null_mean": (sum(live) / len(live)) if live else None,
+        "null_max": max(live) if live else None,
+        "null_values": [None if st is None else round(st, 4) for st in stats],
+        "rotation": {str(k): v for k, v in rot.items()},
+        "rotation_problems": problems,
+        "degenerate_shifts": len(stats) - len(live),
+    }
+
+
+def whole_tree_invisible_rate(eps, scope=SCOPE_TEST_ROWS[0]):
+    """The one-row statistic: share of `scope`'s episodes opened invisibly.
+
+    `own-suite`'s registry definition says the hosting track "can see it by
+    running its own fast tier", so a 2x2 against it has an analytic row. This
+    statistic has none: it is one scope's rate, and the rotation-shift null
+    supplies the only baseline it needs.
+    """
+    sel = [e for e in eps if e["scope"] == scope]
+    if not sel:
+        return None
+    return sum(1 for e in sel if not e["vis"]) / len(sel)
+
+def node_scope_null(eps, draws=20000, seed=467):
+    """Permute `subject_scope` across NODES, not across episodes.
+
+    The other half of the clustering. Every episode of one node shares that
+    node's label, so shuffling at episode level would break exactly the
+    dependence the test is trying to respect. This keeps each node's episode
+    count, each round's co-occurrences and the observed visibility of every
+    episode untouched, and moves only which node carries which scope.
+
+    Reported, never predicted: round 467's predictions file declares this one
+    no-basis on purpose.
+    """
+    obs = _stat(_table(eps))
+    by_node = OrderedDict()
+    for e in eps:
+        by_node.setdefault(e["node"], []).append(e)
+    names = list(by_node)
+    scopes = [by_node[n][0]["scope"] for n in names]
+    rng = random.Random(seed)
+    ge = 0
+    live = []
+    for _ in range(draws):
+        rng.shuffle(scopes)
+        relab = [dict(e, scope=scopes[i])
+                 for i, n in enumerate(names) for e in by_node[n]]
+        st = _stat(_table(relab))
+        if st is None:
+            continue
+        live.append(st)
+        if obs is not None and st >= obs - 1e-12:
+            ge += 1
+    return {
+        "observed": obs, "draws": draws, "seed": seed,
+        "usable_draws": len(live), "n_ge_observed": ge,
+        "p": (ge + 1) / (len(live) + 1) if live else None,
+        "null_mean": (sum(live) / len(live)) if live else None,
+        "nodes": len(names),
+    }
+
+
+def collapse_by_node(eps, rows=SCOPE_TEST_ROWS):
+    """One row per NODE: was it EVER opened by a round that could not see it.
+
+    The most conservative reading of the same claim. It answers the node
+    clustering by refusing to count `unit_tests` twenty-seven times.
+    """
+    by_node = OrderedDict()
+    for e in eps:
+        by_node.setdefault(e["node"], []).append(e)
+    collapsed = [{"node": n, "scope": v[0]["scope"],
+                  "vis": all(x["vis"] for x in v)}
+                 for n, v in by_node.items()]
+    return _table(collapsed, rows), collapsed
+
+
+def rotation_base_rate(eps, tracks, track_suites, rows=SCOPE_TEST_ROWS):
+    """For each scope: the visible rate the ROTATION ALONE would produce.
+
+    The comparison that has no analytic row. Under the driver's rotation a
+    node in `harness/tests` is visible to 2 of the 6 slots (harness(A) and
+    SWE-loop(D)); one in `skills/` to 1 of 6. So a scope's expected visible
+    rate under `nobody's breakage is aimed at anything` is the mean over its
+    episodes of |{slots that see this suite}| / 6, and the interesting
+    quantity is how far the OBSERVED rate sits from it.
+    """
+    slots = sorted({tracks[r] for r in tracks})
+    out = OrderedDict()
+    for sc in rows:
+        sel = [e for e in eps if e["scope"] == sc]
+        if not sel:
+            continue
+        exp = sum(sum(1 for t in slots if _visible(t, e["suite"], track_suites))
+                  / len(slots) for e in sel) / len(sel)
+        out[sc] = {"episodes": len(sel),
+                   "observed_visible_rate": sum(1 for e in sel if e["vis"]) / len(sel),
+                   "rotation_expected_visible_rate": exp}
+    return out
+
+
+def scope_test(root=ROOT, draws=20000, seed=467):
+    res = analyse(root)
+    reg = load_registry(root)
+    track_suites = reg["_track_suites"]
+    tracks = round_tracks(root)
+    eps = scope_test_episodes(res, track_suites)
+    table = _table(eps)
+    ntab, collapsed = collapse_by_node(eps)
+    return {
+        "rows": list(SCOPE_TEST_ROWS),
+        "episodes_used": len(eps),
+        "episodes_excluded_outcome_derived": sum(
+            1 for e in res["episodes"]
+            if not e["born_red"] and e["evidence"] != "subject"),
+        "episode_table": list(table),
+        "episode_p_naive": fisher_exact_2x2(*table),
+        "node_table": list(ntab),
+        "nodes_used": len(collapsed),
+        "node_p": fisher_exact_2x2(*ntab),
+        "rotation_shift_null": rotation_shift_null(eps, tracks, track_suites),
+        "whole_tree_only_shift_null": rotation_shift_null(
+            eps, tracks, track_suites, statfn=whole_tree_invisible_rate),
+        "node_scope_null": node_scope_null(eps, draws=draws, seed=seed),
+        "rotation_base_rate": rotation_base_rate(eps, tracks, track_suites),
+        "reproduces_published": [
+            {"label": lab, "table": [a, b, c, d], "published": pub,
+             "recomputed": fisher_exact_2x2(a, b, c, d)}
+            for lab, a, b, c, d, pub in PUBLISHED_TABLES],
+    }
+
+
+def cmd_scope_test(args):
+    r = scope_test(draws=args.draws)
+    if args.json:
+        print(json.dumps(r, indent=2, sort_keys=True))
+        return 0
+    a, b, c, d = r["episode_table"]
+    print("scope-test: does `subject_scope` predict an invisible open?")
+    print("  %d subject-derived attributable episode(s); %d outcome-derived "
+          "episode(s) EXCLUDED" % (r["episodes_used"],
+                                   r["episodes_excluded_outcome_derived"]))
+    print()
+    print("%-14s %11s %9s %8s" % ("scope", "invisible", "visible", "rate"))
+    print("%-14s %11d %9d %8.0f%%" % (SCOPE_TEST_ROWS[0], a, b, 100 * a / (a + b)))
+    print("%-14s %11d %9d %8.0f%%" % (SCOPE_TEST_ROWS[1], c, d,
+                                      100 * c / (c + d) if c + d else 0))
+    print()
+    print("  1. naive Fisher over EPISODES      p = %.3g   <- what is published"
+          % r["episode_p_naive"])
+    na, nb, nc, nd = r["node_table"]
+    print("     (this treats %d episodes as %d independent observations)"
+          % (r["episodes_used"], r["episodes_used"]))
+    print("  2. collapsed to ONE ROW PER NODE   p = %.3g   [[%d,%d],[%d,%d]], "
+          "n = %d node(s)" % (r["node_p"], na, nb, nc, nd, r["nodes_used"]))
+    sh = r["rotation_shift_null"]
+    print("  3. rotation-shift null             p = %.3g   %d of %d shift(s) "
+          ">= observed" % (sh["p"], sh["n_ge_observed"], sh["shifts"]))
+    print("     the driver picks a track by round mod %d, so the null has %d "
+          "member(s)," % (sh["period"], sh["distinct_relabelings"]))
+    print("     one of them the identity: it CANNOT return below %.3g, and no "
+          "amount of" % sh["floor"])
+    print("     further rounds will change that. observed %.3f, null mean "
+          "%.3f, max %.3f" % (sh["observed"], sh["null_mean"], sh["null_max"]))
+    print("     null values by shift: %s" % (sh["null_values"],))
+    if sh["rotation_problems"]:
+        print("     ROTATION NOT RIGID: %s" % "; ".join(sh["rotation_problems"]))
+    ns = r["node_scope_null"]
+    print("  4. node-scope permutation null     p = %.3g   %d of %d draw(s) "
+          ">= observed" % (ns["p"], ns["n_ge_observed"], ns["usable_draws"]))
+    print("     scope labels shuffled across %d node(s), seed %d; every node's "
+          "episode" % (ns["nodes"], ns["seed"]))
+    print("     count and every round's co-occurrences are preserved exactly.")
+    print()
+    print("READ (1) AS A DIRECTION, NOT A SIGNIFICANCE TEST. `own-suite`'s own")
+    print("definition in the registry says the hosting track `can see it by")
+    print("running its own fast tier`, so that row of the 2x2 is analytic.")
+    print("The comparison with no analytic row is the rotation's base rate:")
+    print()
+    print("%-14s %9s %10s %10s" % ("scope", "episodes", "observed", "rotation"))
+    for sc, v in r["rotation_base_rate"].items():
+        print("%-14s %9d %9.0f%% %9.0f%%   visible"
+              % (sc, v["episodes"], 100 * v["observed_visible_rate"],
+                 100 * v["rotation_expected_visible_rate"]))
+    wt = r["whole_tree_only_shift_null"]
+    print()
+    print("  5. the SAME shift null over `%s` ALONE (no second row,"
+          % SCOPE_TEST_ROWS[0])
+    print("     nothing analytic in it):        p = %.3g   observed %.0f%% "
+          "invisible," % (wt["p"], 100 * wt["observed"]))
+    print("     null mean %.0f%%, values by shift %s"
+          % (100 * wt["null_mean"], wt["null_values"]))
+    print()
+    print("REPRODUCTION OF THE PUBLISHED NUMBERS (this table is the reason the")
+    print("new ones above are worth reading):")
+    for x in r["reproduces_published"]:
+        print("  %-10s %-18s published %-10.3g recomputed %-10.3g  %s"
+              % (x["label"], x["table"], x["published"], x["recomputed"],
+                 "agree" if abs(x["recomputed"] - x["published"])
+                 <= 0.005 * max(x["published"], 1e-12) + 5e-5 else "DISAGREE"))
+    return 0
+
+
 def cmd_audit(args):
     res = analyse()
     for code, nid, msg in res["registry_findings"]:
@@ -801,6 +1300,11 @@ def build_parser():
     n = sub.add_parser("nodes"); n.add_argument("--json", action="store_true")
     n.set_defaults(fn=cmd_nodes)
     d = sub.add_parser("audit"); d.set_defaults(fn=cmd_audit)
+    st = sub.add_parser("scope-test")
+    st.add_argument("--json", action="store_true")
+    st.add_argument("--draws", type=int, default=20000,
+                    help="draws for the node-scope permutation null")
+    st.set_defaults(fn=cmd_scope_test)
     e = sub.add_parser("evidence")
     e.add_argument("--json", action="store_true")
     e.add_argument("--only-missing", action="store_true",

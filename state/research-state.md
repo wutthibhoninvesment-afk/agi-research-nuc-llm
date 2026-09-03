@@ -24896,6 +24896,176 @@ successor — 448→449, 449→450, 450→451, 451→452, 452→453.)*
   confirmed is 29h50m36s, 9m24s short.
 - **Knowledge:** `knowledge/round-466-the-population-that-was-the-observer.md`.
 
+### Round 467 — SWE-loop(D) — 2026-09-03 — the p-value below its own floor
+
+- **The harness fast tier had been RED for four rounds and is green.** 8
+  failing nodes at rounds 465 and 466 (`8 failed, 1335 passed`), three
+  whole-tree checks, none broken by a round that runs `harness/tests`. Two
+  causes, both single files from other tracks: `languages/whence/specreg.py`
+  (round 464, language C) carrying an unguarded import-time
+  `os.path.abspath(os.path.join(HERE, "..", ".."))` — the ONE escape in a tree
+  where seven other expressions already go through `AGI_RESEARCH_ROOT` — and
+  `harness/tests/test_corpus_evidence.py` (round 463, harness A) never
+  declared in `harness/wiring-registry.json`. Now **`1372 passed, 361
+  deselected in 295.09s`, rc 0**; `wiring_audit.py check` 0 errors;
+  `copyparity escapes` `copy_safe`, 8 env-guarded (was 7); `redattrib.py
+  audit` 34 ever red, 34 declared, 0 errors.
+- **Round 461's item 6 is CLOSED, and the published p-value does not
+  survive it.** `p = 9.81e-08` had no producer in the tree.
+  `redattrib.py scope-test` is the producer, and it reproduces BOTH earlier
+  published tables before printing anything new (round 455's 0.0036 ->
+  0.00361; round 461's 9.81e-08 -> 9.81e-08). Every correction moves the
+  number the same way: naive Fisher over episodes **6.05e-07**; one row per
+  NODE **1.19e-04**; scope labels shuffled across nodes **5e-05**; **rigid
+  rotation of the driver's own rota 0.167**; the wide row ALONE, with no
+  analytic second row, **0.333**.
+- **The null has a FLOOR of 1/6 and nothing can move it.** A round's track is
+  not a free variable — `run_driver.sh` picks it by round mod 6, verified
+  against the record at **0 deviations in 314 rounds** — so the only
+  shape-preserving null is a rigid rotation of that rota, and a period-6 rota
+  has SIX members, one of them the identity. A p six orders of magnitude below
+  its own null's floor is a result from a null that does not describe you.
+- **Half the 2x2 was analytic.** `_subject_scope`'s text for `own-suite` says
+  the hosting track "can see it by running its own fast tier" — the conclusion
+  is in the definition. Removing that row: whole-tree is **89% invisible
+  against a rota base rate of 73%**, and under the shift null **p = 0.333**,
+  with one of the six shifts beating the observation at 96.8%. **The RATE
+  survives everything** (89%, and moving the runner earlier still does not
+  touch it); what does not survive is that the association was *discovered*.
+- **The prediction caught the bug.** P10 banked "exactly 6 relabelings, p =
+  1/6". The first implementation rotated the observed label SEQUENCE by
+  position and returned **188 distinct relabelings of 314 shifts, p =
+  0.0796**. `logs/driver.log` has no `start` line for rounds **229 and 313**,
+  so a positional rotation slides across the holes and changes phase — it is
+  not a symmetry of `track = f(round mod 6)`. Shifting the RESIDUE is. Pinned
+  by `test_a_gap_in_the_driver_log_does_not_change_the_null_size`, which
+  builds the record with and without holes and also asserts the positional
+  version does NOT have that property.
+- **Round 461's item 2 CLOSED, and measuring the lag beat asserting it.**
+  `opened_by_log_round` / `first_firable_round` on every episode row, and the
+  R001 message now names both and says the round reading it is not the round
+  that caused it. New number: **the lag is exactly 1 for all 94 episodes** —
+  never 2 — because all four checks run every round.
+- **The circularity worry is REFUTED, and the way it would have been
+  confirmed is the finding.** Every registry entry now declares `evidence`
+  (`subject` / `outcome`), fail-closed via **R005** (missing/unknown) and
+  **R006** (an `outcome` label that is not `environmental`, or an
+  `environmental` label claiming `subject` — both directions). Adjudicated:
+  **3 of 34** entries are outcome-derived, exactly the three `environmental`
+  ones, whose episodes the headline already excluded. The MECHANICAL proxy —
+  does `why` cite a round, a track or "opened by" — flags **31 of 34** and
+  would have confirmed the prediction. 28 entries apart, cheap one pointing
+  the flattering way.
+- **A sixth subject scope, `foreign-subject`, and an older instance of the
+  same sweep failure.** The copyparity trio reads `languages/whence` and
+  nothing else (not whole-tree) and lives in `harness/tests` (not own-suite).
+  Separately, `test_roundheadings.py::test_the_live_record_is_fully_canonical`
+  was `whole-tree` over `state/research-state.md` — the file
+  `shared-corpus`'s own definition names, and the same subject as
+  `corpus_check.py::state_claim_check`, which is already `shared-corpus`.
+  Reclassified; the headline does not move (75/91 = 82% both ways), the 2x2
+  does, published rather than absorbed.
+- **Round 461's item 7 CLOSED on the instrument's side.**
+  `logs/*_round_*.log` is gitignored (`.gitignore` 28, 29, 35, 60):
+  `git ls-files logs/` is **9** against the **602** the module reads.
+  `evidence_base()` + `MIN_EVIDENCE_LOGS` (50) make `attribute` print a NO
+  EVIDENCE BASE banner and `TestThisTree` SKIP WITH THAT REASON below the
+  floor, instead of the `4 failed, 15 passed` a pristine worktree gave round
+  461 where the truth was 2 failed, 17 passed. Whether the logs belong in git
+  is still the operator's question.
+- **Predictions (D-013):** `state/swe/round-467/PREDICTIONS.md`, banked with a
+  §0 naming the five exploratory reads that preceded it and one item declared
+  no-basis. **12 HIT, 2 PARTIAL, 3 MISS of 17.** All three misses are one
+  habit: a prediction about a population derived by reasoning about it instead
+  of counting it (round 465 item 3 / round 435 item 7, third and fourth
+  instance). Registered in `state/prediction-bank-ledger.json`.
+- **Tests:** `test_redattrib.py` **60 passed in 2.02s** (29 at HEAD);
+  harness fast tier **1372 passed, rc 0** (was 8 failed, 1335 passed);
+  whence fast tier **2431 passed, 3 skipped, 103 deselected in 238.15s**;
+  `test_specreg.py` 39 passed. 31 new tests. `nproc` is 1; all serial.
+- **Skills:** no new skill. `skills/null-must-preserve-the-shape` (round
+  466's) gains steps 9-11 — count your null's members, it has a floor; a
+  shift over POSITIONS is not a shift over the RULE (188 as the fingerprint);
+  check whether one arm of your comparison is analytic — plus the pitfall
+  that a label read off the outcome cannot explain the outcome, and that the
+  cheap proxy for that lies in the flattering direction.
+  `skills/unrun-checker-latency`'s `p = 9.8e-08` line is replaced by the
+  five-reading table. Neither `description` touched, so no re-probe is owed.
+  `skill_lint --house --strict` 0 errors on both.
+- **Knowledge:** `knowledge/round-467-the-p-value-below-its-own-floor.md`.
+
+## Next steps (as of round 467)
+
+1. **`foreign-subject` is one observation wide and should be re-examined, not
+   defended.** Three nodes in one file. Round 461 explicitly DECLINED to add a
+   sixth scope on one observation (see the registry entry for
+   `test_one_unit_has_never_been_evidence_and_the_registry_says_why`) and this
+   round added one on three. The counter-argument is in the round file §2. The
+   next node whose subject is one foreign tree either joins it or refutes it —
+   and if none appears within a rotation, ask whether it should be folded back
+   into `whole-tree` with a `subject_root` field instead. harness(A) or
+   SWE-loop(D).
+2. **The `whole-tree` row is still not clean and the sharper test was not
+   built.** It mixes nodes hosted in `skills/` (visible to 1 rota slot in 6)
+   with nodes hosted in `harness/tests` (2 in 6), so §5.3's 27% rotation
+   baseline is an average over two structural rates. A per-host-suite version
+   of `rotation_base_rate` would say whether the 89% is above chance for
+   EITHER host, which the pooled 0.333 cannot. One function and one test.
+   Run `python3 harness/redattrib.py scope-test` first — it prints the pooled
+   version. SWE-loop(D).
+3. **Round 455's item 1 / round 461's item 5 stands, and this round is the
+   second consecutive D round to close whole-tree reds BY HAND.** Nothing
+   makes a non-harness round run `harness/tests`. Round 467 found 8 red nodes
+   that four rounds had walked past; whole-tree is 56/63 = 89% invisible. It
+   is still a CLAUDE.md ground-rule change and still belongs to harness(A) or
+   the operator. The cheapest form remains round 461's item 4: a rule-5
+   addendum telling a round to run `python3
+   skills/skill-authoring/scripts/corpus_check.py --precommit` (33.4 s
+   measured this round) before its last commit. operator or harness(A).
+4. **Round 461's items 1 and 3 are untouched by this round** — the
+   `unit_tests` sink `corpus_check.run_one` unlinks in a `finally` (round 463
+   built the retention; the recovery rate is still reported against the whole
+   history by `redattrib.py evidence`), and `state/slow-tier-ledger.jsonl`
+   being appended AFTER the health checks so the driver's own writes get
+   attributed to a track. Both named their owners: skills(B)/harness(A) and
+   harness(A). Neither has moved.
+5. **The `.gitignore` question is now answered on the instrument's side and
+   still open on the operator's.** `redattrib.py` no longer reports a
+   confident wrong answer in a pristine checkout — it says NO EVIDENCE BASE
+   and skips with a reason. But `git ls-files logs/` is still 9 against 602,
+   and round 460's item 3 and round 466's item 7 ask the same question of
+   `logs/round-*.json`. Say which of the two is intended; do not "fix" it by
+   deleting the tests. operator.
+6. **A rule this round earned, for `skills/prediction-banking`.** Three of
+   this round's misses (P7, P11, P13) are one shape: a prediction ABOUT A
+   POPULATION derived by reasoning about the population instead of counting
+   it. The one prediction derived from a STRUCTURAL fact — "a period-6 rota
+   has six relabelings" — both landed and caught a real bug. The skill says
+   "name your source"; it should also say **prefer a source that is a
+   structure over a source that is a rate, and if you must predict a rate,
+   count it first**. Round 465's item 3 asked for a neighbouring rule and it
+   is still not written. skills(B).
+7. **Rounds 466's, 465's and 464's next-steps lists stand except where named
+   above**, because nothing here touched them — the `session-*.scope`
+   exclusion decision, the offline observer-effect experiment, round 436's
+   items 4/5/9, K006's vacuity hole, `quote_was` provenance, `S006`'s five
+   uncited decisions. Re-derive before quoting: this round re-derived four
+   carried numbers and one (round 461's `9.81e-08` as a live figure) turned
+   out to be about a table that no longer exists.
+8. **`nproc` on this box is 1**, respected: the whence tier, the harness tier
+   and the corpus check each ran alone, and nothing was started while another
+   was running. Harness fast tier solo: 286 s and 295 s on two runs, against
+   769 s and 858 s in the contended driver runs of rounds 465 and 466.
+9. **Standing, and untouched by this round:** the operator-blocked
+   `--cap 196` and the E3 A/B; `case_coverage`'s 49-of-103 disagreeing
+   verdicts; `claim_check` executing 0 of 431 commands; the NUC journal
+   capture for rounds 202-250; and CLAUDE.md's `CRITICAL MISSION` block,
+   re-escalated for the TWENTY-SIXTH time and still a one-line deletion for
+   the operator. `languages/whence/SECURITY.md` is still uncommitted, still
+   not this program's, and still the operator's decision — **do not copy a
+   carry count for it from this file**; the checker's own line is the only
+   source.
+
 ## Next steps (as of round 466)
 
 1. **The decision this round deliberately did not take alone: should

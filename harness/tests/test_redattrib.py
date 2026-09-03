@@ -49,6 +49,16 @@ BASE_REG = {
 }
 
 
+def SUBJ(scope, evidence="subject"):
+    """A registry entry, with the `evidence` R005 has required since round 467.
+
+    A helper rather than a dict literal at each site so a future mandatory
+    field is one edit here instead of one per test -- and so a test that means
+    to omit `evidence` has to say so by not calling this.
+    """
+    return {"subject_scope": scope, "evidence": evidence, "why": ""}
+
+
 def pytest_log(*failed):
     body = "".join("FAILED %s\n" % f for f in failed)
     if failed:
@@ -239,12 +249,14 @@ class TestSynthetic(unittest.TestCase):
                     "health_round_6.log": pytest_log()},
                    BASE_REG)
         res = RA.analyse(self.tmp)
-        self.assertIn(("R001", "harness/tests/test_a.py::t",
-                       "went red and has no registry entry"), res["registry_findings"])
+        r001 = [f for f in res["registry_findings"]
+                if f[0] == "R001" and f[1] == "harness/tests/test_a.py::t"]
+        self.assertEqual(len(r001), 1, res["registry_findings"])
+        self.assertIn("went red and has no registry entry", r001[0][2])
 
     def test_a_registry_entry_for_a_node_that_never_went_red_is_R002(self):
         reg = json.loads(json.dumps(BASE_REG))
-        reg["nodes"]["harness/tests/test_ghost.py::t"] = {"subject_scope": "own-suite"}
+        reg["nodes"]["harness/tests/test_ghost.py::t"] = SUBJ("own-suite")
         build_root(self.tmp, ["round 5 track=harness(A) start"],
                    {"health_round_5.log": pytest_log()}, reg)
         codes = [f[0] for f in RA.analyse(self.tmp)["registry_findings"]]
@@ -252,7 +264,7 @@ class TestSynthetic(unittest.TestCase):
 
     def test_an_unknown_subject_scope_is_R003(self):
         reg = json.loads(json.dumps(BASE_REG))
-        reg["nodes"]["harness/tests/test_a.py::t"] = {"subject_scope": "nonsense"}
+        reg["nodes"]["harness/tests/test_a.py::t"] = SUBJ("nonsense")
         build_root(self.tmp,
                    ["round 5 track=skills(B) start", "round 6 track=language(C) start"],
                    {"health_round_5.log": pytest_log("harness/tests/test_a.py::t"),
@@ -262,7 +274,7 @@ class TestSynthetic(unittest.TestCase):
 
     def test_an_episode_opening_on_the_checks_first_ever_run_is_not_attributed(self):
         reg = json.loads(json.dumps(BASE_REG))
-        reg["nodes"]["nuc/tests/test_a.py::t"] = {"subject_scope": "own-suite"}
+        reg["nodes"]["nuc/tests/test_a.py::t"] = SUBJ("own-suite")
         build_root(self.tmp,
                    ["round 5 track=language(C) start", "round 6 track=NUC-integration(E) start"],
                    {"nuc_health_round_5.log": pytest_log("nuc/tests/test_a.py::t"),
@@ -277,7 +289,7 @@ class TestSynthetic(unittest.TestCase):
 
     def test_visibility_is_the_declared_track_suites_relation(self):
         reg = json.loads(json.dumps(BASE_REG))
-        reg["nodes"]["harness/tests/test_a.py::t"] = {"subject_scope": "whole-tree"}
+        reg["nodes"]["harness/tests/test_a.py::t"] = SUBJ("whole-tree")
         # run 5 green so run 6's red is an OPEN, not a born-red install
         build_root(self.tmp,
                    ["round 5 track=harness(A) start",
@@ -298,7 +310,7 @@ class TestSynthetic(unittest.TestCase):
 
     def test_SWE_loop_D_sees_both_the_harness_and_the_whence_suite(self):
         reg = json.loads(json.dumps(BASE_REG))
-        reg["nodes"]["harness/tests/test_a.py::t"] = {"subject_scope": "whole-tree"}
+        reg["nodes"]["harness/tests/test_a.py::t"] = SUBJ("whole-tree")
         build_root(self.tmp,
                    ["round 5 track=harness(A) start", "round 6 track=SWE-loop(D) start"],
                    {"health_round_5.log": pytest_log(),
@@ -318,7 +330,266 @@ class TestSynthetic(unittest.TestCase):
         self.assertIn("recovered 0 test node(s)", gaps[0])
 
 
+class TestEvidenceKind(unittest.TestCase):
+    """Round 467. WHAT DECIDED THE LABEL the headline is computed over."""
+
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.mkdtemp()
+
+    def _one_red(self, entry):
+        reg = json.loads(json.dumps(BASE_REG))
+        reg["nodes"]["harness/tests/test_a.py::t"] = entry
+        build_root(self.tmp,
+                   ["round 5 track=harness(A) start",
+                    "round 6 track=language(C) start",
+                    "round 7 track=SWE-loop(D) start"],
+                   {"health_round_5.log": pytest_log(),
+                    "health_round_6.log": pytest_log("harness/tests/test_a.py::t"),
+                    "health_round_7.log": pytest_log()}, reg)
+        return RA.analyse(self.tmp)
+
+    def test_an_entry_with_no_evidence_kind_is_R005(self):
+        res = self._one_red({"subject_scope": "whole-tree", "why": ""})
+        self.assertIn("R005", [f[0] for f in res["registry_findings"]])
+
+    def test_an_unknown_evidence_kind_is_R005(self):
+        res = self._one_red({"subject_scope": "whole-tree", "evidence": "vibes"})
+        f, = [x for x in res["registry_findings"] if x[0] == "R005"]
+        self.assertIn("vibes", f[2])
+
+    def test_an_outcome_label_outside_environmental_is_R006(self):
+        """The circularity this field exists to make checkable: a scope read
+        off the verdict history is not admissible evidence for an association
+        computed over those same verdicts, UNLESS the scope is the one that is
+        about verdicts."""
+        res = self._one_red({"subject_scope": "whole-tree", "evidence": "outcome"})
+        self.assertIn("R006", [f[0] for f in res["registry_findings"]])
+
+    def test_environmental_declared_subject_derived_is_ALSO_R006(self):
+        """The other direction, and it is not symmetry for its own sake:
+        nothing about a subject can tell you a test is a clock flake, so an
+        `environmental` entry claiming subject evidence has not done the
+        work."""
+        res = self._one_red({"subject_scope": "environmental", "evidence": "subject"})
+        self.assertIn("R006", [f[0] for f in res["registry_findings"]])
+
+    def test_the_two_legitimate_pairings_are_clean(self):
+        for scope, ev in (("whole-tree", "subject"), ("environmental", "outcome")):
+            res = self._one_red({"subject_scope": scope, "evidence": ev})
+            self.assertEqual(
+                [f for f in res["registry_findings"] if f[0] in ("R005", "R006")],
+                [], "%s/%s" % (scope, ev))
+
+    def test_scope_test_drops_outcome_derived_episodes(self):
+        res = self._one_red({"subject_scope": "environmental", "evidence": "outcome"})
+        eps = RA.scope_test_episodes(res, BASE_REG["_track_suites"])
+        self.assertEqual(eps, [])
+        self.assertEqual(res["totals"]["attributable"], 1)
+
+
+class TestOneRoundLag(unittest.TestCase):
+    """Round 461's next-step 2. A fail-closed check cannot fire in the round
+    that breaks it, and until now its own message did not say so."""
+
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.mkdtemp()
+
+    def _tree(self, registry):
+        return build_root(
+            self.tmp,
+            ["round 5 track=harness(A) start",
+             "round 6 track=language(C) start",
+             "round 7 track=SWE-loop(D) start"],
+            {"health_round_5.log": pytest_log(),
+             "health_round_6.log": pytest_log("harness/tests/test_a.py::t"),
+             "health_round_7.log": pytest_log("harness/tests/test_a.py::t")},
+            registry)
+
+    def test_the_R001_message_names_the_opener_and_the_first_run_that_could_see_it(self):
+        self._tree(json.loads(json.dumps(BASE_REG)))
+        res = RA.analyse(self.tmp)
+        f, = [x for x in res["registry_findings"] if x[0] == "R001"]
+        self.assertIn("round 6's log", f[2])
+        self.assertIn("language(C)", f[2])
+        self.assertIn("round 7", f[2])
+        self.assertIn("not the round that caused it", f[2])
+
+    def test_first_firable_is_none_when_no_later_run_exists(self):
+        """The state a round's own breakage is in while its check is still
+        being written: nothing has been able to see it yet, and reporting a
+        number there would invent a reader."""
+        reg = json.loads(json.dumps(BASE_REG))
+        reg["nodes"]["harness/tests/test_a.py::t"] = SUBJ("whole-tree")
+        build_root(self.tmp,
+                   ["round 5 track=harness(A) start",
+                    "round 6 track=language(C) start"],
+                   {"health_round_5.log": pytest_log(),
+                    "health_round_6.log": pytest_log("harness/tests/test_a.py::t")},
+                   reg)
+        ep, = RA.analyse(self.tmp)["episodes"]
+        self.assertEqual(ep["opened_by_log_round"], 6)
+        self.assertIsNone(ep["first_firable_round"])
+
+    def test_the_lag_is_at_least_one_round_whenever_a_later_run_exists(self):
+        reg = json.loads(json.dumps(BASE_REG))
+        reg["nodes"]["harness/tests/test_a.py::t"] = SUBJ("whole-tree")
+        self._tree(reg)
+        ep, = RA.analyse(self.tmp)["episodes"]
+        self.assertEqual(ep["opened_by_log_round"], 6)
+        self.assertEqual(ep["first_firable_round"], 7)
+
+
+class TestScopeTestInference(unittest.TestCase):
+    """Round 467. Round 461's next-step 6: `p = 9.81e-08` had no producer in
+    the tree and no correction for the two clusterings it sits on."""
+
+    def _eps(self, spec):
+        """spec: [(node, suite, scope, open_round, visible)] -> episode dicts."""
+        return [{"node": n, "suite": su, "scope": sc, "open": o, "vis": v}
+                for n, su, sc, o, v in spec]
+
+    def test_fisher_reproduces_a_hand_computable_table(self):
+        # [[3,1],[1,3]]: the two-sided exact p is 2*(C(4,3)C(4,1)+C(4,4)C(4,0))
+        # / C(8,4) = 2*(16+1)/70.
+        self.assertAlmostEqual(RA.fisher_exact_2x2(3, 1, 1, 3), 34 / 70, places=12)
+
+    def test_a_table_with_no_association_is_p_one(self):
+        self.assertAlmostEqual(RA.fisher_exact_2x2(2, 2, 2, 2), 1.0, places=12)
+
+    def test_the_published_p_values_are_reproduced(self):
+        """Rounds 455 and 461 published 0.0036 and 9.81e-08 from scratch
+        calculations that left nothing behind. Until this passes, no number
+        `scope-test` prints is worth reading."""
+        for label, a, b, c, d, published in RA.PUBLISHED_TABLES:
+            got = RA.fisher_exact_2x2(a, b, c, d)
+            self.assertAlmostEqual(got, published,
+                                   delta=0.005 * published + 5e-5,
+                                   msg="%s: recomputed %r" % (label, got))
+
+    def test_the_rotation_is_read_from_the_record_not_from_claude_md(self):
+        tracks = {r: ("A" if r % 6 == 1 else "X") for r in range(100, 200)}
+        rot, problems = RA.rotation_residue_map(tracks)
+        self.assertEqual(problems, [])
+        self.assertEqual(rot[1], "A")
+        self.assertEqual(len(rot), 6)
+
+    def test_a_rotation_that_is_not_rigid_complains_instead_of_averaging(self):
+        tracks = {r: ("A" if r % 6 == 1 else "X") for r in range(100, 200)}
+        tracks[121] = "Q"                       # residue 1 ran two tracks
+        _rot, problems = RA.rotation_residue_map(tracks)
+        self.assertTrue(any("residue 1" in p for p in problems), problems)
+
+    def test_the_shift_null_has_exactly_one_member_per_residue(self):
+        tracks = {r: "T%d" % (r % 6) for r in range(100, 200)}
+        suites = {"T%d" % i: (["harness/tests"] if i == 1 else []) for i in range(6)}
+        eps = self._eps([("n%d" % r, "harness/tests", "whole-tree", r,
+                          tracks[r] == "T1") for r in range(100, 130)]
+                        + [("m", "harness/tests", "own-suite", 101, True)])
+        out = RA.rotation_shift_null(eps, tracks, suites)
+        self.assertEqual(out["shifts"], 6)
+        self.assertEqual(out["distinct_relabelings"], 6)
+        self.assertAlmostEqual(out["floor"], 1 / 6)
+        self.assertGreaterEqual(out["p"], 1 / 6)
+
+    def test_a_gap_in_the_driver_log_does_not_change_the_null_size(self):
+        """THE REGRESSION PIN FOR THIS ROUND'S OWN BUG.
+
+        The first draft rotated the observed label SEQUENCE by position.
+        `logs/driver.log` has no `start` line for rounds 229 and 313, so a
+        positional rotation slides labels across the holes, changes phase, and
+        stops being a symmetry of `track = f(round mod 6)`: it reported 188
+        distinct relabelings of 314 shifts where the truth is 6. Shifting the
+        RESIDUE is invariant to holes, and this pins that -- the assertion is
+        on the SAME number with and without the gaps.
+        """
+        full = {r: "T%d" % (r % 6) for r in range(100, 200)}
+        gapped = {r: t for r, t in full.items() if r not in (137, 168)}
+        suites = {"T%d" % i: (["harness/tests"] if i == 1 else []) for i in range(6)}
+        spec = [("n%d" % r, "harness/tests", "whole-tree", r, full[r] == "T1")
+                for r in sorted(gapped)]
+        eps = self._eps(spec + [("m", "harness/tests", "own-suite", 101, True)])
+        a = RA.rotation_shift_null(eps, full, suites)
+        b = RA.rotation_shift_null(eps, gapped, suites)
+        self.assertEqual(a["distinct_relabelings"], b["distinct_relabelings"], 6)
+        self.assertEqual(a["p"], b["p"])
+        # ...and the positional rotation this replaced does NOT survive a gap.
+        rounds = sorted(gapped)
+        labels = [gapped[r] for r in rounds]
+        positional = {tuple(labels[(i + k) % len(rounds)] for i in range(len(rounds)))
+                      for k in range(len(rounds))}
+        self.assertGreater(len(positional), 6)
+
+    def test_the_shift_null_moves_only_the_track_labels(self):
+        """Every structural fact must survive the null: the episode count, the
+        scopes, and each round's set of opened episodes."""
+        tracks = {r: "T%d" % (r % 6) for r in range(100, 130)}
+        suites = {"T1": ["harness/tests"]}
+        eps = self._eps([("a", "harness/tests", "whole-tree", 101, True),
+                         ("b", "harness/tests", "whole-tree", 102, False),
+                         ("c", "harness/tests", "own-suite", 103, False)])
+        before = [(e["node"], e["scope"], e["open"]) for e in eps]
+        RA.rotation_shift_null(eps, tracks, suites)
+        self.assertEqual([(e["node"], e["scope"], e["open"]) for e in eps], before)
+
+    def test_collapsing_by_node_refuses_to_count_one_node_many_times(self):
+        eps = self._eps([("hot", "skills", "whole-tree", r, False)
+                         for r in range(400, 427)]
+                        + [("cold", "harness/tests", "own-suite", 401, True)])
+        table, rows = RA.collapse_by_node(eps)
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(table, (1, 0, 0, 1))
+
+    def test_the_node_permutation_null_keeps_every_nodes_episode_count(self):
+        eps = self._eps([("hot", "skills", "whole-tree", r, False)
+                         for r in range(400, 410)]
+                        + [("cold", "harness/tests", "own-suite", 401, True)])
+        out = RA.node_scope_null(eps, draws=200, seed=1)
+        self.assertEqual(out["nodes"], 2)
+        self.assertEqual(out["draws"], 200)
+        self.assertLessEqual(out["p"], 1.0)
+
+    def test_the_node_permutation_null_is_seeded_and_reproducible(self):
+        eps = self._eps([("a", "skills", "whole-tree", 401, False),
+                         ("b", "skills", "whole-tree", 402, False),
+                         ("c", "harness/tests", "own-suite", 403, True)])
+        self.assertEqual(RA.node_scope_null(eps, draws=500, seed=9),
+                         RA.node_scope_null(eps, draws=500, seed=9))
+
+    def test_the_one_row_statistic_ignores_every_other_scope(self):
+        eps = self._eps([("a", "skills", "whole-tree", 1, False),
+                         ("b", "skills", "whole-tree", 2, True),
+                         ("c", "skills", "own-suite", 3, False),
+                         ("d", "skills", "shared-corpus", 4, False)])
+        self.assertAlmostEqual(RA.whole_tree_invisible_rate(eps), 0.5)
+
+    def test_an_empty_row_yields_no_statistic_rather_than_a_zero(self):
+        eps = self._eps([("a", "skills", "whole-tree", 1, False)])
+        self.assertIsNone(RA._stat(RA._table(eps)))
+        self.assertIsNone(RA.whole_tree_invisible_rate(eps, scope="own-suite"))
+
 class TestThisTree(unittest.TestCase):
+    def setUp(self):
+        """Round 467. A checkout with no evidence base cannot fail these.
+
+        `logs/*_round_*.log` is gitignored, so a fresh clone or a
+        `git worktree add HEAD --detach` sees ~0 of the 602 logs these
+        assertions read. Round 461 measured what happens then: 4 failed,
+        15 passed where the truth was 2 failed, 17 passed -- two of the four
+        caused purely by the absence. A red that means `you have no data` must
+        not look like a red that means `the tree is broken`, so it skips WITH
+        THE REASON. The floor is far above a fresh clone and far below the
+        live tree, so this can never silence a real failure here.
+        """
+        n, enough = RA.evidence_base(ROOT)
+        if not enough:
+            raise unittest.SkipTest(
+                "this checkout holds %d per-round log(s), below the floor of "
+                "%d -- `logs/*_round_*.log` is gitignored (.gitignore 28, 29, "
+                "35, 60), so these whole-tree assertions have no evidence to "
+                "read. Not a failure of the tree." % (n, RA.MIN_EVIDENCE_LOGS))
+
     def test_the_registry_is_fail_closed_over_the_live_logs(self):
         res = RA.analyse(ROOT)
         self.assertEqual(res["registry_findings"], [],
@@ -422,6 +693,87 @@ class TestThisTree(unittest.TestCase):
         os_rate = os_["invisible"] / (os_["invisible"] + os_["visible"])
         self.assertGreater(wt_rate, os_rate)
         self.assertGreater(wt["invisible"], 0)
+
+
+    # ---- round 467 ------------------------------------------------------
+    def test_every_registry_entry_says_what_decided_its_scope(self):
+        """R005/R006 over the live registry. The invisible-open rate is
+        computed over these labels, so `what decided this one` has to be
+        answerable for every row before the rate means anything."""
+        res = RA.analyse(ROOT)
+        self.assertEqual([f for f in res["registry_findings"]
+                          if f[0] in ("R005", "R006")], [])
+
+    def test_the_association_is_never_computed_over_an_outcome_derived_label(self):
+        res = RA.analyse(ROOT)
+        eps = RA.scope_test_episodes(res, RA.load_registry(ROOT)["_track_suites"])
+        self.assertTrue(eps)
+        self.assertEqual([e for e in eps if e["scope"] == "environmental"], [])
+
+    def test_the_rotation_in_the_record_is_still_rigid(self):
+        """`rotation_shift_null` is only a shape-preserving null while the
+        driver really does pick the track by round mod 6. If a round ever
+        deviates, the null stops being a symmetry and this says so BEFORE the
+        p-value is quoted."""
+        rot, problems = RA.rotation_residue_map(RA.round_tracks(ROOT))
+        self.assertEqual(problems, [])
+        self.assertEqual(len(rot), RA.ROTATION_PERIOD)
+
+    def test_the_shift_null_over_this_tree_has_six_members_and_a_floor(self):
+        r = RA.scope_test(ROOT, draws=200)
+        sh = r["rotation_shift_null"]
+        self.assertEqual(sh["distinct_relabelings"], RA.ROTATION_PERIOD)
+        self.assertAlmostEqual(sh["floor"], 1 / RA.ROTATION_PERIOD)
+        self.assertGreaterEqual(sh["p"], sh["floor"] - 1e-12)
+
+    def test_the_naive_p_is_the_most_extreme_of_the_five_readings(self):
+        """The finding stated as a test: every correction for the clustering
+        or for the rotation makes the number LARGER, so the published figure
+        is the ceiling of the evidence, not its centre."""
+        r = RA.scope_test(ROOT, draws=2000)
+        naive = r["episode_p_naive"]
+        for key in ("node_p",):
+            self.assertGreater(r[key], naive)
+        self.assertGreater(r["rotation_shift_null"]["p"], naive)
+        self.assertGreater(r["whole_tree_only_shift_null"]["p"], naive)
+
+    def test_every_attributable_episode_carries_its_one_round_lag(self):
+        res = RA.analyse(ROOT)
+        for e in res["episodes"]:
+            self.assertEqual(e["opened_by_log_round"], e["open"])
+            if e["first_firable_round"] is not None:
+                self.assertGreater(e["first_firable_round"], e["open"])
+
+    def test_the_scope_test_cli_runs_on_this_tree(self):
+        p = subprocess.run([sys.executable,
+                            os.path.join(ROOT, "harness", "redattrib.py"),
+                            "scope-test", "--draws", "500"],
+                           capture_output=True, text=True, cwd=ROOT)
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        self.assertIn("rotation-shift null", p.stdout)
+        self.assertIn("agree", p.stdout)
+
+
+    def test_the_evidence_base_is_present_and_the_module_says_where(self):
+        """The positive control for setUp. If this ever SKIPS, the skip is the
+        finding: the tree that this program runs in has lost its own record."""
+        n, enough = RA.evidence_base(ROOT)
+        self.assertTrue(enough, n)
+        self.assertIn("NOT IN GIT", RA.__doc__)
+
+    def test_an_empty_checkout_is_reported_as_no_evidence_rather_than_as_green(self):
+        import tempfile
+        tmp = tempfile.mkdtemp()
+        os.makedirs(os.path.join(tmp, "logs"))
+        os.makedirs(os.path.join(tmp, "harness"))
+        with open(os.path.join(tmp, RA.REGISTRY_NAME), "w") as fh:
+            json.dump(BASE_REG, fh)
+        n, enough = RA.evidence_base(tmp)
+        self.assertEqual(n, 0)
+        self.assertFalse(enough)
+        res = RA.analyse(tmp)
+        self.assertEqual(res["totals"]["episodes"], 0)
+        self.assertIsNone(res["totals"]["invisible_open_rate"])
 
 
 if __name__ == "__main__":
