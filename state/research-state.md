@@ -25568,6 +25568,174 @@ does NOT score round 473's predictions, which remain unscored.
   live, is fully reported above.
 - **Knowledge:** `knowledge/round-474-the-position-that-was-not-a-key.md`.
 
+### Round 475 — harness(A) — 2026-09-03 — the remedy that erased its own evidence
+
+- **Round 474 committed the one tracked file this repo deliberately does not
+  commit, and its own state entry — written in the same commit — says the
+  file is uncommitted.** `1cbab86` carries a 37-line diff to
+  `languages/whence/SECURITY.md`, the Hermes gateway rewrite round 349
+  adjudicated as must-not-land. The commit message does not mention it.
+  **It is the SECOND occurrence:** round 393 did the same with `git add -A`
+  at `49969fb` and repaired it at `e9ef922` the same day, 81 rounds earlier,
+  building nothing to stop a third.
+- **The checker's verdict was a three-way disjunction it never resolved.**
+  "the diff was committed, reverted, or the file deleted … delete the entry"
+  prescribes ONE remedy for three fates whose actions differ, and for the
+  *committed* fate that remedy erases the only machine-readable record that
+  the path was ever adjudicated. The separator was three `git rev-parse`
+  calls against blobs the registry pinned at round 373.
+- **Measured, not assumed: the branch has fired live TWICE in 475 rounds
+  and was `committed` both times.** `grep -rl` over `logs/` returns six
+  files; two are aggregate driver logs, two are rounds reading the
+  checker's SOURCE, one is this round's own log. 0 reverted, 0 deleted.
+- **`harness/escalationguard.py` (new, 532 lines).** `audit` resolves the
+  fate (`dirty`/`committed`/`reverted`/`deleted`/`unknown`, fail-closed into
+  `unknown`) and names the commits that landed the escalated bytes; `check`
+  is the commit-time consumer the pin never had; `install-hook` writes a
+  real `pre-commit` hook, and `run_driver.sh` installs it BEFORE each round
+  (installed after the checker it would only ever protect the next round).
+  The **restore exemption** is a claim about bytes — a staged blob equal to
+  the pinned base is allowed, the escalated content, a staged deletion, any
+  third content and an entry with no base are all refused.
+- **Repaired at `18fa13b`**, which is also the first commit in this repo to
+  pass through the new hook. The registry pin needed NO edit: it was correct
+  all along and the commit is what broke it. `carried 127 round(s)` is back;
+  `pristine_check.escalation_allowed_dirty` went `[]` → the path, having
+  been silently absent since `1cbab86`.
+- **The round that built the guard was caught by it**, on its own `git add
+  -A`, in the same session. A live block against the real repo left HEAD
+  unchanged — the hook stops `git commit`, not just the function.
+- **Tests: 44 new** (`test_escalationguard.py` 38, `test_run_driver_escalation_guard.py`
+  6), every git-touching one against a real throwaway repository, two of them
+  asserting a `git commit` did NOT happen. **7 targeted mutants, 7 killed, 0
+  survivors.** First run was red on a real bug: `_git` stripped `git status
+  --porcelain`, whose first line begins with a space, turning `doc.md` into
+  `oc.md` and classifying a LIVE escalation as `unknown`.
+- **The harness fast tier — round 474's carried debt — was run solo and
+  REPORTED, and it was RED: `7 failed, 1498 passed, 388 deselected in
+  299.22s`.** Read by pattern from a full log, not by a fixed `tail -N`.
+  **Five of the seven were inherited and had been red for a full round with
+  nobody able to see them, because the tier went unmeasured.** Two were this
+  round's own: a 25-line insertion into `run_driver.sh` shifted eight pinned
+  `via` line numbers, re-resolved by matching each OLD line's exact text in
+  the new file rather than by adding 25. **After the fixes the tier is
+  `1505 passed, 388 deselected in 334.95s`, rc=0 — 1498 + 7 = 1505, exactly
+  the seven, nothing else moved.** The two solo runs of the same suite on
+  this idle one-CPU box differ by 12 % (299.22 s vs 334.95 s), so a single
+  timing of this tier is not the instrument's cost.
+- **W002 was a declaration justified by a docstring instead of an argv.**
+  Round 473 declared `skills/prediction-banking/scripts/bank_audit.py` wired
+  because `corpus_check.py`'s `unit_tests` "runs pytest over
+  `skills/*/scripts/test_*.py`" — that is the checker's DESCRIPTION near line
+  175; its argv near line 476 is two directories, and `prediction-banking` is
+  not one of them, so round 471's 19-test `test_bank_audit.py` is scheduled
+  by **nothing**. Corrected to `unwired` (not `manual` — the program intends
+  to automate it, so W005 should count) with the prior declaration kept.
+  Confirmed pre-existing with worktrees at `1cbab86` and `654a553`.
+- **Two other registries brought back to truth.** The whence_slow pin
+  re-pinned WITH the reason (round 474 took it 113 → 114 marked nodes, unit
+  count still 28), and the resulting cross-track red declared in
+  `harness/crosstrack-registry.json` as `foreign-subject`/`subject` — a node
+  in `harness/tests/` whose subject is `languages/whence/tests/`.
+  `wiring-audit: 129 entry point(s), 109 in closure, 0 error(s), 0
+  warning(s)`; `red-attribution audit: 35 node(s) ever red, 35 declared, 0
+  error(s)`.
+- **Predictions: 6 HIT, 2 PARTIAL, 3 MISS of 11.** Rounds 470/471's
+  STRUCTURAL/RATE asymmetry does NOT reproduce (2H/1P/1M vs 4H/1P/2M). What
+  does show up is sharper: **every line about the system under study was a
+  HIT, 6 for 6; every miss and both partials were predictions about the
+  ROUND'S OWN future behaviour** — how many tests it would write, how long
+  its own hook would be, whether its own mutants would survive, whether its
+  own tier run would be green.
+- **Skill:** `skills/disjunctive-verdict-needs-resolving/SKILL.md` (new).
+  Authored by a non-skills round, so it ships with three positive trigger
+  cases and a negative (`dvr-near`/`mid`/`far`/`neg-key`, 406 → 410 cases)
+  and a runnable Verification section, and is registered in
+  `state/known-unprobed-skills.json` with skills(B) owning the live probe.
+- **Knowledge:** `knowledge/round-475-the-remedy-that-erased-its-own-evidence.md`.
+
+## Next steps (as of round 475)
+
+1. **The guard covers COMMITTING an escalated path and nothing else.** A
+   round can still `rm` the file, or rewrite it, without ever staging it —
+   `check` only sees the index. The registry's other consumers are
+   unchanged. Whether a working-tree watch is worth building is undecided;
+   what is NOT undecided is that the two occurrences so far were both
+   commits.
+   `python3 harness/escalationguard.py audit` → `DIRTY languages/whence/SECURITY.md`.
+   harness(A).
+2. **`corpus_check.py`'s description of its `unit_tests` checker is false
+   and was left that way.** It says "pytest over `skills/*/scripts/test_*.py`"
+   near line 175; the argv near line 476 is two named directories. That
+   sentence is what round 473 reasoned from, and correcting another track's
+   self-description was deliberately not done here. Fix the sentence, or
+   make the argv match it — and note that making the argv match it is the
+   same edit that discharges the W002 debt below.
+   `grep -n "skills/\*/scripts" skills/skill-authoring/scripts/corpus_check.py`.
+   skills(B).
+3. **Round 471's `test_bank_audit.py` (19 tests) is run by nothing
+   scheduled**, now declared `unwired` rather than falsely `wired`. W005
+   starts counting from round 475, so it becomes a WARNING after a full
+   rotation. Discharge it by adding `skills/prediction-banking/scripts` to
+   `unit_tests`, or by scheduling `bank_audit.py corpus` as its own checker
+   — the second is what round 471 actually asked for.
+   `python3 harness/wiring_audit.py check` → `0 error(s), 0 warning(s)` today.
+   skills(B).
+4. **A round that edits `run_driver.sh` shifts every pinned `via` line
+   number below the insertion, and nothing warns at edit time.** This round
+   moved eight and only found out from the tier. A `via` that carries the
+   line's TEXT as well as its number would make the pin self-locating; so
+   would a pre-commit check. Neither exists.
+   `python3 -m pytest -q harness/tests/test_run_driver_slowtier_slice.py` → 21 passed.
+   harness(A).
+5. **Five reds sat in the harness tier for a full round because the tier
+   went unmeasured, and nothing recorded that the measurement was owed.**
+   Round 474 was honest about publishing no number, which is right, but an
+   unpublished tier leaves no trace that anyone can act on. The slow tier
+   has a ledger (`state/slow-tier-ledger.jsonl`); the FAST tier has none.
+   `tail -1 state/slow-tier-ledger.jsonl` → a schema-5 row per unit.
+   harness(A).
+6. **Round 473's §4, §5, §7, §8 and §9 are still `(filled in below)` and its
+   bank is still unscored** — round 474's item 5, untouched here, and not
+   this track's authorship. The two never-red nodes it names remain
+   unexamined. SWE-loop(D).
+7. **Round 474's items 1, 2, 3, 4 and 6 stand, unchecked by this round** —
+   scope-wide `=` bindings, `dup_cross_file`'s missing row, the
+   comprehension half of the conservation invariant, the unmigrated
+   `file:line` → `file:line:col#k` artefacts, and the background-children
+   line owed to `skills/session-inheritance-audit/SKILL.md`. Re-derive
+   before quoting. language(C) / skills(B).
+8. **Re-derived at this HEAD rather than carried:** `verb_audit` reports
+   **`V002 0`**, confirming round 473's correction of a number four
+   next-steps blocks carried from round 429 — do not restore `V002 1`.
+   `python3 skills/skill-authoring/scripts/corpus_check.py --precommit` →
+   `verb-audit: 23 finding(s) (V001 7, V002 0, V003 16)`. any track.
+9. **`nproc` on this box is 1.** The tier took 299.22 s solo; round 471's
+   was 295.91 s. Nothing else ran during it. Do not read a timing taken
+   next to another process as the instrument's cost.
+   `nproc` → `1`. any track.
+10. **A bank is reliable about the system and unreliable about its author.**
+   This round's 11-line bank was 6 for 6 on the tree and 0 for 3 on its own
+   future output. The cheap fix is to stop banking self-predictions, or to
+   tag them so the hit rate can be reported both ways;
+   `skills/prediction-banking/SKILL.md` has a class tag and a scope tag and
+   neither captures this axis.
+   `python3 skills/skill-authoring/scripts/carryforward_check.py` → bank
+   counts at HEAD. skills(B).
+11. **Standing, and untouched by this round:** the NUC `retention --strict`
+   deadline; the `%vmeff` residual; `case_coverage`'s 49-of-103 disagreeing
+   verdicts; `claim_check` executing 0 of its commands; `polarity.py audit`'s
+   5 MISPOINTED; the J005 recall gap; `selfdesc_check` at 1/26 prose fields;
+   the fourteen-deep probe batch; the operator-blocked `--cap 196` and the E3
+   A/B. And CLAUDE.md's `CRITICAL MISSION` block, still a one-line deletion
+   for the operator — the ordinal in that sentence is NOT a count and should
+   not be incremented; the derivable number is
+   `grep -c "re-escalated for the" state/research-state.md`.
+   **`languages/whence/SECURITY.md` is uncommitted again, and now GUARDED**
+   — still not this program's, still the operator's decision. Do not copy a
+   carry count for it from this file; the checker's own line is the only
+   source.
+
 ## Next steps (as of round 474)
 
 1. **`=` bindings are still scope-wide and nobody has measured what that

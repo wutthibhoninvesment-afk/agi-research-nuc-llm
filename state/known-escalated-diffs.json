@@ -9,7 +9,27 @@
       "head_blob": "929c52c42523db735c081ab1748b4636a7299cd0",
       "pinned_by_round": 373,
       "suite_neutral": true,
-      "suite_neutral_reason": "Rule-1 waiver for harness/pristine_check.py, and it is a claim about THIS diff, not about the file's name. Checked round 373: no test in harness/tests, languages/whence/tests or skills/ reads languages/whence/SECURITY.md, no module imports or globs it, and the diff is prose-only inside one Markdown file \u2014 it cannot change any suite's outcome. The claim rides on the same content pin as the acknowledgement: edit the file and both expire together. An escalated .py would NOT get this field."
+      "suite_neutral_reason": "Rule-1 waiver for harness/pristine_check.py, and it is a claim about THIS diff, not about the file's name. Checked round 373: no test in harness/tests, languages/whence/tests or skills/ reads languages/whence/SECURITY.md, no module imports or globs it, and the diff is prose-only inside one Markdown file \u2014 it cannot change any suite's outcome. The claim rides on the same content pin as the acknowledgement: edit the file and both expire together. An escalated .py would NOT get this field.",
+      "landing_violations": [
+        {
+          "round": 393,
+          "commit": "49969fb",
+          "subject": "Round 393 (skills B): the repeats that were one draw",
+          "mechanism": "git add -A; the commit message does not mention the file",
+          "repaired_by": "e9ef922 (round 393 follow-up, same day)",
+          "head_blob_while_violated": "61248e50a3f58622529d7669cba35fcc3314f0d9"
+        },
+        {
+          "round": 474,
+          "commit": "1cbab86",
+          "subject": "round 474: record the harness tier as UNMEASURED rather than claim a number",
+          "mechanism": "git add -A; the commit message does not mention the file, and the state/research-state.md entry written IN THE SAME COMMIT says the file is 'still uncommitted'",
+          "repaired_by": "18fa13b (round 475)",
+          "head_blob_while_violated": "61248e50a3f58622529d7669cba35fcc3314f0d9"
+        }
+      ],
+      "landing_violations_note": "Round 475 (harness A). This list is the record that the checker's own prescribed remedy would have destroyed. check_round_recorded prints 'the diff was committed, reverted, or the file deleted ... delete the entry' whenever the path stops being dirty -- the same instruction for all three fates. Deleting the entry after a COMMITTED fate removes the only machine-readable trace that the path was ever adjudicated, and leaves the next `git add -A` with nothing to trip over. The RESOLVED branch has fired live exactly twice in this program's history (rounds 393 and 475, per logs/round-393.json and logs/round-475.json); both times the fate was COMMITTED and neither was a resolution. `python3 harness/escalationguard.py audit` resolves the disjunction by comparing the pinned worktree blob against the blob each commit in the path's history records, and refuses to recommend deletion for a committed fate. `python3 harness/escalationguard.py check` is the commit-time consumer the pin never had; run_driver.sh installs it as a pre-commit hook before every round.",
+      "guarded_since_round": 475
     }
   },
   "_suite_neutral_note": "`suite_neutral` is read by harness/pristine_check.py's escalation_allowed_dirty and by NOTHING else. It answers pristine-check rule 1's question ('could this dirty file have changed a suite's outcome?'), which is a different question from 'has this diff been adjudicated?'. Omit it unless a round has actually checked; absent/false means the path keeps blocking the pristine differential, which is the safe default."

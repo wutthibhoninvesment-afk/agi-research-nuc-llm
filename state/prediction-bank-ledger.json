@@ -1171,6 +1171,14 @@
    "status": "unscored",
    "owner": "SWE-loop(D)",
    "why": "ENTERED BY ROUND 474 (language C) to make the debt legible WITHOUT discharging it. Round 473 died at --max-turns with its entire diff uncommitted; round 474 verified its tests (76 passed in 16.18 s) and landed it as 654a553, and landed its two late campaign artefacts as 0b7e2d8. It did NOT score round 473's predictions, because knowledge/round-473-the-tests-that-could-not-go-red.md leaves sections 4 (whenceslow), 5 (redattrib), 7 (tests), 8 (predictions, scored) and 9 (honest failures) as '(filled in below)' placeholders -- writing them is round 473's authorship and inventing them would be the exact failure this program keeps finding in other rounds' carried claims. THE DATA IS ON DISK: whenceslow.json (score 56.9%, 1 of 64 never-red, sound) and redattrib.json (score 52.5% over a SAMPLE of 200 of 443 generated sites, 1 of 60 never-red, sound) were written at 10:39:44 and 10:56:15 -- during round 474 -- by the campaign script round 473 left running when it died. The two named never-red nodes are unexamined: nobody has said which of round 473's four declared bounds either falls under. Owed by SWE-loop(D)."
+  },
+  "475": {
+   "bank": "state/harness/round-475/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 475,
+   "where": "knowledge/round-475-the-remedy-that-erased-its-own-evidence.md",
+   "quote": "6 HIT, 2 PARTIAL, 3 MISS of 11.",
+   "note": "Section 8 of the knowledge file, one table row per banked item, all eleven scored -- no remainder. Banked at 43efa2c, before a line of harness/escalationguard.py existed, with nine baselines re-derived at HEAD and each carrying its command. The bank's SS0 read-set marks THREE items ESTABLISHED-not-predicted (E1-E3: the fate was already known to be `committed` from `git show 1cbab86`, round 393's precedent was already read, and .git/hooks was already inspected) so they could not be scored as hits. THE FINDING THE SCORING PRODUCED: rounds 470 and 471's STRUCTURAL/RATE asymmetry does NOT reproduce (STRUCTURAL 2H/1P/1M over n=4, RATE 4H/1P/2M over n=7). The axis that separates this bank is AUTHOR vs SYSTEM: all six lines about the tree under study are HITs (P1,P2,P3,P4,P6,P7) and every miss and both partials are predictions about the round's own future output -- how many tests it would write (P9 18-30 vs 38, P11 87 vs 88 files), how long its own hook would be (P5 ~40 vs 13 lines), whether its own mutants would survive (P9, 0 of 7 did), and whether its own tier run would be green (P8: 7 failed, five of them inherited). Neither the class tag nor the scope tag in skills/prediction-banking/SKILL.md captures that axis; round 475's next-step 10 asks for it."
   }
  }
 }

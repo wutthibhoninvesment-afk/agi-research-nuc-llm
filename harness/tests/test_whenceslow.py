@@ -486,13 +486,22 @@ def test_the_real_tree_yields_the_units_round_469_measured():
     `--tests` census round 469's §5 decided belongs in its own file — and
     that unit is what moved these numbers. Re-pinned WITH the reason rather
     than relaxed to an inequality: the point of this assertion is that a
-    change to the tier's membership is a thing somebody had to write down."""
+    change to the tier's membership is a thing somebody had to write down.
+
+    Round 474 (language C) added ONE marked test to that same unit --
+    `test_testcorpus_suite_census.py` went 11 -> 12, which round 474's own
+    state entry records -- so the tier's marked-node total went 113 -> 114
+    with the unit COUNT unchanged at 28. Re-pinned again by round 475
+    (harness A), which is also the round that found it: this assertion was
+    red for a full round because round 474 ran the harness fast tier and
+    published no number from it, so nothing read the failure. Membership is
+    still written down; what was missing was somebody looking."""
     units = W.slow_tier_units()
     assert len(units) == 28
-    assert sum(len(u["tests"]) for u in units) == 113
+    assert sum(len(u["tests"]) for u in units) == 114
     assert not [u for u in units if u["registry_error"]]
     by = dict((u["id"], u) for u in units)
-    assert len(by["test_testcorpus_suite_census.py"]["tests"]) == 11
+    assert len(by["test_testcorpus_suite_census.py"]["tests"]) == 12
 
 
 def test_a_module_level_pytestmark_is_discovered(tmp_path):

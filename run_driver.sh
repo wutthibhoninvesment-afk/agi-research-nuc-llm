@@ -284,6 +284,31 @@ while true; do
   # "requires someone to go read it" gap the backlog item named in the
   # first place; putting it directly in front of the round that's about to
   # start is what actually closes the loop.
+  # Round 475 (harness A): install the escalated-diff pre-commit guard
+  # BEFORE the record-gap check runs, so the guard is in place for the whole
+  # of the round that is about to start rather than for the round after it.
+  #
+  # Why the driver installs it. `.git/hooks/` is not tracked, so a hook
+  # cannot be shipped in a commit; something has to write it on every
+  # checkout. The detector this pairs with — `check_round_recorded.py`'s
+  # fifth gap shape — runs a few lines below and has now reported the SAME
+  # violation twice (rounds 393 and 474): a round's `git add -A` committing
+  # `languages/whence/SECURITY.md`, a diff round 349 adjudicated as
+  # must-not-land. It detected both and could prevent neither, because a
+  # check that runs before a round says nothing about what that round
+  # commits. This is the missing commit-time consumer of the same registry.
+  #
+  # Never blocks, same diagnostic convention as the checks around it: a
+  # missing script, a foreign pre-commit hook, or any failure is logged and
+  # the round proceeds. `install-hook` is idempotent and refuses to clobber
+  # a hook it did not write.
+  ESCALATION_GUARD="$WS/harness/escalationguard.py"
+  if [ -f "$ESCALATION_GUARD" ]; then
+    GUARD_OUT=$(python3 "$ESCALATION_GUARD" --repo "$WS" install-hook 2>&1)
+    GUARD_RC=$?
+    log "round $ROUND: escalation-guard ($(echo "$GUARD_OUT" | tr -d '\r' | tr '\n' ' ')) rc=$GUARD_RC"
+  fi
+
   RECORD_CHECK_SCRIPT="$WS/skills/session-inheritance-audit/scripts/check_round_recorded.py"
   ROUND_GAP_NOTE=""
   if [ -f "$RECORD_CHECK_SCRIPT" ]; then

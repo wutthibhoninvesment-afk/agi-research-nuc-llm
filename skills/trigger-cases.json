@@ -2695,5 +2695,31 @@
   "id": "rcv-neg-key",
   "expect": [],
   "prompt": "What's a reasonable p95 latency threshold to set for a JSON API served from a single region?"
+ },
+ {
+  "id": "dvr-near",
+  "expect": [
+   "disjunctive-verdict-needs-resolving"
+  ],
+  "prompt": "Our nightly reconciler prints 'record absent: it was archived, superseded, or deleted in error -- remove the tracking row'. Nobody has ever worked out which of the three it was; we just remove the row. I'm starting to think one of those three is an incident we've been deleting the evidence of. How should I approach this?"
+ },
+ {
+  "id": "dvr-mid",
+  "expect": [
+   "disjunctive-verdict-needs-resolving"
+  ],
+  "prompt": "Our deploy alert says 'canary did not report: rolled back, timed out, or never started' and pages with the same runbook step (acknowledge and re-deploy) for all three. It has fired eleven times this quarter. I want the alert to tell me which one, and I'm fairly sure the deploy log already contains enough to say. Where do I start?"
+ },
+ {
+  "id": "dvr-far",
+  "expect": [
+   "disjunctive-verdict-needs-resolving"
+  ],
+  "prompt": "We have a registry of exceptions someone reviewed and signed off. A linter reads it before each build and warns when an entry no longer matches anything, telling us to drop the entry. It turns out an entry can stop matching because someone quietly changed the thing it protected. Nothing reads that registry at the moment the change is made. What's the right fix?"
+ },
+ {
+  "id": "dvr-neg-key",
+  "expect": [],
+  "prompt": "Our error message says 'invalid config key: retries_max'. It's accurate but people keep filing bugs because it doesn't tell them the key is actually spelled max_retries. How do I make our validator messages more useful?"
  }
 ]

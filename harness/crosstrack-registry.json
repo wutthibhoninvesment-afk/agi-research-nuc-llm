@@ -17,6 +17,11 @@
     "NUC-integration(E)": ["nuc/tests"]
   },
   "nodes": {
+    "harness/tests/test_whenceslow.py::test_the_real_tree_yields_the_units_round_469_measured": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "why": "The node lives in harness/tests/ and its subject is languages/whence/tests/: whenceslow.slow_tier_units() walks that directory and counts every test carrying the whence_slow mark. Any language(C) round adding or removing one marked test moves the pinned totals, and language(C) does not run the harness fast tier. That is exactly what happened: round 474 took test_testcorpus_suite_census.py from 11 marked tests to 12, the tier total from 113 to 114, and the node went red in round 474's own log. Round 474 also ran the harness fast tier and published NO number from it -- it piped the run through tail -6 and captured the wrong block -- so the red was invisible for a full round and was found by round 475 (harness A), which re-pinned the totals with the reason. Declared here so the next membership change is attributed rather than diagnosed again."
+    },
     "harness/tests/test_wiring_audit.py::TestThisTree::test_the_registry_is_clean": {
       "subject_scope": "whole-tree",
       "evidence": "subject",

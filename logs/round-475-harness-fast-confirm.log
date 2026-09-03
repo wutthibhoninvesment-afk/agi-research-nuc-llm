@@ -1,0 +1,90 @@
+........................................................................ [  4%]
+........................................................................ [  9%]
+........................................................................ [ 14%]
+........................................................................ [ 19%]
+........................................................................ [ 23%]
+........................................................................ [ 28%]
+........................................................................ [ 33%]
+........................................................................ [ 38%]
+........................................................................ [ 43%]
+........................................................................ [ 47%]
+........................................................................ [ 52%]
+........................................................................ [ 57%]
+........................................................................ [ 62%]
+........................................................................ [ 66%]
+........................................................................ [ 71%]
+........................................................................ [ 76%]
+........................................................................ [ 81%]
+........................................................................ [ 86%]
+........................................................................ [ 90%]
+........................................................................ [ 95%]
+.................................................................        [100%]
+tier-budget: 15/15 promoted files timed, 51.0s of a 56.6s budget — worst test_swe_mutation.py 20.5s of 36.3s
+1505 passed, 388 deselected in 334.95s (0:05:34)
+
+--- end of measured output; recorded status below ---
+
+slow tier: 33 files / 34 units, 7 conclusive against checkout 8e86a7002fb20587 (21% recall), 1 failing
+  + 4 file(s) conclusive WITHIN their measured read-scope only (32% combined) — the checkout moved outside what they read
+  test_swe_sandbox_evidence.py           fresh_fail         9s  0.8h ago
+  test_swe_abconfound.py                 stale_harness      1s  5.0h ago
+      moved: swe/falsifiers.py
+  test_swe_alias_effects.py              fresh_pass_scoped  375s  4.0h ago
+      scope: whence
+  test_swe_bymap.py                      fresh_pass         78s  0.7h ago
+  test_swe_campaign.py[heavy]            stale_checkout     3000s  6.2h ago
+  test_swe_campaign.py[light]            stale_checkout     3000s  11.6h ago
+      excludes: test_cli_runs_offline_stages_and_stops
+  test_swe_copyparity.py                 stale_checkout     9s  8.3h ago
+  test_swe_copyparity_real_subject.py    stale_checkout     9s  8.3h ago
+  test_swe_coverage.py                   stale_checkout     4s  8.3h ago
+  test_swe_depthceiling.py               stale_harness      1s  5.0h ago
+      moved: swe/falsifiers.py
+  test_swe_equivalence.py                stale_checkout     76s  8.4h ago
+  test_swe_exemptaudit.py                stale_harness      31s  5.0h ago
+      moved: swe/falsifiers.py
+  test_swe_exemptmap.py                  stale_harness      106s  5.0h ago
+      moved: swe/falsifiers.py
+  test_swe_falsifiers.py                 stale_checkout     12s  2.0h ago
+  test_swe_fuzz.py                       fresh_pass         109s  0.7h ago
+  test_swe_guardpin.py                   stale_checkout     11s  8.3h ago
+  test_swe_guest.py                      fresh_pass_scoped  352s  2.9h ago
+      scope: examples, whence
+  test_swe_instrument.py                 stale_checkout     1s  8.3h ago
+  test_swe_killerrepin.py                stale_checkout     16s  5.0h ago
+  test_swe_killers.py                    stale_checkout     29s  8.3h ago
+  test_swe_loop.py                       fresh_pass_scoped  0s  5.0h ago
+      scope: whence
+  test_swe_loop_cli.py                   stale_checkout     77s  9.4h ago
+  test_swe_mutation.py                   stale_checkout     18s  5.0h ago
+  test_swe_oraclekill.py                 stale_checkout     54s  5.0h ago
+  test_swe_oracles.py                    fresh_pass         9s  0.7h ago
+  test_swe_prioritize.py                 stale_checkout     3s  8.3h ago
+  test_swe_proc.py                       stale_checkout     7s  8.3h ago
+  test_swe_regiontools.py                fresh_pass         1s  0.7h ago
+  test_swe_repair.py                     fresh_pass         146s  0.8h ago
+  test_swe_review.py                     stale_checkout     95s  9.4h ago
+  test_swe_scoreaudit.py                 stale_harness      1s  8.3h ago
+      moved: tests/test_swe_scoreaudit.py
+  test_swe_spacewitness.py               fresh_pass         2s  0.7h ago
+  test_swe_toolliveness.py               stale_checkout     3s  8.3h ago
+  test_swe_triage.py                     fresh_pass_scoped  1s  8.3h ago
+      scope: (nothing)
+  NOTE: 23 unit(s) are NOT evidence about this checkout.
+
+RECORDED 2026-08-31T20:28:10Z (2.7 days ago) — a stored verdict, not a run just now
+  HEAD HAS MOVED SINCE: recorded at 50c7bb3caf0a, now 18fa13b2c7f6 — this verdict is NOT about the current tree
+ref HEAD (50c7bb3caf0a)   verdict dirty_worktree
+  the live tree differs from HEAD in 1 tracked file(s);
+  a differential against it cannot attribute anything.  Commit or stash first:
+    M state/baseline-ledger.jsonl
+
+procreap scan: under=/home/pgain/agi-research-nuc-llm verdict=clean matched=0 unreadable=0 (protected=2 vanished=0)
+
+whence slow tier: 28 units / 114 marked (AST), 7 conclusive against subject 9a232cd532579506 (25% recall), 0 failing
+NOTE: 21 unit(s) are NOT evidence about this checkout
+  test_checkpin.py                           stale_subject    4 tests  52.5s
+
+real	5m39.407s
+user	3m33.258s
+sys	0m27.342s

@@ -78,17 +78,17 @@
     },
     "harness/run_slowtier_slice.sh": {
       "status": "wired",
-      "via": "run_driver.sh:647",
+      "via": "run_driver.sh:672",
       "via_kind": "path"
     },
     "harness/run_tests_fast.sh": {
       "status": "wired",
-      "via": "run_driver.sh:523",
+      "via": "run_driver.sh:548",
       "via_kind": "path"
     },
     "harness/run_whenceslow_slice.sh": {
       "status": "wired",
-      "via": "run_driver.sh:750",
+      "via": "run_driver.sh:775",
       "via_kind": "path"
     },
     "harness/swe/bench_prioritize.py": {
@@ -370,7 +370,7 @@
     },
     "languages/whence/run_tests_fast.sh": {
       "status": "wired",
-      "via": "run_driver.sh:524",
+      "via": "run_driver.sh:549",
       "via_kind": "path"
     },
     "languages/whence/specreg.py": {
@@ -494,7 +494,7 @@
     },
     "nuc/run_checks_fast.sh": {
       "status": "wired",
-      "via": "run_driver.sh:526",
+      "via": "run_driver.sh:551",
       "via_kind": "path"
     },
     "nuc/swap_analysis.py": {
@@ -533,21 +533,25 @@
       "via_kind": "join"
     },
     "skills/prediction-banking/scripts/bank_audit.py": {
-      "status": "wired",
-      "via": "skills/prediction-banking/scripts/test_bank_audit.py:-",
-      "via_kind": "import",
+      "status": "unwired",
       "owner": "skills(B)",
-      "reason": "Round 471 (B) built it and did not declare it, so W001 has been an ERROR on every run since. Declared by round 473 (D). `wired` is about the FILE, not the verbs: `corpus_check.py`'s `unit_tests` checker runs `pytest -q skills/*/scripts/test_*.py`, which imports the module, so the closure reaches it -- while round 471's own next-step 1 (`bank_audit.py corpus` is not scheduled) is about a VERB and is exactly the distinction this registry's `_scope` note reserves for verb_audit.py. Both statements are true at once; declaring the file does not discharge the scheduling debt.",
-      "since_round": 473
+      "since_round": 475,
+      "reason": "Round 475 (harness A) corrected this from `wired` to `unwired` after W002 had been an ERROR on every run since 654a553 -- red for two rounds, unseen because round 474 published no harness fast-tier number. Round 473 declared it wired on the reasoning that corpus_check.py's `unit_tests` checker runs `pytest -q skills/*/scripts/test_*.py`, which would import the module. That sentence is corpus_check.py's DESCRIPTION of the checker (its `description` text, near line 175), not the checker: the actual argv, near line 476, is pytest over exactly two directories, skills/skill-authoring/scripts and skills/session-inheritance-audit/scripts. skills/prediction-banking/scripts is not among them, so round 471's test_bank_audit.py (19 tests) is run by nothing scheduled. `unwired` is the honest status because the program DOES intend to automate this -- round 471's next-step 1 asks for it -- so W005 should start counting rather than `manual` silencing it. The scheduling decision is skills(B)'s: add the directory to `unit_tests`, or schedule `bank_audit.py corpus` as its own checker.",
+      "prior_declaration": {
+        "status": "wired",
+        "via": "skills/prediction-banking/scripts/test_bank_audit.py:-",
+        "via_kind": "import",
+        "since_round": 473
+      }
     },
     "skills/run_checks_fast.sh": {
       "status": "wired",
-      "via": "run_driver.sh:525",
+      "via": "run_driver.sh:550",
       "via_kind": "path"
     },
     "skills/session-inheritance-audit/scripts/check_round_recorded.py": {
       "status": "wired",
-      "via": "run_driver.sh:287",
+      "via": "run_driver.sh:312",
       "via_kind": "path"
     },
     "skills/skill-authoring/scripts/carryforward_check.py": {
@@ -567,7 +571,7 @@
     },
     "skills/skill-authoring/scripts/corpus_check.py": {
       "status": "wired",
-      "via": "run_driver.sh:608",
+      "via": "run_driver.sh:633",
       "via_kind": "path"
     },
     "skills/skill-authoring/scripts/corpus_history.py": {
@@ -679,6 +683,14 @@
       "status": "manual",
       "owner": "operator",
       "reason": "Operator tool: swaps the driver script. Only a human decides when; run_driver.sh re-execs itself (round 145) and must not also be swapping itself."
+    },
+    "harness/escalationguard.py": {
+      "status": "wired",
+      "via": "run_driver.sh:305",
+      "via_kind": "path",
+      "owner": "harness(A)",
+      "since_round": 475,
+      "reason": "Commit-time consumer of state/known-escalated-diffs.json. run_driver.sh installs it as a pre-commit hook before each round (install-hook), and the hook itself invokes `check`. Declared by its own round, which is what W001 asks for."
     }
   },
   "_since_round": "`since_round` on an `unwired` entry is the round that DECLARED the debt, not a guess at when the file stopped being run. W005 therefore measures how long a declared, undischarged deferral has stood -- one full rotation (6 rounds) and it rides in the summary line. Dating it any other way would require inventing a number no record carries."

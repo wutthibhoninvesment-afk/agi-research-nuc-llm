@@ -1,0 +1,231 @@
+........................................................................ [  4%]
+........................................................................ [  9%]
+........................................................................ [ 14%]
+........................................................................ [ 19%]
+........................................................................ [ 23%]
+........................................................................ [ 28%]
+........................................................................ [ 33%]
+........................................................................ [ 38%]
+........................................................................ [ 43%]
+........................................................................ [ 47%]
+.........F.....F........................................................ [ 52%]
+........................................................................ [ 57%]
+.............F....................F..................................... [ 62%]
+........................................................................ [ 66%]
+........................................................................ [ 71%]
+........................................................................ [ 76%]
+........................................................................ [ 81%]
+........................................................................ [ 86%]
+........................................................................ [ 90%]
+........................................................F............... [ 95%]
+...............................................F.......F.........        [100%]
+=================================== FAILURES ===================================
+___________ TestThisTree.test_the_cli_audit_exits_zero_on_this_tree ____________
+
+self = <tests.test_redattrib.TestThisTree testMethod=test_the_cli_audit_exits_zero_on_this_tree>
+
+    def test_the_cli_audit_exits_zero_on_this_tree(self):
+        p = subprocess.run([sys.executable,
+                            os.path.join(ROOT, "harness", "redattrib.py"), "audit"],
+                           capture_output=True, text=True, cwd=ROOT)
+>       self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+E       AssertionError: 1 != 0 : R001  harness/tests/test_whenceslow.py::test_the_real_tree_yields_the_units_round_469_measured: went red and has no registry entry -- FIRST RED in round 474's log (language(C)), and the earliest run that could have seen it is round none yet, so the round reading this failure is not the round that caused it
+E       red-attribution audit: 35 node(s) ever red, 34 declared, 1 error(s)
+
+harness/tests/test_redattrib.py:602: AssertionError
+_______ TestThisTree.test_the_registry_is_fail_closed_over_the_live_logs _______
+
+self = <tests.test_redattrib.TestThisTree testMethod=test_the_registry_is_fail_closed_over_the_live_logs>
+
+    def test_the_registry_is_fail_closed_over_the_live_logs(self):
+        res = RA.analyse(ROOT)
+>       self.assertEqual(res["registry_findings"], [],
+                         "every node that has ever gone red must be classified")
+E       AssertionError: Lists differ: [('R001', 'harness/tests/test_whenceslow.p[270 chars]it")] != []
+E       
+E       First list contains 1 additional elements.
+E       First extra element 0:
+E       ('R001', 'harness/tests/test_whenceslow.py::test_the_real_tree_yields_the_units_round_469_measured', "went red and has no registry entry -- FIRST RED in round 474's log (language(C)), and the earliest run that could have seen it is round none yet, so the round reading this failure is not the round that caused it")
+E       
+E       + []
+E       - [('R001',
+E       -   'harness/tests/test_whenceslow.py::test_the_real_tree_yields_the_units_round_469_measured',
+E       -   "went red and has no registry entry -- FIRST RED in round 474's log "
+E       -   '(language(C)), and the earliest run that could have seen it is round none '
+E       -   'yet, so the round reading this failure is not the round that caused it')] : every node that has ever gone red must be classified
+
+harness/tests/test_redattrib.py:595: AssertionError
+_________ test_the_registry_declares_the_script_at_its_real_call_site __________
+
+    def test_the_registry_declares_the_script_at_its_real_call_site():
+        """Round 435 landed two entry points undeclared and three health checks
+        reported it for four rounds. The `via` line number is checked, not just
+        the key: a registry that names the wrong line is how a `wired` status
+        stops meaning anything."""
+        import json
+        reg = json.load(open(os.path.join(REPO_ROOT, "harness", "wiring-registry.json")))
+        entry = reg["entry_points"]["harness/run_slowtier_slice.sh"]
+        assert entry["status"] == "wired"
+        path, _, lineno = entry["via"].partition(":")
+        assert path == "run_driver.sh"
+        line = open(os.path.join(REPO_ROOT, path)).read().splitlines()[int(lineno) - 1]
+>       assert "run_slowtier_slice.sh" in line, line
+E       AssertionError:                else \
+E       assert 'run_slowtier_slice.sh' in '               else \\'
+
+harness/tests/test_run_driver_slowtier_slice.py:162: AssertionError
+____ test_the_registry_declares_both_entry_points_at_their_real_call_sites _____
+
+    def test_the_registry_declares_both_entry_points_at_their_real_call_sites():
+        """Round 435 landed two entry points undeclared and three health checks
+        reported it for four rounds. The `via` LINE is checked, not just the key:
+        a registry naming the wrong line is how a `wired` status stops meaning
+        anything."""
+        reg = json.load(open(os.path.join(REPO_ROOT, "harness",
+                                          "wiring-registry.json")))
+        for key, needle in (("harness/run_whenceslow_slice.sh",
+                             "run_whenceslow_slice.sh"),
+                            ("harness/whenceslow.py", "whenceslow.py")):
+            entry = reg["entry_points"][key]
+            assert entry["status"] == "wired", key
+            path, _, lineno = entry["via"].partition(":")
+            line = open(os.path.join(REPO_ROOT, path)).read().splitlines()[int(lineno) - 1]
+>           assert needle in line, (key, line)
+E           AssertionError: ('harness/run_whenceslow_slice.sh', '          log "round $ROUND: slowtier-ledger commit FAILED rc=$SLOWTIER_COMMIT_RC — left for the next round to land by hand"')
+E           assert 'run_whenceslow_slice.sh' in '          log "round $ROUND: slowtier-ledger commit FAILED rc=$SLOWTIER_COMMIT_RC — left for the next round to land by hand"'
+
+harness/tests/test_run_driver_whenceslow_slice.py:171: AssertionError
+____________ test_the_real_tree_yields_the_units_round_469_measured ____________
+
+    def test_the_real_tree_yields_the_units_round_469_measured():
+        """Round 469 measured 27 units / 102 marked nodes. Round 470 added ONE
+        unit — `test_testcorpus_suite_census.py`, 11 marked tests, the suite-mode
+        `--tests` census round 469's §5 decided belongs in its own file — and
+        that unit is what moved these numbers. Re-pinned WITH the reason rather
+        than relaxed to an inequality: the point of this assertion is that a
+        change to the tier's membership is a thing somebody had to write down."""
+        units = W.slow_tier_units()
+        assert len(units) == 28
+>       assert sum(len(u["tests"]) for u in units) == 113
+E       assert 114 == 113
+E        +  where 114 = sum(<generator object test_the_real_tree_yields_the_units_round_469_measured.<locals>.<genexpr> at 0x74ee0c0cfae0>)
+
+harness/tests/test_whenceslow.py:492: AssertionError
+___________________ TestThisTree.test_the_registry_is_clean ____________________
+
+self = <tests.test_wiring_audit.TestThisTree object at 0x74ee0f340920>
+
+    def test_the_registry_is_clean(self):
+        """The guard the driver runs every round.
+    
+        A newly built script is a W001 error here on the very next round,
+        which is the whole point: `nuc/run_checks_fast.sh` was built by round
+        388, wired by round 409, and the six rounds in between had no
+        mechanism that could say so.
+        """
+        res = W.audit(REPO)
+        errs = [f for f in res["findings"] if f[0] in W.ERROR_CODES]
+>       assert errs == [], errs
+E       AssertionError: [('W002', 'skills/prediction-banking/scripts/bank_audit.py', 'declared wired, not reachable from run_driver.sh')]
+E       assert [('W002', 'sk...n_driver.sh')] == []
+E         
+E         Left contains one more item: ('W002', 'skills/prediction-banking/scripts/bank_audit.py', 'declared wired, not reachable from run_driver.sh')
+E         Use -v to get more diff
+
+harness/tests/test_wiring_audit.py:513: AssertionError
+___________ TestThisTree.test_the_cli_check_exits_zero_on_this_tree ____________
+
+self = <tests.test_wiring_audit.TestThisTree object at 0x74ee0f30f590>
+
+    def test_the_cli_check_exits_zero_on_this_tree(self):
+        p = subprocess.run([sys.executable, os.path.join(_HARNESS,
+                                                         "wiring_audit.py"),
+                            "check"], cwd=REPO, capture_output=True,
+                           text=True, timeout=300)
+>       assert p.returncode == 0, p.stdout + p.stderr
+E       AssertionError: W002  skills/prediction-banking/scripts/bank_audit.py: declared wired, not reachable from run_driver.sh
+E         wiring-audit: 128 entry point(s), 107 in closure, 1 error(s), 0 warning(s)
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/home/pgain/agi-research-nuc-llm/.venv/bin/python3', '/home/pgain/agi-research-nuc-llm/harness...reachable from run_driver.sh\nwiring-audit: 128 entry point(s), 107 in closure, 1 error(s), 0 warning(s)\n', stderr='').returncode
+
+harness/tests/test_wiring_audit.py:609: AssertionError
+tier-budget: 15/15 promoted files timed, 51.3s of a 56.6s budget — worst test_swe_copyparity_real_subject.py 10.5s of 17.1s
+=========================== short test summary info ============================
+FAILED harness/tests/test_redattrib.py::TestThisTree::test_the_cli_audit_exits_zero_on_this_tree
+FAILED harness/tests/test_redattrib.py::TestThisTree::test_the_registry_is_fail_closed_over_the_live_logs
+FAILED harness/tests/test_run_driver_slowtier_slice.py::test_the_registry_declares_the_script_at_its_real_call_site
+FAILED harness/tests/test_run_driver_whenceslow_slice.py::test_the_registry_declares_both_entry_points_at_their_real_call_sites
+FAILED harness/tests/test_whenceslow.py::test_the_real_tree_yields_the_units_round_469_measured
+FAILED harness/tests/test_wiring_audit.py::TestThisTree::test_the_registry_is_clean
+FAILED harness/tests/test_wiring_audit.py::TestThisTree::test_the_cli_check_exits_zero_on_this_tree
+7 failed, 1498 passed, 388 deselected in 299.22s (0:04:59)
+
+--- end of measured output; recorded status below ---
+
+slow tier: 33 files / 34 units, 7 conclusive against checkout 8e86a7002fb20587 (21% recall), 1 failing
+  + 4 file(s) conclusive WITHIN their measured read-scope only (32% combined) — the checkout moved outside what they read
+  test_swe_sandbox_evidence.py           fresh_fail         9s  0.5h ago
+  test_swe_abconfound.py                 stale_harness      1s  4.7h ago
+      moved: swe/falsifiers.py
+  test_swe_alias_effects.py              fresh_pass_scoped  375s  3.7h ago
+      scope: whence
+  test_swe_bymap.py                      fresh_pass         78s  0.4h ago
+  test_swe_campaign.py[heavy]            stale_checkout     3000s  5.9h ago
+  test_swe_campaign.py[light]            stale_checkout     3000s  11.3h ago
+      excludes: test_cli_runs_offline_stages_and_stops
+  test_swe_copyparity.py                 stale_checkout     9s  8.0h ago
+  test_swe_copyparity_real_subject.py    stale_checkout     9s  8.0h ago
+  test_swe_coverage.py                   stale_checkout     4s  8.0h ago
+  test_swe_depthceiling.py               stale_harness      1s  4.7h ago
+      moved: swe/falsifiers.py
+  test_swe_equivalence.py                stale_checkout     76s  8.1h ago
+  test_swe_exemptaudit.py                stale_harness      31s  4.7h ago
+      moved: swe/falsifiers.py
+  test_swe_exemptmap.py                  stale_harness      106s  4.7h ago
+      moved: swe/falsifiers.py
+  test_swe_falsifiers.py                 stale_checkout     12s  1.7h ago
+  test_swe_fuzz.py                       fresh_pass         109s  0.4h ago
+  test_swe_guardpin.py                   stale_checkout     11s  8.0h ago
+  test_swe_guest.py                      fresh_pass_scoped  352s  2.6h ago
+      scope: examples, whence
+  test_swe_instrument.py                 stale_checkout     1s  8.0h ago
+  test_swe_killerrepin.py                stale_checkout     16s  4.7h ago
+  test_swe_killers.py                    stale_checkout     29s  8.0h ago
+  test_swe_loop.py                       fresh_pass_scoped  0s  4.7h ago
+      scope: whence
+  test_swe_loop_cli.py                   stale_checkout     77s  9.1h ago
+  test_swe_mutation.py                   stale_checkout     18s  4.7h ago
+  test_swe_oraclekill.py                 stale_checkout     54s  4.7h ago
+  test_swe_oracles.py                    fresh_pass         9s  0.4h ago
+  test_swe_prioritize.py                 stale_checkout     3s  8.0h ago
+  test_swe_proc.py                       stale_checkout     7s  8.0h ago
+  test_swe_regiontools.py                fresh_pass         1s  0.4h ago
+  test_swe_repair.py                     fresh_pass         146s  0.5h ago
+  test_swe_review.py                     stale_checkout     95s  9.1h ago
+  test_swe_scoreaudit.py                 stale_harness      1s  8.0h ago
+      moved: tests/test_swe_scoreaudit.py
+  test_swe_spacewitness.py               fresh_pass         2s  0.4h ago
+  test_swe_toolliveness.py               stale_checkout     3s  8.0h ago
+  test_swe_triage.py                     fresh_pass_scoped  1s  8.0h ago
+      scope: (nothing)
+  NOTE: 23 unit(s) are NOT evidence about this checkout.
+
+RECORDED 2026-08-31T20:28:10Z (2.7 days ago) — a stored verdict, not a run just now
+  HEAD HAS MOVED SINCE: recorded at 50c7bb3caf0a, now 18fa13b2c7f6 — this verdict is NOT about the current tree
+ref HEAD (50c7bb3caf0a)   verdict dirty_worktree
+  the live tree differs from HEAD in 1 tracked file(s);
+  a differential against it cannot attribute anything.  Commit or stash first:
+    M state/baseline-ledger.jsonl
+
+procreap scan: under=/home/pgain/agi-research-nuc-llm verdict=residue matched=1 unreadable=0 (protected=3 vanished=0)
+  pid=3463441  ppid=1      ORPHANED cwd=/home/pgain/agi-research-nuc-llm
+      open: /home/pgain/.hermes/logs/agent.log, /home/pgain/.hermes/logs/errors.log, /home/pgain/logs/hermes-error.log, /home/pgain/logs/hermes.log
+
+whence slow tier: 28 units / 114 marked (AST), 7 conclusive against subject 9a232cd532579506 (25% recall), 0 failing
+NOTE: 21 unit(s) are NOT evidence about this checkout
+  test_checkpin.py                           stale_subject    4 tests  52.5s
+
+real	5m3.316s
+user	3m15.321s
+sys	0m25.299s

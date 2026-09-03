@@ -577,7 +577,22 @@ class TestThisTree:
         # deletion, 419 by a caller. An EMPTY list is the assertion: a new
         # `unwired` entry has to be a deliberate edit here too, in the same
         # way wiring one was.
-        assert debts == []
+        #
+        # Round 475 (harness A) makes that deliberate edit, for the first
+        # time since round 419. `bank_audit.py` was declared `wired` by round
+        # 473 on the strength of corpus_check.py's DESCRIPTION of its
+        # `unit_tests` checker ("pytest over skills/*/scripts/test_*.py"),
+        # not its argv, which is pytest over exactly two directories --
+        # skills/skill-authoring/scripts and
+        # skills/session-inheritance-audit/scripts. prediction-banking is not
+        # one of them, so round 471's 19-test test_bank_audit.py is scheduled
+        # by nothing and W002 had been an ERROR since 654a553. `unwired`
+        # rather than `manual` because the program intends to automate it
+        # (round 471's next-step 1 asks for exactly that), so W005 should
+        # start counting the rotations. Discharging it is skills(B)'s call:
+        # add the directory to `unit_tests`, or schedule `bank_audit.py
+        # corpus` as its own checker.
+        assert debts == ["skills/prediction-banking/scripts/bank_audit.py"]
         # `Graph.closure()` is NOT the predicate W003 uses, and asserting it
         # flatly here was wrong on the tree that shipped it: `loop.py` is in
         # the raw closure (its own test file names it as text) and W003
