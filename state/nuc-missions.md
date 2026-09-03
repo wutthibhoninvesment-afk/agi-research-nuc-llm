@@ -3108,3 +3108,146 @@ does not reveal an unfalsifiable test, mutation does.
 7. **Still blocked on the operator:** `--cap 196` (band [129, 204],
    `bounded_by: engine_lru`, 1.096 GB margin — **twenty-sixth** round
    unchanged) and the E3 A/B with its full six-gate table.
+
+## Round 478 (NUC-integration E) — 2026-09-03, box **UP** on a boot never seen before: `0d0e3188da124a4b9f78b26dd95d3ea2`, `uptime -s 2026-09-03 09:37:09Z`, 7h33m at first contact. ENDS the 436/442/448/454/460/466/472 outage — the longest in this log — and ends it, like round 424 did, by REBOOTING
+
+**Reachability.** tailnet `ssh -i ~/.ssh/id_ed25519 jab@100.78.44.111` at
+2026-09-03T17:10:54Z -> **SSH_OK** on the first try. `tailscale status` at
+17:10:40Z: `active; direct 124.120.12.172:1024`. ping 2/2, rtt
+51.4/91.4/131.4 ms. The LAN path was not attempted (the key still does not
+exist on this host and the tailnet path worked).
+
+**Outage now CLOSED and bracketed exactly.** Last tailnet sighting
+`2026-09-01T18:27:56.1Z` -> boot `2026-09-03T09:37:09Z` = **39h09m13s**,
+beating round 472's confirmed 37h26m00s by 1h43m13s. The box's clock is UTC
+(`date -u` 17:10:54Z vs `uptime -s 09:37:09` vs `up 7:33` — three readings
+that agree only at zero offset).
+
+**Round 472's item 1 ran FIRST**, exit codes taken from the process and NOT
+from a `| tail` (a tail of a JSON report always exits 0; this round made that
+mistake once and caught it): `coverage --strict` **0**, `precision-audit
+--strict` **0**, `lastseen-drift --strict` **1** — identical to the state
+rounds 460/466/472 left.
+
+**Round 472's item 5 executed in full.** Capture FIRST, before any analysis:
+`state/nuc-capture-r478/`, 8 MB, 40 seconds, via the machine-generated
+`capture_manifest.py plan`. It beat a hard deadline — `retention` forecast 8
+files (`sa23 sa24 sa25 sa26 sar23 sar24 sar25 sar26`) deleted at the next
+sweep, **2026-09-04T00:07:00Z**. Captured 17:13Z, **6h54m of margin**. They
+survived only because the 09-02 and 09-03 fires fell inside the outage.
+
+**`Persistent=` READ, not inferred — and it is `no`.** Both sysstat timers.
+Round 448 §2's two-trial inference was right; round 472 flagged it as
+dangerous in the `yes` direction, and `yes` would have meant those 8 files
+died at boot this morning. `sysstat-summary.timer LastTriggerUSec=` is empty
+(never fired this boot); `NextElapseUSecRealtime=Fri 2026-09-04 00:07:00 UTC`.
+
+**NEW INSTRUMENT — `nuc/summary_fossil.py`.** `sarNN` is not a copy of `saNN`;
+it is the RECEIPT of a `sysstat-summary` fire, stamped at the fire instant.
+With `Persistent=no`, `sarNN` exists <=> the box was running at 00:07Z on day
+NN+1. A missing receipt cannot be rotation: `sarNN` is 17 minutes younger than
+`saNN` and `-mtime +7` truncates to whole days, so the pair always shares a
+verdict. Current reading: fires ran on 08-24..08-29 and 08-31; **MISSED on
+2026-08-30, 2026-09-01 and 2026-09-02**, all at 00:07Z. No `sa02` exists at
+all (box down the whole day), and the module refuses a verdict there.
+Cross-checked against `journalctl --list-boots`, which shares no input with
+filesystem mtimes: **10 distinct decidable fires across the r424 and r478
+captures, 10 agreements, 0 disagreements.** Against this program's own 63
+probe records, **0 of 10 fires are bracketed within an hour** (tightest
+2h27m, loosest 7h43m) — 00:07Z is the one instant per day the E-round cadence
+has never covered.
+
+**The evidence predates the reader.** Run retroactively, `nuc-capture-r400`
+(taken 2026-08-31) already recorded the 2026-08-30 miss, and `nuc-capture-r424`
+already recorded 08-30 and 09-01. Nested, never contradictory. Round 478 wrote
+the reader, not the evidence. `nuc-capture-r400` cannot be cross-checked — it
+predates step 3b of the capture plan and has no `journal-boots.txt`.
+
+**THE RECORD IS DECAYING FASTER THAN THE PROGRAM READS IT.** Between the
+2026-09-01 capture and this one, `journalctl --list-boots` **lost three boots**
+off the front (`db09a51c`, `94b2e014`, `5308fdec`, covering 2026-08-23 14:02
+through 2026-08-25 12:51) and the surviving oldest boot's first entry moved
+`12:57:39` -> `12:57:42`. Journals are at 3.3 GB. The `sar` archive still
+witnesses all three lost boots via `LINUX RESTART`, so `sar` currently
+outlives journald — but four of those day files die tonight.
+`state/nuc-capture-r424` is now the ONLY copy of the 2026-08-23..2026-08-25
+journal interior, and `state/nuc-capture-r478` the only copy of `sa23`-`sa26`
+after 2026-09-04T00:07:00Z.
+
+**Measured cost of that decay.** `dose_response run` over the same 54 E
+rounds, changing only the capture: r424 gives 42 scored / **28** full-record
+(reproducing round 472's published numbers exactly); r478 gives 44 / **30**.
+But it is NOT a superset — pooled days gain `2026-09-03` and **lose
+`2026-08-23` and `2026-08-24`**, because attribution needs a fire and a bucket
+in the same window and the journal no longer reaches those days. `sa23`/`sa24`
+are IN this capture and still drop out. **The right unit of analysis is the
+UNION of captures, not the newest one**; nothing in the tooling says so.
+Round 472's NULL verdict replicates at n=30: `n_logins` rho 0.2568 -> 0.2881,
+p 0.185 -> 0.121, `dose_beats_every_control` still false.
+
+**Four terminations, none of them clean.** `grep -cE "Reached target
+(Shutdown|Reboot|Power-Off)|Stopping .*target|Shutting down"` over the whole
+755 KB `_PID=1` journal returns **0**, and each of the four boot transitions
+ends on an ordinary `Finished sysstat-collect.service` line (08-27T04:40:21,
+08-29T02:10:04, 08-31T16:20:05, 09-01T18:20:00). The box has never been shut
+down in an orderly way in the captured record.
+
+**Box state at capture.** uptime 7h33m, load 0.09/0.07/0.01; Mem 31984 MB
+total / **5335 used** / 26648 available; **swap 4095 MB, 0 used**;
+`Committed_AS` 5.4 GB. `qwen36-colibri` and `qwen36-toolproxy` (USER units)
+both active/running since 09:37:19Z, `NRestarts=0`. Note for the `--cap`
+decision: the "36.0 GB at `--cap 256`" figure from E4 is
+steady-state-AFTER-traffic; 7h33m into this boot with no engine traffic the
+box sits at **15.2 % memory and zero swap**.
+
+**Tests: `nuc/tests` 995 -> 1037, all green, 220.2 s** (run alone; `nproc` is
+1). The delta is exactly the new module's 42. Its falsifiers were
+mutation-tested: **first pass 12 mutations, 11 killed, 1 SURVIVED** — the
+pending/missed boundary (`fire > now` vs `fire >= now`), i.e. behaviour
+nothing pinned, and the unpinned direction is the one that invents an outage
+from a capture taken a second after midnight. Fixed with an explicit
+`DEFAULT_SETTLE_S = 600`; **second pass 14 mutations, 14 killed, 0 survived.**
+A second defect was found the same way: `Counter.most_common` was breaking a
+schedule tie by `ls` ordering.
+
+**Predictions 11 hits / 1 miss of 12** (`nuc/predictions-e-round478.md`,
+banked as `dd1aa82` before any capture). The miss is P12 (`audit --strict`
+exits 0 first try — it exited 1 on two blocking gaps, which turned out to be
+the journal decay above, not a filtered capture). P6 is scored a hit that
+missed the point: it predicted the boot table would gain exactly one row, and
+it did — while losing three at the other end. **A prediction about a monotone
+quantity is blind to the direction the quantity is not monotone in.**
+
+**Writes to the box:** exactly one — `/work/logs/nuc-summary-fossil.md`
+(md5-verified after scp). No unit restarted, **port 8001 never contacted**, no
+engine request of any kind, nothing read or written outside the allowed paths.
+
+**E-mission status: E1-E5 all still DONE; nothing new unchecked.**
+
+**Next E round, in order:**
+1. **`coverage --strict`, `precision-audit --strict`, `lastseen-drift
+   --strict` FIRST**, exit codes from the process, not through a `| tail`.
+2. **If the box is up, TAKE A CAPTURE even if the round does nothing else with
+   it.** Round 400's capture answered a question nobody asked until round 478,
+   and journald is eating its own front while `sar` has a hard 7-day horizon.
+   40 seconds, 8 MB.
+3. **`sa23`-`sa26` and `sar23`-`sar26` are gone from the box after
+   2026-09-04T00:07:00Z.** `state/nuc-capture-r478/sysstat-binary.tar` is the
+   only copy. Do not let a later round conclude they are still fetchable
+   because a forecast said "next run".
+4. **Make the fossil durable.** Re-run `summary_fossil.py fires` on every
+   capture and append to a JSONL ledger the way reachability does. Once `sa29`
+   rotates away the 2026-08-30 miss survives only inside a capture.
+5. **Analyse over the UNION of captures.** The A/B above shows the choice of
+   capture silently moves the pooled window in both directions.
+6. **Round 472's items 2, 3 and 4 are UNTOUCHED and stand:** deconfound the
+   lead-lag shoulder with a per-round-window resampling; `lead_lag_profile`
+   still has no null; `test_perturbation.py` has still never been
+   mutation-tested while carrying every published number in this track. This
+   round mutation-tested only its own new module.
+7. **Round 436's items 4, 5 and 9 stand, untouched for a sixth round** — the
+   `commit` channel vs the 9.25 GB weights load, `Consumed` coverage at 4 of
+   26 units, and the separability route.
+8. **Still blocked on the operator:** `--cap 196` (band [129, 204],
+   `bounded_by: engine_lru`, 1.096 GB margin — **twenty-seventh** round
+   unchanged) and the E3 A/B with its full six-gate table.

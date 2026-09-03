@@ -25891,6 +25891,147 @@ does NOT score round 473's predictions, which remain unscored.
   sharpenings of steps 10, 14 and 15).
 - **Knowledge:** `knowledge/round-477-the-fix-that-would-have-blinded-the-auditor.md`.
 
+### Round 478 — NUC-integration(E) — 2026-09-03 — the receipt nobody read
+
+- **The box came UP on a new boot `0d0e3188`, ending the longest outage in
+  this log.** Last tailnet sighting `2026-09-01T18:27:56.1Z` -> boot
+  `2026-09-03T09:37:09Z` = **39h09m13s**, beating round 472's confirmed
+  37h26m00s. Seventh consecutive down window (436-472) closed, and closed by a
+  REBOOT — the same way round 424 closed the 406/412/418 one. The box does not
+  come back; it is rebooted. Clock confirmed UTC by three agreeing readings.
+- **Round 477's diff was landed first** (`f0675aa`): it had a research-state
+  entry and a knowledge file but had never reached git.
+  `languages/whence/SECURITY.md` deliberately excluded.
+- **Round 472's item 1 gate ran first: `coverage --strict` 0,
+  `precision-audit --strict` 0, `lastseen-drift --strict` 1** — unchanged.
+  Exit codes taken from the PROCESS: a `| tail` of a JSON report returns
+  `tail`'s status, always 0, and this round made that mistake once before
+  catching it.
+- **A hard deletion deadline was beaten by 6h54m.** `capture_manifest.py
+  retention`, run offline before any contact, forecast **8 files** deleted at
+  `2026-09-04T00:07:00Z` — `sa23 sa24 sa25 sa26 sar23 sar24 sar25 sar26`,
+  alive only because the 09-02 and 09-03 sweeps fell inside the outage. All 8
+  captured at 17:13Z into `state/nuc-capture-r478/` (8 MB, 40 s).
+- **`Persistent=` was READ for the first time and it is `no`** on both sysstat
+  timers. Round 448 §2 inferred it from missed fires and said it had never
+  re-run the derivation because no capture had taken the unit text; round 472
+  flagged it as wrong in the DANGEROUS direction if `yes` — `yes` would have
+  meant a catch-up fire at boot deleted those 8 files this morning and that
+  `retention --down-since` is unsound. It is sound.
+  `test_the_sweep_timer_is_not_persistent_on_the_real_box` pins it.
+- **NEW INSTRUMENT `nuc/summary_fossil.py` — `sarNN` is the RECEIPT of a
+  fire, not a copy of `saNN`.** `sa2` renders yesterday's day file at 00:07
+  and stamps the result with the fire instant, so with `Persistent=no`,
+  `sarNN` exists <=> the box ran at 00:07Z on day NN+1. **An absence cannot be
+  rotation**: `sarNN` is 17 min younger than `saNN` and `-mtime +7` truncates
+  to whole days, so the pair always shares a verdict. Reading: fires ran
+  08-24..08-29 and 08-31; **MISSED 2026-08-30, 2026-09-01, 2026-09-02**, all
+  00:07Z. `sa02` does not exist at all and the module refuses a verdict there.
+- **10 fires, two instruments sharing no input, 10 agreements, 0
+  disagreements.** Filesystem mtimes vs `journalctl --list-boots`, across the
+  r424 (9/9) and r478 (8/8) captures. `crosscheck --strict` exits 1 on any
+  disagreement and exits 0 here.
+- **The instrument answers about an instant nothing else covers.** Against all
+  63 records of this program's own probe log, **0 of 10 fires are bracketed
+  within an hour** — tightest 8 824 s, loosest 27 780 s. E rounds run in
+  daylight; 00:07Z has never been probed.
+- **The evidence predates the reader.** Run retroactively, `nuc-capture-r400`
+  (2026-08-31) already recorded the 08-30 miss and `nuc-capture-r424` already
+  recorded 08-30 and 09-01, nested and never contradictory. Round 478 wrote
+  the reader, not the evidence — the answer sat unread through four rounds of
+  outage that had nothing else to work on.
+- **THE RECORD IS DECAYING FASTER THAN THE PROGRAM READS IT, and it is now
+  measured.** Between the 09-01 capture and this one `journalctl --list-boots`
+  **lost three boots** off the front (`db09a51c`, `94b2e014`, `5308fdec`,
+  covering 08-23 14:02 - 08-25 12:51) and the oldest survivor's first entry
+  moved `12:57:39` -> `12:57:42`. Cost, measured by `dose_response run` over
+  the same 54 rounds changing only the capture: r424 -> 42 scored / **28**
+  full-record (reproducing round 472's published numbers exactly), r478 -> 44
+  / **30**. **Not a superset**: pooled days gain `2026-09-03` and LOSE
+  `2026-08-23` and `2026-08-24`. `sa23`/`sa24` are in the capture and still
+  drop out, because attribution needs a fire and a bucket in the same window.
+  **The right unit of analysis is the UNION of captures**, and nothing in the
+  tooling says so. Round 472's NULL verdict replicates at n=30 (`n_logins` rho
+  0.2568 -> 0.2881, p 0.185 -> 0.121, `dose_beats_every_control` still false).
+- **Four boot terminations in the captured journal, not one of them clean.**
+  Zero occurrences of `Reached target Shutdown|Reboot|Power-Off` or `Shutting
+  down` in 755 KB of `_PID=1`; every boot ends on an ordinary `Finished
+  sysstat-collect.service` line. Rounds from 166 on have speculated about an
+  operator restarting things — the evidence says all four are abrupt.
+- **Two defects found in the new module BY ITS OWN TESTS, one only by
+  mutation.** `Counter.most_common` was breaking a schedule tie by `ls`
+  ordering and scored a real receipt 1 920 s "early". And the pending/missed
+  boundary was **unpinned**: `fire > now` -> `fire >= now` SURVIVED the first
+  mutation pass, and the unpinned direction is the one that invents an outage
+  from a capture taken a second after midnight. Fixed with an explicit
+  `DEFAULT_SETTLE_S = 600`. First pass 12 mutations / 11 killed / 1 survived;
+  **second pass 14 / 14 / 0.**
+- **Tests: `nuc/tests` 995 -> 1037, all green, 220.2 s**, run alone (`nproc`
+  is 1). Delta is exactly the new module's 42.
+- **Predictions 11 hits / 1 miss of 12** (`nuc/predictions-e-round478.md`,
+  `dd1aa82`, banked before any capture). The miss is P12. **P6 is the one
+  worth keeping: it predicted the boot table would gain exactly one row, and
+  it did — while losing three at the other end. A prediction about a monotone
+  quantity is blind to the direction the quantity is not monotone in.**
+- **Box writes: exactly one**, `/work/logs/nuc-summary-fossil.md`, md5-verified
+  after scp. No unit restarted, **port 8001 never contacted**, no engine
+  request. Box at capture: 15.2 % memory, `Committed_AS` 5.4 GB, **swap
+  entirely free**, both user units active since 09:37:19Z with `NRestarts=0` —
+  so E4's "36.0 GB at `--cap 256`" is steady-state-after-traffic, not at-rest.
+
+## Next steps (as of round 478)
+
+1. **`coverage --strict`, `precision-audit --strict`, `lastseen-drift
+   --strict` FIRST, and take exit codes from the process.** A `| tail` of a
+   JSON report always exits 0. NUC(E).
+2. **If the box is up, TAKE A CAPTURE even if the round does nothing else with
+   it.** 40 seconds, 8 MB. Round 400's capture answered a question nobody
+   asked until round 478; journald is eating its own front and `sar` has a
+   hard 7-day horizon. `python3 nuc/capture_manifest.py plan --capture
+   state/nuc-capture-r478 > /tmp/cap.sh && OUT=state/nuc-capture-rNNN bash
+   /tmp/cap.sh`. NUC(E).
+3. **`sa23`-`sa26` and `sar23`-`sar26` no longer exist on the box after
+   2026-09-04T00:07:00Z.** `state/nuc-capture-r478/sysstat-binary.tar` is the
+   only copy, and `state/nuc-capture-r424` is the only copy of the
+   2026-08-23..2026-08-25 journal interior. Do not let a later round conclude
+   either is still fetchable because a forecast said "next run". NUC(E).
+4. **Make the fossil durable — a JSONL ledger, the way reachability has one.**
+   Verdicts are currently recomputed from whichever captures happen to be on
+   disk; once `sa29` rotates away the 2026-08-30 miss survives only inside a
+   capture. `python3 nuc/summary_fossil.py fires --capture <dir> --now <utc>`.
+   NUC(E).
+5. **Analyse over the UNION of captures, not the newest.** The A/B above shows
+   the choice silently moves the pooled window in BOTH directions, and every
+   round since 400 that ran `dose_response` against "the capture" was making
+   that choice without saying so. `python3 nuc/dose_response.py run --capture
+   state/nuc-capture-r424 --rounds "$(cat /tmp/rounds.txt)"` reproduces 42/28.
+   NUC(E).
+6. **Round 472's items 2, 3 and 4 are UNTOUCHED by this round and stand.**
+   Deconfound the lead-lag shoulder with a per-round-window resampling;
+   `lead_lag_profile` still has no null; and `test_perturbation.py` has still
+   never been mutation-tested **while carrying every published number in this
+   track**. This round mutation-tested only its own new module — and found 1
+   survivor in 12 on code written the same hour, which is the argument for
+   doing it to the older file. NUC(E).
+7. **Round 436's items 4, 5 and 9 stand, untouched for a sixth round** — the
+   `commit` channel vs the 9.25 GB weights load, `Consumed` coverage at 4 of
+   26 units, and the separability route. NUC(E).
+8. **A rule earned by P6, for `skills/prediction-banking/SKILL.md`.** A
+   prediction about a quantity that can move in two directions must say which
+   direction it is about, or it scores a hit while missing the event. P6
+   predicted "gains exactly one row" of a table that was simultaneously being
+   truncated from the other end, and could not have failed. skills(B).
+9. **Standing, untouched by this round:** the `%vmeff` residual;
+   `case_coverage`'s 49-of-103 disagreeing verdicts; `claim_check` executing 0
+   of its commands; the operator-blocked `--cap 196` (band [129, 204],
+   `bounded_by: engine_lru`, 1.096 GB margin — **twenty-seventh** round
+   unchanged) and the E3 A/B with its six-gate table; and CLAUDE.md's TWO
+   `CRITICAL MISSION` blocks, both one deletion for the operator — do NOT
+   reword them, the pinning suites expire cleanly only if the blocks go.
+   `languages/whence/SECURITY.md` is still uncommitted, still not this
+   program's, still the operator's decision — **do not copy a carry count for
+   it from this file**; the checker's own line is the only source.
+
 ## Next steps (as of round 477)
 
 1. **The basis-tag / read-set contradiction is mechanically checkable and

@@ -1,0 +1,41 @@
+### TIMER_UNIT_sysstat-summary
+# /usr/lib/systemd/system/sysstat-summary.timer
+# /usr/lib/systemd/system/sysstat-summary.timer
+# (C) 2014 Tomasz Torcz <tomek@pipebreaker.pl>
+#
+# sysstat-12.6.1 systemd unit file:
+#        Triggers daily summary generation.
+#        Activates sysstat-summary.service
+
+[Unit]
+Description=Generate summary of yesterday's process accounting
+
+[Timer]
+OnCalendar=00:07:00
+
+[Install]
+WantedBy=sysstat.service
+### TIMER_SHOW_sysstat-summary
+NextElapseUSecRealtime=Fri 2026-09-04 00:07:00 UTC
+LastTriggerUSec=
+Persistent=no
+### TIMER_UNIT_sysstat-collect
+# /usr/lib/systemd/system/sysstat-collect.timer
+# /usr/lib/systemd/system/sysstat-collect.timer
+# (C) 2014 Tomasz Torcz <tomek@pipebreaker.pl>
+#
+# sysstat-12.6.1 systemd unit file:
+#        Activates activity collector every 10 minutes
+
+[Unit]
+Description=Run system activity accounting tool every 10 minutes
+
+[Timer]
+OnCalendar=*:00/10
+
+[Install]
+WantedBy=sysstat.service
+### TIMER_SHOW_sysstat-collect
+NextElapseUSecRealtime=Thu 2026-09-03 17:20:00 UTC
+LastTriggerUSec=Thu 2026-09-03 17:10:29 UTC
+Persistent=no
