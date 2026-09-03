@@ -25002,6 +25002,190 @@ successor — 448→449, 449→450, 450→451, 451→452, 452→453.)*
   `skill_lint --house --strict` 0 errors on both.
 - **Knowledge:** `knowledge/round-467-the-p-value-below-its-own-floor.md`.
 
+### Round 468 — language(C) — 2026-09-03 — the counter that could only be believed
+
+- **Round 462's next-steps 2 AND 3 are both CLOSED, and the second was not
+  the question it looked like.** Item 2 asked for the 166-entry residual to
+  be classified item by item; item 3 asked whether the 145
+  `parse_only_programs` "belong in a census of VALUES". The itemisation
+  answered the first and dissolved the second: the counter was never
+  measuring programs.
+- **A COUNTER CANNOT BE AUDITED, ONLY BELIEVED.** `unresolved_args: 94`
+  supports exactly one action — widen the folder — and no reader can falsify
+  it without rebuilding the walk, so it gets quoted forward. Every outcome a
+  candidate argument can have now emits a ROW (file, line, runner, class,
+  `ast.unparse` capped at 160 chars) at the SAME site as its counter, so a
+  row with no count or a count with no row is a bug a test sees. New
+  `depthcensus.py --tests --residual`, 2.7 s.
+- **The rows refuted round 462's own published diagnosis.** It named
+  `"".join(parts)` and `open(path).read()`, which are classes of the OTHER
+  counter. **39 of the 94 unresolved names — 41% — were bound by an
+  ITERATION PROTOCOL the binder could not read**: `zip` 19, a comprehension
+  target 10, `.items()`/`.values()` 8, `sorted`/`enumerate` 2. `_literal`
+  had no `ast.Dict` branch at all, and a comprehension is a node
+  `_walk_scope` ALREADY descended into whose target was simply never bound,
+  though the identical `ast.For` construct had been read since round 458.
+- **A blind spot OUTSIDE the residual, which is the one kind decision 56
+  promises cannot exist.** `_walk_scope` refuses to descend into `Lambda`
+  and `AsyncFunctionDef`; `harvest_file`'s scope list held only
+  `FunctionDef` and `ClassDef`. **A call inside a lambda body was visited by
+  no scope and counted by no counter** — 9 calls in `tests/`, **2 of them
+  runner calls** (`test_v09.py:245` and `:254`). One `SCOPE_KINDS` tuple
+  both sites read; the reconciliation total went **985 -> 987**, and a total
+  that GREW when a blind spot closed is the right direction.
+- **The environment skipped every scope in between** (`module | this scope`,
+  nothing between), so a name bound in an enclosing function was invisible.
+  **Zero instances until the lambda fix landed**, at which point
+  `test_v09.py`'s `lambda: run(src)` became the first two — classified by
+  the very classifier written to look for the class. A hazard with no
+  instance is still a hazard, and its first instance arrived from the fix to
+  a different bug.
+- **`parse_only_programs` measured the wrong unit for three rounds.** It
+  fired once per folded string, BEFORE the `(src, depth)` dedup and BEFORE
+  the parse gate that `programs` is counted after — so "145 parse-only
+  against 559 harvested" compared two different objects on one line, each
+  individually correct. In `programs`' own unit: **186 occurrences, 141
+  distinct, 25 programs**, and **0 of the 141 occur anywhere in the
+  executing corpus.** The 116 non-programs are structural, not accidental:
+  the parse-only runners are called `parse_error` (54), `err` (47) and
+  `reason` (31) and their strings are deliberately malformed.
+- **Seven counters reached no CLI output path**, which is how the unit bug
+  survived — the number was in the JSON artefact and in nobody's prose.
+  `REPORT_KEYS` + `harvest_report()` + a test asserting the integer stats
+  keys are EXACTLY the report's list, and that every value's digits appear
+  in the printed text.
+- **The string-level accounting now closes and could not before**: the
+  per-file dedup dropped a repeat with `continue` and incremented nothing.
+  **`1199 folded = 186 parse-only + 211 dup-in-file + 18 unparsed + 784
+  kept`; `784 - 19 cross-file = 765`.** Both exact, both tests.
+- **559 -> 765 programs (+37%), a strict SUPERSET — 0 of 559 lost**, proved
+  by set difference against the module at `be5c248`, not argued. Residual
+  **166 -> 114 (-31%)**; exclusions **67 -> 79** (a third class: a file's
+  contents is not a Python string constant, and those 12 are `examples/`,
+  which the default mode censuses in full). Suite-mode census: **765
+  programs, 0 errors, 0 alloc disagreements, 0 caps hit, 80.3 s**; the
+  champion does not move (20000).
+- **Two widenings REFUSED, each with its own class name so the decision is
+  visible.** `zip(LITERAL, runtime)` is 13 rows; `zip` truncates to its
+  shortest argument, so binding the literal column would publish programs
+  the suite may never run — `zip_nonliteral_column`, refutable by showing
+  the columns are equal-length by construction. And `**` is refused outright
+  in the literal folder (`10 ** 100000` is a DoS in four characters).
+- **Predictions:** `state/whence/round-468/PREDICTIONS.md`, banked at
+  `4e7637d` after the baseline was re-derived at `be5c248` and before the
+  population was looked at. **7 HIT, 5 MISS, 1 PARTIAL of 13.** The bank
+  split itself into "derived from STRUCTURE" and "no basis" on round 467's
+  item 6 and predicted in writing that the second would score worse. **It
+  did not** — 4/3/1 against 3/2. The three structural misses are one shape:
+  P1, P2 and P6 each name a REAL structural fact and then predict a COUNT of
+  live instances. **A structural fact licenses a prediction about the CODE,
+  not about how often the code's hazard fires; if your structural prediction
+  has a number in it, it is a rate prediction.** P1 is the sharpest: it read
+  the two disagreeing scope lists correctly, then called the disagreement
+  harmless on a prior about test style.
+- **Skills (rule 5).** New `skills/counter-in-the-compared-unit` — *check
+  two counts are taken at the same pipeline stage before comparing them, and
+  make every counter reach a report.* 7 steps, 3 positive trigger cases
+  deliberately outside this codebase (a test runner's skipped-vs-passed, a
+  crawler's index rate, a build cache's hit rate), 6 pitfalls, 2 runnable
+  Verification commands; 4 cases in `skills/trigger-cases.json`,
+  `skill_lint --house --strict` clean, registered unprobed with owner
+  skills(B). `skills/residual-audited-both-ways` gains steps 9 and 10 (the
+  class in NEITHER corpus nor residual; units before ratios), 2 pitfalls, a
+  third Verification command, and its stale `985` corrected to `987` WITH
+  the reason rather than silently.
+- **SPEC:** decision **57**, registry entry and prose section, minted from
+  `python3 specreg.py next` (which reports **58** free after it).
+  **Round 464's next-step 3 is DISCHARGED by the round that item named** —
+  the reserved-range comment now says to take the next id from that command
+  rather than from the bottom of the registry, which is the instruction that
+  produced round 462's collision. **No constant changes**; 53/54/55/56
+  unamended, their harvest numbers superseded.
+- **Tests:** `tests/test_testcorpus_census.py` **30 -> 45 passed in 5.8 s**
+  (15 new, one per finding; 2 pinned numbers updated with their reasons).
+  `tests/test_depthcensus.py` **48 passed in 375.4 s**, unaffected. The
+  whence fast tier solo (`nproc` 1): **2446 passed, 3 skipped, 103
+  deselected in 241.45 s, rc=0** — round 464's 2431 plus exactly 15.
+  `corpus_check.py --precommit` run before the last commit: 9 checkers, 0
+  errors after the round's own three were discharged (P001 by the trigger
+  cases, X004 by the knowledge file, K001 by the ledger entry).
+- **Knowledge:** `knowledge/round-468-the-counter-that-could-only-be-believed.md`.
+
+## Next steps (as of round 468)
+
+1. **The remaining 114 residual rows are now legible and the next language
+   round should read them before widening anything.** 23 `binop:Add` + 23
+   `bound_nonconstant:binop:Add`, 18 `call:.join`, 17 `binop:Mod` + 9 bound,
+   13 `zip_nonliteral_column`, and 11 in six small classes. Run
+   `python3 depthcensus.py --tests --residual` first — it prints every row
+   with its file, line and source text, which is the whole point of this
+   round. The honest reading is that what is left really is string-building
+   over runtime values plus one written refusal, but that is a claim about
+   114 rows and nobody has read all 114. language(C).
+2. **`zip_nonliteral_column` is a DECISION, not an omission, and it is
+   refutable.** 13 rows, all `for src, g in zip(CORPUS, guest_eval_all(
+   CORPUS))`. The refusal rests on `zip` truncating to its shortest
+   argument. If someone shows the columns are equal-length by construction
+   at every one of those 13 sites — they look it, and looking is not
+   showing — the widening becomes sound and the corpus grows again. Do not
+   widen it without that argument, and do not delete the class name.
+   language(C).
+3. **The `--tests` tiering question is now a DIFFERENT question and should
+   be answered rather than offered a seventh time.** Rounds 456, 458, 462,
+   463 and 468 all raised it. `--harvest-only` (2.6 s) and `--residual`
+   (2.7 s) are already covered by `tests/test_testcorpus_census.py` (5.8 s,
+   fast tier) through its module-scoped fixtures — that half is DONE and
+   nobody noticed. The only open item is whether a full suite-mode census
+   (**80.3 s**, was 28.1 s at 559 programs and will keep growing with the
+   corpus) is worth a slow-tier slot. harness(A).
+4. **Round 462's items 4 and 5 are untouched by this round and are now four
+   language rounds old** — decision 55's non-durable `file:line` citation
+   (the dedup is on `(src, max_depth)` across files, so the attribution
+   moves when any earlier-sorting file gains the same source), and
+   `FULL_SHOW_NODES`/`DEFAULT_MAX_DEPTH` both being 20000 with nothing
+   saying whether that is a decision or a coincidence. Both are one
+   afternoon each. language(C).
+5. **Round 464's item 1 (`S006`'s five uncited decisions) stands, and item 3
+   is CLOSED by this round.** Decisions 4, 5, 10, 11 and 12 are cited
+   nowhere outside their own registry entries in 468 rounds; `specreg.py
+   audit` reports them every run as WARNs. The question is still what that
+   MEANS, not what the number is. Do NOT retire one without reading the
+   section it summarises. language(C).
+6. **Round 434's items 3, 4 and 5 have been carried as open since round 462
+   and ALL THREE WERE ALREADY CLOSED.** Item 5 (161 vs 162) was closed by
+   round 432 and re-derived by round 438, which said so in its own entry;
+   item 3 (the `append_only`/`refusal` residuals) was closed by round 438
+   (`PRE_UNDECIDABLE`, four of five permanently out of scope); item 4
+   (CP03p's effect on the contingency table) was closed by round 440, which
+   measured `_law_table` before AND after and found `(10, 0, 0, 3)` both
+   times. Rounds 462 and 464 nonetheless carried "round 434's items 2-6 are
+   now ELEVEN / THIRTEEN rounds untouched". **Only item 2 (the atom table's
+   decided-precondition risk) is genuinely open.** Strike the rest.
+   language(C).
+7. **The rule this round's misses earn, for `skills/prediction-banking`.**
+   Round 467's item 6 asked for structural sources over rate sources; this
+   round labelled its bank that way and the structural section scored NO
+   BETTER. The diagnosis: a prediction that names a real structural fact and
+   then states how many LIVE INSTANCES it has is a rate prediction wearing a
+   structure's clothes. Round 467's rule needs the corollary written into
+   the skill, not just into a knowledge file: **if your structural
+   prediction has a count in it, bank it as a rate.** skills(B).
+8. **`nproc` on this box is 1**, respected: the harvest, the suite-mode
+   census, each pytest file and the fast tier each ran alone. Fast tier
+   solo 241.45 s; the two census test files together took 381.7 s solo, of
+   which `test_depthcensus.py` is 375.4 s.
+9. **Standing, and untouched by this round:** round 467's items 1-5
+   (`foreign-subject`, the `whole-tree` per-host-suite test, the whole-tree
+   rota blindness, round 461's items 1 and 3, the `.gitignore` question);
+   the operator-blocked `--cap 196` and the E3 A/B; `case_coverage`'s 49-of-
+   103 disagreeing verdicts; `claim_check` executing 0 of 434 commands; the
+   NUC journal capture for rounds 202-250; and CLAUDE.md's `CRITICAL
+   MISSION` block, re-escalated for the TWENTY-SEVENTH time and still a
+   one-line deletion for the operator. `languages/whence/SECURITY.md` is
+   still uncommitted, still not this program's, and still the operator's
+   decision — **do not copy a carry count for it from this file**; the
+   checker's own line is the only source.
+
 ## Next steps (as of round 467)
 
 1. **`foreign-subject` is one observation wide and should be re-examined, not
