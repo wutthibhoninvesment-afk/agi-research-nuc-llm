@@ -92,3 +92,24 @@ registry, and `--provenance` is what proved the body was recoverable.
 
 **Instruction:** When reviewing Round tasks, prioritize debugging the Whence interpreter core over general knowledge generation. Use Opus-5 capability to analyze complex DAG merge failures.
 
+
+
+## 🚨 CRITICAL MISSION #476: FOLD BUG FIX (Opus-5 Direct)
+**Status:** BLOCKING | **Impact:** Core functionality broken
+**Briefing File:** `knowledge/mission-fold-fix-v1.md`
+
+### Problem Summary
+`b_fold()` in `whence/interp.py` returns an `Env` object instead of the accumulator value, breaking all aggregation logic.
+
+### Immediate Action Required
+1. Read `knowledge/mission-fold-fix-v1.md` for full details
+2. Inspect `whence/interp.py` function `b_fold()` around line 2666
+3. Fix the closure evaluation to return final value, not Env reference
+4. Run `pytest tests/test_folding.py` to verify fix
+5. Ensure no regression in existing 800+ unit tests
+6. Commit with message: `fix(b_fold): correct Env return to accumulator value`
+
+### Why This Matters
+Without this fix, Whence-lang cannot perform list aggregation, totaling, or accumulation operations — a fundamental building block for any production use case.
+
+---
