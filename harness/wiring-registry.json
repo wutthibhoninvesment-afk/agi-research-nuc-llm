@@ -533,16 +533,24 @@
       "via_kind": "join"
     },
     "skills/prediction-banking/scripts/bank_audit.py": {
-      "status": "unwired",
-      "owner": "skills(B)",
-      "since_round": 475,
-      "reason": "Round 475 (harness A) corrected this from `wired` to `unwired` after W002 had been an ERROR on every run since 654a553 -- red for two rounds, unseen because round 474 published no harness fast-tier number. Round 473 declared it wired on the reasoning that corpus_check.py's `unit_tests` checker runs `pytest -q skills/*/scripts/test_*.py`, which would import the module. That sentence is corpus_check.py's DESCRIPTION of the checker (its `description` text, near line 175), not the checker: the actual argv, near line 476, is pytest over exactly two directories, skills/skill-authoring/scripts and skills/session-inheritance-audit/scripts. skills/prediction-banking/scripts is not among them, so round 471's test_bank_audit.py (19 tests) is run by nothing scheduled. `unwired` is the honest status because the program DOES intend to automate this -- round 471's next-step 1 asks for it -- so W005 should start counting rather than `manual` silencing it. The scheduling decision is skills(B)'s: add the directory to `unit_tests`, or schedule `bank_audit.py corpus` as its own checker.",
-      "prior_declaration": {
-        "status": "wired",
-        "via": "skills/prediction-banking/scripts/test_bank_audit.py:-",
-        "via_kind": "import",
-        "since_round": 473
-      }
+      "status": "wired",
+      "via": "skills/skill-authoring/scripts/corpus_check.py:-",
+      "via_kind": "dir",
+      "reason": "Round 477 (skills B) DISCHARGED the debt round 475 declared, by the route round 475's own item 3 offered: skills/prediction-banking/scripts is now one of FOUR literal directories in corpus_check.py's `unit_tests` argv, so test_bank_audit.py's 19 tests run every round and bank_audit.py is imported by them. The edge is `[dir]` from a non-test file, so it is not the weak textual reference that had been suppressing W003 here since round 475 -- with the argv edit and this entry still `unwired`, wiring_audit reported exactly one error, W003 on this path, which is the measurement behind the flip. Cost measured before spending it: the 19 tests take 0.67 s solo, against a `unit_tests` budget already at 464s/600s (77%) under driver contention. The two prior declarations are kept below as tombstones rather than overwritten: `wired` (round 473) was FALSE and was believed because corpus_check.py's DESCRIPTION of this checker claimed a glob its argv did not run; `unwired` (round 475) was the honest correction. Round 477 made the sentence and the argv share one constant, corpus_check.SKILL_TEST_GLOB, so the description cannot drift from the pattern, and test_corpus_check.py::TestSkillTestDirs keeps the argv equal to what the pattern matches.",
+      "prior_declarations": [
+        {
+          "status": "unwired",
+          "owner": "skills(B)",
+          "since_round": 475,
+          "reason": "Round 475 (harness A) corrected this from `wired` to `unwired` after W002 had been an ERROR on every run since 654a553 -- red for two rounds, unseen because round 474 published no harness fast-tier number. Round 473 declared it wired on the reasoning that corpus_check.py's `unit_tests` checker runs `pytest -q skills/*/scripts/test_*.py`, which would import the module. That sentence is corpus_check.py's DESCRIPTION of the checker (its `description` text, near line 175), not the checker: the actual argv, near line 476, is pytest over exactly two directories, skills/skill-authoring/scripts and skills/session-inheritance-audit/scripts. skills/prediction-banking/scripts is not among them, so round 471's test_bank_audit.py (19 tests) is run by nothing scheduled. `unwired` is the honest status because the program DOES intend to automate this -- round 471's next-step 1 asks for it -- so W005 should start counting rather than `manual` silencing it. The scheduling decision is skills(B)'s: add the directory to `unit_tests`, or schedule `bank_audit.py corpus` as its own checker."
+        },
+        {
+          "status": "wired",
+          "via": "skills/prediction-banking/scripts/test_bank_audit.py:-",
+          "via_kind": "import",
+          "since_round": 473
+        }
+      ]
     },
     "skills/run_checks_fast.sh": {
       "status": "wired",
@@ -691,6 +699,20 @@
       "owner": "harness(A)",
       "since_round": 475,
       "reason": "Commit-time consumer of state/known-escalated-diffs.json. run_driver.sh installs it as a pre-commit hook before each round (install-hook), and the hook itself invokes `check`. Declared by its own round, which is what W001 asks for."
+    },
+    "skills/derived-subject-set/scripts/pattern_vs_enum.py": {
+      "status": "wired",
+      "via": "skills/derived-subject-set/scripts/test_pattern_vs_enum.py:-",
+      "via_kind": "import",
+      "owner": "skills(B)",
+      "reason": "Round 477 (skills B). The detector for a PROSE PATTERN that disagrees with the enumeration beside it (E001). Enforcement is test_pattern_vs_enum.py::TestLiveTree, which corpus_check.py's `unit_tests` argv runs every round -- that argv is a literal enumeration held equal to skills/*/scripts/test_*.py, so this directory is in it by construction. Deliberately NOT an eleventh corpus_check checker: its live population is ZERO (the one instance was the round-475 defect this round fixed), `audit` costs ~7 s, and `unit_tests` was already at 464s/600s (77%). A checker whose steady state is silence should not hold a slot; the test that already has one carries it."
+    },
+    "skills/derived-subject-set/scripts/test_pattern_vs_enum.py": {
+      "status": "wired",
+      "via": "skills/skill-authoring/scripts/corpus_check.py:-",
+      "via_kind": "dir",
+      "owner": "skills(B)",
+      "reason": "Round 477 (skills B). Reached the way the other fifteen skills/*/scripts/test_*.py files are -- corpus_check.py's `unit_tests` argv names this directory literally. It is the FOURTH such directory and it arrived by the mechanism this round built: adding this file made test_corpus_check.py::TestSkillTestDirs::test_the_argv_is_exactly_what_the_glob_matches go red naming skills/derived-subject-set/scripts, and the argv gained it."
     }
   },
   "_since_round": "`since_round` on an `unwired` entry is the round that DECLARED the debt, not a guess at when the file stopped being run. W005 therefore measures how long a declared, undischarged deferral has stood -- one full rotation (6 rounds) and it rides in the summary line. Dating it any other way would require inventing a number no record carries."

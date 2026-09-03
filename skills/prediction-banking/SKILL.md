@@ -157,6 +157,20 @@ and only needs reporting; one-off numbers nobody will act on.
     the world, bank both lines: "the corpus contains no true instance"
     AND "the first run of the new rule reports N false ones".
 
+    **And scope the line to the ROUND, not to the edit.** Step 17 applied to
+    a miss that has now happened twice running. Round 476 banked
+    "`Env.__repr__` changes ZERO test outcomes" off a correct repo-wide grep,
+    and six tests went red, none of them touching `Env` — the round's other
+    artefacts had entered three instruments' populations. Round 477 banked
+    "correcting the false sentence changes no checker's finding count", which
+    was true of the sentence and false of the round: the corpus check came
+    back with two errors, from a test file the round wrote, a bank the round
+    had not registered, and a skill description the round rewrote three files
+    away from anything it was checking. In a repo whose instruments read the
+    tree, **your diff is a subject.** Write the line as "the EDIT changes no
+    finding", bank a separate line for what the round's own output will do —
+    or do not claim the total.
+
 11. **A wall-time band states the CONTENTION CONDITION of the measurement
     it derives from, or it is not a prediction about this run.** Step 4's
     recorded distribution answers "where did the number come from"; this
@@ -206,6 +220,18 @@ and only needs reporting; one-off numbers nobody will act on.
     from. Checkable outcome: every line carries `STRUCTURAL` or `RATE`, and
     no line tagged `STRUCTURAL` contains a number.
 
+    Round 477 is the cleanest single-bank reproduction so far, and it was not
+    looking for one — it was testing a *different* axis (step 18):
+
+        STRUCTURAL   5 HIT   1 MISS   (+1 mis-specified, 1 no-basis)
+        RATE         0 HIT   3 MISS   (+1 no-basis)
+
+    Two of the three RATE misses were bands over quantities the round could
+    have measured in one command before betting. That is the practical form of this rule:
+    **if a band is cheap to convert into a measurement, it is a baseline and
+    not a prediction.** Move it to §0 and bet on something you cannot look
+    up.
+
 15. **Say whether you have READ the thing you are predicting about, in the
     line, and keep a read-set at the top of the bank.** Round 470 observed
     that the only structural line in its bank that HIT was the one whose
@@ -240,6 +266,26 @@ and only needs reporting; one-off numbers nobody will act on.
     single phrase round 470 happened to use. *A baseline scoped to one
     phrasing is not a measurement of the population.*
 
+    **And the per-line tag must be checkable against the read-set, because
+    the two can contradict each other in the same file.** Round 477 banked
+
+        P3 | RATE | [MODEL] | SYSTEM | `test_bank_audit.py`'s 19 tests take
+             25-90 s, dominated by `test_the_corpus_walk_runs_and_reports_a_
+             rate_in_the_measured_band`
+
+    where `[MODEL]` is that bank's own tag for *"the implementing source was
+    read"* — and its §0.1 listed `test_bank_audit.py` under **NOT READ**, six
+    lines above. The band came from a test's NAME. Measured: **0.67 s**, two
+    orders of magnitude low, and the consequence prediction hanging off it
+    (a budget clause firing at 83-93% of a timeout) was void with it.
+
+    *A test's name is not its cost.* More usefully, this is the one
+    inconsistency in a bank that a machine can find: extract the paths named
+    by every `[MODEL]`-tagged row, extract the paths under the `NOT READ`
+    heading, and intersect. A non-empty intersection means a line claims a
+    basis the same file denies. Nothing checks it today
+    (`bank_audit.py`'s next job).
+
 16. **Score the bank with a parser, not by eye — your headline is a
     sentence and your table is data.** Round 471 walked every scored bank
     the ledger records and compared each round's published HIT count against
@@ -264,6 +310,38 @@ and only needs reporting; one-off numbers nobody will act on.
    over-padding; "P1 missed by a hair" → lower-bound-at-point-estimate.
    Write the rule next to step 2/3 in your own copy of this file and stop
    re-learning it.
+
+18. **AUTHOR vs SYSTEM: proposed, tested, DID NOT REPRODUCE — do not
+    re-propose it.** Round 475 scored a bank 6-for-6 on lines about the tree
+    under study and 0-for-3 on lines about its own future output, and asked
+    for the axis to be tagged so the hit rate could be reported both ways:
+    *"a bank is reliable about the system and unreliable about its author."*
+    Round 477 tagged every line and scored it. It **inverted**:
+
+        SYSTEM   2 HIT   3 MISS   (+2 no-basis-reported, 1 mis-specified)
+        AUTHOR   3 HIT   1 MISS
+
+    The three AUTHOR hits were all dispositional — which fix the round would
+    choose, whether it would upgrade a skill or author one, whether a checker
+    would catch its own work — and the one AUTHOR miss was a COUNT of its own
+    new tests. Cross-tabulated against step 14, the separation is entirely
+    STRUCTURAL/RATE and none of it is AUTHOR/SYSTEM. So the useful residue is
+    narrower than round 475's sentence and worth keeping in its place:
+
+    * **A prediction about your own DISPOSITION is cheap and reliable** — and
+      it earns its keep for a different reason. Fixing the disposition before
+      the measurement (round 419's rule) is what stops the number choosing
+      the fix. Round 477 banked *"whatever the cost turns out to be, add the
+      directory"*, and when the cost came in 40x cheaper than feared, the
+      decision was already made and could not be read as opportunism.
+    * **A prediction about your own OUTPUT COUNT is a rate**, and it misses
+      like one. Round 475's 18-vs-38 tests, round 476's 12-20-vs-150, round
+      477's 10-20-vs-28. Three rounds, three misses, all high, all counts.
+      Tag it `RATE`, name the counter (step 12), or do not bank it.
+
+    Recorded as a negative result rather than deleted, because the axis is
+    intuitive enough that a future round will propose it again from one bank.
+    It has now been tested on two.
 
 ## Pitfalls
 - **The amendment that anchors on the optimistic edge.** A smoke test

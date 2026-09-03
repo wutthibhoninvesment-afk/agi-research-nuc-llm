@@ -73,6 +73,7 @@ a different log format rather than borrowed from one.
 """
 
 import argparse
+import glob
 import json
 import os
 import re
@@ -170,11 +171,41 @@ def coverage_of(output):
 # only when a single space follows the status word. A richer token here would
 # have silently dropped this row from both readers, which is the same class of
 # loss this round exists to stop.
+#: The family `unit_tests` is pointed at, as a pattern, in ONE place.
+#:
+#: Round 477. This pattern had THREE readers and lived in one of them. The
+#: `unit_tests` description below said "pytest over skills/*/scripts/test_*.py"
+#: while `checks()` named two directories literally, and the glob matched
+#: fifteen files in THREE -- `skills/prediction-banking/scripts` was missing,
+#: so round 471's `test_bank_audit.py` (19 tests) was run by nothing
+#: scheduled. Round 473 then read the DESCRIPTION, declared `bank_audit.py`
+#: `wired` on the strength of it, and W002 was an ERROR for two rounds unseen.
+#: A sentence is not an implementation, and the way to stop it drifting again
+#: is to give the sentence and the oracle the same constant.
+SKILL_TEST_GLOB = os.path.join("skills", "*", "scripts", "test_*.py")
+
+
+def skill_test_dirs(root):
+    """Repo-relative directories holding a `SKILL_TEST_GLOB` file, sorted.
+
+    The ORACLE for `unit_tests`' argv -- deliberately NOT the argv itself.
+    See `checks()` for the measurement that decided that, which is the
+    interesting part: derivation is the right move for a subject set with one
+    reader, and the wrong move here.
+    """
+    return sorted({os.path.relpath(os.path.dirname(q), root).replace(os.sep, "/")
+                   for q in glob.glob(os.path.join(root, SKILL_TEST_GLOB))})
+
+
 RUNNER_CHECKS = {
     "unit_tests":
-        "pytest over skills/*/scripts/test_*.py, whose tests drive the other "
-        "checkers; any code, warning or coverage clause in its output belongs "
-        "to a checker it ran, not to it",
+        "pytest over the directories that hold a " + SKILL_TEST_GLOB + " "
+        "file -- a LITERAL enumeration in `checks()`, held equal to that "
+        "glob's expansion by `test_corpus_check.py` rather than derived from "
+        "it, because `wiring_audit` cannot fold a glob and deriving it turns "
+        "12 wired declarations into W002 errors (round 477); whose tests "
+        "drive the other checkers, so any code, warning or coverage clause "
+        "in its output belongs to a checker it ran, not to it",
 }
 
 #: A pytest node id in a `FAILED`/`ERROR` short-summary line. Anchored on
@@ -473,10 +504,25 @@ def checks(root):
         # trips the `rc1` fallback into ERRORS_FOUND, while 2-5 (collection or
         # config never got there) is COULD_NOT_RUN, which is true.
     ] + ([] if os.environ.get(REENTRY_ENV) else [
+        # The argv is a LITERAL enumeration of what `SKILL_TEST_GLOB`
+        # matches, and `test_corpus_check.py::TestSkillTestDirs` keeps the
+        # two equal. It is not a `glob.glob` call, and round 477 measured
+        # why: `harness/wiring_audit.py:52` names "a `glob`" as its own
+        # documented under-approximation, so a derived argv is invisible to
+        # the invocation closure. Measured, not reasoned -- the glob version
+        # took the closure from 109 files to 95 and turned TWELVE `wired`
+        # declarations into W002 errors, including the very entry this edit
+        # exists to wire. Two readers, one literal: the analyser needs the
+        # names spelled out, the oracle needs the pattern, and the test is
+        # what makes the pattern binding on the names.
         ("unit_tests", ["-m", "pytest", "-q",
-                        os.path.join(root, "skills", "skill-authoring",
+                        os.path.join(root, "skills", "derived-subject-set",
+                                     "scripts"),
+                        os.path.join(root, "skills", "prediction-banking",
                                      "scripts"),
                         os.path.join(root, "skills", "session-inheritance-audit",
+                                     "scripts"),
+                        os.path.join(root, "skills", "skill-authoring",
                                      "scripts")]),
     ])
 

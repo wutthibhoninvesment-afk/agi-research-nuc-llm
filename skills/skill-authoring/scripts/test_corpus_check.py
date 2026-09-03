@@ -743,3 +743,195 @@ class TestPrecommitSubset(unittest.TestCase):
                       "the runner did not forward --list to corpus_check.py")
         self.assertNotIn("corpus-check:", proc.stdout,
                          "the flag was swallowed and a full run happened")
+
+
+# --------------------------------------------------------------------------
+# Round 477 (skills B). The `unit_tests` subject set.
+#
+# Round 475's next-step 2 found `RUNNER_CHECKS["unit_tests"]`'s description
+# claiming "pytest over skills/*/scripts/test_*.py" against an argv that
+# named two directories, while the glob matched fifteen files in three. The
+# missing one was `skills/prediction-banking/scripts`, so round 471's
+# `test_bank_audit.py` — 19 tests — was run by nothing scheduled, and round
+# 473 read the DESCRIPTION, declared `bank_audit.py` `wired` on the strength
+# of it, and left W002 an ERROR for two rounds unseen.
+#
+# The obvious fix is `derived-subject-set` step 3: derive the argv from the
+# glob. Round 477 MEASURED that fix before shipping it and it is wrong here.
+# `harness/wiring_audit.py:52` names "a `glob`" as its own documented
+# under-approximation, so a derived argv is invisible to the invocation
+# closure: the glob version took the closure from 109 files to 95 and turned
+# TWELVE `wired` declarations into W002 errors, including the very entry the
+# edit existed to wire.
+#
+# So the argv stays a literal enumeration for the static analyser, and what
+# gets derived is the ORACLE. These tests are the binding between them. A
+# fourth skill that grows a `scripts/test_*.py` file arrives here as a
+# FAILURE naming itself, which is the promise the old description made in
+# prose and could not keep.
+# --------------------------------------------------------------------------
+
+class TestSkillTestDirs(unittest.TestCase):
+
+    def unit_tests_argv_dirs(self, root):
+        """The directory arguments of the live `unit_tests` argv, relative.
+
+        The `REENTRY_ENV` pop is not defensive: `checks()` omits `unit_tests`
+        entirely when that variable is set, and it IS set for these tests,
+        because `unit_tests` is what runs them. The first draft of this class
+        read `dict(checks(root))["unit_tests"]` directly. It passed standalone
+        and raised `KeyError: 'unit_tests'` inside the runner that schedules
+        it — twice, in the two tests that are the whole point of the class.
+        `TestRunOne`'s sibling tests already pop it from a subprocess env for
+        the same reason; this is the in-process form.
+        """
+        saved = os.environ.pop(corpus_check.REENTRY_ENV, None)
+        try:
+            argv = dict(corpus_check.checks(root))["unit_tests"]
+        finally:
+            if saved is not None:
+                os.environ[corpus_check.REENTRY_ENV] = saved
+        self.assertEqual(argv[:3], ["-m", "pytest", "-q"], argv)
+        return sorted(os.path.relpath(a, root).replace(os.sep, "/")
+                      for a in argv[3:])
+
+    def test_the_argv_is_exactly_what_the_glob_matches(self):
+        """THE enforcement. Left side literal, right side derived.
+
+        This is the assertion round 475's item 2 asked for. It is not
+        `assertIn` and not a count: a directory in the argv that holds no
+        skill test file is as much a defect as a directory of tests nobody
+        runs — the first is a pytest argument that will start erroring the
+        day the directory moves, the second is round 363's four-round-red
+        test all over again.
+        """
+        self.assertEqual(self.unit_tests_argv_dirs(ROOT),
+                         corpus_check.skill_test_dirs(ROOT))
+
+    def test_the_live_answer_is_four_named_directories(self):
+        """Pinned by name, not by count.
+
+        `derived-subject-set` step 7's rule: an exact pin is what catches a
+        member that silently stops being covered. A count of 4 would still
+        pass if `prediction-banking` were swapped for something else.
+
+        It was THREE for about an hour of round 477, and the fourth arrived
+        the way the design says it should: the round wrote
+        `skills/derived-subject-set/scripts/test_pattern_vs_enum.py`, this
+        test went red naming the directory, and the argv gained it. That is
+        the promise the old prose description made and could not keep,
+        collected on inside the same round that made it.
+        """
+        self.assertEqual(corpus_check.skill_test_dirs(ROOT), [
+            "skills/derived-subject-set/scripts",
+            "skills/prediction-banking/scripts",
+            "skills/session-inheritance-audit/scripts",
+            "skills/skill-authoring/scripts",
+        ])
+
+    def test_the_description_and_the_oracle_share_one_constant(self):
+        """The drift that started this cannot recur silently.
+
+        The description is BUILT from `SKILL_TEST_GLOB`, so a round that
+        rewords it to claim a different pattern has to change the constant,
+        which changes the oracle, which fails the test above. Asserting the
+        glob is IN the rendered text is what keeps that composition from
+        being quietly flattened back into a hand-typed sentence.
+        """
+        desc = corpus_check.RUNNER_CHECKS["unit_tests"]
+        self.assertIn(corpus_check.SKILL_TEST_GLOB, desc)
+        self.assertEqual(corpus_check.SKILL_TEST_GLOB,
+                         "skills/*/scripts/test_*.py")
+
+    def test_a_fourth_skill_with_tests_makes_the_check_go_red(self):
+        """The falsifier. `derived-subject-set` step 2, run forwards.
+
+        A synthetic tree with a fourth `skills/<x>/scripts/test_*.py` is what
+        the next round to write one produces. The oracle must see it and the
+        literal argv must not, so the equality above must FAIL — proving the
+        test can go red rather than that it is green today.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            for skill in ("prediction-banking", "session-inheritance-audit",
+                          "skill-authoring", "zzz-newcomer"):
+                write(os.path.join(tmp, "skills", skill, "scripts",
+                                   "test_x.py"), "def test_x(): pass\n")
+            oracle = corpus_check.skill_test_dirs(tmp)
+            self.assertIn("skills/zzz-newcomer/scripts", oracle)
+            self.assertNotIn("skills/zzz-newcomer/scripts",
+                             self.unit_tests_argv_dirs(tmp))
+            self.assertNotEqual(self.unit_tests_argv_dirs(tmp), oracle,
+                                "the check cannot go red — it is not a check")
+
+    def test_a_skill_with_scripts_but_no_tests_is_not_in_either_side(self):
+        """The other direction, and the reason the glob ends in `test_*.py`.
+
+        Several skills carry `scripts/` with no test file. Pointing pytest at
+        one is not harmless: pytest exits 4 on a directory it cannot collect
+        from, and `corpus_check` reads 2-5 as COULD_NOT_RUN, so the whole
+        health check would go dark rather than red.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            write(os.path.join(tmp, "skills", "prediction-banking", "scripts",
+                               "test_x.py"), "def test_x(): pass\n")
+            write(os.path.join(tmp, "skills", "toolless", "scripts",
+                               "helper.py"), "x = 1\n")
+            self.assertEqual(corpus_check.skill_test_dirs(tmp),
+                             ["skills/prediction-banking/scripts"])
+
+    def test_the_argv_stays_statically_foldable_for_the_closure(self):
+        """The regression test for the fix this round REJECTED.
+
+        `wiring_audit` folds `os.path.join(root, "skills", "x", "scripts")`
+        into a directory edge and cannot fold `glob.glob(...)`. Twelve
+        registry entries' only route into the invocation closure is this
+        argv, so a future round that "simplifies" the enumeration into the
+        glob its own description names breaks them. Measured, round 477:
+        109 files in the closure became 95, and 12 `wired` declarations
+        became W002 errors.
+
+        This asserts the PROPERTY (every argv directory resolves to a real
+        reference edge from this file) rather than the absence of the string
+        `glob`, so it also covers the next clever way of losing it.
+        """
+        sys.path.insert(0, os.path.join(ROOT, "harness"))
+        try:
+            import wiring_audit
+        finally:
+            sys.path.pop(0)
+        rel = "skills/skill-authoring/scripts/corpus_check.py"
+        index = wiring_audit.Index(wiring_audit.tracked_files(ROOT))
+        edges, _ = wiring_audit.references(ROOT, rel, index)
+        for d in corpus_check.skill_test_dirs(ROOT):
+            reached = [p for p in edges if p.startswith(d + "/")]
+            self.assertTrue(reached,
+                            "%s is in the argv but wiring_audit resolves no "
+                            "reference to anything under it from %s — the "
+                            "argv has stopped being statically foldable"
+                            % (d, rel))
+
+    def test_bank_audit_is_reached_through_this_argv_and_declared_wired(self):
+        """The debt round 475's item 3 opened, closed end to end.
+
+        Two halves, and the point is that they are two: the file is REACHED
+        (the tests that import it now run every round) and the registry SAYS
+        so. Round 473 had the second without the first.
+        """
+        sys.path.insert(0, os.path.join(ROOT, "harness"))
+        try:
+            import wiring_audit
+        finally:
+            sys.path.pop(0)
+        target = "skills/prediction-banking/scripts/bank_audit.py"
+        index = wiring_audit.Index(wiring_audit.tracked_files(ROOT))
+        edges, _ = wiring_audit.references(
+            ROOT, "skills/skill-authoring/scripts/corpus_check.py", index)
+        self.assertIn(target, edges,
+                      "corpus_check.py no longer reaches bank_audit.py")
+        reg = json.load(open(os.path.join(ROOT, "harness",
+                                          "wiring-registry.json"),
+                             encoding="utf-8"))
+        entry = reg["entry_points"][target]
+        self.assertEqual(entry["status"], "wired", entry)
+        self.assertEqual(entry["via"],
+                         "skills/skill-authoring/scripts/corpus_check.py:-")

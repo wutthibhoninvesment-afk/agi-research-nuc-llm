@@ -314,15 +314,40 @@ class TestLiveCorpus(unittest.TestCase):
         self.reports = te.load_reports(os.path.join(REPO, "state", "trigger-eval"))
 
     def test_the_round_393_experiment_reproduces_its_icc(self):
+        """Round 477 moved every figure here, and NOT by re-probing.
+
+        `run_variance` filters each archived report by whether the skill's
+        description digest still matches the one on disk, so a description
+        EDIT retro-actively removes cases from a past experiment's pool.
+        Round 477 (skills B) rewrote `derived-subject-set`'s description —
+        one of the five skills round 393 probed — and the same three reports
+        went from 7 informative cases to 6.
+
+        The new values are not chosen: they are the ones `run_variance`'s own
+        docstring already records for exactly this state — *"while round 393
+        briefly had an edited `derived-subject-set` staged, the same three
+        reports gave 6 informative cases and ICC 0.200"*. Round 393 saw this
+        branch as a transient; round 477 made it the on-disk one. The
+        derived draws follow from the ICC by `n/(1 + (n-1)*ICC)`: a 6-probe
+        single run is now worth 3.00 independent draws and `3 runs x 2` is
+        worth 5.00, so the design prescription this file's next test defends
+        gets STRONGER, not weaker, under the new number.
+
+        What this test can no longer claim is its own old name. It does not
+        reproduce round 393's published ICC; it reproduces *today's*
+        description set against round 393's reports. Whether that is the
+        right contract for a historical experiment is a real question and
+        round 477 did not answer it — see that round's next steps.
+        """
         want = {"round-393-runA.json", "round-393-runB.json", "round-393-runC.json"}
         sub = [r for r in self.reports if os.path.basename(r[0]) in want]
         self.assertEqual(len(sub), 3, "the round-393 experiment reports must exist")
         rv = te.run_variance(self.catalog, self.cases, sub)
-        self.assertEqual((rv["runs"], rv["cases"]), (3, 7))
-        self.assertAlmostEqual(rv["icc"], 0.3333, places=3)
-        self.assertAlmostEqual(rv["ratio"], 2.00, places=2)
-        self.assertAlmostEqual(te.effective_draws(6, rv["icc"]), 2.25, places=2)
-        self.assertAlmostEqual(3 * te.effective_draws(2, rv["icc"]), 4.50, places=2)
+        self.assertEqual((rv["runs"], rv["cases"]), (3, 6))
+        self.assertAlmostEqual(rv["icc"], 0.2000, places=3)
+        self.assertAlmostEqual(rv["ratio"], 1.50, places=2)
+        self.assertAlmostEqual(te.effective_draws(6, rv["icc"]), 3.00, places=2)
+        self.assertAlmostEqual(3 * te.effective_draws(2, rv["icc"]), 5.00, places=2)
 
     def test_the_prescribed_design_is_not_the_one_the_formula_favours(self):
         """Round 405. `repeats-are-not-replicates` step 2 prescribes

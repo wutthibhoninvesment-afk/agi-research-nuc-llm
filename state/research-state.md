@@ -25799,6 +25799,178 @@ does NOT score round 473's predictions, which remain unscored.
   operator's, and its carry count is the checker's to report.
 - **Knowledge:** `knowledge/round-476-the-return-value-nobody-rendered.md`.
 
+### Round 477 — skills(B) — 2026-09-03 — the fix that would have blinded the auditor
+
+- **Round 475's items 2 AND 3 are CLOSED, by refusing the route round 475
+  offered.** Its item 2 said "make the argv match the sentence … the same edit
+  that discharges the W002 debt". `corpus_check.py`'s `unit_tests` description
+  claimed *"pytest over `skills/*/scripts/test_*.py`"*; the argv named two
+  directories; the glob matched **15 files in 3**. This round MEASURED the
+  literal reading of that instruction and rejected it: a `glob.glob` argv takes
+  the invocation closure from **109 files to 95** and turns **12 `wired`
+  declarations into W002 errors**, because `harness/wiring_audit.py:52` names
+  "a `glob`" as its own documented under-approximation — and it makes the
+  argv-vs-glob drift test a **tautology**, which is `derived-subject-set`'s own
+  second pitfall reached by following its own step 3.
+- **What shipped: keep the literal, derive the ORACLE, bind them with a test.**
+  `corpus_check.SKILL_TEST_GLOB` is one constant with three readers — the
+  description is BUILT from it, `skill_test_dirs()` expands it, and
+  `test_corpus_check.py::TestSkillTestDirs` (7 tests) holds the literal argv
+  equal to the expansion in both directions. The argv now names FOUR
+  directories. `bank_audit.py` flipped `unwired` -> `wired` with both prior
+  declarations kept as tombstones; the flip is mandatory, not cosmetic — with
+  the argv edit and the entry still `unwired`, `wiring_audit.py check` reported
+  exactly one error (W003), which was prediction P1 and hit exactly.
+- **The loop fired on this round, inside this round.** Writing
+  `skills/derived-subject-set/scripts/test_pattern_vs_enum.py` grew the family
+  to four, `test_the_argv_is_exactly_what_the_glob_matches` went RED naming
+  `skills/derived-subject-set/scripts`, and the argv gained it. A live
+  falsification, not the synthetic one in test 4.
+- **Nobody could have read that sentence, and all four prose checkers had a
+  documented reason.** X004 truncates the token at `*` and counts it SKIPPED
+  (there is a test pinning that, and it is right); `selfdesc_check` reads
+  `.json` prose; `claim_check` reads SKILL.md Verification blocks;
+  `wiring_audit` folds no glob. **A pattern claim is the least-verified
+  sentence a tooling repo can contain** — and round 473 declared
+  `bank_audit.py` `wired` off this one, leaving W002 red for two rounds unseen.
+- **NEW instrument, and it is deliberately NOT an eleventh checker.**
+  `skills/derived-subject-set/scripts/pattern_vs_enum.py` (E001: the prose glob
+  expands, the code names a member, the named set is a STRICT subset), 21
+  tests. Falsified against the tree where the defect lived — `git show
+  7f4fd07:` gives **2 findings, not 1: the same false claim is also at line
+  407, in the docstring of `checks()` itself**, and round 475's carried item
+  named one site. Live population 0, `audit` ~7 s, `unit_tests` already at
+  464s/600s — so the enforcement rides in a test, which this round's own argv
+  fix schedules by construction.
+- **The general version of that checker was measured and DECLINED.** Census:
+  **354 live glob patterns in prose, 61 dead**, 12 dead at a present-tense
+  site — and **10 of those 12 are `knowledge/round-NNN-*.md` inside sentences
+  asserting the file does not exist**. A dead glob is ambiguous between rot and
+  a correct absence claim and the absence claims win 10 to 3. P7 banked
+  no-basis-and-will-report, and the report is why nothing was built.
+- **Three carried claims came apart on re-derivation.**
+  `selfdesc_check` "1/26 prose-fields, TOP-LEVEL only" is **REFUTED** — it is
+  118/769 with **704 of 769 fields nested**. "The fourteen-deep probe batch" is
+  **41**, and the correction was never missing: `_round_450_note` in that same
+  file re-derived 30 twenty-seven rounds ago and `_round_463_note` 35, and
+  neither reached this file. Round 436's item 7 was **already discharged** as
+  step 9 of `prediction-banking/SKILL.md`, still carried because the item names
+  a rule and the record names a round. `case_coverage`'s 49-of-103 CONFIRMED at
+  `7f4fd07`, then moved to 47/99 by this round's own edit.
+- **The probe batch is PRICED, and the first price was wrong.** $0.05/probe is
+  the `_comment`'s constant; `_round_457_note` in the same file carries
+  $0.0584/invocation x 5 = **$0.292/case**, 5.8x the header, so the batch is
+  **$39.71** and the corpus $98.30 — at a rate now 22 rounds unmeasured, with
+  no operator authorisation for a run. Measured cost of rewriting a skill
+  description: probed 51->50, replicated 31->30, **POOLED REFUTED 5->4** —
+  `derived-subject-set` was one of only five whose description had been
+  measured and REFUTED, so the edit removed a refutation, not a confirmation.
+- **Predictions: 5 HIT, 4 MISS, 1 mis-specified, 2 no-basis-reported**
+  (`state/skills/round-477/PREDICTIONS.md`, banked at `ff6f06f`). **Round
+  475's item 10 AUTHOR-vs-SYSTEM axis is REFUTED on its first test** — it
+  inverted (SYSTEM 2H/3M, AUTHOR 3H/1M) and cross-tabulates entirely onto
+  round 468's STRUCTURAL/RATE split (5H/1M vs 0H/3M). Written into
+  `prediction-banking/SKILL.md` as step 18, a NEGATIVE result. P3's miss earns
+  the sharper rule: its `[MODEL]` tag ("the source was read") contradicted the
+  bank's own NOT-READ list six lines above, and the band came from a test's
+  NAME — 25-90 s predicted, **0.67 s** measured. That contradiction is the one
+  thing in a bank a machine could check, and nothing does.
+- **Eight self-inflicted errors, all found by running things** (§11). Two
+  matter: the new detector fired **9 times on its own test file**, because
+  `_constructed_paths` returns `(paths, dir_ok)` and the first draft used
+  `[0]` — `dir_ok` is exactly the pytest-argument filter, and the lesson was in
+  the comment above the code being reused. And two new tests raised `KeyError:
+  'unit_tests'` **inside the runner that schedules them**, since `checks()`
+  omits `unit_tests` when `SKILLS_CORPUS_CHECK_RUNNING` is set. Both passed
+  standalone. Also: a description edit **broke a pinned ICC three files away**
+  (`test_pooled_estimator` (3,7)->(3,6), ICC 0.333->0.200), repinned onto the
+  values `run_variance`'s own docstring already records for exactly this state.
+- **Skills UPGRADED, not authored:** `derived-subject-set/SKILL.md` (+131/-1,
+  a new bounded-exception section with the measured table, 3 pitfalls, 2
+  trigger cases) and `prediction-banking/SKILL.md` (+78, step 18 plus
+  sharpenings of steps 10, 14 and 15).
+- **Knowledge:** `knowledge/round-477-the-fix-that-would-have-blinded-the-auditor.md`.
+
+## Next steps (as of round 477)
+
+1. **The basis-tag / read-set contradiction is mechanically checkable and
+   nothing checks it.** Round 477's P3 was tagged `[MODEL]` ("the implementing
+   source was read") while the same bank's §0.1 listed that file under NOT
+   READ, six lines above, and it missed by two orders of magnitude. The
+   algorithm: extract repo paths named by every `[MODEL]`-tagged row, extract
+   paths under the `NOT READ` heading, intersect, report non-empty. It belongs
+   in `bank_audit.py`, which round 477 wired, so its tests now run every round.
+   `python3 skills/prediction-banking/scripts/bank_audit.py corpus` → exit 0
+   today. skills(B).
+2. **`run_variance`'s docstring disagrees with itself and round 477 left it
+   that way on purpose.** One paragraph publishes ICC 0.333 for the three
+   round-393 reports; another calls 0.200 "the prospective number" for the same
+   three. Choosing is a guess about intent, not a measurement. The deeper
+   question is whether a HISTORICAL experiment's ICC should move when any
+   skill's description is edited — it does today, and round 477 moved it.
+   `python3 -m pytest -q skills/skill-authoring/scripts/test_pooled_estimator.py`
+   → 35 passed. skills(B).
+3. **`prediction-banking/SKILL.md` is 478 lines against `skill_lint`'s
+   500-line B002 hard limit.** Round 477 added 78. The next round to add a
+   rule has ~22 lines of headroom, and the honest fix is not terser prose —
+   it is splitting the scoring rules (steps 14-18) into a `references/` file,
+   which is what the house style is for.
+   `python3 skills/skill-authoring/scripts/skill_lint.py skills/prediction-banking --house --strict`
+   → 1 warning. skills(B).
+4. **The probe batch is $39.71 at a rate 22 rounds unmeasured, and the rate is
+   the thing to fix first.** `_round_463_note` asked for a re-derivation before
+   pricing and round 477 could not do one, because re-deriving a price requires
+   the priced run. The cheapest honest move is a ONE-CASE probe to re-measure
+   $/invocation, then price the batch from that; a 41-skill sweep authorised
+   off a 22-round-old constant is the wrong first spend.
+   `python3 -c "import json;print(len(json.load(open('state/known-unprobed-skills.json'))['skills']))"`
+   → 41. skills(B), needs operator authorisation.
+5. **`derived-subject-set`'s description is unprobed under its new wording and
+   the old one was REFUTED.** It is one of the five POOLED-REFUTED
+   descriptions, so this is the first chance in a while to test whether an
+   edit fixed a measured failure. Two new positive cases are on disk waiting
+   (`dss-static-reader`, `dss-desc-claims-the-pattern`).
+   `python3 skills/skill-authoring/scripts/case_coverage.py --repo-root .`
+   → `coverage 50/98 skills, 30/98 replicated`. skills(B).
+6. **Round 434's items 2-5 and round 428's item 4 are STILL open and were not
+   touched by this round** (the atom table's precondition-with-no-decider risk;
+   the 7 `append_only`/`refusal` `unknown` residuals; CP03p as the one pin that
+   moves the contingency table; `classify` 161 vs `checkpin run` 162). Carried
+   another rotation. **Re-derive before quoting — this round re-derived five
+   carried numbers and three were stale.** language(C).
+7. **`harness/tests/test_swe_mutation.py::test_the_grandchild_pid_survives_a_grandchild_slower_than_the_cap`
+   was red per round 475's health check and round 476 did not touch it.** Round
+   477's P10 tried to say it is deselected from the fast tier and mis-specified
+   its own subject: there is no `./run_tests_fast.sh` at the repo root, only
+   `harness/run_tests_fast.sh` and `languages/whence/run_tests_fast.sh`. Whoever
+   takes it should say which tier that node belongs to before saying whether it
+   is green. harness(A) or SWE-loop(D).
+8. **A dead glob in prose is UNDECIDABLE and that is now measured, so do not
+   build the checker.** 61 dead patterns, 12 at present-tense sites, 10 of them
+   correct absence claims. If someone wants the remaining signal, the tractable
+   piece is the two that are NOT absence claims (`languages/whence/**.lang` at
+   `harness/swe/slowtier.py:116`, informal shorthand; and
+   `state/trigger-eval/round-111-*.json`, in a gitignored directory).
+   `python3 skills/derived-subject-set/scripts/pattern_vs_enum.py census` → the
+   list, ~61 s. any track.
+9. **`claim_check` still executes 0 of 459 commands** and `state_claim_check`
+   still reports `1/6 items (17%)` on this file's block — the second is a
+   property of how next-steps items are written, and round 477's block above
+   carries a re-derivable command on most items specifically to move it. Check
+   whether it did. `grep 'skills-check' logs/driver.log | tail -1`. skills(B).
+10. **Standing, untouched by this round:** the NUC `retention --strict`
+   deadline; the `%vmeff` residual; the V002
+   `test_no_unexplained_broken_invocation` (re-derived **V002 0** at this HEAD
+   by `verb_audit`, so round 476's item 6 is quoting a number round 473 already
+   corrected — do not restore `V002 1`); `test_swe_campaign.py[light]` never
+   run through the slow-tier instrument; the operator-blocked `--cap 196`; and
+   CLAUDE.md's TWO `CRITICAL MISSION` blocks, both making a claim refuted three
+   times, both one deletion for the operator — do NOT reword them, the pinning
+   suites expire cleanly only if the blocks go.
+   `languages/whence/SECURITY.md` is still uncommitted, still not this
+   program's, still the operator's decision — **do not copy a carry count for
+   it from this file**; the checker's own line is the only source.
+
 ## Next steps (as of round 476)
 
 1. **`CLAUDE.md` now carries TWO `CRITICAL MISSION` blocks making the same

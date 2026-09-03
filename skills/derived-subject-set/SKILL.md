@@ -1,6 +1,6 @@
 ---
 name: derived-subject-set
-description: Use when an anti-rot test is green and you are about to trust that green — a test asserting "every X is registered/owned/covered", a schema-vs-code consistency check, an exhaustiveness list, a fixture registry. Symptoms: the check's LEFT-HAND SIDE is a literal in the test (a list of constants, a hard-coded count, an enum copied by hand) while its right-hand side is the real artefact; a docstring promises "a new X arrives here as a failure" and nobody has added an X since; a new member of the family shipped and the suite never went red; a tool dies on a member missing from a hand-written MODULES tuple. The move is to DERIVE the subject set from the artefact (AST, module namespace, directory listing, DB catalogue) so membership is a fact not a memory, then cross-check it against an independent read so it cannot silently shrink. NOT for a checker nothing invokes (unrun-checker-latency), a rule with no tool (unenforced-documented-rule), or a rolling prose claim (carried-claim-rot).
+description: Use when an anti-rot test is green and you are about to trust that green — "every X is registered/owned/covered", a schema-vs-code consistency check, an exhaustiveness list. Symptoms: the check's LEFT-HAND SIDE is a literal (constants, a hard-coded count, a hand-copied enum) while its right side is the real artefact; a docstring promises "a new X arrives here as a failure" and none has since; a new family member shipped and the suite stayed green; a tool dies on a member missing from a hand-written MODULES tuple. DERIVE the subject set from the artefact, then cross-check it against an independent read. ONE BOUNDED EXCEPTION, check it FIRST: if a STATIC ANALYSER also reads your literal (a closure auditor, a dependency graph, a bundler), deriving makes the set invisible to it — keep the literal, derive the ORACLE. Symptom: a description already claiming the derivation while the code enumerates a subset. NOT for a checker nothing invokes (unrun-checker-latency) or a rolling prose claim (carried-claim-rot).
 ---
 
 # A hand-written list of the things a hand-written list might miss is not an anti-rot check
@@ -32,6 +32,14 @@ is green *because* the thing it guards grew and it did not.
 - A tool dies on import/startup for a member that exists in production and
   not in the list — the same defect, arriving as a crash instead of a green
   test.
+- **A DESCRIPTION that claims a pattern while the code names members.** A
+  docstring, a `--help` string, a config comment or a registry `_comment`
+  saying "every `X/*/y`" next to an argv, an `include:` list or a `MODULES`
+  tuple that spells three of them out. The prose is a promise about a family;
+  the code is a list; nobody checks them against each other.
+- **You are about to replace such a list with a glob** and something else in
+  the tree reads that list statically. Stop and read the section on the
+  bounded exception below before you do.
 
 **When NOT to use:** the check does not exist (write it); the check exists
 and nothing runs it (`unrun-checker-latency`); the rule is documented and
@@ -176,6 +184,98 @@ The moves:
    selector that can legitimately return zero should say so; one that cannot
    should raise there, where the message can name the selector.
 
+## The bounded exception: when a static reader needs your literal (round 477)
+
+Step 3 says derive the subject set. There is exactly one condition under
+which that is the wrong move, it is common in tooling repos, and it is cheap
+to check before you act: **something else reads your literal statically.**
+
+Worked example, and note that the prose was already right — this is not a
+case of nobody having written the rule down. `corpus_check.py` described its
+own test-runner check as:
+
+```python
+"unit_tests": "pytest over skills/*/scripts/test_*.py, whose tests drive "
+              "the other checkers; …"
+```
+
+and its argv named **two** directories. The glob matched **fifteen files in
+three**. The missing directory held 19 tests that nothing ran, and a later
+round read the DESCRIPTION, declared the tool underneath it "wired" on the
+strength of that sentence, and left an ERROR standing for two rounds.
+
+The obvious fix is step 3: `glob.glob(...)` in place of the two literals.
+**Measured, that fix is worse than the defect.** A separate tool
+(`wiring_audit.py`) folds `os.path.join(root, "skills", "x", "scripts")` into
+a graph edge and cannot fold a `glob` call — its own docstring names "a
+`glob`" as a documented under-approximation. Making the argv derived:
+
+| | before | after the "fix" |
+|---|---|---|
+| files in the invocation closure | 109 | **95** |
+| `wired` declarations that became errors | 0 | **12** |
+| the entry the edit existed to wire | reachable | **unreachable** |
+| the drift test comparing argv to glob | can go red | **tautology** |
+
+That last row is the one that would have gone unnoticed. Derive the argv from
+the glob and the test comparing them asserts `glob == glob` — this skill's own
+second pitfall ("deriving from the thing the check is about"), reached by
+following this skill's own step 3.
+
+### The move
+
+**Keep the literal. Derive the oracle. Bind them with a test.**
+
+1. **Ask who else reads the literal**, before touching it. `grep` for the
+   directory names, then for the tools that could plausibly resolve them
+   statically. In this repo the answer was one auditor and 24 registry
+   entries downstream of it.
+2. **Hoist the pattern into ONE constant** and build the prose FROM it, so
+   the description cannot claim a pattern the oracle does not use:
+
+   ```python
+   SKILL_TEST_GLOB = os.path.join("skills", "*", "scripts", "test_*.py")
+
+   def skill_test_dirs(root):
+       """The ORACLE for the argv — deliberately not the argv."""
+       return sorted({os.path.relpath(os.path.dirname(q), root)
+                      for q in glob.glob(os.path.join(root, SKILL_TEST_GLOB))})
+
+   RUNNER_CHECKS = {"unit_tests": "pytest over the directories that hold a "
+                                  + SKILL_TEST_GLOB + " file — a LITERAL "
+                                  "enumeration in `checks()`, held equal to "
+                                  "that glob by test_corpus_check.py"}
+   ```
+
+3. **Assert set EQUALITY, not membership**, in both directions. A literal
+   naming a directory with no members is as much a defect as a member the
+   literal omits — the first is an argument that will start erroring the day
+   the directory moves.
+4. **Pin the static property too.** Assert that every element of the literal
+   still resolves to a real edge in the other tool's graph, so the next round
+   to "simplify" the enumeration into the glob its own description names
+   fails with a message that says why. Assert the PROPERTY, not the absence
+   of the string `glob`; that also covers the next clever way of losing it.
+5. **Expect the falsifier to fire on you.** Round 477 wrote a new skill
+   script with a test file, the family went from three to four, the equality
+   test went red naming the new directory, and the argv gained it — inside
+   the same round. That is the promise the prose description had been making
+   for four rounds and could not keep.
+
+### Do not generalise the detector past what it can decide
+
+The tempting next step is a checker for every dead pattern in prose. Round
+477 measured that corpus first: **61 distinct glob patterns that expand to
+zero paths, 12 at a present-tense site — and 10 of those 12 sit in sentences
+asserting the file does not exist** ("`knowledge/round-281-*.md`, and there
+should not be one"). A dead glob is ambiguous between a rotted reference and
+a correct absence claim, and absence claims won 10 to 3. The decidable rule
+is narrower and worth having: *the pattern expands, the code names at least
+one member of what it expands to, and the named set is a strict subset.*
+`skills/derived-subject-set/scripts/pattern_vs_enum.py` is that rule; its
+population on a clean tree is zero, which is why its enforcement rides in a
+test rather than in a checker slot.
+
 ## Pitfalls
 
 - **Fixing the list instead of the mechanism.** Adding the eight missing
@@ -199,6 +299,21 @@ The moves:
   that dies with `ModuleNotFoundError` on a member missing from a
   hand-written `MODULES` tuple is the SAME defect as the green anti-rot
   test — one family, two literals, two symptoms. Fix them in one pass.
+- **Deriving a set a static analyser also reads.** The round-477 case above:
+  the derivation is invisible to the other tool, the graph shrinks, and
+  declarations elsewhere in the repo become errors. Ask who reads the literal
+  BEFORE replacing it, and if the answer is "an analyser", derive the oracle.
+- **Believing a description that claims a derivation.** "pytest over
+  `pkg/*/tests/*.py`" in a docstring is prose. Three separate path-checkers in
+  this repo skip a glob-bearing token BY DESIGN — one truncates its match at
+  the `*` and counts the token unchecked, one reads only `.json` prose, one
+  folds no glob — so a pattern claim is the least-verified sentence a tooling
+  repo can contain. Run the glob and diff it against the code.
+- **Writing the tests as a mirror of the live tree.** Round 477's first draft
+  of `test_pattern_vs_enum.py` asserted against the real `skills/` layout and
+  broke within the hour, when the round's own new file grew the family from
+  three to four. Build a synthetic root with a controlled family; keep exactly
+  one live-tree assertion, as the enforcement.
 
 ## Verification
 
@@ -206,6 +321,16 @@ Run these against your own instance; the numbers are the Whence round-392
 ones and are here as the SHAPE of an answer, not as values to expect.
 
 ```bash
+# 0. the bounded exception (round 477), runnable in THIS repo
+python3 -m pytest -q skills/skill-authoring/scripts/test_corpus_check.py \
+    -k TestSkillTestDirs                       # 7 passed: argv == glob
+python3 skills/derived-subject-set/scripts/pattern_vs_enum.py audit
+                                               # pattern-vs-enum: 0 error(s)
+python3 -m pytest -q \
+    skills/derived-subject-set/scripts/test_pattern_vs_enum.py  # 21 passed
+python3 skills/derived-subject-set/scripts/pattern_vs_enum.py census
+       # 354 live, 61 dead; 12 dead patterns at a present-tense site (~60 s)
+
 # 1. the derivation and an independent read agree, and both are pinned
 python3 -m pytest tests/test_v34.py -k "derived_and_not_a_list" -q
 
@@ -237,6 +362,10 @@ You have done this when all of the following are true:
    exempt side.
 6. **The sweep is recorded** — which other hand-written subject sets you
    found, and for each, derived or annotated-as-closed with a reason.
+7. **You asked who else reads the literal** before deriving it, and wrote
+   down the answer. If an analyser does, you derived the ORACLE and pinned
+   the static property (round 477's section above), and you can state the
+   measured cost of the alternative rather than the reason you avoided it.
 
 *Provenance: Whence round 392. `test_the_parsers_hint_constants_are_all_
 owned_by_a_cure_rule` promised in its own docstring that "an eighth hint

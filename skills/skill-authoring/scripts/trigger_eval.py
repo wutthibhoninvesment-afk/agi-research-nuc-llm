@@ -1200,6 +1200,16 @@ def run_variance(catalog, cases, reports):
     informative cases and ICC 0.200. Editing any of the five descriptions
     those runs probed will move it again. Re-derive, do not quote.
 
+    Round 477 (skills B) made that transient PERMANENT: it rewrote
+    `derived-subject-set`'s description, so the on-disk answer is now the
+    6-case / ICC 0.200 branch and `test_pooled_estimator.py` pins that one.
+    Neither published number above is edited, because this docstring already
+    holds both and already says which reading wins. What round 477 did NOT
+    resolve is that the paragraph below calls 0.200 "the prospective number"
+    while the paragraph above publishes 0.333 as the result of the same
+    three reports; one of those two sentences is stale and choosing between
+    them is a guess about intent, not a measurement.
+
     Do NOT take the ICC from the archived reports instead. Round 393 got
     0.665-0.737 that way and it is an artefact: many archived pairs are a
     ``*-miss-reprobe`` / ``*-isolation`` run that exists BECAUSE the

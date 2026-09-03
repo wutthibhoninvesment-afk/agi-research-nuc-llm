@@ -2721,5 +2721,19 @@
   "id": "dvr-neg-key",
   "expect": [],
   "prompt": "Our error message says 'invalid config key: retries_max'. It's accurate but people keep filing bugs because it doesn't tell them the key is actually spelled max_retries. How do I make our validator messages more useful?"
+ },
+ {
+  "id": "dss-static-reader",
+  "expect": [
+   "derived-subject-set"
+  ],
+  "prompt": "Our health-check script hard-codes a list of two test directories and it has already drifted once, so I want to replace it with a glob over every package's tests directory. One complication: we also have a dependency-graph auditor that parses this script to work out what runs what, and about two dozen declarations elsewhere depend on it. Is swapping in the glob the right fix?"
+ },
+ {
+  "id": "dss-desc-claims-the-pattern",
+  "expect": [
+   "derived-subject-set"
+  ],
+  "prompt": "The docstring on our CI check says it runs pytest over every `packages/*/tests/test_*.py` file. The actual command lists three directories by name, and the glob matches four. A teammate read the docstring, concluded a tool in the fourth directory was covered, and marked a ticket done on that basis. How should I fix this so it cannot happen again?"
  }
 ]
