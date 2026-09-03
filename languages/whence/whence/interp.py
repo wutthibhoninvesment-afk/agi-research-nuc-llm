@@ -196,6 +196,14 @@ _STR_OPS = {
 }
 
 
+# How many names an `Env` repr lists before it says "...N more" (decision 58).
+# Four is the number that fits a terminal line beside the prose and the
+# enclosing-count; the count is always exact, so the cap loses no information
+# a reader can act on -- only the spelling of names they can get from
+# `env.vars`.
+_ENV_REPR_NAMES = 4
+
+
 class Env(object):
     # `interp` is set only on an Interpreter's globals env (the root of every
     # chain it evaluates in). Compiled closures cached on SHARED AST nodes
@@ -218,6 +226,45 @@ class Env(object):
 
     def define(self, name, value):
         self.vars[name] = value
+
+    # v0.45 / decision 58 (round 476). An `Env` is the ONE thing this
+    # language hands a caller that it never renders: `run` returns the
+    # top-level scope, and until now that scope printed as
+    # `<whence.interp.Env object at 0x7b118ddbf9c0>` — a host module path
+    # and a heap address, in a language whose premise is that every value
+    # explains where it came from. Decision 48 ("every token a diagnostic
+    # names is either a literal the author can type back verbatim in
+    # Whence, or prose") fixed the same class of leak in the parser's `got`
+    # slot, but its scope is DIAGNOSTICS, and a return value is not a
+    # diagnostic — so the rule read the surface it was written for and
+    # walked past this one.
+    #
+    # There is no Whence literal for a scope, so by decision 48's own
+    # dichotomy this must be prose. It is bounded (decision 48's fourth
+    # defect was a renderer exempt from its own length cap) and it is
+    # deterministic: names in DECLARATION order, no address, so a test can
+    # pin it. It names the escape hatch because a reader who has this
+    # string in front of them is, by construction, looking for the value
+    # and holding the thing that has it.
+    def __repr__(self):
+        names = list(self.vars)            # declaration order, deterministic
+        shown = names[:_ENV_REPR_NAMES]
+        listing = ", ".join(shown)
+        extra = len(names) - len(shown)
+        if extra > 0:
+            listing += ", ...%d more" % extra
+        depth = 0
+        env = self.parent
+        while env is not None:
+            depth += 1
+            env = env.parent
+        return ("<whence %s: %d name%s%s, %d enclosing — a SCOPE, not a "
+                "value; Interpreter.run() returns this, and the program's "
+                "results are the names INSIDE it (env.get(\"x\"))>"
+                % ("globals" if self.interp is not None else "scope",
+                   len(names), "" if len(names) == 1 else "s",
+                   " (%s)" % listing if names else "",
+                   depth))
 
 
 class _Call(object):

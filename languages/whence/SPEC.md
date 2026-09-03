@@ -843,6 +843,35 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    **No constant moves and the champion does not move.** *A counter cannot
    be audited, only believed.*
    See § Decision 57.
+58. **A value this implementation HANDS A CALLER is a surface, and every
+   surface is either a literal the reader can type back verbatim in Whence
+   or prose (round 476).** Decision 48 (v0.39) settled that rule for
+   DIAGNOSTICS and stopped there, because a return value carries no error
+   and so nothing pointed the rule at it. `Interpreter.run` returns the
+   top-level `Env` — documented, load-bearing for v0.32's drop rule, for
+   `depthcensus.py`'s BUILT walk and for `timetravel.py` — and it printed
+   as `<whence.interp.Env object at 0x7d6a91893740>`: a host module path
+   and a heap address, from the one language whose premise is that a value
+   says where it came from. **The cost was a false bug report against
+   `b_fold`**, filed with that string as its evidence
+   (`CLAUDE.md`'s `CRITICAL MISSION #476`). Its author hit the same
+   argument-order miss round 349 and round 444 had already refuted, got a
+   message that named the fix (`arguments fit fold(fn, acc, xs)`), did the
+   right thing and looked deeper — and the next surface down was blank, so
+   they attributed a host object to the nearest Whence name in the frame.
+   The mechanism they named is not merely absent but unavailable:
+   `Env.__slots__` has no `payload`, so an `Env` accumulator raises
+   `AttributeError` and can never be RETURNED, which makes the report's
+   evidence and its diagnosis mutually exclusive. `fold` was correct in 24
+   argument shapes × 4 engine configurations and the block's own success
+   criterion already passed. **The fix is `Env.__repr__`** — prose, because
+   there is no Whence literal for a scope; deterministic, no address, so it
+   is pinnable; and bounded at `_ENV_REPR_NAMES = 4`, measured 166/187/191
+   characters at 2/50/2000 names. `run`'s return type does NOT change,
+   `Env` does NOT get a `payload`, and `b_fold` is not touched. *An
+   unrendered object does not stay silent — it gets read as whatever name
+   is nearest in the frame.*
+   See § Decision 58.
 
 ## Syntax (statements are newline-separated; `#` comments)
 ```
@@ -9704,3 +9733,146 @@ service in four characters and no row in the residual needs it.
 as rows carrying a location and a class, and the instrument's own diagnosis
 becomes falsifiable — including by the rows that turn out not to be in the
 residual at all.*
+
+### Decision 58 (round 476, language C): a return value is a surface, and it was the only one this language never rendered
+
+Decision 48 (v0.39, round 408) closed the `got` slot with a rule:
+
+> **Every token a diagnostic names is either a literal the author can type
+> back verbatim in Whence, or prose.**
+
+That rule is scoped to DIAGNOSTICS. `Interpreter.run`'s return value is not
+a diagnostic, so the rule read the surface it was written for and walked
+past the one object in this implementation that a caller receives and no
+renderer has ever touched.
+
+The cost arrived as a bug report. `CLAUDE.md` grew a block headed
+`🚨 CRITICAL MISSION #476: FOLD BUG FIX`, with a briefing at
+`knowledge/mission-fold-fix-v1.md`, asserting:
+
+> `b_fold()` in `whence/interp.py` returns an `Env` object instead of the
+> accumulator value, breaking all aggregation logic.
+
+and publishing evidence:
+
+```
+=== FOLD DEBUG RUN ===
+Result Type: Env
+Result Value: <whence.interp.Env object at 0x7d6a91893740>
+```
+
+**The claim is false, the mechanism it names is impossible, and the `Env` in
+that log is real.** Those three coexist, and separating them is the finding.
+
+### Every breadcrumb, measured
+
+| the briefing says | measured at `312b260` |
+| --- | --- |
+| `b_fold` returns an `Env` | returns `Prov` in 24 argument shapes × 4 engines; `Env` in none |
+| `fold(…) must return 60.0` (§5, the success criterion) | **already `60.0`** — with `fold(fn, acc, xs)` |
+| `b_fold` is "around line ~2666" | line 3611 (3659 after this decision's own edit); 2666 is inside the iterative deep-equality walk |
+| "Run `pytest tests/test_folding.py`" | `ERROR: file or directory not found` — the file did not exist |
+| "existing 800+ unit tests" | 2603 collected; 2485 passed / 3 skipped / 115 deselected in the fast tier |
+| the reproduction `fold(nums, 0.0, fn…)` | `miss: fold needs a list, got <fn> (arguments fit fold(fn, acc, xs))` |
+
+### The mechanism is not merely absent, it is unavailable
+
+The briefing's §3 says *"fn_obj(args) inside the loop is returning an Env
+reference … This Env object becomes the new acc, breaking arithmetic on the
+next iteration."*
+
+`b_fold` has exactly three `return` statements — a propagated miss, a
+`mk_miss`, and `derived("fold", …, acc.payload)` — and `Env.__slots__` is
+`("vars", "parent", "interp")`. An `Env` in the accumulator slot raises
+`AttributeError: 'Env' object has no attribute 'payload'`. Driven through
+the real loop (a `Builtin` callback that returns an `Env`, bound the way
+`_install_builtins` binds one) that is exactly what happens.
+
+**So the report's evidence and its diagnosis exclude each other.** The stated
+cause produces a traceback; the published log shows a value. Only one thing
+in reach produces that log, and it is documented: `interp.py`'s
+`def run(self, source)` — *"Parse and execute a program. Returns the top-level
+Env."* The author printed the embedding API's return value. The fold result
+was never lost; it was a name inside the object they were holding.
+
+### What actually failed, in five steps
+
+1. The author wrote `fold(xs, acc, fn)` — `reduce`'s order, not this
+   language's. Whence's convention is callback-first (`map(fn, xs)`,
+   `filter(fn, xs)`, `find(fn, xs)`), so `fold(fn, acc, xs)` is consistent
+   and still surprising.
+2. Decision 32 worked. The miss named the signature that would have
+   worked — and `_order_hint`'s own docstring uses
+   `" (arguments fit fold(fn, acc, xs))"` as its canonical example, so
+   `fold` is the archetype this clause was built for.
+3. The author did not stop at the message. **This is not a defect; it is
+   what a careful engineer does.**
+4. They dropped to Python — and landed on the one value in the system with
+   no rendering, which answered with a module path and a heap address.
+5. They attributed the host object to the nearest Whence name in the frame.
+
+Round 444 refuted the older block's *"`fold()` returns `Miss`"* and named
+the true statement behind it (wrong argument order, said out loud). #476 is
+the same author making the same mistake one layer deeper, which is the
+evidence that a better message was not the fix: **the message was already
+right, and the reader left the surface it was on.**
+
+### The change
+
+`Env.__repr__`. There is no Whence literal for a scope, so by decision 48's
+own dichotomy it must be prose. It is bounded — decision 48's fourth defect
+was a renderer exempt from its own length cap — and it is deterministic, no
+address, so a test can pin it.
+
+```
+before  <whence.interp.Env object at 0x7b118ddbf9c0>
+after   <whence scope: 2 names (nums, total), 1 enclosing — a SCOPE, not a
+        value; Interpreter.run() returns this, and the program's results are
+        the names INSIDE it (env.get("x"))>
+```
+
+`_ENV_REPR_NAMES = 4`, and the count is always exact, so the cap loses only
+the spelling of names `env.vars` already has. Measured across three scope
+sizes: **166 characters at 2 names, 187 at 50, 191 at 2000** — the only
+thing that grows is the number of DIGITS in two integers, so the bound is
+logarithmic in the size of the program rather than linear in it. (The first
+draft of this paragraph said "187 at a 2000-name scope", asserting a
+constant the round had not taken; the measurement above is the correction.)
+
+### What this deliberately does NOT do
+
+* **`run` keeps returning the `Env`.** It is documented and load-bearing:
+  v0.32 makes every top-level expression statement a drop *because* the
+  value has nowhere else to go, `depthcensus.py` (round 452) walks from the
+  top-level `Env` to find BUILT depth, and `timetravel.py` reads
+  `Env.vars`. Changing the return type to fix a repr would break three
+  readers to spare one.
+* **`Env` does not get a `payload`.** The `AttributeError` is the falsifying
+  evidence above; making an `Env` quack like a value is how the briefing's
+  impossible mechanism would become possible.
+* **`b_fold` is not touched.** Nothing is wrong with it. Round 347's fix
+  (the accumulator belongs in the miss inputs) is re-pinned rather than
+  revisited.
+* **`fold`'s argument order does not change.** It is consistent with
+  `map`/`filter`/`find`, two field-corpus programs already depend on the
+  miss it produces (round 444), and the hint covers four of the five wrong
+  permutations. The fifth — `fold(0, fn, xs)`, a list in the `xs` slot —
+  passes the list check and is caught one step later by
+  `0 is not callable`, which is also precise. Two surfaces, two messages,
+  and the round that assumed one message covered all five wrote a failing
+  test first.
+
+`tests/test_folding.py` is new: 150 tests, the file `CLAUDE.md` told every
+round since #476 to run. It answers the claim, pins the falsification, pins
+this repr, and — like `tests/test_critical_mission_claims.py` (round 444) —
+**expires correctly**, skipping its claim pins if the block leaves
+`CLAUDE.md`, because deleting it is the operator's call.
+
+### The rule
+
+> **A value this implementation hands a caller is a surface, and every
+> surface is either a literal the reader can type back verbatim in Whence,
+> or prose.** Decision 48 said it about diagnostics. A return value carries
+> no error, so nothing pointed the rule at it — and an unrendered object
+> does not stay silent, it gets read as whatever name is nearest in the
+> frame.

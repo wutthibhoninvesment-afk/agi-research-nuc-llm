@@ -1,0 +1,216 @@
+# Round 476 (language C) — fast tier AFTER Env.__repr__ + tests/test_folding.py, BEFORE the two
+# self-inflicted regressions were fixed. This is the EVIDENCE for prediction P2's miss:
+# six red tests, none of them touching Env. See knowledge/round-476-*.md section 7a.
+# Command: cd languages/whence && ./run_tests_fast.sh   (system python3 3.12.3, nproc=1)
+
+........................................................................ [  2%]
+........................................................................ [  5%]
+........................................................................ [  8%]
+........................................................................ [ 10%]
+........................................................................ [ 13%]
+........................................................................ [ 16%]
+........................................................................ [ 19%]
+........................................................................ [ 21%]
+........................................................................ [ 24%]
+........................................................................ [ 27%]
+...........................................sss.......................... [ 30%]
+........................................................................ [ 32%]
+........................................................................ [ 35%]
+........................................................................ [ 38%]
+......................................................F................. [ 40%]
+.............................................F.F........................ [ 43%]
+...............FF..F.................................................... [ 46%]
+........................................................................ [ 49%]
+........................................................................ [ 51%]
+........................................................................ [ 54%]
+........................................................................ [ 57%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................................................ [ 65%]
+........................................................................ [ 68%]
+........................................................................ [ 70%]
+........................................................................ [ 73%]
+........................................................................ [ 76%]
+........................................................................ [ 79%]
+........................................................................ [ 81%]
+........................................................................ [ 84%]
+........................................................................ [ 87%]
+........................................................................ [ 90%]
+........................................................................ [ 92%]
+........................................................................ [ 95%]
+........................................................................ [ 98%]
+..............................................                           [100%]
+=================================== FAILURES ===================================
+__________________ test_the_live_spec_registry_has_no_errors ___________________
+
+    def test_the_live_spec_registry_has_no_errors():
+        res = specreg.audit()
+        errs = [str(f) for f in res["findings"] if f.severity == "ERROR"]
+>       assert errs == [], "\n".join(errs)
+E       AssertionError: languages/whence/SPEC.md:9708: ERROR S001 decision 58 has a prose section ('Decision 58 (round 476, language C): a return value is a sur') and NO entry in Anti-mainstream design decisions — the registry's max is 57, so the next round to mint a number reuses 58
+E       assert ['languages/w...er reuses 58'] == []
+E         
+E         Left contains one more item: "languages/whence/SPEC.md:9708: ERROR S001 decision 58 has a prose section ('Decision 58 (round 476, language C): a re... NO entry in Anti-mainstream design decisions — the registry's max is 57, so the next round to mint a number reuses 58"
+E         Use -v to get more diff
+
+tests/test_specreg.py:113: AssertionError
+____ test_the_exclusions_are_counted_and_reconcile_with_the_old_call_count _____
+
+harvest = ([{'file': 'test_contract_message_differential.py', 'line': 288, 'col': 18, 'runner': 'host_reason', ...}, {'file': 't...18, 'runner': 'host_reason', ...}, ...], {'files': 65, 'calls': 951, 'unresolved_args': 44, 'forwarded_args': 83, ...})
+
+    def test_the_exclusions_are_counted_and_reconcile_with_the_old_call_count(
+            harvest):
+        """985 calls at round 458 = 918 + 45 module calls + 22 statement-node
+        arguments. The exclusions are auditable arithmetic, not a silent
+        narrowing of the walk.
+    
+        Round 468 moves the total 985 -> 987 and says why in the same breath:
+        `harvest_file`'s scope list held only `FunctionDef`/`ClassDef` while
+        `_walk_scope` also refuses to descend into `Lambda`, so two `run(src)`
+        calls inside `lambda:` bodies (`test_v09.py:245` and `:254`) were visited
+        by no scope at all. They were never in the 985 and never in any counter.
+        A call count that GREW when a blind spot closed is the right direction;
+        the number to distrust would have been one that stayed put."""
+        _, stats = harvest
+        assert stats["module_calls"] == 45
+        assert stats["stmt_node_args"] == 22
+>       assert stats["calls"] + stats["module_calls"] + \
+            stats["stmt_node_args"] == 987
+E       assert ((951 + 45) + 22) == 987
+
+tests/test_testcorpus_census.py:434: AssertionError
+______ test_the_residual_fell_by_more_than_a_third_and_did_not_reach_zero ______
+
+harvest = ([{'file': 'test_contract_message_differential.py', 'line': 288, 'col': 18, 'runner': 'host_reason', ...}, {'file': 't...18, 'runner': 'host_reason', ...}, ...], {'files': 65, 'calls': 951, 'unresolved_args': 44, 'forwarded_args': 83, ...})
+
+    def test_the_residual_fell_by_more_than_a_third_and_did_not_reach_zero(
+            harvest):
+        """258 = 127 + 131 at round 458; both counters must stay POSITIVE.
+        `"".join(parts)` over a loop-built list and `open(path).read()` over a
+        runtime `listdir` are not statically foldable and saying so is the
+        instrument's job."""
+        _, stats = harvest
+        residual = stats["unresolved_args"] + stats["nonconstant_programs"]
+        # 166 r462, 114 r468, 100 r470, 101 r474.
+        #
+        # ROUND 474 RAISED THIS BOUND BY ONE, AND THE RAISE IS THE POINT.
+        # `residual <= N` with N only ever falling is a RATCHET, and a ratchet
+        # cannot tell "the folder read one more construct" from "a row was
+        # suppressed by a bug". Round 470 lowered this counter from 101 to 100
+        # by merging two loops' bindings, and this assertion went GREEN on the
+        # regression: the row it lost belonged to a loop nothing had learned to
+        # read. Round 474 restored per-binding environments and the row came
+        # back, so the honest bound is 101.
+        #
+        # A ratchet is safe only next to a CONSERVATION invariant, which is why
+        # `test_every_loop_that_drives_a_runner_is_accounted_for_at_its_own_span`
+        # exists. Raise this bound only together with a row that says where the
+        # new residual is.
+>       assert residual <= 101, residual
+E       AssertionError: 106
+E       assert 106 <= 101
+
+tests/test_testcorpus_census.py:474: AssertionError
+____________ test_the_corpus_grew_and_exactly_one_zip_row_survives _____________
+
+harvest = ([{'file': 'test_contract_message_differential.py', 'line': 288, 'col': 18, 'runner': 'host_reason', ...}, {'file': 't...18, 'runner': 'host_reason', ...}, ...], {'files': 65, 'calls': 951, 'unresolved_args': 44, 'forwarded_args': 83, ...})
+harvest_rows = [{'file': 'test_contract_message_differential.py', 'line': 261, 'col': 28, 'runner': '.run', ...}, {'file': 'test_cont...': '.run', ...}, {'file': 'test_contract_message_differential.py', 'line': 435, 'col': 30, 'runner': '.run', ...}, ...]
+
+    def test_the_corpus_grew_and_exactly_one_zip_row_survives(harvest,
+                                                              harvest_rows):
+        """Round 468: 765 programs, residual 114, of which 13 were zip rows.
+        Round 470: "the zip rows are gone from the live tree".
+    
+        ROUND 474 AMENDS THAT SENTENCE: twelve of the thirteen were closed by
+        round 470's zip analysis and the THIRTEENTH was closed by a bug in the
+        same commit. `test_v30.py:306`'s `for src, g in zip(counts,
+        guest_batch(counts, lib))` is not readable and round 470's own docstring
+        says so -- "does not and never will (`counts` is a filtered
+        comprehension)". Its row disappeared because the per-SCOPE binding
+        environment let that call site borrow the resolved bindings of the loop
+        seven lines above it. Per-binding environments (round 474) give the row
+        back, correctly classed as its own
+        `zip_no_literal_column/zip_nonliteral_column` rather than the class the
+        other loop earned.
+    
+        So the surviving zip row is a MEASUREMENT, not a regression, and it is
+        pinned by identity rather than by count: a second one appearing means
+        the zip analysis lost something."""
+        _progs, stats = harvest
+        assert stats["programs"] >= 829, stats["programs"]
+        residual = stats["unresolved_args"] + stats["nonconstant_programs"]
+>       assert residual <= 101, residual
+E       AssertionError: 106
+E       assert 106 <= 101
+
+tests/test_testcorpus_census.py:1164: AssertionError
+____________ test_the_widening_did_not_move_the_other_residual_half ____________
+
+harvest = ([{'file': 'test_contract_message_differential.py', 'line': 288, 'col': 18, 'runner': 'host_reason', ...}, {'file': 't...18, 'runner': 'host_reason', ...}, ...], {'files': 65, 'calls': 951, 'unresolved_args': 44, 'forwarded_args': 83, ...})
+
+    def test_the_widening_did_not_move_the_other_residual_half(harvest):
+        """`nonconstant_programs` is the half a zip row cannot be in --
+        `_unresolved_class` is consulted only for a bare NAME. It was 58 at
+        round 468 and a change to it would mean this round did something it did
+        not intend."""
+        _progs, stats = harvest
+>       assert stats["nonconstant_programs"] == 58, stats["nonconstant_programs"]
+E       AssertionError: 62
+E       assert 62 == 58
+
+tests/test_testcorpus_census.py:1178: AssertionError
+_ test_the_residual_that_is_not_string_building_is_seven_rows_in_three_shapes __
+
+harvest_rows = [{'file': 'test_contract_message_differential.py', 'line': 261, 'col': 28, 'runner': '.run', ...}, {'file': 'test_cont...': '.run', ...}, {'file': 'test_contract_message_differential.py', 'line': 435, 'col': 30, 'runner': '.run', ...}, ...]
+
+    def test_the_residual_that_is_not_string_building_is_seven_rows_in_three_shapes(
+            harvest_rows):
+        """Round 468's reading was "what is left really is string-building over
+        runtime values plus one written refusal". The refusal is gone (round 470
+        refuted it) and the sentence needs the amendment this test pins: 93 of
+        the 100 rows are string-building (`+`, `%`, `.join`) and SEVEN are not.
+    
+        The seven, read one by one:
+          * 3 `bound_nonconstant:subscript` (`test_v27.py` :364/:376/:379) --
+            `src, wording = GROWTH_SITES[site]` where `site` comes from
+            `@pytest.mark.parametrize`. `GROWTH_SITES` folds (6 entries), so the
+            blocker is parametrize, plus a subscript `_const_strs` has no branch
+            for, plus a TUPLE-target assign `_bind` skips. Three widenings, not
+            one.
+          * 1 `bound_nonconstant:sequence` (`test_v27.py:175`) -- the same
+            parametrize name `op`, and this one needs ONLY parametrize:
+            `OTHER_SIDES` folds and `_const_strs` already reads the `+`/`%`.
+          * 2 `bound_nonconstant:call:build_cases` (`test_v29.py`) -- a corpus
+            computed at import time. Not reachable by any folder.
+          * 1 `bound_nonconstant:name` (`test_miss_message_differential.py:574`)
+            -- `for _, src in cases:` where `cases` is the enclosing function's
+            own parameter, one link further out than the `forwarded` class
+            reaches.
+    
+        `@pytest.mark.parametrize` is the one un-modelled ITERATION PROTOCOL
+        left in this tree, and it is worth exactly one row on its own."""
+        # ROUND 474: THE SEVEN ARE EIGHT, and the eighth is the zip row round
+        # 470's merge hazard had suppressed -- `test_v30.py:306`, `for src, g in
+        # zip(counts, guest_batch(counts, lib))`, whose `counts` is a filtered
+        # comprehension no folder reaches. It is the one row in this list that is
+        # not waiting on a widening: it is waiting on NOTHING, because round
+        # 470's own docstring says it never resolves. The other seven read
+        # exactly as the docstring above describes them.
+        rows = [r for r in harvest_rows if r["kind"] == "residual"]
+        building = [r for r in rows
+                    if "binop:" in r["cls"] or ".join" in r["cls"]]
+        rest = [r for r in rows if r not in building]
+>       assert len(rows) == 101, len(rows)
+E       AssertionError: 106
+E       assert 106 == 101
+E        +  where 106 = len([{'file': 'test_contract_message_differential.py', 'line': 275, 'col': 28, 'runner': '.run', ...}, {'file': 'test_cont...'col': 21, 'runner': 'stdout', ...}, {'file': 'test_folding.py', 'line': 278, 'col': 21, 'runner': 'stdout', ...}, ...])
+
+tests/test_testcorpus_census.py:1260: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_specreg.py::test_the_live_spec_registry_has_no_errors - Ass...
+FAILED tests/test_testcorpus_census.py::test_the_exclusions_are_counted_and_reconcile_with_the_old_call_count
+FAILED tests/test_testcorpus_census.py::test_the_residual_fell_by_more_than_a_third_and_did_not_reach_zero
+FAILED tests/test_testcorpus_census.py::test_the_corpus_grew_and_exactly_one_zip_row_survives
+FAILED tests/test_testcorpus_census.py::test_the_widening_did_not_move_the_other_residual_half
+FAILED tests/test_testcorpus_census.py::test_the_residual_that_is_not_string_building_is_seven_rows_in_three_shapes
+6 failed, 2629 passed, 3 skipped, 115 deselected in 272.33s (0:04:32)

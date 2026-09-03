@@ -25654,6 +25654,193 @@ does NOT score round 473's predictions, which remain unscored.
   `state/known-unprobed-skills.json` with skills(B) owning the live probe.
 - **Knowledge:** `knowledge/round-475-the-remedy-that-erased-its-own-evidence.md`.
 
+### Round 476 — language(C) — 2026-09-03 — the return value nobody rendered
+
+- **`CLAUDE.md`'s `CRITICAL MISSION #476` ordered this round to fix
+  `b_fold()`, which "returns an `Env` object instead of the accumulator
+  value, breaking all aggregation logic". The claim is FALSE, the mechanism
+  it names is IMPOSSIBLE, and the `Env` in its evidence is REAL** — it is the
+  documented return value of `Interpreter.run` (`interp.py:729`, *"Returns
+  the top-level Env"*). The briefing's author printed what the EMBEDDING API
+  handed back. The fold value was never lost: `env.get("total")` is
+  `Prov('let','total',line=2,1 inputs,value=60.0)`.
+- **The mission's own success criterion already passed at base, before any
+  change.** `fold(fn(acc, val) { acc + val }, 0.0, [10.0,20.0,30.0])` ->
+  `60.0`. Every other breadcrumb was wrong too: `b_fold` is at line 3611, not
+  "~2666" (2666 is inside the iterative deep-equality walk); the mission's
+  step 4, `pytest tests/test_folding.py`, was `ERROR: file or directory not
+  found`; "800+ unit tests" is 2603 collected.
+- **The mechanism is unavailable, not merely absent.** `b_fold` has exactly
+  three returns — a propagated miss, `mk_miss`, and
+  `derived(..., acc.payload)` — and `Env.__slots__` is
+  `("vars","parent","interp")`. An `Env` accumulator raises
+  `AttributeError: 'Env' object has no attribute 'payload'`; driven through
+  the real loop (a `Builtin` callback returning an `Env`, bound the way
+  `_install_builtins` binds one) that is exactly what happens. **So the
+  report's evidence and its diagnosis exclude each other** — the stated cause
+  produces a traceback, the published log shows a value.
+- **Decision 58 (v0.45), the fix: `Env.__repr__`.** 18 lines in
+  `whence/interp.py`. Decision 48 (v0.39) already ruled that every token a
+  diagnostic names is a literal the author can type back in Whence or prose;
+  its scope is DIAGNOSTICS, and a return value carries no error, so the rule
+  read the surface it was written for and walked past the one object this
+  language hands a caller and never rendered.
+  `<whence.interp.Env object at 0x7b118ddbf9c0>` ->
+  `<whence scope: 2 names (nums, total), 1 enclosing — a SCOPE, not a value;
+  Interpreter.run() returns this, and the program's results are the names
+  INSIDE it (env.get("x"))>`. Prose (there is no Whence literal for a scope),
+  deterministic (no address, so it is pinnable), bounded at
+  `_ENV_REPR_NAMES = 4` — measured **166/187/191 characters at 2/50/2000
+  names**, so only two integers' digit counts grow.
+- **Four things deliberately NOT done.** `run` keeps returning the `Env`
+  (v0.32's drop rule, `depthcensus.py`'s BUILT walk and `timetravel.py` all
+  read it — three readers broken to spare one repr is the wrong trade);
+  `Env` gets no `payload` (the `AttributeError` IS the falsifying evidence);
+  `b_fold` untouched; `fold`'s argument order unchanged.
+- **This round REFUSED the mission's step 6.** It said to commit
+  `fix(b_fold): correct Env return to accumulator value`. That subject
+  asserts a defect this round measured as absent, in a repo whose discipline
+  is that the record is checkable. Recorded rather than quietly skipped.
+- **Third refutation of the same claim** (rounds 349, 444, 476) and the first
+  where the author went BELOW the language's own surfaces. Decision 32 worked
+  — the miss named the signature (`arguments fit fold(fn, acc, xs)`), and
+  `_order_hint`'s own docstring uses that exact string as its canonical
+  example. The reader did the right thing and looked deeper; the next surface
+  down was blank. **A better error message was never the fix.**
+- **Tests: `languages/whence/tests/test_folding.py` is NEW — 150 tests**, the
+  file `CLAUDE.md` told every round to run. A 24-shape × 4-engine matrix
+  (`Prov` in 96 cases, `Env` in none), the impossible mechanism driven
+  through the real loop with a positive control, the repr pins, `map`/
+  `filter`/`find` untouched, fold's provenance node and round 347's
+  accumulator-in-miss-inputs fix re-pinned. Like round 444's
+  `test_critical_mission_claims.py` it **expires correctly** — claim pins skip
+  if the block leaves `CLAUDE.md`.
+- **Sub-finding: the order hint covers 4 of the 5 wrong permutations, not 5.**
+  `fold(0, fn, xs)` has a list in the `xs` slot, so it passes `b_fold`'s list
+  check and is caught one step later by `0 is not callable` — also precise,
+  different surface, no hint. Found because the test written from the
+  prediction failed.
+- **Fast tier GREEN: 2635 passed, 3 skipped, 115 deselected in 263.50 s,
+  exit 0** (base `312b260` was 2485/3/115 in 262.07 s). The intermediate run
+  that exposed the six failures below was 6 failed / 2629 passed / 272.33 s.
+  All three runs under the canonical `./run_tests_fast.sh`, i.e. SYSTEM
+  `python3` 3.12.3, serialised (`nproc` is 1).
+- **Skills corpus-check back to 0 errors** (10 checkers, 8 warnings), after a
+  THIRD self-inflicted error the checkers caught: `carryforward K001` —
+  *"round 476 banked predictions and `state/prediction-bank-ledger.json` has
+  no entry for it — nobody can tell whether D-013's second half was ever
+  done"*, which also failed
+  `test_carryforward_check.py::TestLiveCorpus::test_the_live_ledger_accounts_for_every_bank_on_disk`
+  and `test_corpus_check.py::TestLiveCorpus::test_live_corpus_is_clean`.
+  Round 476 banked its predictions AND scored them and would still have
+  committed with the bank unregistered. Entry `"476"` added (8 insertions, no
+  reformat — the file round-trips at `indent=1, ensure_ascii=True`). Same
+  clerical shape round 474 recorded for round 472.
+- **Skill UPGRADED, not authored: `skills/errors-that-name-the-fix/SKILL.md`**
+  (+64 lines). That skill's opening example is literally
+  `fold needs a list, got <fn>` — it was born from this same confusion in
+  round 354 — and round 476 is the case its premise does not cover: **the
+  message was already right and the reader left it.** Adds a trigger (a bug
+  report citing a host object like `<module.Class object at 0x…>` as
+  evidence), the generalised rule, how to find your own unrendered surfaces,
+  the two traps in the fix (do not change the return TYPE without counting
+  its readers; do not make the object quack like a value, because the
+  `AttributeError` is the falsifying evidence), and the four-step
+  falsification order for reports of this shape. An upgrade rather than a new
+  skill deliberately: a new one owes three positive trigger cases and a
+  runnable Verification section (research-state round 434 item 9), and this
+  finding belongs beside that skill's own example, not next to it.
+- **Predictions (`state/whence/round-476/PREDICTIONS.md`, banked before
+  measuring, D-013): 4 hits, 3 misses.** P4 (hint covers all five
+  permutations) and P6 (12-20 tests; it is 150 — the estimate forgot its own
+  parametrisation) were both refuted by artefacts written from the
+  predictions. **P2 is the one worth carrying.**
+- **P2's miss: a round's own artefacts are measured subjects in this tree.**
+  "`Env.__repr__` changes ZERO test outcomes" was true of the EDIT and false
+  of the ROUND. Six tests went red, none touching `Env`:
+  (a) `test_specreg.py::test_the_live_spec_registry_has_no_errors` — minting
+  decision 58 in prose with no entry in SPEC's
+  `## Anti-mainstream design decisions` registry, with the consequence
+  spelled out: *"the registry's max is 57, so the next round to mint a
+  number reuses 58"*. A guard catching a collision BEFORE it happened.
+  (b) five in `test_testcorpus_census.py` — `test_folding.py`'s 24 Whence
+  programs entered the harvested corpus. `programs` 829+ -> 847,
+  `calls+module_calls+stmt_node_args` 987 -> 1018 (both exclusion counters
+  unchanged at 45 and 22, so the identity still closes), residual 101 -> 106,
+  string-building 93 -> 98, `nonconstant_programs` 58 -> 62.
+- **And the census PASSED its real test while failing its counts.** All five
+  new rows are string-building (`binop:Add` ×3 at `test_folding.py:213/266/278`,
+  `call:.join` at 421, `bound_nonconstant:call:.join` at 412), so the
+  **eight-row non-string-building set did not move — same eight classes, same
+  eight locations.** That set is what carries the instrument's claims. Had the
+  new file introduced an unreadable construct of a NEW kind it would have
+  landed there and the class LIST would have failed instead of a count. Counts
+  raised with all five rows itemised in the file, per its own rule ("Raise
+  this bound only together with a row that says where the new residual is")
+  and round 474's precedent. **A validation of round 468's counts-to-rows
+  conversion, not a concession to it.**
+- **Eight self-inflicted errors, all found by running things** (knowledge file
+  §8). Two are reproductions of lessons this box has banked: pinning
+  `b_fold`'s absolute line 3611, which this round's own `Env.__repr__`
+  insertion moved to 3659 **in the same commit** (the test now asserts a
+  DISTANCE from the briefing's 2666); and writing "187 characters at a
+  2000-name scope" into SPEC.md without measuring it — it is 191, corrected
+  in place with the correction left visible.
+- **The two unattributed working-tree paths are ATTRIBUTED, not adopted.**
+  `CLAUDE.md` (mtime 13:11:38 UTC) and `knowledge/mission-fold-fix-v1.md`
+  (13:11:16). Round 475 finished 12:34:18; round 476 first started 13:53:31;
+  **no round was running at 13:11** — the driver was running post-round
+  health checks and slow-tier slices 12:51-13:52, which do not author files.
+  The content is addressed TO the rounds (`**Author:** Research Admin |
+  **Target:** Opus-5 Core Engineer`, `**Instruction:** …`). Committed
+  byte-for-byte as found in a commit that says it is not this round's words,
+  following round 349's precedent `680b273`.
+  `languages/whence/SECURITY.md` untouched — still escalated, still the
+  operator's, and its carry count is the checker's to report.
+- **Knowledge:** `knowledge/round-476-the-return-value-nobody-rendered.md`.
+
+## Next steps (as of round 476)
+
+1. **`CLAUDE.md` now carries TWO `CRITICAL MISSION` blocks making the same
+   false claim about `fold`, refuted three times (rounds 349, 444, 476).**
+   One deletion each, for the operator. Do NOT reword them:
+   `tests/test_folding.py` and `tests/test_critical_mission_claims.py` pin
+   the CLAIMS and expire cleanly when the blocks go — a reworded block would
+   leave both suites answering something nobody asserts. **operator, or
+   language(C) if the operator delegates it.**
+2. **Decision 58's rule is stated generally and applied to ONE class.** *A
+   value this implementation hands a caller is a surface.* Unrendered
+   candidates a caller can reach, none checked this round: `Explanation`
+   (payload of `why`), `Closure`, `Builtin`, `Miss`, `Guess`, `Record`.
+   `WList`/`PMap`/`Prov` have reprs. The sweep is a grep for classes with no
+   `__repr__` plus, for each, the question "can a caller hold one?".
+   language(C).
+3. **The order-hint coverage ratio is NEW and un-swept.** `fold` gets 4 of 5
+   wrong permutations; the fifth is caught elsewhere, also precisely. Nobody
+   has taken that ratio for the other builtins `_order_hint` serves — `put`,
+   `typed`, `guess`, `map`, `filter`, `find`, `push`, `at`, `steps`. Cheap,
+   and the kind of number that turns out to be worse somewhere. language(C).
+4. **Round 434's items 2-5 and round 428's item 4 are STILL open and were NOT
+   touched by this round** (the atom table's precondition-with-no-decider
+   risk; the 7 `append_only`/`refusal` `unknown` residuals; CP03p as the one
+   pin that moves the contingency table; `classify` 161 vs `checkpin run`
+   162). This round spent itself on a BLOCKING escalation about this tree's
+   own code, which was the right call — but five language(C) items have now
+   been carried another rotation without re-derivation. **Re-derive before
+   quoting: this round banked seven predictions and three were wrong.**
+   language(C).
+5. **`harness/tests/test_swe_mutation.py::test_the_grandchild_pid_survives_a_grandchild_slower_than_the_cap`
+   is RED** per round 475's health check (1 failed, 1504 passed). Not this
+   track's file, not touched here. harness(A) or SWE-loop(D).
+6. **Standing, untouched by this round:** the NUC `retention --strict`
+   deadline; the `%vmeff` residual; `case_coverage`'s disagreeing verdicts;
+   `claim_check` executing 0 of 455 commands; the V002
+   `test_no_unexplained_broken_invocation` red since round 429; and
+   `test_swe_campaign.py[light]` still never run through the slow-tier
+   instrument. `languages/whence/SECURITY.md` is still uncommitted, still not
+   this program's, still the operator's decision — **do not copy a carry
+   count for it from this file**; the checker's own line is the only source.
+
 ## Next steps (as of round 475)
 
 1. **The guard covers COMMITTING an escalated path and nothing else.** A

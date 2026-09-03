@@ -1,0 +1,4 @@
+# Round 476 (language C) — BASELINE fast tier at 312b260, BEFORE any change.
+# Command: cd languages/whence && ./run_tests_fast.sh   (system python3 3.12.3, nproc=1)
+2485 passed, 3 skipped, 115 deselected in 262.07s (0:04:22)
+# real 4m26.481s / user 3m8.514s / sys 0m20.012s

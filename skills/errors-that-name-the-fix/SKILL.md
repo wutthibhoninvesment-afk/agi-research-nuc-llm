@@ -32,12 +32,20 @@ with an authoritative tone, and users will follow it.
 - **A message you already improved is still not helping anyone.** Before
   concluding the wording is wrong, check whether the wording is being
   *printed* — see step 9.
+- **A bug report cites a HOST object as its evidence** —
+  `<module.Class object at 0x7d6a…>`, `[object Object]`, `<Foo instance>`,
+  a bare pointer, a `__repr__` nobody wrote. That string is real and the
+  diagnosis around it is usually wrong: the reader left your diagnostic
+  surface and landed on one you never rendered. See the last pitfall.
 - Proven on: Whence v0.22 (round 354). One operator report against two
   surfaces; ten machine-written programs measured; parse errors naming a cure
   went 1/10 → 9/10. And on Whence v0.32 (round 384), which re-ran the SAME
   corpus thirty rounds later and found that the cure v0.22 wrote for it had
   never once been rendered: the value carrying it was discarded in statement
-  position and the program exited 0 printing nothing.
+  position and the program exited 0 printing nothing. And on Whence v0.45
+  (round 476), where the SAME `fold` confusion produced a third false bug
+  report — this time against a message that was already right — because the
+  reporter went one layer BELOW it.
 
 **When NOT to use:** not for error CODES, log levels, or stack traces — those
 help the maintainer, this helps the author of the input. Not for shortening a
@@ -262,6 +270,62 @@ in a Hindley-Milner solver may have no single "write this instead").
   a document that mis-states the tool, replace the sentence AND add the check
   that re-derives it. A sentence is a claim nobody re-runs; see
   [[carried-claim-rot]].
+
+- **Your improved message has a FLOOR, and the floor is the next surface
+  down.** This skill's whole premise is that a better message stops the false
+  bug report. Round 476 is the counter-example, and it is worth more than the
+  premise. `fold needs a list, got <fn> (arguments fit fold(fn, acc, xs))` —
+  the exact cure v0.22 built, delivered, rendered — and a reporter filed
+  *"`b_fold()` returns an `Env` object instead of the accumulator value,
+  breaking all aggregation logic"* anyway. They read the message, did not stop
+  at it, dropped into the implementation language, printed the embedding API's
+  return value, and got
+  `<whence.interp.Env object at 0x7d6a91893740>`: a host module path and a
+  heap address. Then they attributed that object to the nearest name in the
+  frame.
+
+  **Nothing in the message could have prevented this, because the reader had
+  already left it.** Looking deeper than the error text is what a careful
+  engineer does; the defect is that the next surface down was blank. So the
+  rule this skill states for diagnostics generalises one step:
+
+  > Every value your implementation HANDS A CALLER is a surface, and every
+  > surface is either something the reader can type back verbatim in the
+  > input language, or prose.
+
+  How to find yours, cheaply: list the classes your public API returns,
+  yields, or stores where a caller can reach them, and grep for which have no
+  `__repr__` / `toString` / `Display`. For each one ask *can a caller hold
+  this?* — a `Scope`/`Env`/`Context` object returned by `run()` or `eval()` is
+  the classic, because it is load-bearing internally and looks like an
+  implementation detail from the inside. When you write the repr: prose if
+  there is no literal for the thing (there is no source syntax for a scope);
+  **deterministic**, so drop the address, or no test can pin it; **bounded**,
+  or you have built a new instance of the length defect this skill already
+  warns about; and **name the way out** (`env.get("x")`), because a reader
+  holding that string is by construction looking for a value and holding the
+  thing that has it.
+
+  Two traps in the fix itself. Do NOT change the return TYPE to make the repr
+  nicer — count the readers first; Whence's `Env` return had three
+  (a drop-detection rule, a depth census, a time-travel debugger) against one
+  repr. And do NOT make the object quack like a value: the
+  `AttributeError` it raises for a missing `payload`/`value` field is often the
+  evidence that the reported mechanism was impossible, and papering over it
+  makes the false report true.
+
+  The falsification pattern that settles reports of this shape, in order:
+  **(a)** run the report's own success criterion first — it passed here,
+  unchanged, before anything was fixed; **(b)** reproduce the published
+  evidence string and find which surface emits it, by grepping the
+  implementation for the type rather than reasoning about the accused
+  function; **(c)** check the stated MECHANISM against the accused code's
+  actual return statements — a report whose mechanism predicts a crash while
+  its evidence shows a value is internally inconsistent, and that
+  inconsistency is the finding; **(d)** check every coordinate it cites (line
+  numbers, test-file paths, test counts). Round 476's briefing was wrong on
+  all four coordinates, and the cheapest one — `pytest <the file it told you
+  to run>` — was `ERROR: file or directory not found`.
 
 ## Verification
 

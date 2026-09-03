@@ -429,10 +429,16 @@ def test_the_exclusions_are_counted_and_reconcile_with_the_old_call_count(
     A call count that GREW when a blind spot closed is the right direction;
     the number to distrust would have been one that stayed put."""
     _, stats = harvest
+    #
+    # ROUND 476: 987 -> 1018. The two EXCLUSION counters are unchanged (45
+    # and 22) -- the identity this test is named for still closes; only the
+    # total grew, by the 31 runner calls in the new `tests/test_folding.py`.
+    # A total that moves while both exclusions hold is the shape that says
+    # the walk was not renarrowed.
     assert stats["module_calls"] == 45
     assert stats["stmt_node_args"] == 22
     assert stats["calls"] + stats["module_calls"] + \
-        stats["stmt_node_args"] == 987
+        stats["stmt_node_args"] == 1018
 
 
 def test_the_exclusions_removed_no_programs_from_the_corpus(harvest):
@@ -471,7 +477,24 @@ def test_the_residual_fell_by_more_than_a_third_and_did_not_reach_zero(
     # `test_every_loop_that_drives_a_runner_is_accounted_for_at_its_own_span`
     # exists. Raise this bound only together with a row that says where the
     # new residual is.
-    assert residual <= 101, residual
+    #
+    # ROUND 476 (language C) added `tests/test_folding.py` -- 24 Whence
+    # programs answering CLAUDE.md's `CRITICAL MISSION #476`. A new test file
+    # is a corpus ADDITION, so these counters are supposed to move; what
+    # matters is that every row it contributed is named. Its five residual
+    # rows, all string-building, none a new class:
+    #
+    #     test_folding.py:213  binop:Add                     (runner `run`)
+    #     test_folding.py:266  binop:Add                     (runner `stdout`)
+    #     test_folding.py:278  binop:Add                     (runner `stdout`)
+    #     test_folding.py:421  call:.join                    (runner `run`)
+    #     test_folding.py:412  bound_nonconstant:call:.join  (runner `run`)
+    #
+    # `src + '\nprint(str(t))\n'` at three sites and `"".join(...)` at two.
+    # The eight-row NON-string-building set below did not change, by class or
+    # by location, which is the invariant that says this round widened the
+    # corpus and not the instrument's blind spot.
+    assert residual <= 106, residual
     assert residual < 258 * 2 // 3
     assert stats["unresolved_args"] > 0
     assert stats["nonconstant_programs"] > 0
@@ -1161,7 +1184,10 @@ def test_the_corpus_grew_and_exactly_one_zip_row_survives(harvest,
     _progs, stats = harvest
     assert stats["programs"] >= 829, stats["programs"]
     residual = stats["unresolved_args"] + stats["nonconstant_programs"]
-    assert residual <= 101, residual
+    # 101 r474 -> 106 r476; the five new rows are itemised in
+    # `test_the_residual_fell_by_more_than_a_third_and_did_not_reach_zero`.
+    # The zip row's identity, which is what THIS test is about, is untouched.
+    assert residual <= 106, residual
     zips = [r for r in harvest_rows
             if r["kind"] == "residual" and r["cls"].startswith("zip")]
     assert len(zips) == 1, [(r["file"], r["line"], r["cls"]) for r in zips]
@@ -1173,9 +1199,18 @@ def test_the_widening_did_not_move_the_other_residual_half(harvest):
     """`nonconstant_programs` is the half a zip row cannot be in --
     `_unresolved_class` is consulted only for a bare NAME. It was 58 at
     round 468 and a change to it would mean this round did something it did
-    not intend."""
+    not intend.
+
+    ROUND 476 DID INTEND IT: 58 -> 62, four of the five rows a new test file
+    contributed (`test_folding.py`, three `binop:Add` and one
+    `bound_nonconstant:call:.join`). The fifth landed in `unresolved_args`
+    (43 -> 44). Adding a test file is the one edit that moves this counter
+    legitimately, and the check that it moved for THAT reason and no other is
+    the untouched eight-row set in
+    `test_the_residual_that_is_not_string_building_is_seven_rows_in_three_shapes`
+    -- same eight classes, same eight locations, before and after."""
     _progs, stats = harvest
-    assert stats["nonconstant_programs"] == 58, stats["nonconstant_programs"]
+    assert stats["nonconstant_programs"] == 62, stats["nonconstant_programs"]
 
 
 # --- 7.6 a class that outlived its own fix ---------------------------------
@@ -1253,12 +1288,21 @@ def test_the_residual_that_is_not_string_building_is_seven_rows_in_three_shapes(
     # not waiting on a widening: it is waiting on NOTHING, because round
     # 470's own docstring says it never resolves. The other seven read
     # exactly as the docstring above describes them.
+    #
+    # ROUND 476: 101 -> 106 rows and 93 -> 98 building, ALL FIVE from the new
+    # `tests/test_folding.py` and all five string-building. `rest` is still
+    # the same eight rows with the same eight classes at the same eight
+    # locations -- which is the assertion below, and the reason this round
+    # could raise two counts without weakening the claim either of them
+    # supports. If a corpus addition had introduced a NEW unreadable
+    # construct, it would have landed in `rest` and the list would have
+    # failed instead.
     rows = [r for r in harvest_rows if r["kind"] == "residual"]
     building = [r for r in rows
                 if "binop:" in r["cls"] or ".join" in r["cls"]]
     rest = [r for r in rows if r not in building]
-    assert len(rows) == 101, len(rows)
-    assert len(building) == 93, len(building)
+    assert len(rows) == 106, len(rows)
+    assert len(building) == 98, len(building)
     assert sorted(r["cls"] for r in rest) == [
         "bound_nonconstant:call:build_cases",
         "bound_nonconstant:call:build_cases",
