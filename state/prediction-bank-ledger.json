@@ -1211,6 +1211,14 @@
    "status": "unscored",
    "owner": "SWE-loop(D)",
    "why": "Banked by round 479 at HEAD 0e372f9 before any measurement; this entry is written in the same commit as the bank so the round cannot repeat the clerical shape rounds 474/476/478 all hit (bank predictions, never register them, K001 goes red and the CHECKER notices, never the round). Round 479 scores it in its own knowledge file; if this entry still says `unscored` after round 479's commit, round 479 died before scoring."
+  },
+  "480": {
+   "bank": "state/whence/round-480/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 480,
+   "where": "knowledge/round-480-the-ratio-that-was-not-a-property-of-the-builtin.md",
+   "quote": "11 HIT, 8 MISS, 2 split (P5, P10 \u2014 class right, instance wrong), 1\ndeclined-and-kept.",
+   "note": "Section 9 of the knowledge file, one table row per banked item, all twenty-two scored -- no remainder. THREE banks in one file, each dated against what was already known when it was opened: \u00a72 before the instrument existed, \u00a74 after the permutation census was frozen and a hand probe had found ONE false hint, \u00a75 after the boundary-hoist prototype failed. Registered in the same commit that scores it. The tally is 11 HIT / 8 MISS / 2 split / 1 declined-and-kept, and the miss SHAPE is the finding: class right, instance wrong. P5 named `merge` as the silent-wrong-answer case and `merge` was the row that came back ACCEPTED_SAME, because its witness's record keys are disjoint -- refuted by P13's own mechanism, on the very prediction that named a builtin. P10 named host-mode disagreement and got an `is_origin_miss` gate that fired first. P19 said all four higher-order builtins accept a non-fn silently and the fourth misses FALSELY instead. P22 was banked as an explicit falsifier for this round's own fix and it fired. P12 declined to guess a number with no basis and reported the outcome (25 tests), which is round 436's next-step 7 applied -- round 476's equivalent prediction guessed 12-20 and the file held 150. P11 is the miss worth keeping: it asserted a fast-tier baseline this round NEVER MEASURED, quoting round 479's driver-log line instead, which is exactly what feedback_baseline_suite_needs_a_pristine_worktree warns about."
   }
  }
 }

@@ -196,7 +196,14 @@ def test_the_grep_is_true_and_the_property_it_stood_for_is_false():
     # complaint about scope). It passes `inputs=` and NOT `detail`, so it
     # joins the census's total and not its detail-setting subset — which is
     # the census reporting the shape of the change, not just its size.
-    assert len(sites) == 86, len(sites)
+    # v0.46 (round 480): 86 -> 90, `setting` unchanged at 19. Four new
+    # sites, one each in `b_map`/`b_filter`/`b_find`/`b_fold`, checking the
+    # `fn:fn` half of a signature whose `xs:list` half was already checked
+    # (decision 59). They pass `inputs=` and not `detail`, so they join the
+    # total and not the detail-setting subset -- the same shape of change
+    # v0.33 made, and the census reporting it is why this number is pinned
+    # rather than computed.
+    assert len(sites) == 90, len(sites)
     assert len(setting) == 19, len(setting)
 
 

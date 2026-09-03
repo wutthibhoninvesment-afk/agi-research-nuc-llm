@@ -246,15 +246,33 @@ def test_the_briefings_verbatim_reproduction_is_an_order_miss_that_names_the_fix
     assert "Env" not in got
 
 
-# Of the five wrong orders, FOUR are caught by `b_fold`'s own list check
-# and carry the order hint; the fifth puts a list in the `xs` slot, so it
-# passes that check and dies one step later, where the loop calls something
-# that is not callable. Both messages are precise and they are DIFFERENT
-# messages from different surfaces -- which is why the first draft of this
-# test, asserting the hint on all five, was wrong.
-HINTED_PERMS = ["perm-xs-acc-fn", "perm-xs-fn-acc",
-                "perm-fn-xs-acc", "perm-acc-xs-fn"]
-LATE_PERMS = ["perm-acc-fn-xs"]
+# ROUND 476, and what round 480 changed about it. 476 measured that of the
+# five wrong orders FOUR are caught by `b_fold`'s own list check and carry
+# the order hint, while the fifth (`fold(acc, fn, xs)`) puts a list in the
+# `xs` slot, passes that check, and dies one step later where the loop calls
+# something that is not callable -- `0 is not callable`, precise, different
+# surface, no hint. That measurement was CORRECT at v0.45 and it is what
+# round 476's next-step 3 asked somebody to take across the other builtins.
+#
+# Round 480 took it (`orderhint.py`), found the pooled ratio was 29/40 with
+# a structural ceiling of 31/40, and found that this row was one of only TWO
+# in the reachable gap. It closed this one at the SITE rather than at the
+# call boundary -- a boundary hoist was prototyped and reverted, because the
+# `is_origin_miss` gate that stops a hint being pasted onto a propagated
+# miss is exactly what blocks this row, whose miss `b_fold` propagates.
+# `b_fold` now checks its `fn:fn` slot the way it always checked `xs:list`,
+# so the fifth permutation is caught by fold, names fold's signature, and
+# says `fold needs a function, got 0` one step EARLIER than v0.45 did.
+#
+# The three groups below are therefore: caught by the list check, caught by
+# the new function check, and (empty since v0.46) caught later still. The
+# exhaustiveness test is unchanged and is what keeps the split honest.
+LIST_PERMS = ["perm-xs-acc-fn", "perm-xs-fn-acc",
+              "perm-fn-xs-acc", "perm-acc-xs-fn"]
+FN_PERMS = ["perm-acc-fn-xs"]
+LATE_PERMS = []
+
+HINTED_PERMS = LIST_PERMS            # v0.45 name, kept for readers of 476
 
 
 def test_the_order_hint_fires_for_the_permutations_that_reach_the_list_check():
@@ -268,20 +286,44 @@ def test_the_order_hint_fires_for_the_permutations_that_reach_the_list_check():
         assert "arguments fit fold(fn, acc, xs)" in got, (label, got)
 
 
-def test_the_fifth_permutation_is_caught_later_and_just_as_precisely():
-    """`fold(0, fn, xs)` has a LIST in the `xs` slot, so `b_fold` accepts it
-    and the miss comes from calling the accumulator. No order hint, because
-    the miss is not raised on the surface `_order_hint` guards — and the
-    message names the real problem anyway."""
+def test_the_fifth_permutation_is_caught_by_the_function_check(kw=None):
+    """v0.46. `fold(0, fn, xs)` has a LIST in the `xs` slot, so it passes
+    `b_fold`'s list check -- and now meets the `fn:fn` check that v0.45 did
+    not have. The miss is fold's own, one step earlier than the call
+    machinery's `0 is not callable`, and it names the signature that fits.
+
+    What this asserts that the group above does not: the message is the
+    FUNCTION one, not the list one. If a later round ever makes the fn
+    check fire before the list check, this test and
+    `test_the_order_hint_fires_...` go red together and say so."""
     src = dict(MATRIX)
-    for label in LATE_PERMS:
+    for label in FN_PERMS:
         got = stdout(src[label] + '\nprint(str(t))\n')
-        assert "is not callable" in got, (label, got)
+        assert "fold needs a function" in got, (label, got)
+        assert "arguments fit fold(fn, acc, xs)" in got, (label, got)
         assert "fold needs a list" not in got, (label, got)
+        assert "is not callable" not in got, (label, got)
 
 
-def test_the_two_permutation_groups_together_are_all_five():
-    assert sorted(HINTED_PERMS + LATE_PERMS) == sorted(
+def test_no_wrong_permutation_of_fold_escapes_to_the_call_machinery():
+    """v0.46 makes `LATE_PERMS` empty and this is the assertion that keeps
+    it meaningful rather than vacuous: EVERY wrong permutation is caught by
+    `b_fold` itself and carries the hint. Round 476's fifth row was the only
+    member and it moved; if a future signature change creates another, the
+    exhaustiveness test below goes red and this one stays green, which is
+    how the two together localise the change."""
+    src = dict(MATRIX)
+    assert LATE_PERMS == []
+    for label, _ in MATRIX:
+        if not label.startswith("perm-"):
+            continue
+        got = stdout(src[label] + '\nprint(str(t))\n')
+        assert "arguments fit fold(fn, acc, xs)" in got, (label, got)
+        assert "is not callable" not in got, (label, got)
+
+
+def test_the_permutation_groups_together_are_all_five():
+    assert sorted(LIST_PERMS + FN_PERMS + LATE_PERMS) == sorted(
         label for label, _ in MATRIX if label.startswith("perm-"))
 
 

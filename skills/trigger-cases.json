@@ -2756,5 +2756,33 @@
    "scheduled-output-as-receipt"
   ],
   "prompt": "I noticed our nightly report directory has files for the 23rd through the 28th, then nothing for the 29th, then the 30th and 31st are there again. My first thought was that retention deleted the 29th, but the 23rd is still sitting there and it is older. What can I actually conclude from the one that is missing, and how do I tell a deleted file apart from one that was never written?"
+ },
+ {
+  "id": "ckw-linter-recall",
+  "expect": [
+   "coverage-keyed-by-witness"
+  ],
+  "prompt": "I wrote a lint rule that flags misuse of our config API and I'm about to put \"catches 82% of misuse\" in the PR description. The 82% comes from a fixtures directory I built while writing the rule -- 41 bad snippets, 34 flagged. My tech lead asked whether that number means anything and I don't have a good answer. What should I check before I publish it?"
+ },
+ {
+  "id": "ckw-schema-validator-blind",
+  "expect": [
+   "coverage-keyed-by-witness"
+  ],
+  "prompt": "Our request validator rejects malformed payloads by checking field types against a schema. I measured it on a suite of deliberately-corrupted payloads and got 9 of 12. The three it misses bother me less than a nagging feeling that my corrupted payloads all happen to swap fields of different types -- if two fields were both strings I don't think it could tell at all. How do I turn that hunch into a number I can report?"
+ },
+ {
+  "id": "ckw-mutation-score-sample",
+  "expect": [
+   "coverage-keyed-by-witness"
+  ],
+  "prompt": "We report a mutation kill rate per test file and one file came out at 3/5. Before I open a ticket to \"improve\" that test, I want to know how many of those 5 mutants are even killable by a test at this layer -- some of them change behaviour the test cannot observe. Is there a standard way to report a kill rate that separates 'we didn't catch it' from 'nothing here could'?"
+ },
+ {
+  "id": "ckw-neg-denominator",
+  "expect": [
+   "count-carries-its-noun-and-denominator"
+  ],
+  "prompt": "Our weekly report says \"14 flaky tests\" with no denominator, so nobody can tell whether that is 14 out of 20 or 14 out of 4000. The number itself is fine -- we count a test as flaky when it fails and then passes on retry in the same CI run, which is unambiguous and the same for every test. I just want the line to carry enough context that a reader knows how bad it is. How should I word it?"
  }
 ]

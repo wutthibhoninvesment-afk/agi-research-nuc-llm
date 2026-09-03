@@ -872,6 +872,38 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    unrendered object does not stay silent — it gets read as whatever name
    is nearest in the frame.*
    See § Decision 58.
+59. **A declared kind is a CONTRACT, checked whether or not the body would
+   have reached the argument — and the diagnostic that rides on it has a
+   ceiling, which is now measured rather than assumed (round 480).**
+   `map`/`filter`/`find`/`fold` all declare `fn:fn, xs:list`; all four
+   checked `xs` and none checked `fn`, so a wrong-kind callback was noticed
+   only when the loop got round to CALLING it, and on an EMPTY list it
+   never does — `map(0, [])` was `[]`, `fold(0, 7, [])` was `7`, and
+   `find(0, [])` missed with `find: no element matched`, which is false
+   because nothing was matched against anything. `orderhint.py` takes the
+   ratio round 476 asked for over every arity->=2 builtin: **30 of 40 wrong
+   permutations carry the v0.22 hint, against a structural ceiling of 31**,
+   because 9 of the 40 are `kind_blind` (the permuted payloads still fit
+   the declared kinds, so `_order_hint`'s second silence fires and no miss
+   site, however placed, can produce a hint). The ratio is a property of
+   the **(builtin, witness) pair**: `note(label, v)` is caught and hinted
+   with a number in `v` and structurally unhintable with a string in it, so
+   a published `coverage(note)` is a number that does not exist. Two
+   defects fell out and both are the SAME rule as an existing silence.
+   A miss carried INTO a call manufactured a fitting permutation for free
+   (`_kind(Miss)` is `"miss"`, a tag no `sig` declares, so a miss never
+   fits a kinded slot and always fits an `any` one) and advised reordering
+   when the fault was upstream — a fourth silence. And the boundary hoist
+   that would have made hint coverage structural was prototyped and
+   **reverted**: gated on `is_origin_miss` it blocks the one row it exists
+   to convert, un-gated it re-creates the false cure. *The 25 hand-placed
+   `_order_hint` sites are not laziness — a site knows whether the miss it
+   is raising is about its own arguments, and the boundary does not.* The
+   number that matters more is the one nobody asked for: **7 of 40 wrong
+   orders return a non-miss value that differs from the correct call** — no
+   miss, no hint, a wrong answer — which is seven times the reachable
+   coverage gap and entirely beyond a mechanism built on kinds and misses.
+   See § Decision 59.
 
 ## Syntax (statements are newline-separated; `#` comments)
 ```
@@ -9876,3 +9908,139 @@ this repr, and — like `tests/test_critical_mission_claims.py` (round 444) —
 > no error, so nothing pointed the rule at it — and an unrendered object
 > does not stay silent, it gets read as whatever name is nearest in the
 > frame.
+
+---
+
+### Decision 59 (round 480, language C): a declared kind is a contract, and the hint that rides on it has a ceiling nobody had measured
+
+Round 476 closed with one number and a request:
+
+> The order hint covers **four** of the five wrong permutations, not five.
+> `fold(0, fn, xs)` has a list in the `xs` slot, so it passes `b_fold`'s
+> list check and is caught one step later by `0 is not callable` — also
+> precise, different surface, no hint. … Nobody has taken that ratio for
+> the other builtins `_order_hint` serves. Cheap, and the kind of number
+> that turns out to be worse somewhere.
+
+It was worse somewhere, in a different dimension than the one being asked
+about. `orderhint.py` takes the ratio over every builtin of declared arity
+>= 2, and the three things it found are this decision.
+
+#### The metric, and why it is keyed by witness
+
+A **witness** for builtin `f` is a tuple of argument expressions such that
+`f(witness)`, in the order `_BUILTIN_SIGS` declares, does not miss. Each of
+the `n! - 1` non-identity permutations is run and classified `HINTED`,
+`BARE`, `ACCEPTED_DIFF` (a non-miss value that differs from the correct
+call) or `ACCEPTED_SAME`, and tagged `kind_blind` when the permuted
+payloads still satisfy the declared kinds.
+
+`kind_blind` is the CEILING. `_order_hint`'s second silence is
+`if _sig_fits(sig, payloads): return ""`, so on a `kind_blind` permutation
+no miss site, however placed, can produce a hint.
+
+The ratio is a property of the **(builtin, witness) pair**, not of the
+builtin, and the difference changes the verdict rather than nudging it.
+`note(label:str, v)` with a NUMBER in `v` is caught and hinted; with a
+STRING in `v` both orders satisfy the declared kinds, the hint is
+structurally impossible, `b_note` cannot tell, and the program gets a
+differently-labelled value with no diagnostic at all. Same builtin, same
+arity, opposite verdict. **A published `coverage(note)` is a number that
+does not exist.**
+
+#### 1. The false cure — a fourth silence in `_order_hint`
+
+At v0.45, live:
+
+```
+let bad = get(@{}, "z")
+note(bad, "hi")
+-> note label must be a string, got miss (arguments fit note(label, v))
+```
+
+`_kind(Miss)` is `"miss"`, a tag no `sig` declares. A miss therefore never
+fits a kinded slot and **always** fits an `any` one, so a builtin that
+raises its own kind-miss instead of propagating its argument's manufactures
+a fitting permutation for free. The clause is true about kinds and false as
+advice: `note("hi", bad)` does not repair a record lookup that failed on the
+line above.
+
+`_order_hint`'s third silence exists so the clause is never "pasted onto
+misses it does not explain". This is the case it did not cover, and the fix
+is the same rule stated once more: **a call that already carries a miss into
+itself has a fault upstream of the call, so no reordering of the call can be
+the cure.** One instance in 46 (builtin, position) pairs; the other 45
+propagate, return a value, or raise an unhinted miss.
+
+#### 2. The contract half — `fn:fn` was declared and never checked
+
+`map`, `filter`, `find` and `fold` all declare `fn:fn, xs:list`. All four
+checked `xs` and none checked `fn`, so a wrong-kind callback was noticed
+only when the loop got round to CALLING it — and on an empty list the loop
+never runs. Measured at v0.45:
+
+| call | v0.45 | v0.46 |
+| --- | --- | --- |
+| `map(0, [])` | `[]` | `map needs a function, got 0` |
+| `filter(0, [])` | `[]` | `filter needs a function, got 0` |
+| `fold(0, 7, [])` | `7` | `fold needs a function, got 0` |
+| `find(0, [])` | `find: no element matched` | `find needs a function, got 0` |
+| `map(0, [1, 2])` | `0 is not callable` | `map needs a function, got 0` |
+
+Three accepted a wrong-kind argument silently. The fourth missed with a
+reason that was **false** — nothing was matched against anything, because
+there was no predicate. And on a non-empty list all four deferred to
+`0 is not callable`, raised by the call machinery, which knows nothing about
+the builtin's signature and so can never name it.
+
+The rule: **a declared kind is a contract, not a hint about what the body
+happens to touch.** It is checked whether or not the body would have reached
+the argument. The new check sits AFTER the existing list check so the
+already-taught `map(nums, fn)` -> "map needs a list" keeps priority when
+both kinds are wrong.
+
+This is also what closes round 476's fifth permutation, and it closes it at
+the SITE. A boundary hoist — checking order once where a builtin returns,
+instead of at 25 hand-placed sites — was prototyped and reverted, and the
+reason is worth more than the fix would have been:
+
+> The boundary must be gated on `is_origin_miss`, or it re-creates finding 1
+> by pasting the clause onto propagated misses. But `fold`'s fifth
+> permutation misses through a `0 is not callable` that `b_fold`
+> **propagates** from the inner call, so the gate blocks precisely the row
+> the hoist exists to convert. Gated it does nothing; un-gated it is a
+> regression. The prototype also never ran under the default engine at all,
+> because the four builtin-invocation paths differ by evaluation mode.
+
+**The 25 hand-placed call sites are not laziness. A site knows whether the
+miss it is raising is about its own arguments; the boundary does not.**
+
+#### 3. The number, and the number that matters more
+
+At v0.46, over 24 witnesses and 40 wrong permutations:
+
+```
+POOLED  hinted 30/40 = 0.750   ceiling 0.775   reachable gap 1
+        silently wrong answers (ACCEPTED_DIFF): 7
+```
+
+The gap round 476 asked about is **one row wide**: `matches("num", 1)`
+returns `false` rather than missing, and *a diagnostic that rides on misses
+cannot serve a total function*. That is a bound on the mechanism, not a
+defect in `matches`, and it is not worth closing — making `matches` miss
+would break its own totality contract (round 335).
+
+The number that matters more is the other one. **Seven of forty wrong
+argument orders return a non-miss value that differs from the correct
+call**: `contains("bc", "abcd")`, `contrast(b, a)`, `diverge(b, a)`,
+`guess`'s value/source swap, `matches("num", 1)`, `note("five", "tag")`,
+`range(4, 1)`. No miss, no hint, a wrong answer. That is seven times the
+reachable coverage gap, and every one of them is `kind_blind` or total —
+beyond the reach of a mechanism built on kinds and misses, by construction.
+
+Whence's answer to "how do I know what went wrong" has been *the miss says
+so* since decision 2 ("no exceptions, no null"). Decision 59 is where that
+answer is measured against its own boundary: it is complete for calls that
+fail, and it says nothing at all about calls that succeed wrongly. Naming
+the boundary is the finding; `orderhint.py` is the instrument that will
+re-derive it rather than let a later round quote this section's numbers.

@@ -358,6 +358,14 @@
       "via": "languages/whence/tests/test_depthcensus.py:-",
       "via_kind": "import"
     },
+    "languages/whence/orderhint.py": {
+      "status": "wired",
+      "via": "languages/whence/tests/test_v46.py:41",
+      "via_kind": "import",
+      "owner": "language(C)",
+      "reason": "Round 480 (language C). Reached the way `depthcensus.py` and `polarity.py` are: `languages/whence/run_tests_fast.sh` runs `pytest tests/`, and `tests/test_v46.py:41` does `import orderhint`. Declared in the SAME commit that adds the module, which is what the last three rounds to add a nuc/ module did not do (rounds 471, 472, 478 each left W001 an ERROR for the next reader; rounds 473 and 479 paid it).",
+      "since_round": 480
+    },
     "languages/whence/polarity.py": {
       "status": "wired",
       "via": "languages/whence/tests/test_polarity.py:-",

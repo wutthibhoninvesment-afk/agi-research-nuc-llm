@@ -2998,11 +2998,41 @@ def _order_hint(name, args):
 
     The hint does NOT promise the reordered call succeeds — `fold(fn, acc,
     xs)` with a callback that misses still misses. It promises exactly what
-    it checked: the kinds line up that way."""
+    it checked: the kinds line up that way.
+
+    v0.46 (round 480), decision 59 — a FOURTH silence, and it is the same
+    rule as the third rather than a new one: an argument that is ALREADY a
+    miss. `_kind(Miss)` is `"miss"`, a tag no `sig` declares, so a miss
+    never fits a kinded slot and ALWAYS fits an `any` one. A builtin that
+    raises its own kind-miss instead of propagating its argument's
+    therefore manufactures a fitting permutation for free. Measured
+    instance, live at v0.45 and found by `orderhint.py`'s miss-argument
+    census (1 of 46 (builtin, position) pairs; the other 45 propagate,
+    return a value, or raise an unhinted miss):
+
+        let bad = get(@{}, "z")
+        note(bad, "hi")
+        -> note label must be a string, got miss
+           (arguments fit note(label, v))
+
+    The clause is TRUE as a statement about kinds and FALSE as a cure:
+    `note("hi", bad)` does not repair a record lookup that failed on the
+    line above. The third silence exists so the clause is never "pasted
+    onto misses it does not explain", and a call carrying a miss into
+    itself is the case that slipped through it — the fault is upstream of
+    the call, so no reordering OF THE CALL can be the fix.
+
+    This is checked on the payloads the caller actually supplied, not on
+    `is_origin_miss`, because it must hold for every one of the 25 sites
+    that call this function and those sites hold `args`, not the node they
+    are about to build."""
     sig = _BUILTIN_SIGS.get(name)
     if sig is None or len(sig) != len(args) or len(args) < 2:
         return ""
     payloads = [a.payload for a in args]
+    for p in payloads:
+        if isinstance(p, Miss):
+            return ""
     if _sig_fits(sig, payloads):
         return ""
     for cand in _permutations(payloads):
@@ -3616,6 +3646,26 @@ def _make_builtin_table():
 
     @register("map", 2, "fn:fn, xs:list")
     def b_map(interp, args, line):
+        """`map(fn, xs)`.
+
+    v0.46 (round 480), decision 59. The `xs:list` half of this signature was
+    checked and the `fn:fn` half was not, so a wrong-kind callback was
+    noticed only when the loop got round to CALLING it -- and on an empty
+    list the loop never does. Measured at v0.45: `map(0, [])` -> `[]`,
+    `filter(0, [])` -> `[]`, `fold(0, 7, [])` -> `7`, `find(0, [])` ->
+    `find: no element matched` (a miss, but a false one: nothing was
+    matched against anything, because there was no predicate). A declared
+    kind is a CONTRACT, not a hint about what the body happens to touch.
+
+    Checked AFTER the list check so `tests/test_v22.py`'s pinned
+    `map(nums, fn)` -> "map needs a list, got <fn>" keeps priority: with
+    the arguments swapped BOTH kinds are wrong, and the list message is the
+    one v0.22 already teaches. For `fold` the new check is also what takes
+    the fifth wrong permutation (`fold(acc, fn, xs)`, the one round 476
+    measured as uncovered) from `0 is not callable` -- raised by the CALL
+    machinery, which knows nothing about fold's signature -- to a fold miss
+    that names the signature that fits. See `orderhint.py`.
+        """
         m = _propagate("map", args, line)
         if m:
             return m
@@ -3623,6 +3673,11 @@ def _make_builtin_table():
         if not isinstance(xs.payload, WList):
             return mk_miss("map needs a list, got %s%s" %
                            (show_payload(xs.payload),
+                            _order_hint("map", args)),
+                           line, "map", inputs=(fn, xs))
+        if not isinstance(fn.payload, (Closure, Builtin)):
+            return mk_miss("map needs a function, got %s%s" %
+                           (show_payload(fn.payload),
                             _order_hint("map", args)),
                            line, "map", inputs=(fn, xs))
         out = []
@@ -3641,6 +3696,11 @@ def _make_builtin_table():
                            (show_payload(xs.payload),
                             _order_hint("filter", args)), line, "filter",
                            inputs=(fn, xs))
+        if not isinstance(fn.payload, (Closure, Builtin)):
+            return mk_miss("filter needs a function, got %s%s" %
+                           (show_payload(fn.payload),
+                            _order_hint("filter", args)),
+                           line, "filter", inputs=(fn, xs))
         out = []
         for x in xs.payload:
             keep = yield _Call(fn, [x], line)
@@ -3676,6 +3736,11 @@ def _make_builtin_table():
             # one out. See knowledge/round-347-*.md.
             return mk_miss("fold needs a list, got %s%s" %
                            (show_payload(xs.payload),
+                            _order_hint("fold", args)),
+                           line, "fold", inputs=(fn, acc, xs))
+        if not isinstance(fn.payload, (Closure, Builtin)):
+            return mk_miss("fold needs a function, got %s%s" %
+                           (show_payload(fn.payload),
                             _order_hint("fold", args)),
                            line, "fold", inputs=(fn, acc, xs))
         n = 0
@@ -4034,6 +4099,11 @@ def _make_builtin_table():
                            (show_payload(xs.payload),
                             _order_hint("find", args)), line, "find",
                            inputs=(fn, xs))
+        if not isinstance(fn.payload, (Closure, Builtin)):
+            return mk_miss("find needs a function, got %s%s" %
+                           (show_payload(fn.payload),
+                            _order_hint("find", args)),
+                           line, "find", inputs=(fn, xs))
         for x in xs.payload:
             keep = yield _Call(fn, [x], line)
             if _is_miss(keep):

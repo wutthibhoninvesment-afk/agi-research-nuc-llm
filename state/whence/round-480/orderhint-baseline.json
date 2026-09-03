@@ -1,0 +1,892 @@
+{
+ "builtins_with_no_hint_site": [
+  "contrast",
+  "diverge",
+  "matches",
+  "merge",
+  "range"
+ ],
+ "hint_sites": [
+  "at",
+  "contains",
+  "filter",
+  "find",
+  "fold",
+  "get",
+  "guess",
+  "has",
+  "join",
+  "map",
+  "note",
+  "push",
+  "put",
+  "steps",
+  "sure",
+  "typed"
+ ],
+ "population": [
+  "at",
+  "contains",
+  "contrast",
+  "diverge",
+  "filter",
+  "find",
+  "fold",
+  "get",
+  "guess",
+  "has",
+  "join",
+  "map",
+  "matches",
+  "merge",
+  "note",
+  "push",
+  "put",
+  "range",
+  "steps",
+  "sure",
+  "typed"
+ ],
+ "population_size": 21,
+ "rows": [
+  {
+   "accepted_diff": 0,
+   "accepted_same": 0,
+   "arity": 2,
+   "bare": 0,
+   "builtin": "at",
+   "ceiling": 1.0,
+   "coverage": 1.0,
+   "has_hint_site": true,
+   "hinted": 1,
+   "kind_blind": 0,
+   "n_perms": 1,
+   "perms": [
+    {
+     "call": "at(\"tag\", v)",
+     "class": "HINTED",
+     "kind_blind": false,
+     "order": [
+      1,
+      0
+     ],
+     "result": "at needs a string step name, got 1 (arguments fit at(v, pat))"
+    }
+   ],
+   "witness": "str-pat"
+  },
+  {
+   "accepted_diff": 0,
+   "accepted_same": 0,
+   "arity": 2,
+   "bare": 1,
+   "builtin": "at",
+   "ceiling": 0.0,
+   "coverage": 0.0,
+   "has_hint_site": true,
+   "hinted": 0,
+   "kind_blind": 1,
+   "n_perms": 1,
+   "perms": [
+    {
+     "call": "at(\"tag\", s)",
+     "class": "BARE",
+     "kind_blind": true,
+     "order": [
+      1,
+      0
+     ],
+     "result": "no step named 'hi' in the history of \"tag\""
+    }
+   ],
+   "witness": "both-str"
+  },
+  {
+   "accepted_diff": 0,
+   "accepted_same": 0,
+   "arity": 2,
+   "bare": 0,
+   "builtin": "contains",
+   "ceiling": 1.0,
+   "coverage": 1.0,
+   "has_hint_site": true,
+   "hinted": 1,
+   "kind_blind": 0,
+   "n_perms": 1,
+   "perms": [
+    {
+     "call": "contains(2, [1, 2, 3])",
+     "class": "HINTED",
+     "kind_blind": false,
+     "order": [
+      1,
+      0
+     ],
+     "result": "contains needs a string or list, got 2 (arguments fit contains(hay, needle))"
+    }
+   ],
+   "witness": "list-num"
+  },
+  {
+   "accepted_diff": 1,
+   "accepted_same": 0,
+   "arity": 2,
+   "bare": 0,
+   "builtin": "contains",
+   "ceiling": 0.0,
+   "coverage": 0.0,
+   "has_hint_site": true,
+   "hinted": 0,
+   "kind_blind": 1,
+   "n_perms": 1,
+   "perms": [
+    {
+     "call": "contains(\"bc\", \"abcd\")",
+     "class": "ACCEPTED_DIFF",
+     "kind_blind": true,
+     "order": [
+      1,
+      0
+     ],
+     "result": "false"
+    }
+   ],
+   "witness": "both-str"
+  },
+  {
+   "accepted_diff": 1,
+   "accepted_same": 0,
+   "arity": 2,
+   "bare": 0,
+   "builtin": "contrast",
+   "ceiling": 0.0,
+   "coverage": 0.0,
+   "has_hint_site": false,
+   "hinted": 0,
+   "kind_blind": 1,
+   "n_perms": 1,
+   "perms": [
+    {
+     "call": "contrast(2, 1)",
+     "class": "ACCEPTED_DIFF",
+     "kind_blind": true,
+     "order": [
+      1,
+      0
+     ],
+     "result": "origin 1 of 1 (value):\n\u25b6 2 \u2190 literal  (line 1) \u2502 \u25b6 1 \u2190 literal  (line 1)"
+    }
+   ],
+   "witness": "num-num"
+  },
+  {
+   "accepted_diff": 1,
+   "accepted_same": 0,
+   "arity": 2,
+   "bare": 0,
+   "builtin": "diverge",
+   "ceiling": 0.0,
+   "coverage": 0.0,
+   "has_hint_site": false,
+   "hinted": 0,
+   "kind_blind": 1,
+   "n_perms": 1,
+   "perms": [
+    {
+     "call": "diverge(2, 1)",
+     "class": "ACCEPTED_DIFF",
+     "kind_blind": true,
+     "order": [
+      1,
+      0
+     ],
+     "result": "[@{a: @{count: 1, depth: 0, detail: \"\", inputs: 0, line: 1, op: \"literal\", show: \"2\", value: 2}, b: @{count: 1, depth: 0, detail: \"\", inputs: 0, line: 1, op: \"literal\", show: \"1\", value: 1}, kind: \"value\"}]"
+    }
+   ],
+   "witness": "num-num"
+  },
+  {
+   "accepted_diff": 0,
+   "accepted_same": 0,
+   "arity": 2,
+   "bare": 0,
+   "builtin": "filter",
+   "ceiling": 1.0,
+   "coverage": 1.0,
+   "has_hint_site": true,
+   "hinted": 1,
+   "kind_blind": 0,
+   "n_perms": 1,
+   "perms": [
+    {
+     "call": "filter([1, 2, 3], fn(x) { x > 1 })",
+     "class": "HINTED",
+     "kind_blind": false,
+     "order": [
+      1,
+      0
+     ],
+     "result": "filter needs a list, got <fn> (arguments fit filter(fn, xs))"
+    }
+   ],
+   "witness": "fn-list"
+  },
+  {
+   "accepted_diff": 0,
+   "accepted_same": 0,
+   "arity": 2,
+   "bare": 0,
+   "builtin": "find",
+   "ceiling": 1.0,
+   "coverage": 1.0,
+   "has_hint_site": true,
+   "hinted": 1,
+   "kind_blind": 0,
+   "n_perms": 1,
+   "perms": [
+    {
+     "call": "find([1, 2, 3], fn(x) { x > 1 })",
+     "class": "HINTED",
+     "kind_blind": false,
+     "order": [
+      1,
+      0
+     ],
+     "result": "find needs a list, got <fn> (arguments fit find(fn, xs))"
+    }
+   ],
+   "witness": "fn-list"
+  },
+  {
+   "accepted_diff": 0,
+   "accepted_same": 0,
+   "arity": 3,
+   "bare": 1,
+   "builtin": "fold",
+   "ceiling": 1.0,
+   "coverage": 0.8,
+   "has_hint_site": true,
+   "hinted": 4,
+   "kind_blind": 0,
+   "n_perms": 5,
+   "perms": [
+    {
+     "call": "fold(fn(a, x) { a + x }, [1, 2, 3], 0)",
+     "class": "HINTED",
+     "kind_blind": false,
+     "order": [
+      0,
+      2,
+      1
+     ],
+     "result": "fold needs a list, got 0 (arguments fit fold(fn, acc, xs))"
+    },
+    {
+     "call": "fold(0, fn(a, x) { a + x }, [1, 2, 3])",
+     "class": "BARE",
+     "kind_blind": false,
+     "order": [
+      1,
+      0,
+      2
+     ],
+     "result": "0 is not callable"
+    },
+    {
+     "call": "fold(0, [1, 2, 3], fn(a, x) { a + x })",
+     "class": "HINTED",
+     "kind_blind": false,
+     "order": [
+      1,
+      2,
+      0
+     ],
+     "result": "fold needs a list, got <fn> (arguments fit fold(fn, acc, xs))"
+    },
+    {
+     "call": "fold([1, 2, 3], fn(a, x) { a + x }, 0)",
+     "class": "HINTED",
+     "kind_blind": false,
+     "order": [
+      2,
+      0,
+      1
+     ],
+     "result": "fold needs a list, got 0 (arguments fit fold(fn, acc, xs))"
+    },
+    {
+     "call": "fold([1, 2, 3], 0, fn(a, x) { a + x })",
+     "class": "HINTED",
+     "kind_blind": false,
+     "order": [
+      2,
+      1,
+      0
+     ],
+     "result": "fold needs a list, got <fn> (arguments fit fold(fn, acc, xs))"
+    }
+   ],
+   "witness": "fn-num-list"
+  },
+  {
+   "accepted_diff": 0,
+   "accepted_same": 0,
+   "arity": 2,
+   "bare": 0,
+   "builtin": "get",
+   "ceiling": 1.0,
+   "coverage": 1.0,
+   "has_hint_site": true,
+   "hinted": 1,
+   "kind_blind": 0,
+   "n_perms": 1,
+   "perms": [
+    {
+     "call": "get(\"a\", @{a: 1})",
+     "class": "HINTED",
+     "kind_blind": false,
+     "order": [
+      1,
+      0
+     ],
+     "result": "get field name must be a string, got @{a: 1} (arguments fit get(r, name))"
+    }
+   ],
+   "witness": "rec-str"
+  },
+  {
+   "accepted_diff": 1,
+   "accepted_same": 0,
+   "arity": 3,
+   "bare": 0,
+   "builtin": "guess",
+   "ceiling": 0.8,
+   "coverage": 0.8,
+   "has_hint_site": true,
+   "hinted": 4,
+   "kind_blind": 1,
+   "n_perms": 5,
+   "perms": [
+    {
+     "call": "guess(1, \"src\", 0.5)",
+     "class": "HINTED",
+     "kind_blind": false,
+     "order": [
+      0,
+      2,
+      1
+     ],
+     "result": "guess confidence must be a number between 0 and 1, got \"src\" (arguments fit guess(value, conf, source))"
+    },
+    {
+     "call": "guess(0.5, 1, \"src\")",
+     "class": "ACCEPTED_DIFF",
+     "kind_blind": true,
+     "order": [
+      1,
+      0,
+      2
+     ],
+     "result": "guess 1 (src): 0.5"
+    },
+    {
+     "call": "guess(0.5, \"src\", 1)",
+     "class": "HINTED",
+     "kind_blind": false,
+     "order": [
+      1,
+      2,
+      0
+     ],
+     "result": "guess confidence must be a number between 0 and 1, got \"src\" (arguments fit guess(value, conf, source))"
+    },
+    {
+     "call": "guess(\"src\", 1, 0.5)",
+     "class": "HINTED",
+     "kind_blind": false,
+     "order": [
+      2,
+      0,
+      1
+     ],
+     "result": "guess source must be a string, got 0.5 (arguments fit guess(value, conf, source))"
+    },
+    {
+     "call": "guess(\"src\", 0.5, 1)",
+     "class": "HINTED",
+     "kind_blind": false,
+     "order": [
+      2,
+      1,
+      0
+     ],
+     "result": "guess source must be a string, got 1 (arguments fit guess(value, conf, source))"
+    }
+   ],
+   "witness": "any-num-str"
+  },
+  {
+   "accepted_diff": 0,
+   "accepted_same": 0,
+   "arity": 2,
+   "bare": 0,
+   "builtin": "has",
+   "ceiling": 1.0,
+   "coverage": 1.0,
+   "has_hint_site": true,
+   "hinted": 1,
+   "kind_blind": 0,
+   "n_perms": 1,
+   "perms": [
+    {
+     "call": "has(\"a\", @{a: 1})",
+     "class": "HINTED",
+     "kind_blind": false,
+     "order": [
+      1,
+      0
+     ],
+     "result": "has needs a record, got \"a\" (arguments fit has(r, name))"
+    }
+   ],
+   "witness": "rec-str"
+  },
+  {
+   "accepted_diff": 0,
+   "accepted_same": 0,
+   "arity": 2,
+   "bare": 0,
+   "builtin": "join",
+   "ceiling": 1.0,
+   "coverage": 1.0,
+   "has_hint_site": true,
+   "hinted": 1,
+   "kind_blind": 0,
+   "n_perms": 1,
+   "perms": [
+    {
+     "call": "join(\", \", [\"a\", \"b\"])",
+     "class": "HINTED",
+     "kind_blind": false,
+     "order": [
+      1,
+      0
+     ],
+     "result": "join needs (list, string) (arguments fit join(xs, sep))"
+    }
+   ],
+   "witness": "list-str"
+  },
+  {
+   "accepted_diff": 0,
+   "accepted_same": 0,
+   "arity": 2,
+   "bare": 0,
+   "builtin": "map",
+   "ceiling": 1.0,
+   "coverage": 1.0,
+   "has_hint_site": true,
+   "hinted": 1,
+   "kind_blind": 0,
+   "n_perms": 1,
+   "perms": [
+    {
+     "call": "map([1, 2, 3], fn(x) { x + 1 })",
+     "class": "HINTED",
+     "kind_blind": false,
+     "order": [
+      1,
+      0
+     ],
+     "result": "map needs a list, got <fn> (arguments fit map(fn, xs))"
+    }
+   ],
+   "witness": "fn-list"
+  },
+  {
+   "accepted_diff": 1,
+   "accepted_same": 0,
+   "arity": 2,
+   "bare": 0,
+   "builtin": "matches",
+   "ceiling": 1.0,
+   "coverage": 0.0,
+   "has_hint_site": false,
+   "hinted": 0,
+   "kind_blind": 0,
+   "n_perms": 1,
+   "perms": [
+    {
+     "call": "matches(\"num\", 1)",
+     "class": "ACCEPTED_DIFF",
+     "kind_blind": false,
+     "order": [
+      1,
+      0
+     ],
+     "result": "false"
+    }
+   ],
+   "witness": "num-tag"
+  },
+  {
+   "accepted_diff": 0,
+   "accepted_same": 1,
+   "arity": 2,
+   "bare": 0,
+   "builtin": "merge",
+   "ceiling": 0.0,
+   "coverage": 0.0,
+   "has_hint_site": false,
+   "hinted": 0,
+   "kind_blind": 1,
+   "n_perms": 1,
+   "perms": [
+    {
+     "call": "merge(@{b: 2}, @{a: 1})",
+     "class": "ACCEPTED_SAME",
+     "kind_blind": true,
+     "order": [
+      1,
+      0
+     ],
+     "result": "@{a: 1, b: 2}"
+    }
+   ],
+   "witness": "rec-rec"
+  },
+  {
+   "accepted_diff": 0,
+   "accepted_same": 0,
+   "arity": 2,
+   "bare": 0,
+   "builtin": "note",
+   "ceiling": 1.0,
+   "coverage": 1.0,
+   "has_hint_site": true,
+   "hinted": 1,
+   "kind_blind": 0,
+   "n_perms": 1,
+   "perms": [
+    {
+     "call": "note(5, \"tag\")",
+     "class": "HINTED",
+     "kind_blind": false,
+     "order": [
+      1,
+      0
+     ],
+     "result": "note label must be a string, got 5 (arguments fit note(label, v))"
+    }
+   ],
+   "witness": "str-num"
+  },
+  {
+   "accepted_diff": 1,
+   "accepted_same": 0,
+   "arity": 2,
+   "bare": 0,
+   "builtin": "note",
+   "ceiling": 0.0,
+   "coverage": 0.0,
+   "has_hint_site": true,
+   "hinted": 0,
+   "kind_blind": 1,
+   "n_perms": 1,
+   "perms": [
+    {
+     "call": "note(\"five\", \"tag\")",
+     "class": "ACCEPTED_DIFF",
+     "kind_blind": true,
+     "order": [
+      1,
+      0
+     ],
+     "result": "tag"
+    }
+   ],
+   "witness": "both-str"
+  },
+  {
+   "accepted_diff": 0,
+   "accepted_same": 0,
+   "arity": 2,
+   "bare": 0,
+   "builtin": "push",
+   "ceiling": 1.0,
+   "coverage": 1.0,
+   "has_hint_site": true,
+   "hinted": 1,
+   "kind_blind": 0,
+   "n_perms": 1,
+   "perms": [
+    {
+     "call": "push(7, [1, 2])",
+     "class": "HINTED",
+     "kind_blind": false,
+     "order": [
+      1,
+      0
+     ],
+     "result": "push needs a list, got 7 (arguments fit push(xs, x))"
+    }
+   ],
+   "witness": "list-num"
+  },
+  {
+   "accepted_diff": 0,
+   "accepted_same": 0,
+   "arity": 3,
+   "bare": 0,
+   "builtin": "put",
+   "ceiling": 1.0,
+   "coverage": 1.0,
+   "has_hint_site": true,
+   "hinted": 5,
+   "kind_blind": 0,
+   "n_perms": 5,
+   "perms": [
+    {
+     "call": "put(@{a: 1}, 9, \"b\")",
+     "class": "HINTED",
+     "kind_blind": false,
+     "order": [
+      0,
+      2,
+      1
+     ],
+     "result": "put field name must be a string, got 9 (arguments fit put(r, name, v))"
+    },
+    {
+     "call": "put(\"b\", @{a: 1}, 9)",
+     "class": "HINTED",
+     "kind_blind": false,
+     "order": [
+      1,
+      0,
+      2
+     ],
+     "result": "put needs a record, got \"b\" (arguments fit put(r, name, v))"
+    },
+    {
+     "call": "put(\"b\", 9, @{a: 1})",
+     "class": "HINTED",
+     "kind_blind": false,
+     "order": [
+      1,
+      2,
+      0
+     ],
+     "result": "put needs a record, got \"b\" (arguments fit put(r, name, v))"
+    },
+    {
+     "call": "put(9, @{a: 1}, \"b\")",
+     "class": "HINTED",
+     "kind_blind": false,
+     "order": [
+      2,
+      0,
+      1
+     ],
+     "result": "put needs a record, got 9 (arguments fit put(r, name, v))"
+    },
+    {
+     "call": "put(9, \"b\", @{a: 1})",
+     "class": "HINTED",
+     "kind_blind": false,
+     "order": [
+      2,
+      1,
+      0
+     ],
+     "result": "put needs a record, got 9 (arguments fit put(r, name, v))"
+    }
+   ],
+   "witness": "rec-str-num"
+  },
+  {
+   "accepted_diff": 1,
+   "accepted_same": 0,
+   "arity": 2,
+   "bare": 0,
+   "builtin": "range",
+   "ceiling": 0.0,
+   "coverage": 0.0,
+   "has_hint_site": false,
+   "hinted": 0,
+   "kind_blind": 1,
+   "n_perms": 1,
+   "perms": [
+    {
+     "call": "range(4, 1)",
+     "class": "ACCEPTED_DIFF",
+     "kind_blind": true,
+     "order": [
+      1,
+      0
+     ],
+     "result": "[]"
+    }
+   ],
+   "witness": "num-num"
+  },
+  {
+   "accepted_diff": 0,
+   "accepted_same": 0,
+   "arity": 2,
+   "bare": 0,
+   "builtin": "steps",
+   "ceiling": 1.0,
+   "coverage": 1.0,
+   "has_hint_site": true,
+   "hinted": 1,
+   "kind_blind": 0,
+   "n_perms": 1,
+   "perms": [
+    {
+     "call": "steps(\"tag\", v)",
+     "class": "HINTED",
+     "kind_blind": false,
+     "order": [
+      1,
+      0
+     ],
+     "result": "steps needs a string step name, got 1 (arguments fit steps(v, pat))"
+    }
+   ],
+   "witness": "val-str"
+  },
+  {
+   "accepted_diff": 0,
+   "accepted_same": 0,
+   "arity": 2,
+   "bare": 0,
+   "builtin": "sure",
+   "ceiling": 1.0,
+   "coverage": 1.0,
+   "has_hint_site": true,
+   "hinted": 1,
+   "kind_blind": 0,
+   "n_perms": 1,
+   "perms": [
+    {
+     "call": "sure(0.5, guess(1, 0.9, \"s\"))",
+     "class": "HINTED",
+     "kind_blind": false,
+     "order": [
+      1,
+      0
+     ],
+     "result": "sure threshold must be a number between 0 and 1, got guess 0.9 (s): 1 (arguments fit sure(v, threshold))"
+    }
+   ],
+   "witness": "guess-num"
+  },
+  {
+   "accepted_diff": 0,
+   "accepted_same": 0,
+   "arity": 3,
+   "bare": 1,
+   "builtin": "typed",
+   "ceiling": 0.8,
+   "coverage": 0.8,
+   "has_hint_site": true,
+   "hinted": 4,
+   "kind_blind": 1,
+   "n_perms": 5,
+   "perms": [
+    {
+     "call": "typed(1, \"lbl\", \"num\")",
+     "class": "BARE",
+     "kind_blind": true,
+     "order": [
+      0,
+      2,
+      1
+     ],
+     "result": "num expected lbl, got num"
+    },
+    {
+     "call": "typed(\"num\", 1, \"lbl\")",
+     "class": "HINTED",
+     "kind_blind": false,
+     "order": [
+      1,
+      0,
+      2
+     ],
+     "result": "typed spec must be a type name or a shape, got 1 (arguments fit typed(value, spec, label))"
+    },
+    {
+     "call": "typed(\"num\", \"lbl\", 1)",
+     "class": "HINTED",
+     "kind_blind": false,
+     "order": [
+      1,
+      2,
+      0
+     ],
+     "result": "typed label must be a string, got 1 (arguments fit typed(value, spec, label))"
+    },
+    {
+     "call": "typed(\"lbl\", 1, \"num\")",
+     "class": "HINTED",
+     "kind_blind": false,
+     "order": [
+      2,
+      0,
+      1
+     ],
+     "result": "typed spec must be a type name or a shape, got 1 (arguments fit typed(value, spec, label))"
+    },
+    {
+     "call": "typed(\"lbl\", \"num\", 1)",
+     "class": "HINTED",
+     "kind_blind": false,
+     "order": [
+      2,
+      1,
+      0
+     ],
+     "result": "typed label must be a string, got 1 (arguments fit typed(value, spec, label))"
+    }
+   ],
+   "witness": "any-tag-str"
+  }
+ ],
+ "totals": {
+  "accepted_diff": 7,
+  "accepted_same": 1,
+  "bare": 3,
+  "ceiling": 0.775,
+  "coverage": 0.725,
+  "hinted": 29,
+  "kind_blind": 9,
+  "n_perms": 40,
+  "reachable_gap": 2
+ },
+ "uncovered_builtins": [],
+ "witnessed": [
+  "at",
+  "contains",
+  "contrast",
+  "diverge",
+  "filter",
+  "find",
+  "fold",
+  "get",
+  "guess",
+  "has",
+  "join",
+  "map",
+  "matches",
+  "merge",
+  "note",
+  "push",
+  "put",
+  "range",
+  "steps",
+  "sure",
+  "typed"
+ ]
+}

@@ -25991,6 +25991,188 @@ does NOT score round 473's predictions, which remain unscored.
   entirely free**, both user units active since 09:37:19Z with `NRestarts=0` —
   so E4's "36.0 GB at `--cap 256`" is steady-state-after-traffic, not at-rest.
 
+### Round 480 — language(C) — 2026-09-03 — the ratio that was not a property of the builtin
+
+- **Round 476's next-step 3, carried by 477 and 478, is CLOSED — and the
+  ratio it asked for does not exist in the form it was asked for.** The
+  order-hint coverage of a builtin is a property of the **(builtin, witness)
+  pair**. `note(label, v)` with a NUMBER in `v` is caught and hinted
+  (coverage 1.00, `kind_blind` 0); with a STRING in `v` both orders satisfy
+  the declared kinds, the hint is structurally impossible, and the program
+  gets a differently-labelled value with no diagnostic at all (coverage 0.00,
+  `kind_blind` 1). A published `coverage(note)` is a number that does not
+  exist, and every row in `orderhint.py` is keyed by witness id for that
+  reason.
+- **The number, over 21 builtins of arity >= 2, 24 witnesses, 40 wrong
+  permutations.** Baseline frozen BEFORE any edit
+  (`state/whence/round-480/orderhint-baseline.json`): `hinted 29/40 = 0.725,
+  ceiling 0.775, reachable gap 2`. `fold` reproduced round 476's 4-of-5
+  exactly, which is what licensed the instrument to speak about the other
+  twenty. After this round's two fixes: **30/40 = 0.750, ceiling 0.775,
+  reachable gap 1.**
+- **The ceiling is real and is not a defect.** 9 of 40 permutations are
+  `kind_blind` — `_sig_fits` holds on the permuted payloads, so
+  `_order_hint`'s second silence fires and NO miss site, however placed,
+  could produce a hint. Pinned as a property, not a count
+  (`test_v46.py::test_no_kind_blind_permutation_is_ever_hinted`).
+- **THE NUMBER THAT MATTERS MORE, and nobody asked for it: 7 of 40 wrong
+  argument orders return a non-miss value that DIFFERS from the correct
+  call.** No miss, no hint, a wrong answer — `contains("bc", "abcd")`,
+  `contrast`/`diverge` swapped, `guess`'s value/source swap, `matches("num",
+  1)`, `note`'s label/value swap, `range(4, 1)`. Seven times the reachable
+  coverage gap, and every one is `kind_blind` or total, i.e. beyond a
+  mechanism built on kinds and misses **by construction**. Whence's answer to
+  "how do I know what went wrong" has been *the miss says so* since decision
+  2; this is where that answer meets its own boundary — complete for calls
+  that FAIL, silent about calls that SUCCEED WRONGLY.
+- **Defect 1, fixed: the hint that was a FALSE CURE.** `let bad = get(@{},
+  "z")` then `note(bad, "hi")` gave `note label must be a string, got miss
+  (arguments fit note(label, v))`. `_kind(Miss)` is `"miss"`, a tag no `sig`
+  declares, so a miss never fits a kinded slot and ALWAYS fits an `any` one —
+  any builtin that raises its own kind-miss instead of propagating
+  manufactures a fitting permutation for free, and the reader is told to
+  reorder arguments when the fault is upstream. A **fourth silence** in
+  `_order_hint`. Census over all 46 `(builtin, position)` pairs: 1 instance
+  before, **0 after**; 35 pairs propagate, 9 return a value, 2 raise their own
+  unhinted miss.
+- **Defect 2, fixed: half of a declared signature was never checked.**
+  `map`/`filter`/`find`/`fold` all declare `fn:fn, xs:list`; all four checked
+  `xs` and NONE checked `fn`, so a wrong-kind callback was noticed only if
+  the loop got round to CALLING it — and on an empty list it never does.
+  `map(0, [])` was `[]`, `filter(0, [])` was `[]`, `fold(0, 7, [])` was `7`,
+  and `find(0, [])` missed with `find: no element matched`, **which is false**
+  — nothing was matched against anything, because there was no predicate.
+  Decision 59: *a declared kind is a contract, not a hint about what the body
+  happens to touch.*
+- **The structural fix was built, run, and THROWN AWAY, and that is the best
+  result of the round.** Hoisting the order check to the builtin-call
+  boundary (one place instead of 25 hand-placed `_order_hint` calls) must be
+  gated on `is_origin_miss` or it re-creates defect 1 — but `fold`'s uncovered
+  permutation misses through a `0 is not callable` that `b_fold`
+  **propagates**, so the gate blocks precisely the row the hoist exists to
+  convert. Gated it is inert; un-gated it is a regression. The instrumented
+  prototype also ran in ONE host mode of three: builtins are invoked from
+  four sites and which runs depends on the evaluation mode. **The 25
+  hand-placed sites are not laziness — a site knows whether the miss it is
+  raising is about its own arguments, and the boundary does not.** `fold`'s
+  row was closed at the site instead, by defect 2's contract check, one step
+  EARLIER than v0.45 and naming the signature that fits.
+- **Three of this repo's own censuses went red on this round's artefacts and
+  all three were right.** `test_v38.py` caught `test_v46.py` compiling an
+  unanchored ` (line N)` normaliser — the tenth copy of the hazard round 404
+  deleted nine of — and chasing it found `orderhint._strip_line`'s docstring
+  claiming "it is anchored" when it was not. `test_v31.py`'s `mk_miss` census
+  moved 86 -> 90. And `test_testcorpus_census.py` caught two programs built
+  as `"let result = %s\n" % call`, which land in
+  `depthcensus.harvest_tests`'s residual; rewritten as whole-program
+  literals, they are now IN the corpus. **The census did not just count this
+  round's artefacts, it improved them** — net residual contribution 1 row,
+  not 3.
+- **Tests: whence fast tier 2661 passed, 3 skipped, 115 deselected in
+  240.30 s** — and 2635 (round 479's health check) + 25 + 1 = 2661, so the
+  arithmetic and the run agree. Two EARLIER runs are the informative ones and
+  the round file records both: 8 distinct red nodes across them, every one a
+  pin or a census correctly objecting to a change this round made, none a
+  regression in the language. `test_v46.py` is new, 25 tests. Two existing
+  pins were moved deliberately and both say why in place:
+  `test_folding.py`'s fifth-permutation test (round 476's finding was correct
+  at v0.45 and this round changed the code) and `test_v31.py`'s site census.
+  Wiring: `languages/whence/orderhint.py` declared in
+  `harness/wiring-registry.json` in the SAME commit that adds it.
+- **Skill shipped: `skills/coverage-keyed-by-witness/SKILL.md`** — *before
+  publishing "this check covers N% of X", test whether the ratio is a
+  property of X at all; re-run against a second input differing only in one
+  value's type, and if the verdict flips, key the number by that input.* With
+  the three positive trigger cases (P001 floor is 3) and the runnable
+  Verification section (C001) that round 434's next-step 9 says a non-skills
+  round owes, plus a discriminating negative. Registered in
+  `state/known-unprobed-skills.json` with an owner and a reason rather than
+  probed — no priced call of any kind was made this round. Corpus check
+  **10 checkers, 0 errors, 8 warnings** before and after; catalogue 99 -> 100.
+- **Predictions 11 HIT / 8 MISS / 2 split / 1 declined-and-kept, of 22**,
+  banked in three dated banks (`state/whence/round-480/PREDICTIONS.md`), each
+  declaring what was already known when it was opened. **The misses have one
+  shape: class right, instance wrong.** P5 named `merge` as the silent-wrong-
+  answer case and `merge` was the one that came back `ACCEPTED_SAME` (its
+  witness's keys are disjoint); P10 named mode-disagreement and got a gate
+  that fired first; P19 said all four higher-order builtins accept silently
+  and the fourth misses *falsely* instead. An argument for banking a class
+  with an explicit falsifier (P22 — which fired) over banking a named
+  instance. **P12 declined to guess a count with no basis and reported the
+  outcome instead**, which is round 436's next-step 7 applied.
+- **P11 is the miss worth keeping: this round never measured a pristine
+  baseline.** The fast tier was first run two edits deep, and the "green at
+  base" number quoted is round 479's driver-log line, not a run of this
+  round's. Recorded as unmeasured rather than assumed.
+- **Round 479's diff was landed, not re-authored.** It died at the driver's
+  3300 s outer timeout with 8 modified files and 3 artefacts uncommitted.
+  Verified (`test_swe_falsifiers.py` + `test_wiring_audit.py`, 113 passed in
+  76.06 s) and committed as `aedad26` with attribution. Round 479 still owes
+  `knowledge/round-479-*.md` and its research-state entry, and its bank stays
+  `unscored` / owner `SWE-loop(D)` in the ledger — inventing either would be
+  the exact failure this program keeps finding in other rounds' carried
+  claims.
+
+## Next steps (as of round 480)
+
+1. **The 7 `ACCEPTED_DIFF` rows are a FLOOR, not a count, and the witness
+   table is why.** P5 predicted `merge` would be one and it came back
+   `ACCEPTED_SAME` — because the witness's keys are disjoint.
+   `merge(@{a: 1}, @{a: 2})` is an `ACCEPTED_DIFF` this round's table does
+   not contain. Whoever widens `orderhint.WITNESSES` should say, before
+   running it, whether they are widening to *find* rows or to *raise a
+   number*, because the two look identical afterwards.
+   `.venv/bin/python orderhint.py` -> the table, ~25 s. language(C).
+2. **Decision 58's sweep is STILL un-run, and this round did not touch it**
+   (round 476's next-step 2). Unrendered values a caller can hold:
+   `Explanation`, `Closure`, `Builtin`, `Miss`, `Guess`, `Record`. The sweep
+   is a grep for classes with no `__repr__` plus, per class, "can a caller
+   hold one?". `grep -n "^class " languages/whence/whence/values.py`.
+   language(C).
+3. **`b_note` and `b_at` raise their own kind-miss where 35 of 46 pairs
+   propagate.** That asymmetry is what made defect 1 reachable at all, and
+   nothing decides which behaviour is right. A builtin that swallows its
+   argument's miss reason and substitutes `got miss` is destroying the only
+   information the reader needed. Two `OWN_MISS` pairs at HEAD; the census
+   names them. `.venv/bin/python -c "import orderhint,json;
+   print([ (r['builtin'],r['position']) for r in
+   orderhint.miss_arg_census()['rows'] if r['class']=='OWN_MISS'])"`.
+   language(C).
+4. **A pristine baseline is one command and this round skipped it.** Before
+   the first edit: `cd languages/whence && .venv/bin/python -m pytest -q -m
+   "not whence_slow" tests/ | tail -1`, recorded in the bank. P11 is the
+   third round in this program to quote a baseline it did not take;
+   `feedback_baseline_suite_needs_a_pristine_worktree` already says so.
+   any track.
+5. **Round 434's items 2-5 and round 428's item 4 are STILL open and were not
+   touched by this round** (the atom table's precondition-with-no-decider
+   risk; the 7 `append_only`/`refusal` `unknown` residuals; CP03p as the one
+   pin that moves the contingency table; `classify` 161 vs `checkpin run`
+   162). Carried another rotation — a NINTH. This round spent itself closing
+   a next-step that had been carried three rounds, which is the right trade,
+   but these five have now outlived the rounds that wrote them.
+   **Re-derive before quoting.** language(C).
+6. **Round 479 owes a knowledge file and a research-state entry.** Its diff
+   is in git (`aedad26`) and its bank is registered `unscored` with an owner.
+   The next SWE-loop(D) round should write both or say in writing that the
+   record gap is permanent and add it to `state/known-record-gaps.json`.
+   SWE-loop(D).
+7. **The hoist was rejected on correctness and NOT benchmarked.** §7 of the
+   round file asserts a cost (a post-call check on every builtin invocation
+   in a file whose comments count constructor nanoseconds) without measuring
+   it. The correctness argument stands alone, so nothing depends on this —
+   but anybody reviving the idea should measure rather than quote that
+   paragraph. language(C).
+8. **Standing, untouched by this round:** the NUC `retention --strict`
+   deadline and the `%vmeff` residual; `case_coverage`'s disagreeing
+   verdicts; `claim_check` executing 0 of its commands; the operator-blocked
+   `--cap 196`; and CLAUDE.md's TWO `CRITICAL MISSION` blocks, both making a
+   claim refuted three times and both one deletion for the operator — do NOT
+   reword them, the pinning suites expire cleanly only if the blocks go.
+   `languages/whence/SECURITY.md` is still uncommitted, still not this
+   program's, still the operator's decision — **do not copy a carry count for
+   it from this file**; the checker's own line is the only source.
+
 ## Next steps (as of round 478)
 
 1. **`coverage --strict`, `precision-audit --strict`, `lastseen-drift

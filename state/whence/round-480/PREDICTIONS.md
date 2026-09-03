@@ -79,3 +79,57 @@ The ratio is defined over a witness set **I choose**. P13 says the choice
 moves it. So the published number must be reported as
 `coverage(builtin, witness)`, never as `coverage(builtin)` — and if I catch
 myself writing the second, that is the defect this bank exists to catch.
+
+---
+
+## 4. SECOND BANK — opened mid-round, BEFORE the second measurement
+
+Opened after the permutation census (§2) was run and frozen to
+`orderhint-baseline.json`, and after a hand probe found ONE instance of a
+new defect. It is banked separately, and dated, so that nothing here can be
+mistaken for a prediction made before §2's numbers were known. What I knew
+when I wrote this:
+
+- the §2 census result (29/40 hinted, ceiling 0.775, reachable gap 2);
+- that ten hand-written calls of the form `f(bad, ...)`, where `bad` is a
+  propagated miss from `get(@{}, "z")`, produce a hint in **exactly one**
+  case: `note(bad, "hi")` -> `note label must be a string, got miss
+  (arguments fit note(label, v))`. That advice is false as a cure: swapping
+  the arguments does not repair a record lookup that failed upstream.
+
+What I do NOT know: how many (builtin, position) pairs across the whole
+population behave that way. The probe covered 10 hand-picked calls out of
+46 pairs (17 builtins of arity 2 + 4 of arity 3 = 46 argument positions).
+
+| # | basis | prediction |
+| --- | --- | --- |
+| P14 | `[MODEL]` | The mechanism is: a `Miss` payload has `_kind()` tag `"miss"`, which NO `sig` declares, so a miss never fits a kinded slot and ALWAYS fits an `any` slot. A builtin that raises its OWN kind-miss rather than propagating the argument's miss therefore manufactures a fitting permutation whenever the other argument satisfies the kinded slot. I predict the census over all 46 (builtin, position) pairs finds **between 1 and 4** false hints. |
+| P15 | `[MODEL]` | `note` position 0 is one of them (measured by hand, so this row is nearly free — it is banked to make the COUNT above scorable, not to claim a discovery). |
+| P16 | `[MODEL]` | The great majority of pairs produce the argument's own propagated miss verbatim (`no field 'z' ...`) and no hint: 8 of the 10 hand-probed calls did. I predict **>= 34 of 46** pairs propagate. |
+| P17 | `[MODEL]` | The fix is a FOURTH silence in `_order_hint` — `return ""` when any supplied payload is a `Miss` — and it is sound for the reason the third silence is: the clause must not be pasted onto a miss it does not explain, and a call with a miss ALREADY in it has a fault the reordering cannot address. I predict this changes **zero** rows of §2's permutation census (no witness there contains a miss) and **zero** existing tests, because `tests/test_v22.py`'s `note(5, "hi")` case has no miss argument. |
+| P18 | `[MODEL]` | Hoisting `_order_hint` to the builtin-call boundary (P9) converts `fold`'s single `BARE` row and NOTHING else, so post-hoist pooled coverage is **30/40 = 0.750** against a ceiling of 0.775 — NOT the `1 - kind_blind` equality P9 asserted, because `matches` never misses at all and so can never be hinted. I am recording here, before doing it, that I expect P9 to score MISS by exactly one row. |
+
+---
+
+## 5. THIRD BANK — opened after the hoist prototype, before the empty-list probe
+
+What I knew when I wrote this: §4's result (1 false hint, now fixed); and
+that the boundary hoist prototype **failed for a reason worth more than the
+fix** — placed in `_call_gen` it is (a) not reached at all by the default
+engine and (b) blocked by `is_origin_miss`, because `fold`'s
+`0 is not callable` is a miss `b_fold` PROPAGATED from the inner call, not
+one it raised. So the boundary cannot be gated on origin (it would miss the
+one row it exists for) and cannot be un-gated (that gate is the only thing
+stopping the §4 false cure). The per-site placement of `_order_hint`
+carries information the boundary does not have. Prototype reverted.
+
+That redirects the `fold` row to a PER-SITE fix: `b_fold` checks that `xs`
+is a list and does not check that `fn` is callable. Which raises a question
+about all four fn-first builtins that I have not measured:
+
+| # | basis | prediction |
+| --- | --- | --- |
+| P19 | `[MODEL]` | With an EMPTY list, none of `map`, `filter`, `find`, `fold` ever calls its callback, so a non-`fn` in the declared `fn:fn` slot is never noticed. I predict **all four** return a non-miss value for `f(0, [])` / `fold(0, acc, [])` — a wrong-kind argument accepted silently because the loop body that would have caught it did not run. `find` is the one I am least sure of, since a `find` that matches nothing may miss for its own reason. |
+| P20 | `[MODEL]` | Adding the `fn:fn` check to all four (symmetric with the `xs:list` check each already has) changes **zero** existing whence tests. Basis: the check only fires where the callback would have been called and was not, or where it would have failed one step later with a worse message. |
+| P21 | `[MODEL]` | After that fix, `fold`'s permutation coverage goes 4/5 -> **5/5**, pooled 29/40 -> **30/40 = 0.750**, `ceiling` unchanged at 0.775, and `reachable_gap` 2 -> **1** (the survivor being `matches`, which never misses at all and so can never be hinted). This is the same 30/40 P18 predicted for the HOIST route; if it lands, P18's NUMBER was right and P18's MECHANISM was wrong, and I will score it that way rather than as a hit. |
+| P22 | `[MODEL]` | The declared kind is a CONTRACT, not a hint, and checking it unconditionally is the general rule the two fixes share. I predict the fix also changes at least one `ACCEPTED_*` row somewhere in §2's census into a miss — i.e. it does not only move `fold`'s BARE row. If the census comes back with the `ACCEPTED_DIFF` total still exactly 7, this prediction is wrong. |
