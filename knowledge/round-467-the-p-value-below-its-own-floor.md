@@ -297,6 +297,23 @@ passed` — two of the four caused purely by the absence.
 that reason** instead of failing. A red meaning "you have no data" must not
 look like a red meaning "the tree is broken".
 
+**Measured, not asserted.** After committing, `git worktree add /tmp/wt467
+HEAD --detach` (9 tracked files under `logs/`, 0 per-round health logs):
+
+```
+42 passed, 18 skipped in 0.15s
+SKIPPED harness/tests/test_redattrib.py:593: this checkout holds 0 per-round
+  log(s), below the floor of 50 -- `logs/*_round_*.log` is gitignored
+  (.gitignore 28, 29, 35, 60), so these whole-tree assertions have no evidence
+  to read. Not a failure of the tree.
+```
+
+against round 461's `4 failed, 15 passed` on the same kind of checkout. Every
+skip prints the reason. The worktree was removed on the way out
+(`git worktree remove --force`); five stale worktrees from rounds 410, 426,
+427 and an old `pristine-check` run are still registered in `/tmp` and are not
+this round's to delete.
+
 Whether the logs belong in git is still the operator's question. Reporting a
 confident wrong answer while it is open is not.
 
@@ -307,6 +324,13 @@ harness/tests/test_redattrib.py            60 passed in 2.02s   (29 at HEAD)
 bash harness/run_tests_fast.sh             1372 passed, 361 deselected in 295.09s, rc 0
                                            (rounds 465/466: 8 failed, 1335 passed)
 languages/whence/run_tests_fast.sh         2431 passed, 3 skipped, 103 deselected in 238.15s
+bash nuc/run_checks_fast.sh                946 passed in 170.29s, rc 0
+pytest skills/skill-authoring/scripts \
+       skills/session-inheritance-audit/scripts  986 passed, 4 subtests in 108.90s, rc 0
+corpus_check.py --precommit                9 checker(s), 0 error(s), 8 warning(s), rc 0, 29.1s
+                                           (33.4s on the run before the bank was registered,
+                                            which was 1 error: carryforward K001)
+pristine worktree at HEAD                  42 passed, 18 skipped, 0 failed
 harness/redattrib.py audit                 34 ever red, 34 declared, 0 errors, rc 0
 harness/wiring_audit.py check              123 entry points, 103 in closure, 0 errors, rc 0
 harness/swe/copyparity.py escapes          copy_safe, 0 escaping, 8 env-guarded, rc 0
@@ -322,6 +346,11 @@ reasoning: `test_the_published_p_values_are_reproduced`,
 `test_environmental_declared_subject_derived_is_ALSO_R006`,
 `test_the_rotation_in_the_record_is_still_rigid`,
 `test_an_empty_checkout_is_reported_as_no_evidence_rather_than_as_green`.
+
+**All four of the driver's per-round check tiers are green**, which is what
+`unit_tests` being the reddest node in the repo makes worth stating: the
+skills corpus suite is one row of one log and it was run in full here rather
+than left to the `--precommit` SUBSET, which deliberately skips it.
 
 `nproc` on this box is 1. Everything above ran serially; nothing was started
 while another suite was running.

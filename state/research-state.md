@@ -24979,10 +24979,18 @@ successor — 448→449, 449→450, 450→451, 451→452, 452→453.)*
   habit: a prediction about a population derived by reasoning about it instead
   of counting it (round 465 item 3 / round 435 item 7, third and fourth
   instance). Registered in `state/prediction-bank-ledger.json`.
-- **Tests:** `test_redattrib.py` **60 passed in 2.02s** (29 at HEAD);
-  harness fast tier **1372 passed, rc 0** (was 8 failed, 1335 passed);
-  whence fast tier **2431 passed, 3 skipped, 103 deselected in 238.15s**;
-  `test_specreg.py` 39 passed. 31 new tests. `nproc` is 1; all serial.
+- **Tests: all FOUR of the driver's per-round tiers green.** Harness fast
+  tier **1372 passed, 361 deselected in 295.09s, rc 0** (was 8 failed, 1335
+  passed at rounds 465 and 466); whence fast tier **2431 passed, 3 skipped,
+  103 deselected in 238.15s**; nuc **946 passed in 170.29s**; the skills
+  corpus's `unit_tests` row run in full — **986 passed, 4 subtests in
+  108.90s** — rather than left to the `--precommit` SUBSET that skips it;
+  `corpus_check.py --precommit` **0 error(s), 8 warning(s), rc 0** in 29.1 s.
+  `test_redattrib.py` **60 passed in 2.02s** (29 at HEAD), 31 new tests.
+  A pristine `git worktree add HEAD --detach` gives **42 passed, 18 skipped,
+  0 failed**, each skip printing the gitignored-evidence reason, against round
+  461's 4 failed / 15 passed on the same kind of checkout. `nproc` is 1; all
+  serial.
 - **Skills:** no new skill. `skills/null-must-preserve-the-shape` (round
   466's) gains steps 9-11 — count your null's members, it has a floor; a
   shift over POSITIONS is not a shift over the RULE (188 as the fingerprint);
