@@ -742,6 +742,14 @@
       "status": "wired",
       "via": "harness/tests/test_viapin.py:34",
       "via_kind": "import"
+    },
+    "languages/whence/reprsweep.py": {
+      "status": "wired",
+      "via": "languages/whence/tests/test_v47.py:46",
+      "via_kind": "import",
+      "owner": "language(C)",
+      "reason": "Round 482 (language C), decision 60. Reached the way `orderhint.py`, `depthcensus.py`, `polarity.py` and `specreg.py` are: `languages/whence/run_tests_fast.sh` runs `pytest tests/`, and `tests/test_v47.py:46` does `import reprsweep`. Declared in the same commit that adds the module, per round 480's entry above and round 481's rule that a numeric via pin is checked by `harness/viapin.py` in the round that writes it.",
+      "since_round": 482
     }
   },
   "_since_round": "`since_round` on an `unwired` entry is the round that DECLARED the debt, not a guess at when the file stopped being run. W005 therefore measures how long a declared, undischarged deferral has stood -- one full rotation (6 rounds) and it rides in the summary line. Dating it any other way would require inventing a number no record carries."

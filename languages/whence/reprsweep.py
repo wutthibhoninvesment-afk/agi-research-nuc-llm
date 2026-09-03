@@ -101,7 +101,7 @@ from whence import values as V                         # noqa: E402
 #: The probe. Every construct here exists to put one more CLASS on the
 #: reachable graph, and the comment on each line says which. A round that
 #: adds a value kind to the language adds a line here; if it forgets, the
-#: class simply is not audited, which is why `test_reprsweep.py` also
+#: class simply is not audited, which is why `tests/test_v47.py` also
 #: asserts the reached set against a pinned list — the two halves catch
 #: each other.
 PROBE = '''
