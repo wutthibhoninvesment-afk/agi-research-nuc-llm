@@ -123,3 +123,37 @@ kind among the 72 non-constant nodes, at ≥ 30 of them.
 - It will not retire `--tests` tiering (offered and declined five times,
   rounds 456/458/462/463; still harness(A)'s).
 - It will not re-open CP18p/CP19p (round 432 proved it FALSE in Whence).
+
+---
+
+# SCORING (written after the measurement, round 468)
+
+**7 HIT, 5 MISS, 1 PARTIAL of 13.** Full discussion in
+`knowledge/round-468-the-counter-that-could-only-be-believed.md` §7.
+
+| # | banked claim | measured | verdict |
+|---|---|---|---|
+| P1 | lambda/async scope hole real but LATENT; 0 runner calls lost | 9 calls in lambda bodies, **2** runner calls (`test_v09.py:245`, `:254`) | **MISS** |
+| P2 | ≥1 of the 94 bound in a scope the env chain skips | 0 at bank time; 2 appeared only after P1's fix landed | **MISS** |
+| P3 | parse-only recount < 145, inside [60, 130] | 186 occurrences → 141 distinct → **25** programs | **PARTIAL** |
+| P4 | no counter for the per-file dedup drop | none existed; `dup_in_file` = 88 at baseline, 211 after | **HIT** |
+| P5 | exactly 7 stats keys reach no CLI output path | 7, and the named list is exactly right | **HIT** |
+| P6 | ≥1 of the 22 ambiguous scopes has two differing `max_depth` | **0** — no published depth is decided by stack order | **MISS** |
+| P7 | ≥1 further class in the 72 is not a source position | `file_read`, 12 rows, now a counted exclusion | **HIT** |
+| P8 | residual < 166, programs ≥ 559, strict superset by set difference | 114, 765, **0 of 559 lost** | **HIT** |
+| P9 | ≤20 identifiers cover the 94; top one ≥ 25 | 6 identifiers; `src` = 64 | **HIT** |
+| P10 | the literal name `src` is fewer than 94 of the 94 | 64 | **HIT** |
+| P11 | ≥20 parse-only strings also in the executing corpus | **0** of 141 | **MISS** |
+| P12 | all 3 `unparsed` are deliberate parse-error fixtures | all 3 (and all 18 after the widenings) | **HIT** |
+| P13 | `ast.Call` largest kind in the 72, ≥ 30 | largest is `binop:Add` 28; Call kinds sum to 23 | **MISS** |
+
+**§3's three refusals held:** no widening was made before the itemisation
+existed, `--tests` tiering was declined again (and the reason sharpened), and
+CP18p/CP19p was not re-opened.
+
+**The section split was itself a prediction and it lost.** §1 (structure)
+scored 4 HIT / 3 MISS / 1 PARTIAL; §2 (no-basis population) scored 3 HIT / 2
+MISS, against the banked expectation that §2 would do worse. The diagnosis is
+in the knowledge file: P1, P2 and P6 each name a real structural fact and
+then predict a COUNT of live instances, which is a rate. A structural fact
+licenses a prediction about the code, not about how often its hazard fires.

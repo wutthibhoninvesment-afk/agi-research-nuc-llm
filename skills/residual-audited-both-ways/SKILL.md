@@ -101,6 +101,34 @@ behind a number that reads as humility, and it sends the next worker to
    the published champion is a different finding from one that does not.
    Say which happened.
 
+9. **Audit for the class that is in NEITHER the corpus nor the residual**
+   (round 468). A residual says "here is what I could not reach"; it cannot
+   say anything about what the walk never VISITED. The generator is two
+   lists that must agree and do not: a traversal's *stop* set and its
+   *entry-point* set. `_walk_scope` refused to descend into `Lambda`,
+   `AsyncFunctionDef`, `FunctionDef` and `ClassDef`; the scope list it was
+   paired with held only the last two — so a call inside a lambda body was
+   visited by no scope and counted by no counter. Nine calls, two of them
+   real. Make it ONE named tuple both sites read.
+
+   ```sh
+   # the check: does anything stop the walk that is not also an entry point?
+   grep -n 'isinstance(.*ast\.\(Lambda\|FunctionDef\|ClassDef\)' tool.py
+   ```
+
+   Then look for the same shape one level up: an environment or context
+   chain that skips the scopes between the innermost and the outermost. In
+   round 468 `env` was `module | this scope` with nothing in between; the
+   class had ZERO instances until the lambda fix landed, at which point it
+   had two. A hazard with no instance is still a hazard.
+
+10. **Check the units before you compare the residual to the corpus**
+   (round 468). "166 residual against 559 harvested" is only a ratio if both
+   were counted at the same pipeline stage, and in that instrument they were
+   not: the parse-only counter fired per folded string, before the dedup and
+   the parse gate `programs` is measured after. 145 became 25 in the
+   corpus's own unit. See `skills/counter-in-the-compared-unit`.
+
 ## Pitfalls
 
 * **Quoting a predecessor's residual as your baseline.** Measure it on the
@@ -120,6 +148,20 @@ behind a number that reads as humility, and it sends the next worker to
 * **Deriving the exclusion from the symptom.** `receiver == "subprocess"`
   passes the same test as `receiver in imported_modules(tree)` and is wrong
   for the next file.
+* **Reporting the residual as counts and stopping there** (round 468). A
+  count supports exactly one action — "widen the instrument" — and no reader
+  can falsify it without rebuilding the walk. Emit ROWS: file, line, the
+  node's own source text, and an AST-derived class. Round 468 did this to
+  round 462's own residual and the published diagnosis was wrong about the
+  dominant class: 39 of the 94 unresolved names (41%) were bound by an
+  ITERATION PROTOCOL the binder could not read (`zip`, `.items()`, a
+  comprehension target), not by a string the folder could not build.
+* **Refusing a widening by omission.** If a class is decidable-looking but
+  you decline it, give the refusal its OWN class name and state the reason
+  in the code. `zip(LITERAL, runtime)` is refused in round 468 because `zip`
+  truncates to its shortest argument, so binding the literal column would
+  publish programs the suite may never run — named `zip_nonliteral_column`,
+  so the decision is visible and refutable rather than absent.
 
 ## Verification
 
@@ -134,7 +176,16 @@ cd languages/whence && python3 -m pytest -c pytest.ini -q \
 # 2. the instrument prints its residual and its exclusions separately,
 #    above the corpus, and the arithmetic reconciles
 cd languages/whence && python3 depthcensus.py --tests --harvest-only
+
+# 3. every residual entry as a row with a location and a class (round 468)
+cd languages/whence && python3 depthcensus.py --tests --residual | head -30
 ```
 
 Expected from (2): a `residual:` line and an `excluded:` line, with
-`calls + module_calls + stmt_node_args == 985`.
+`calls + module_calls + stmt_node_args == 987`. That total was 985 until
+round 468 closed the lambda-scope hole of step 9 — a reconciliation total
+that GREW when a blind spot closed is the right direction, and the number to
+distrust would have been one that stayed put. Expected from (3): a
+`=== residual: N row(s), M class(es) ===` header followed by one line per
+class and then one line per row, each carrying `file:line` and the node's
+own source text.

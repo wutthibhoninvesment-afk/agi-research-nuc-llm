@@ -2591,5 +2591,31 @@
    "null-must-preserve-the-shape"
   ],
   "prompt": "My permutation test keeps printing p = 0.0005 for every candidate no matter which one I test. Is that a real result or is something off with the sampler?"
+ },
+ {
+  "id": "ccu-near",
+  "expect": [
+   "counter-in-the-compared-unit"
+  ],
+  "prompt": "Our source harvester prints `145 parse-only programs` next to `559 harvested programs` and a spec section quotes that as a coverage ratio. I went looking and the parse-only counter is incremented in the inner loop right where the string is folded, while the harvested count is taken after a dedup and a parse gate. Is that ratio meaningful, and if not what should I publish instead?"
+ },
+ {
+  "id": "ccu-mid",
+  "expect": [
+   "counter-in-the-compared-unit"
+  ],
+  "prompt": "Our crawler's summary line says 48219 URLs seen and 6004 pages indexed, and the weekly report turns that into a 12% index rate. `seen` goes up once per link we encounter anywhere; `indexed` is after canonicalisation, the dedup set, robots and a content-type filter. Management is now asking why the index rate dropped."
+ },
+ {
+  "id": "ccu-far",
+  "expect": [
+   "counter-in-the-compared-unit"
+  ],
+  "prompt": "I'm adding a `skipped_by_policy` counter to the stats dict our scanner returns. There are already nine keys in there and the CLI only prints four of them; the JSON artefact carries all nine. Where should the increment go and is there anything I should do besides adding the key?"
+ },
+ {
+  "id": "ccu-neg-slow",
+  "expect": [],
+  "prompt": "Our test suite takes 6 minutes and 380 of the 420 seconds are in one file. I want to split that file so the slow cases run in a separate tier. What's a sensible way to pick the split point?"
  }
 ]

@@ -1117,6 +1117,14 @@
    "where": "knowledge/round-467-the-p-value-below-its-own-floor.md",
    "quote": "12 HIT, 2 PARTIAL, 3 MISS of 17, plus one declared no-basis",
    "note": "Scored in the bank file's own SCORING section (a table, one row per banked item) and totalled in the knowledge file's header. The bank carries a Section 0 naming the five exploratory reads that preceded it -- the redattrib CLI at HEAD, the failing copyparity run, wiring_audit check, two health logs and the registry's own vocabulary -- so no prediction about those could be retro-fitted, and it declares the node-permutation null no-basis rather than guessing a range. P10 is the item worth reading: it predicted the rotation-shift null would have exactly 6 members and return p = 1/6, the first implementation returned 188 members and p = 0.0796, and the DISAGREEMENT is what exposed the bug -- a positional rotation of a label sequence with two holes in it is not a symmetry of `track = f(round mod 6)`. The three MISSes are one habit in three costumes (P7 reasoned about a 2x2's direction without reading its cells; P11 asserted a floor over six relabelings none of which had been computed; P13 assumed a justification STYLE implied the justification), which is round 465's item 3 and round 435's item 7 for the third and fourth time. P13's miss is the round's best result anyway: the cheap mechanical proxy for the same question flags 31 of 34 entries and would have 'confirmed' the prediction, where item-by-item adjudication finds 3."
+  },
+  "468": {
+   "bank": "state/whence/round-468/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 468,
+   "where": "knowledge/round-468-the-counter-that-could-only-be-believed.md",
+   "quote": "## 7. Predictions \u2014 7 HIT, 5 MISS, 1 PARTIAL of 13",
+   "note": "Section 7 of the knowledge file, one table row per banked item, all thirteen scored -- no remainder. Banked at 4e7637d after the harvest baseline was re-derived at be5c248 (559 programs / residual 166 / parse-only 145, every round-462 number reproducing) and BEFORE the residual population was itemised. The bank splits itself into two labelled sections on round 467's item 6 -- \u00a71 derived from STRUCTURE read in the code, \u00a72 about a population nobody has counted, banked as no-basis -- and predicts in writing that \u00a72 will score worse. It did not: \u00a71 scored 4 HIT / 3 MISS / 1 PARTIAL against \u00a72's 3 HIT / 2 MISS. The refinement this earns is in the knowledge file's \u00a77: P1, P2 and P6 are not predictions about the code but about how often a structural hazard has a LIVE INSTANCE, which is a rate wearing a structure's clothes. P1 is the sharpest -- it read the two disagreeing scope lists correctly and then predicted the disagreement was harmless on a prior about test style ('lambdas in tests are usually key= functions'), and the hole had two live runner calls in it."
   }
  }
 }

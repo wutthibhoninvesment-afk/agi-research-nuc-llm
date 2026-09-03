@@ -213,6 +213,15 @@ def harvest():
     return dc.harvest_tests()
 
 
+@pytest.fixture(scope="module")
+def harvest_rows():
+    """The same harvest with `keep_rows`. A separate fixture on purpose:
+    `--json` dumps the stats dict, and 480-odd rows would change the shape of
+    every artefact already on disk, so rows are opt-in at every level."""
+    _, stats = dc.harvest_tests(keep_rows=True)
+    return stats["rows"]
+
+
 def test_the_harvest_is_a_real_corpus(harvest):
     progs, stats = harvest
     assert stats["files"] >= 60
@@ -409,12 +418,20 @@ def test_the_exclusions_are_counted_and_reconcile_with_the_old_call_count(
         harvest):
     """985 calls at round 458 = 918 + 45 module calls + 22 statement-node
     arguments. The exclusions are auditable arithmetic, not a silent
-    narrowing of the walk."""
+    narrowing of the walk.
+
+    Round 468 moves the total 985 -> 987 and says why in the same breath:
+    `harvest_file`'s scope list held only `FunctionDef`/`ClassDef` while
+    `_walk_scope` also refuses to descend into `Lambda`, so two `run(src)`
+    calls inside `lambda:` bodies (`test_v09.py:245` and `:254`) were visited
+    by no scope at all. They were never in the 985 and never in any counter.
+    A call count that GREW when a blind spot closed is the right direction;
+    the number to distrust would have been one that stayed put."""
     _, stats = harvest
     assert stats["module_calls"] == 45
     assert stats["stmt_node_args"] == 22
     assert stats["calls"] + stats["module_calls"] + \
-        stats["stmt_node_args"] == 985
+        stats["stmt_node_args"] == 987
 
 
 def test_the_exclusions_removed_no_programs_from_the_corpus(harvest):
@@ -438,10 +455,273 @@ def test_the_residual_fell_by_more_than_a_third_and_did_not_reach_zero(
     instrument's job."""
     _, stats = harvest
     residual = stats["unresolved_args"] + stats["nonconstant_programs"]
-    assert residual <= 170, residual
+    assert residual <= 120, residual          # 166 at round 462, 114 now
     assert residual < 258 * 2 // 3
     assert stats["unresolved_args"] > 0
     assert stats["nonconstant_programs"] > 0
+
+
+
+
+# ---------------------------------------------------------------------------
+# 6. round 468 -- the residual, item by item
+#
+# Round 462's next-step 2: "the 166 remaining residual entries are ARGUED
+# undecidable, not measured undecidable ... classify the 94 the way it
+# classified the 131, one row per entry". These tests pin the itemisation and
+# the four defects it made visible.
+# ---------------------------------------------------------------------------
+
+def _harvest_source(src, name):
+    """Harvest one synthetic test module and return (programs, stats)."""
+    path = os.path.join(HERE, name)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(src)
+    try:
+        return dc.harvest_file(path)
+    finally:
+        os.remove(path)
+
+
+def test_every_residual_entry_carries_a_location_and_a_class(harvest_rows):
+    """A COUNTER CANNOT BE AUDITED, ONLY BELIEVED. `unresolved_args: 94`
+    supports exactly one action -- "widen the folder" -- and cannot say which
+    widening. Every row carries a file, a line, the source text of the node
+    that defeated the walk, and a class a reader can refute by opening the
+    file."""
+    rows = [r for r in harvest_rows if r["kind"] == "residual"]
+    assert rows
+    for r in rows:
+        assert r["file"].endswith(".py") and r["line"] > 0, r
+        assert r["cls"] and r["text"], r
+        assert len(r["text"]) <= dc.ROW_TEXT_CAP
+
+
+def test_the_rows_reconcile_with_the_counters(harvest_rows, harvest):
+    """The rows and the counters are derived at the same site, so a row that
+    is not counted -- or a count with no row -- is a bug this sees."""
+    _, stats = harvest
+    kinds = {}
+    for r in harvest_rows:
+        kinds[r["kind"]] = kinds.get(r["kind"], 0) + 1
+    assert kinds["residual"] == (stats["unresolved_args"] +
+                                 stats["nonconstant_programs"])
+    assert kinds["excluded"] == (stats["module_calls"] +
+                                 stats["stmt_node_args"] +
+                                 stats["file_reads"])
+    assert kinds["parse_only"] == stats["parse_only_strings"]
+    assert kinds["unparsed"] == stats["unparsed_programs"]
+    assert kinds["forwarded"] == stats["forwarded_args"]
+
+
+def test_the_string_level_accounting_closes(harvest):
+    """Round 468's `strings_folded` and `dup_in_file`. Before them the
+    per-file `seen` set dropped a repeated `(src, depth)` and incremented
+    nothing, so no identity over folded strings could be written at all."""
+    _, stats = harvest
+    assert stats["strings_folded"] == (stats["parse_only_strings"] +
+                                       stats["dup_in_file"] +
+                                       stats["unparsed_programs"] +
+                                       stats["programs_before_dedup"])
+    assert (stats["programs_before_dedup"] - stats["dup_cross_file"] ==
+            stats["programs"])
+    assert stats["dup_in_file"] > 0
+
+
+def test_every_counter_reaches_the_report(harvest):
+    """SEVEN counters were collected and printed by no CLI path before this
+    round (`parse_only_programs`, `unparsed_programs`, `forwarded_args`,
+    `ambiguous_scopes`, `programs_before_dedup`, `executing_runners`,
+    `parse_only_runners`) -- which is how `parse_only_programs` could measure
+    the wrong unit for three rounds without anyone seeing the number. A
+    counter with no reader is a counter with no check."""
+    _, stats = harvest
+    numeric = {k for k, v in stats.items() if isinstance(v, int)}
+    assert numeric == set(dc.REPORT_KEYS), numeric ^ set(dc.REPORT_KEYS)
+    text = dc.harvest_report(stats)
+    for k in dc.REPORT_KEYS:
+        assert str(stats[k]) in text, k
+
+
+def test_parse_only_is_counted_in_the_unit_it_is_compared_against():
+    """`parse_only_programs` fired once per folded string, BEFORE the dedup
+    and BEFORE the parse gate that `programs` is measured after -- so round
+    462's "145 parse-only against 559 harvested" compared two units. Here one
+    non-program string appears twice and one program string once: three
+    occurrences, two distinct, ONE program."""
+    src = ("from whence.parser import parse\n"
+           "def p(src):\n    return parse(src)\n"
+           "def test_a():\n    p('let y = (')\n    p('let y = (')\n"
+           "def test_b():\n    p('let a = 1')\n")
+    _, stats = _harvest_source(src, "__tmp_po_unit.py")
+    assert stats["parse_only_strings"] == 3
+    assert stats["parse_only_srcs"] == ["let y = (", "let a = 1"] or \
+        sorted(stats["parse_only_srcs"]) == ["let a = 1", "let y = ("]
+    assert stats["parse_only_programs"] == 1
+
+
+def test_over_the_real_tree_most_parse_only_strings_are_not_programs(harvest):
+    """And the measured answer is the interesting one: the parse-only runners
+    are `parse_error`/`err`/`reason` helpers, so their strings are
+    DELIBERATELY malformed. 186 occurrences, 141 distinct, 25 programs."""
+    _, stats = harvest
+    assert stats["parse_only_strings"] > stats["parse_only_distinct"]
+    assert stats["parse_only_distinct"] > stats["parse_only_programs"] * 3
+    assert stats["parse_only_programs"] > 0
+
+
+def test_a_call_inside_a_lambda_body_is_visited():
+    """`_walk_scope` has refused to descend into `Lambda` since round 458 and
+    the scope list did not contain one, so a call in a lambda body was
+    visited by NO scope and counted by NO counter. `SCOPE_KINDS` is now the
+    single list both read."""
+    src = ("from whence.interp import Interpreter\n"
+           "def run(src):\n    return Interpreter().run(src)\n"
+           "def test_x():\n    f = lambda: run('let a = 1')\n    f()\n")
+    progs, stats = _harvest_source(src, "__tmp_lambda.py")
+    assert [p["src"] for p in progs] == ["let a = 1"]
+    # Two source positions: `Interpreter().run(src)` inside the helper (whose
+    # argument is a forwarded parameter) and `run('let a = 1')` inside the
+    # lambda body. The second is the one that was invisible.
+    assert stats["calls"] == 2
+    assert stats["forwarded_args"] == 1
+
+
+def test_a_name_bound_in_an_enclosing_function_resolves():
+    """The environment was `module | this scope` and nothing in between. The
+    class existed with zero instances until lambdas entered the scope list,
+    at which point `test_v09.py`'s `lambda: run(src)` became the first."""
+    src = ("from whence.interp import Interpreter\n"
+           "def run(src):\n    return Interpreter().run(src)\n"
+           "def test_x():\n"
+           "    src = 'let a = 1'\n"
+           "    f = lambda: run(src)\n    f()\n")
+    progs, stats = _harvest_source(src, "__tmp_closure.py")
+    assert [p["src"] for p in progs] == ["let a = 1"]
+    assert stats["unresolved_args"] == 0
+
+
+def test_a_file_read_is_an_exclusion_and_not_a_residual():
+    """Gate (1) of the declared population is *a Python string constant in
+    the test tree*; a file's contents is not one. Round 462 counted
+    `subprocess.run` the same way and for the same reason -- a call skipped
+    for a stated reason must not share a counter with one that defeated the
+    walk."""
+    src = ("from whence.interp import Interpreter\n"
+           "def test_x():\n"
+           "    i = Interpreter()\n"
+           "    i.run(open('p.lang').read())\n"
+           "    src = open('q.lang').read()\n"
+           "    i.run(src)\n")
+    _, stats = _harvest_source(src, "__tmp_fileread.py")
+    assert stats["file_reads"] == 2
+    assert stats["nonconstant_programs"] == 0
+    assert stats["unresolved_args"] == 0
+
+
+def test_a_comprehension_target_binds_exactly_like_a_for_target():
+    """`_walk_scope` already descended into a comprehension -- the node was
+    VISITED and its target simply never bound. 10 of the 94."""
+    src = ("from whence.interp import Interpreter\n"
+           "CASES = ['let a = 1', 'let b = 2']\n"
+           "def run(src):\n    return Interpreter().run(src)\n"
+           "def test_x():\n    [run(s) for s in CASES]\n")
+    progs, stats = _harvest_source(src, "__tmp_comp.py")
+    assert sorted(p["src"] for p in progs) == ["let a = 1", "let b = 2"]
+    assert stats["unresolved_args"] == 0
+
+
+def test_a_literal_dict_table_drives_the_binder():
+    """`for name, src in TABLE.items():` over a dict literal. `_literal` had
+    no `ast.Dict` branch at all, so a dict-shaped table was as opaque as a
+    network call."""
+    src = ("from whence.interp import Interpreter\n"
+           "TABLE = {'a': 'let a = 1', 'b': 'let b = 2'}\n"
+           "def run(src):\n    return Interpreter().run(src)\n"
+           "def test_x():\n"
+           "    for name, s in TABLE.items():\n        run(s)\n")
+    progs, stats = _harvest_source(src, "__tmp_dict.py")
+    assert sorted(p["src"] for p in progs) == ["let a = 1", "let b = 2"]
+
+
+def test_string_repetition_folds_and_the_repeat_is_capped():
+    """`'(' * 40` is exactly as constant as `'(' + '('`, and three residual
+    classes turned on it. `**` is refused outright: `10 ** 100000` is a
+    denial of service in four characters, and no row needs it."""
+    lits = {}
+    fold = lambda e: dc._literal(ast.parse(e, mode="eval").body, lits)
+    assert fold("'(' * 40") == "(" * 40
+    assert fold("2 * 3") == 6
+    assert fold("'x' * (3 + 1)") == "xxxx"
+    assert fold("'x' * 10 ** 9") is dc._NOLIT       # cap
+    assert fold("2 ** 3") is dc._NOLIT              # never
+    assert fold("'x' * -1") is dc._NOLIT
+    node = ast.parse("'let a = ' + '1' * 3", mode="eval").body
+    assert dc._const_strs(node, {}, lits) == ["let a = 111"]
+
+
+def test_a_zip_over_a_runtime_column_is_refused_and_says_so():
+    """13 rows are `for src, g in zip(CORPUS, guest_eval_all(CORPUS))`.
+    `zip` truncates to its shortest argument, so the strings that reach the
+    runner are a SUBSET of the literal column; binding all of them would
+    publish programs the suite may never run. The refusal is a NAMED class,
+    not an omission -- show the columns are equal-length by construction and
+    the widening becomes sound."""
+    src = ("from whence.interp import Interpreter\n"
+           "CASES = ['let a = 1', 'let b = 2']\n"
+           "def other(xs):\n    return xs\n"
+           "def run(src):\n    return Interpreter().run(src)\n"
+           "def test_x():\n"
+           "    for s, g in zip(CASES, other(CASES)):\n        run(s)\n")
+    _, stats = _harvest_source(src, "__tmp_zip.py")
+    assert stats["unresolved_args"] == 1
+    assert [r["cls"] for r in stats["rows"] if r["kind"] == "residual"] == \
+        ["zip_nonliteral_column"]
+    # Both columns literal IS folded -- the refusal is about the runtime one.
+    src2 = src.replace("other(CASES)", "['x', 'y']")
+    progs, stats2 = _harvest_source(src2, "__tmp_zip2.py")
+    assert sorted(p["src"] for p in progs) == ["let a = 1", "let b = 2"]
+    assert stats2["unresolved_args"] == 0
+
+
+def test_the_widenings_lost_no_program_and_the_residual_only_fell(harvest):
+    """Round 462 proved its own superset claim by set difference rather than
+    argument; this round did the same against the module at `be5c248`
+    (0 of 559 lost, 206 added). What a test can pin at HEAD is the floor and
+    the two classes that produced the biggest share."""
+    progs, stats = harvest
+    assert stats["programs"] >= 765
+    srcs = {p["src"] for p in progs}
+    # One witness per structural fix, each absent from the 559 at `be5c248`.
+    # `lambda: run(src)` in `test_v09.py:245` -- the scope-list hole AND the
+    # environment chain, since `src` is bound in the enclosing function.
+    assert ("fn count(n) { if n == 0 { 0 } else { 1 + count(n - 1) } }\n"
+            "let result = count(3000)\n") in srcs
+    # string repetition: `'let result = ' + '(' * 40 + '1' + ')' * 40`
+    assert "let result = " + "(" * 40 + "1" + ")" * 40 in srcs
+    # a dict literal read through `.values()` (`test_v27.py:573`)
+    assert ("fn go(n, xs) { if n <= 0 { xs } else { go(n - 1, xs + xs) } }\n"
+            "let result = go(13, [1, 2])\n") in srcs
+
+
+def test_the_residual_is_dominated_by_string_building_not_by_tables(harvest,
+                                                                    harvest_rows):
+    """The DIAGNOSIS moved, and that is the point of an itemisation. Before:
+    39 of the 94 unresolved names -- 41% -- were bound by an ITERATION
+    PROTOCOL the binder could not read (`zip` 19, `.items()`/`.values()` 8,
+    a comprehension 10, `sorted`/`enumerate` 2), not by a string the folder
+    could not build. Round 462's published diagnosis named `"".join(parts)`
+    and `open(path).read()`, which are classes of the OTHER counter. After
+    the widenings the remaining residual really is string-building."""
+    rows = [r for r in harvest_rows if r["kind"] == "residual"]
+    by = {}
+    for r in rows:
+        by[r["cls"]] = by.get(r["cls"], 0) + 1
+    building = sum(n for c, n in by.items()
+                   if "binop:" in c or ".join" in c)
+    assert building >= len(rows) // 2, by
+    assert "bound_in_skipped_scope:assign" not in by
+
 
 
 def test_the_multivalued_fold_is_load_bearing_and_not_decorative(harvest):

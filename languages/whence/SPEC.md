@@ -143,7 +143,16 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
      would break every one of them to buy nothing. Do not reuse 14-26 for
      new decisions: the gap is evidence of the rot round 345 found, and
      this list is the registry `xref_check.py` reads. Append here in the
-     SAME round that mints a number. -->
+     SAME round that mints a number, and take that number from
+     `python3 specreg.py next` — NOT by reading the bottom of this list.
+     Round 464's next-step 3, discharged by round 468, the next round to
+     mint one. The instruction this replaces named the registry as the
+     source of the next id, which is precisely the site round 462 forgot to
+     update: it minted 56 in prose 8 700 lines below, this list still ended
+     at 55, and the next author would have read 55 and minted 56 again.
+     `specreg.py next` derives the answer from EVERY site that carries an
+     id (this registry, the `Decision N` prose headings, the version-history
+     headings) so no author has to know there is more than one. -->
 
 14-26. *(reserved — never minted; see the comment above.)*
 27. **A self-hosted implementation may RECOVER host state instead of
@@ -801,6 +810,39 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    and not the measurement. An overstated blind spot is not the safe error
    — it hides a precision bug behind a number that reads as humility.
    See § Decision 56.
+57. **A residual reported as a COUNT can only ever say "widen the
+   instrument"; reported as ROWS it says which widening, and sometimes that
+   the diagnosis was wrong (round 468).** Decision 56 left
+   `depthcensus.py`'s residual as three integers — 94 unresolved names, 72
+   non-constant nodes, 145 parse-only "programs" — and named
+   `"".join(parts)` and `open(path).read()` as its classes. Itemised, one
+   row per entry with a file, a line, the node's source text and an
+   AST-derived class, **39 of the 94 (41%) were bound by an ITERATION
+   PROTOCOL and not by a string the folder could not build**: `zip` 19,
+   `.items()`/`.values()` 8, a comprehension target 10, `sorted`/
+   `enumerate` 2. A dict literal was invisible to `_literal` entirely, and
+   a comprehension was a construct `_walk_scope` already descended into
+   whose target the binder simply never read. Three further defects were
+   visible only as rows: `harvest_file`'s scope list held
+   `FunctionDef`/`ClassDef` while `_walk_scope` also refuses to descend
+   into `Lambda`, so **a call inside a lambda body was visited by no scope
+   and counted by no counter** — a blind spot OUTSIDE the residual, which
+   is the one kind decision 56 promises cannot exist; the environment was
+   `module | this scope` with nothing in between; and
+   `parse_only_programs` counted an OCCURRENCE before both the dedup and
+   the parse gate that `programs` is counted after, so **"145 parse-only
+   against 559 harvested" compared two different units** — in `programs`'
+   own unit it is **25**. **559 -> 765 programs, again a strict SUPERSET
+   with 0 lost; residual 166 -> 114; excluded-and-counted 67 -> 79** (a
+   third class: a file's contents is not a Python string constant, and
+   those twelve files are `examples/`, which this module's other mode
+   censuses in full). The string-level accounting now closes exactly —
+   `1199 folded = 186 parse-only + 211 dup-in-file + 18 unparsed + 784
+   kept`, and `784 - 19 cross-file = 765` — which it could not before,
+   because the per-file dedup dropped a repeat and incremented nothing.
+   **No constant moves and the champion does not move.** *A counter cannot
+   be audited, only believed.*
+   See § Decision 57.
 
 ## Syntax (statements are newline-separated; `#` comments)
 ```
@@ -9560,3 +9602,105 @@ a source position the walk failed on, and a call excluded for a reason must be
 counted separately from a call that defeated you.* An overstated blind spot is
 not the safe error — it hides a precision bug behind a number that reads as
 humility.
+
+
+### Decision 57 (round 468, language C): a counter cannot be audited, only believed
+
+**No constant changes.** `FULL_SHOW_NEST` is still 24, `FULL_SHOW_NODES` is
+still 20000, `DEFAULT_MAX_DEPTH` is still 20000. Decisions 53, 54, 55 and 56
+stand as written; the harvest numbers in decision 56's table are superseded by
+this one, exactly as it superseded 55's.
+
+Decision 56 ends on a rule — *a residual is a claim about the instrument and
+is as falsifiable as the corpus* — and its own skill
+(`skills/residual-audited-both-ways`) states the method: *classify a residual
+item by item before narrowing it.* It then left its own residual as three
+integers, and round 462's next-step 2 said so: "the 166 remaining residual
+entries are ARGUED undecidable, not measured undecidable".
+
+**What a count can say.** `unresolved_args: 94` supports exactly one action —
+widen the folder — and cannot say which widening, or whether any is possible.
+It is also unfalsifiable in practice: no reader can check it without
+rebuilding the walk. A ROW carries a file, a line, the source text of the node
+that defeated the walk, and a class derived from the AST, and a class is a
+thing a reader refutes by opening the file. `python3 depthcensus.py --tests
+--residual` prints them.
+
+**What the rows said, which is not what decision 56 said.**
+
+```
+    unresolved names, by why they did not resolve (94)
+      bound by an ITERATION PROTOCOL the binder cannot read     39   (41%)
+        zip(...)                                    19
+        a comprehension target                      10
+        TABLE.items() / TABLE.values()               8
+        sorted(...) / enumerate(...)                 2
+      bound by a string expression the folder cannot build      45
+      other (subscript, sequence, name chains)                  10
+
+    non-constant nodes, by AST shape (72)
+      binop:Add   28   binop:Mod   20   .join   18   .read   4
+      subscript    1   .replace     1
+```
+
+Decision 56's published diagnosis — `"".join(parts)` over a loop-built list,
+`open(path).read()` over a runtime `listdir` — describes the second table and
+was offered for the first. **The dominant class in the 94 was not string
+construction at all.** A dict literal was invisible to `_literal` entirely; a
+comprehension was a node `_walk_scope` already descended into, whose target
+the binder simply never bound, though the identical `ast.For` construct had
+been read since round 458.
+
+**Three defects that were visible only as rows.**
+
+1. **A blind spot OUTSIDE the residual.** `harvest_file`'s scope list was
+   `FunctionDef` + `ClassDef`; `_walk_scope` also refuses to descend into
+   `Lambda` and `AsyncFunctionDef`. A call inside a lambda body was therefore
+   visited by no scope and counted by no counter — neither residual nor
+   exclusion. Nine calls in `tests/`, two of them runner calls
+   (`test_v09.py:245` and `:254`). Decision 56's whole point is that an
+   instrument must say what it could not reach; this was a thing it could not
+   reach and did not say. `SCOPE_KINDS` is now the single tuple both sites
+   read, and the source-position call count went 918 -> 920.
+2. **The environment skipped every scope in between.** `env` was `module
+   bindings | this scope's bindings`, so a name bound in an enclosing function
+   was invisible however ordinary the binding. Latent — zero instances — until
+   lambdas entered the scope list, at which point `test_v09.py`'s
+   `lambda: run(src)` became the first. It is a real chain now.
+3. **`parse_only_programs` measured the wrong unit.** It fired once per folded
+   string, BEFORE the `(src, depth)` dedup and BEFORE the parse gate that
+   `programs` is counted after. "145 parse-only against 559 harvested"
+   compares an occurrence count against a deduplicated, parse-gated corpus.
+   Measured in `programs`' own unit: **186 occurrences, 141 distinct, and 25
+   that are programs.** The other 116 are deliberately malformed — the
+   parse-only runners are called `parse_error`, `err` and `reason` — and **0
+   of the 141 occur anywhere in the executing corpus.**
+
+**The measurements.**
+
+```
+    harvested programs         559 -> 765     (+37%, strict superset,
+                                               0 of 559 lost by set
+                                               difference against be5c248)
+    declared residual          166 -> 114     (-31%)
+    excluded, counted           67 ->  79     (+12 file reads)
+    calls in a source position 918 -> 920     (the two lambda bodies)
+    parse-only "programs"      145 ->  25     in the unit it is compared in
+    strings, fully accounted     -  1199 = 186 + 211 + 18 + 784
+    suite-mode census          765 programs, 0 errors, 0 alloc
+                               disagreements, 0 caps hit, 80.3 s
+```
+
+**Two widenings deliberately NOT taken, named so the decision is visible.**
+`zip(LITERAL, runtime)` is 13 rows; `zip` truncates to its shortest argument,
+so the strings that reach the runner are a SUBSET of the literal column, and
+binding all of them would publish programs the suite may never run. The class
+is named `zip_nonliteral_column` rather than left as an omission — show the
+columns are equal-length by construction and the widening becomes sound. And
+`**` is refused outright in the literal folder: `10 ** 100000` is a denial of
+service in four characters and no row in the residual needs it.
+
+**The rule.** *A counter cannot be audited, only believed. Report a residual
+as rows carrying a location and a class, and the instrument's own diagnosis
+becomes falsifiable — including by the rows that turn out not to be in the
+residual at all.*

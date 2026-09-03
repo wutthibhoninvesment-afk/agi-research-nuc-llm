@@ -1,0 +1,4121 @@
+{
+ "mode": "suite",
+ "rows": [
+  {
+   "cls": "param:src",
+   "file": "test_contract_message_differential.py",
+   "kind": "forwarded",
+   "line": 261,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "call:.join",
+   "file": "test_contract_message_differential.py",
+   "kind": "residual",
+   "line": 275,
+   "runner": ".run",
+   "text": "''.join(parts)"
+  },
+  {
+   "cls": "call:.join",
+   "file": "test_contract_message_differential.py",
+   "kind": "residual",
+   "line": 356,
+   "runner": ".run",
+   "text": "''.join(parts)"
+  },
+  {
+   "cls": "binop:Mod",
+   "file": "test_contract_message_differential.py",
+   "kind": "residual",
+   "line": 501,
+   "runner": "host_reason",
+   "text": "'let r = typed(@{a: \"z\"}, %s, \"L\")' % spec"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_critical_mission_claims.py",
+   "kind": "forwarded",
+   "line": 78,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_critical_mission_claims.py",
+   "kind": "excluded",
+   "line": 127,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, 'run.py', path], cwd=ROOT, capture_output=True, text=True, timeout=120)"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_examples.py",
+   "kind": "excluded",
+   "line": 16,
+   "runner": ".run",
+   "text": "subprocess.run(cmd, capture_output=True, text=True)"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_examples.py",
+   "kind": "excluded",
+   "line": 76,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, RUN, str(bad)], capture_output=True, text=True)"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_examples.py",
+   "kind": "excluded",
+   "line": 94,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, RUN, str(bad)], capture_output=True, text=True)"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_examples.py",
+   "kind": "excluded",
+   "line": 189,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, RUN, '--max-depth', 'x', 'y.lang'], capture_output=True, text=True)"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_examples.py",
+   "kind": "excluded",
+   "line": 184,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, RUN, '--max-depth', '100', os.path.join(ROOT, 'examples', 'deep.lang')], capture_output=True, text=True)"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_examples.py",
+   "kind": "excluded",
+   "line": 247,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, RUN, str(bad)], capture_output=True, text=True)"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_examples.py",
+   "kind": "excluded",
+   "line": 261,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, RUN, '--max-iter', '5', '--max-depth', '50', str(prog)], capture_output=True, text=True)"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_examples.py",
+   "kind": "excluded",
+   "line": 257,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, RUN, '--max-iter', '1000', str(prog)], capture_output=True, text=True)"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_field_corpus_selector.py",
+   "kind": "excluded",
+   "line": 134,
+   "runner": ".run",
+   "text": "subprocess.run(['git', 'ls-files', '--others', '--exclude-standard', 'examples'], cwd=root, capture_output=True, text=True)"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_fuzz_regressions.py",
+   "kind": "forwarded",
+   "line": 22,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_fuzz_regressions.py",
+   "kind": "forwarded",
+   "line": 26,
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "ParseError",
+   "file": "test_fuzz_regressions.py",
+   "kind": "unparsed",
+   "line": 41,
+   "runner": ".run",
+   "src": "let p = ((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((1))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))",
+   "text": "src"
+  },
+  {
+   "cls": "ParseError",
+   "file": "test_fuzz_regressions.py",
+   "kind": "unparsed",
+   "line": 41,
+   "runner": ".run",
+   "src": "let n = - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 1",
+   "text": "src"
+  },
+  {
+   "cls": "ParseError",
+   "file": "test_fuzz_regressions.py",
+   "kind": "unparsed",
+   "line": 41,
+   "runner": ".run",
+   "src": "let l = [[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]",
+   "text": "src"
+  },
+  {
+   "cls": "ParseError",
+   "file": "test_fuzz_regressions.py",
+   "kind": "unparsed",
+   "line": 41,
+   "runner": ".run",
+   "src": "let w = why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why 1",
+   "text": "src"
+  },
+  {
+   "cls": "binop:Add",
+   "file": "test_fuzz_regressions.py",
+   "kind": "residual",
+   "line": 80,
+   "runner": "val",
+   "text": "HUGE + 'let result = ' + expr"
+  },
+  {
+   "cls": "binop:Mod",
+   "file": "test_fuzz_regressions.py",
+   "kind": "residual",
+   "line": 113,
+   "runner": "val",
+   "text": "'let result = num(\"%s\")' % text"
+  },
+  {
+   "cls": "binop:Mod",
+   "file": "test_fuzz_regressions.py",
+   "kind": "residual",
+   "line": 119,
+   "runner": "val",
+   "text": "'let result = num(\"%s\")' % text"
+  },
+  {
+   "cls": "binop:Add",
+   "file": "test_fuzz_regressions.py",
+   "kind": "residual",
+   "line": 135,
+   "runner": "run",
+   "text": "NEST + 'let d1 = nest(%d)\\nlet d2 = nest(%d)\\n' % (n, n)"
+  },
+  {
+   "cls": "stmt_node_arg:.exec_stmt",
+   "file": "test_generated_killers.py",
+   "kind": "excluded",
+   "line": 28,
+   "runner": ".exec_stmt",
+   "text": "interp.exec_stmt(stmt, env)"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_generated_killers.py",
+   "kind": "forwarded",
+   "line": 40,
+   "runner": "canonical",
+   "text": "src"
+  },
+  {
+   "cls": "stmt_node_arg:.exec_stmt",
+   "file": "test_generated_killers_r29.py",
+   "kind": "excluded",
+   "line": 28,
+   "runner": ".exec_stmt",
+   "text": "interp.exec_stmt(stmt, env)"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_generated_killers_r29.py",
+   "kind": "forwarded",
+   "line": 40,
+   "runner": "canonical",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_history.py",
+   "kind": "forwarded",
+   "line": 10,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_history.py",
+   "kind": "forwarded",
+   "line": 14,
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_interp.py",
+   "kind": "forwarded",
+   "line": 9,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_interp.py",
+   "kind": "forwarded",
+   "line": 14,
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "binop:Add",
+   "file": "test_lexer_guest_parity.py",
+   "kind": "residual",
+   "line": 149,
+   "runner": ".run",
+   "text": "'\\n'.join(prog) + '\\n'"
+  },
+  {
+   "cls": "binop:Add",
+   "file": "test_lexer_guest_parity.py",
+   "kind": "residual",
+   "line": 211,
+   "runner": ".run",
+   "text": "library_source() + '\\nlet __z = 1\\n'"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_lexer_guest_parity.py",
+   "kind": "excluded",
+   "line": 443,
+   "runner": ".run",
+   "text": "subprocess.run(['git', 'ls-files', 'examples'], cwd=cwd, capture_output=True, text=True, timeout=10, check=True)"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_miss_message_differential.py",
+   "kind": "forwarded",
+   "line": 461,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_miss_message_differential.py",
+   "kind": "forwarded",
+   "line": 475,
+   "runner": "outcome",
+   "text": "src"
+  },
+  {
+   "cls": "call:.join",
+   "file": "test_miss_message_differential.py",
+   "kind": "residual",
+   "line": 504,
+   "runner": ".run",
+   "text": "''.join(parts)"
+  },
+  {
+   "cls": "bound_nonconstant:name",
+   "file": "test_miss_message_differential.py",
+   "kind": "residual",
+   "line": 574,
+   "name": "src",
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "binop:Add",
+   "file": "test_parse_error_differential.py",
+   "kind": "residual",
+   "line": 370,
+   "runner": ".run",
+   "text": "'\\n'.join(prog) + '\\n'"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "let a = 1\na = 2",
+   "text": "src"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "let y = if true 1 else 2",
+   "text": "src"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "let r = {a: 1}",
+   "text": "src"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "let f = fn(x) { x }\nlet d = f 1",
+   "text": "src"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "let a = 1 let b = 2",
+   "text": "src"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "let a = 1\nlet a = 2",
+   "text": "src"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "let z = fn() { let b = 1\nlet b = 2 }",
+   "text": "src"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "\n\nlet a = 1\nlet a = 2\na",
+   "text": "src"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "# c\n\n\nfn f() { 1 }\nfn f() { 2 }\nf()",
+   "text": "src"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "let z = fn() {\n let b = 1\n\nlet b = 2 }",
+   "text": "src"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "let S = 1\nshape S = @{a: num}\nS",
+   "text": "src"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "shape S = @{a: num}\nshape S = @{b: num}\nS",
+   "text": "src"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "let k = 0\n\nshape S = @{a: num}\nshape S = @{b: num}\nS",
+   "text": "src"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "\nshape S = @{a: num}\nlet k = 0\n# c\nshape S = @{b: num}\nS",
+   "text": "src"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "let z = fn() {\n shape S = @{a: num}\n\n shape S = @{b: num} }",
+   "text": "src"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "\nshape S = @{a: num}\nlet k = 0\nlet S = 1\nS",
+   "text": "src"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "shape S = @{a: num}\nfn f() {\n shape S = @{b: num}\n\n shape S = @{c: num}\n 1 }\nf()",
+   "text": "src"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "fn f(a, a) { a }",
+   "text": "src"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "let r = @{a: 1, a: 2}",
+   "text": "src"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "let = 2",
+   "text": "src"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "let let = 1",
+   "text": "src"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "let y = if true { 1 }",
+   "text": "src"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "let c = 1 < 2 < 3",
+   "text": "src"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "let f = fn() { }",
+   "text": "src"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "let f = fn() { let a = 1 }",
+   "text": "src"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "let x = (1",
+   "text": "src"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "let x = [1, 2",
+   "text": "src"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "let r = @{a: 1",
+   "text": "src"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "let x =",
+   "text": "src"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "let a = 1\n}",
+   "text": "src"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "let f = fn() { a: 1 }",
+   "text": "src"
+  },
+  {
+   "cls": "runner:host_result",
+   "file": "test_parse_error_differential.py",
+   "kind": "parse_only",
+   "line": 387,
+   "runner": "host_result",
+   "src": "let r = @{a: 1}\nlet v = r.",
+   "text": "src"
+  },
+  {
+   "cls": "runner:first_expr",
+   "file": "test_parser.py",
+   "kind": "parse_only",
+   "line": 15,
+   "runner": "first_expr",
+   "src": "1 + 2 * 3",
+   "text": "'1 + 2 * 3'"
+  },
+  {
+   "cls": "runner:first_expr",
+   "file": "test_parser.py",
+   "kind": "parse_only",
+   "line": 21,
+   "runner": "first_expr",
+   "src": "a + 1 rescue 0",
+   "text": "'a + 1 rescue 0'"
+  },
+  {
+   "cls": "runner:first_expr",
+   "file": "test_parser.py",
+   "kind": "parse_only",
+   "line": 27,
+   "runner": "first_expr",
+   "src": "a rescue b rescue c",
+   "text": "'a rescue b rescue c'"
+  },
+  {
+   "cls": "runner:first_expr",
+   "file": "test_parser.py",
+   "kind": "parse_only",
+   "line": 40,
+   "runner": "first_expr",
+   "src": "why x + 1",
+   "text": "'why x + 1'"
+  },
+  {
+   "cls": "runner:first_expr",
+   "file": "test_parser.py",
+   "kind": "parse_only",
+   "line": 37,
+   "runner": "first_expr",
+   "src": "not missed(x)",
+   "text": "'not missed(x)'"
+  },
+  {
+   "cls": "runner:first_expr",
+   "file": "test_parser.py",
+   "kind": "parse_only",
+   "line": 45,
+   "runner": "first_expr",
+   "src": "miss \"no data\"",
+   "text": "'miss \"no data\"'"
+  },
+  {
+   "cls": "runner:first_expr",
+   "file": "test_parser.py",
+   "kind": "parse_only",
+   "line": 50,
+   "runner": "first_expr",
+   "src": "f(x)[0].name",
+   "text": "'f(x)[0].name'"
+  },
+  {
+   "cls": "runner:first_expr",
+   "file": "test_parser.py",
+   "kind": "parse_only",
+   "line": 63,
+   "runner": "first_expr",
+   "src": "if a { 1 } else if b { 2 } else { 3 }",
+   "text": "'if a { 1 } else if b { 2 } else { 3 }'"
+  },
+  {
+   "cls": "call:.join",
+   "file": "test_parser_differential.py",
+   "kind": "residual",
+   "line": 385,
+   "runner": ".run",
+   "text": "''.join(parts)"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_polarity.py",
+   "kind": "excluded",
+   "line": 502,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, os.path.join(here, 'run.py'), prog], cwd=here, capture_output=True, text=True, timeout=120)"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_polarity.py",
+   "kind": "forwarded",
+   "line": 1662,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_self_eval.py",
+   "kind": "forwarded",
+   "line": 138,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "call:.join",
+   "file": "test_self_eval.py",
+   "kind": "residual",
+   "line": 148,
+   "runner": ".run",
+   "text": "''.join(parts)"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_self_eval.py",
+   "kind": "excluded",
+   "line": 167,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, os.path.join(ROOT, 'run.py'), EXAMPLE], capture_output=True, text=True)"
+  },
+  {
+   "cls": "zip_nonliteral_column",
+   "file": "test_self_eval.py",
+   "kind": "residual",
+   "line": 260,
+   "name": "src",
+   "runner": "host_eval",
+   "text": "src"
+  },
+  {
+   "cls": "zip_nonliteral_column",
+   "file": "test_self_eval.py",
+   "kind": "residual",
+   "line": 326,
+   "name": "src",
+   "runner": "host_eval",
+   "text": "src"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Add",
+   "file": "test_self_eval.py",
+   "kind": "residual",
+   "line": 335,
+   "name": "src",
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Add",
+   "file": "test_self_eval.py",
+   "kind": "residual",
+   "line": 351,
+   "name": "src",
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "binop:Add",
+   "file": "test_self_eval.py",
+   "kind": "residual",
+   "line": 374,
+   "runner": ".run",
+   "text": "lib + 'let __p = gp(\"%s\")\\n' % escape(src)"
+  },
+  {
+   "cls": "binop:Add",
+   "file": "test_self_eval.py",
+   "kind": "residual",
+   "line": 597,
+   "runner": ".run",
+   "text": "lib + 'let __s = gv(\"let result = [1, @{a: 2 + 3}, [4]]\")\\n'"
+  },
+  {
+   "cls": "zip_nonliteral_column",
+   "file": "test_self_eval.py",
+   "kind": "residual",
+   "line": 640,
+   "name": "src",
+   "runner": "host_eval",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_self_eval.py",
+   "kind": "forwarded",
+   "line": 919,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_self_eval.py",
+   "kind": "forwarded",
+   "line": 930,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "zip_nonliteral_column",
+   "file": "test_self_eval.py",
+   "kind": "residual",
+   "line": 964,
+   "name": "src",
+   "runner": "host_eval",
+   "text": "src"
+  },
+  {
+   "cls": "ParseError",
+   "file": "test_self_eval.py",
+   "kind": "unparsed",
+   "line": 1001,
+   "runner": "host_parse_position",
+   "src": "shape Foo = @{x: Foo}\nlet result = 1",
+   "text": "src"
+  },
+  {
+   "cls": "ParseError",
+   "file": "test_self_eval.py",
+   "kind": "unparsed",
+   "line": 1001,
+   "runner": "host_parse_position",
+   "src": "shape A = @{b: B}\nshape B = @{x: num}\nlet result = 1",
+   "text": "src"
+  },
+  {
+   "cls": "ParseError",
+   "file": "test_self_eval.py",
+   "kind": "unparsed",
+   "line": 1001,
+   "runner": "host_parse_position",
+   "src": "shape num = @{x: num}\nlet result = 1",
+   "text": "src"
+  },
+  {
+   "cls": "ParseError",
+   "file": "test_self_eval.py",
+   "kind": "unparsed",
+   "line": 1001,
+   "runner": "host_parse_position",
+   "src": "shape P = @{x: num}\nshape P = @{y: num}\nlet result = 1",
+   "text": "src"
+  },
+  {
+   "cls": "ParseError",
+   "file": "test_self_eval.py",
+   "kind": "unparsed",
+   "line": 1001,
+   "runner": "host_parse_position",
+   "src": "let k = 0\n\nshape P = @{x: num}\nlet j = 1\nshape P = @{y: num}\nlet result = 1",
+   "text": "src"
+  },
+  {
+   "cls": "ParseError",
+   "file": "test_self_eval.py",
+   "kind": "unparsed",
+   "line": 1001,
+   "runner": "host_parse_position",
+   "src": "shape P = @{x: num, x: str}\nlet result = 1",
+   "text": "src"
+  },
+  {
+   "cls": "ParseError",
+   "file": "test_self_eval.py",
+   "kind": "unparsed",
+   "line": 1001,
+   "runner": "host_parse_position",
+   "src": "fn f(a: Nope) { a }\nlet result = 1",
+   "text": "src"
+  },
+  {
+   "cls": "ParseError",
+   "file": "test_self_eval.py",
+   "kind": "unparsed",
+   "line": 1001,
+   "runner": "host_parse_position",
+   "src": "fn f() -> Nope { 1 }\nlet result = 1",
+   "text": "src"
+  },
+  {
+   "cls": "ParseError",
+   "file": "test_self_eval.py",
+   "kind": "unparsed",
+   "line": 1001,
+   "runner": "host_parse_position",
+   "src": "fn g() { shape L = @{x: num}\n1 }\nfn f() -> L { 1 }\nlet result = 1",
+   "text": "src"
+  },
+  {
+   "cls": "ParseError",
+   "file": "test_self_eval.py",
+   "kind": "unparsed",
+   "line": 1001,
+   "runner": "host_parse_position",
+   "src": "fn g() { shape L = @{x: num}\n1 }\nfn f(p: L) { p }\nlet result = 1",
+   "text": "src"
+  },
+  {
+   "cls": "ParseError",
+   "file": "test_self_eval.py",
+   "kind": "unparsed",
+   "line": 1001,
+   "runner": "host_parse_position",
+   "src": "fn g() { shape L = @{x: num}\n1 }\nshape W = @{i: L}\nlet result = 1",
+   "text": "src"
+  },
+  {
+   "cls": "ParseError",
+   "file": "test_self_eval.py",
+   "kind": "unparsed",
+   "line": 1026,
+   "runner": "host_parse_error",
+   "src": "shape\nP = @{x: num}\nlet result = 1",
+   "text": "src"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Add",
+   "file": "test_self_hosting.py",
+   "kind": "residual",
+   "line": 160,
+   "name": "prog",
+   "runner": ".run",
+   "text": "prog"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Add",
+   "file": "test_self_hosting.py",
+   "kind": "residual",
+   "line": 307,
+   "name": "prog",
+   "runner": ".run",
+   "text": "prog"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Add",
+   "file": "test_self_hosting.py",
+   "kind": "residual",
+   "line": 358,
+   "name": "prog",
+   "runner": ".run",
+   "text": "prog"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Add",
+   "file": "test_self_hosting.py",
+   "kind": "residual",
+   "line": 410,
+   "name": "prog",
+   "runner": ".run",
+   "text": "prog"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Add",
+   "file": "test_self_hosting.py",
+   "kind": "residual",
+   "line": 445,
+   "name": "prog",
+   "runner": ".run",
+   "text": "prog"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Add",
+   "file": "test_self_hosting.py",
+   "kind": "residual",
+   "line": 502,
+   "name": "prog",
+   "runner": ".run",
+   "text": "prog"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Add",
+   "file": "test_self_hosting.py",
+   "kind": "residual",
+   "line": 553,
+   "name": "prog",
+   "runner": ".run",
+   "text": "prog"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Add",
+   "file": "test_self_hosting.py",
+   "kind": "residual",
+   "line": 612,
+   "name": "prog",
+   "runner": ".run",
+   "text": "prog"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Add",
+   "file": "test_self_hosting.py",
+   "kind": "residual",
+   "line": 704,
+   "name": "prog",
+   "runner": ".run",
+   "text": "prog"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Add",
+   "file": "test_self_hosting.py",
+   "kind": "residual",
+   "line": 739,
+   "name": "prog",
+   "runner": ".run",
+   "text": "prog"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Add",
+   "file": "test_self_hosting.py",
+   "kind": "residual",
+   "line": 784,
+   "name": "prog",
+   "runner": ".run",
+   "text": "prog"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Add",
+   "file": "test_self_hosting.py",
+   "kind": "residual",
+   "line": 845,
+   "name": "prog",
+   "runner": ".run",
+   "text": "prog"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Add",
+   "file": "test_self_hosting.py",
+   "kind": "residual",
+   "line": 902,
+   "name": "prog",
+   "runner": ".run",
+   "text": "prog"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Add",
+   "file": "test_self_hosting.py",
+   "kind": "residual",
+   "line": 964,
+   "name": "prog",
+   "runner": ".run",
+   "text": "prog"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Add",
+   "file": "test_self_hosting.py",
+   "kind": "residual",
+   "line": 1011,
+   "name": "prog",
+   "runner": ".run",
+   "text": "prog"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Add",
+   "file": "test_self_hosting.py",
+   "kind": "residual",
+   "line": 1098,
+   "name": "prog",
+   "runner": ".run",
+   "text": "prog"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_spec_builtins.py",
+   "kind": "forwarded",
+   "line": 143,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "ParseError",
+   "file": "test_spec_builtins.py",
+   "kind": "unparsed",
+   "line": 183,
+   "runner": ".run",
+   "src": "let x = 5\nif x > 3 print(\"big\")\n",
+   "text": "'let x = 5\\nif x > 3 print(\"big\")\\n'"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_tiering.py",
+   "kind": "excluded",
+   "line": 59,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, '-m', 'pytest', '-c', INI, '--collect-only', '-q', *extra_args], cwd=REPO_ROOT, capture_output=True, text=True, timeout=60)"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_trampoline.py",
+   "kind": "forwarded",
+   "line": 18,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v03.py",
+   "kind": "forwarded",
+   "line": 12,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v03.py",
+   "kind": "forwarded",
+   "line": 17,
+   "runner": "result",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v04.py",
+   "kind": "forwarded",
+   "line": 16,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v04.py",
+   "kind": "forwarded",
+   "line": 21,
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Add",
+   "file": "test_v04.py",
+   "kind": "residual",
+   "line": 196,
+   "name": "src",
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Add",
+   "file": "test_v04.py",
+   "kind": "residual",
+   "line": 195,
+   "name": "src",
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "ParseError",
+   "file": "test_v04.py",
+   "kind": "unparsed",
+   "line": 388,
+   "runner": ".run",
+   "src": "let y = (",
+   "text": "'let y = ('"
+  },
+  {
+   "cls": "binop:Add",
+   "file": "test_v04.py",
+   "kind": "residual",
+   "line": 129,
+   "runner": ".run",
+   "text": "LOOP + 'let result = go(%d, 0)\\n' % n"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v05.py",
+   "kind": "forwarded",
+   "line": 17,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v05.py",
+   "kind": "forwarded",
+   "line": 22,
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v06.py",
+   "kind": "forwarded",
+   "line": 21,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v06.py",
+   "kind": "forwarded",
+   "line": 26,
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_v06.py",
+   "kind": "excluded",
+   "line": 307,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, os.path.join(root, 'run.py'), str(prog)], capture_output=True, text=True)"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v07.py",
+   "kind": "forwarded",
+   "line": 23,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v07.py",
+   "kind": "forwarded",
+   "line": 28,
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v07.py",
+   "kind": "forwarded",
+   "line": 41,
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v07.py",
+   "kind": "forwarded",
+   "line": 40,
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "stmt_node_arg:.exec_stmt",
+   "file": "test_v07.py",
+   "kind": "excluded",
+   "line": 116,
+   "runner": ".exec_stmt",
+   "text": "interp.exec_stmt(stmt, env)"
+  },
+  {
+   "cls": "stmt_node_arg:.exec_stmt",
+   "file": "test_v07.py",
+   "kind": "excluded",
+   "line": 267,
+   "runner": ".exec_stmt",
+   "text": "interp.exec_stmt(stmt, env)"
+  },
+  {
+   "cls": "stmt_node_arg:.exec_stmt",
+   "file": "test_v07.py",
+   "kind": "excluded",
+   "line": 130,
+   "runner": ".exec_stmt",
+   "text": "interp.exec_stmt(stmt, env)"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v08.py",
+   "kind": "forwarded",
+   "line": 22,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v08.py",
+   "kind": "forwarded",
+   "line": 27,
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v08.py",
+   "kind": "forwarded",
+   "line": 38,
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v08.py",
+   "kind": "forwarded",
+   "line": 37,
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Add",
+   "file": "test_v08.py",
+   "kind": "residual",
+   "line": 150,
+   "name": "src",
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Add",
+   "file": "test_v08.py",
+   "kind": "residual",
+   "line": 149,
+   "name": "src",
+   "runner": "assert_trees_identical",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v09.py",
+   "kind": "forwarded",
+   "line": 38,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v09.py",
+   "kind": "forwarded",
+   "line": 43,
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v09.py",
+   "kind": "forwarded",
+   "line": 58,
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v09.py",
+   "kind": "forwarded",
+   "line": 160,
+   "runner": "assert_three_way",
+   "text": "src"
+  },
+  {
+   "cls": "file_read",
+   "file": "test_v09.py",
+   "kind": "excluded",
+   "line": 183,
+   "name": "src",
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "file_read",
+   "file": "test_v09.py",
+   "kind": "excluded",
+   "line": 203,
+   "name": "src",
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "stmt_node_arg:.exec_stmt",
+   "file": "test_v09.py",
+   "kind": "excluded",
+   "line": 281,
+   "runner": ".exec_stmt",
+   "text": "interp.exec_stmt(prog.stmts[2], env)"
+  },
+  {
+   "cls": "stmt_node_arg:.exec_stmt",
+   "file": "test_v09.py",
+   "kind": "excluded",
+   "line": 278,
+   "runner": ".exec_stmt",
+   "text": "interp.exec_stmt(prog.stmts[1], env)"
+  },
+  {
+   "cls": "stmt_node_arg:.exec_stmt",
+   "file": "test_v09.py",
+   "kind": "excluded",
+   "line": 277,
+   "runner": ".exec_stmt",
+   "text": "interp.exec_stmt(prog.stmts[0], env)"
+  },
+  {
+   "cls": "stmt_node_arg:.exec_stmt",
+   "file": "test_v09.py",
+   "kind": "excluded",
+   "line": 305,
+   "runner": ".exec_stmt",
+   "text": "interp.exec_stmt(stmt, env)"
+  },
+  {
+   "cls": "stmt_node_arg:.exec_stmt",
+   "file": "test_v09.py",
+   "kind": "excluded",
+   "line": 352,
+   "runner": ".exec_stmt",
+   "text": "interp.exec_stmt(stmt, env)"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_v09.py",
+   "kind": "excluded",
+   "line": 389,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, exe, '--no-direct'], capture_output=True, text=True)"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_v09.py",
+   "kind": "excluded",
+   "line": 385,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, exe, '--no-direct', ex], capture_output=True, text=True)"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_v09.py",
+   "kind": "excluded",
+   "line": 384,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, exe, ex], capture_output=True, text=True)"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v09.py",
+   "kind": "forwarded",
+   "line": 330,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_v10.py",
+   "kind": "excluded",
+   "line": 452,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, os.path.join(ROOT, 'bench', 'ref_diff.py'), '--ref', ref_dir, '--modes', modes, '--counters'] + [os.path.join(ROOT, 'examples..."
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_v10.py",
+   "kind": "excluded",
+   "line": 497,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, os.path.join(ROOT, 'bench', 'ref_diff.py'), '--ref', tmp, '--modes', 'direct', os.path.join(ROOT, 'examples', 'history.lang')..."
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_v10.py",
+   "kind": "excluded",
+   "line": 551,
+   "runner": ".run",
+   "text": "subprocess.run(cmd + ['--show'], capture_output=True, text=True, timeout=300)"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_v10.py",
+   "kind": "excluded",
+   "line": 515,
+   "runner": ".run",
+   "text": "subprocess.run(cmd, capture_output=True, text=True, timeout=300)"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_v10.py",
+   "kind": "excluded",
+   "line": 608,
+   "runner": ".run",
+   "text": "subprocess.run(['git', '-C', _agi_root(), 'cat-file', '-e', rev + '^{commit}'], capture_output=True)"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_v10.py",
+   "kind": "excluded",
+   "line": 614,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, '-c', 'import sys; sys.path.insert(0, %r); import whence_ref.interp, whence_ref.values' % pkg_parent], capture_output=True, t..."
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v10.py",
+   "kind": "forwarded",
+   "line": 783,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "binop:Add",
+   "file": "test_v10.py",
+   "kind": "residual",
+   "line": 803,
+   "runner": "_peak_frames",
+   "text": "prog + call % 50"
+  },
+  {
+   "cls": "binop:Add",
+   "file": "test_v10.py",
+   "kind": "residual",
+   "line": 802,
+   "runner": "_peak_frames",
+   "text": "prog + call % 20"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_v10.py",
+   "kind": "excluded",
+   "line": 832,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, os.path.join(ROOT, 'run.py'), path], capture_output=True, text=True, timeout=120)"
+  },
+  {
+   "cls": "stmt_node_arg:.exec_stmt",
+   "file": "test_v11.py",
+   "kind": "excluded",
+   "line": 53,
+   "runner": ".exec_stmt",
+   "text": "interp.exec_stmt(stmt, env)"
+  },
+  {
+   "cls": "stmt_node_arg:.exec_stmt",
+   "file": "test_v11.py",
+   "kind": "excluded",
+   "line": 85,
+   "runner": ".exec_stmt",
+   "text": "b.exec_stmt(s, env2)"
+  },
+  {
+   "cls": "stmt_node_arg:.exec_stmt",
+   "file": "test_v11.py",
+   "kind": "excluded",
+   "line": 79,
+   "runner": ".exec_stmt",
+   "text": "a.exec_stmt(s, env)"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Mod",
+   "file": "test_v11.py",
+   "kind": "residual",
+   "line": 93,
+   "name": "src",
+   "runner": "run_ast",
+   "text": "src"
+  },
+  {
+   "cls": "stmt_node_arg:.exec_stmt",
+   "file": "test_v11.py",
+   "kind": "excluded",
+   "line": 108,
+   "runner": ".exec_stmt",
+   "text": "interp.exec_stmt(s, env)"
+  },
+  {
+   "cls": "stmt_node_arg:.exec_stmt",
+   "file": "test_v11.py",
+   "kind": "excluded",
+   "line": 218,
+   "runner": ".exec_stmt",
+   "text": "interp.exec_stmt(parse('let z = g(40)\\n').stmts[0], env)"
+  },
+  {
+   "cls": "stmt_node_arg:.exec_stmt",
+   "file": "test_v11.py",
+   "kind": "excluded",
+   "line": 216,
+   "runner": ".exec_stmt",
+   "text": "interp.exec_stmt(parse('fn g(n) { if n == 0 { 0 } else { g(n - 1) + 1 } }\\nlet z = g(40)\\n').stmts[0], env)"
+  },
+  {
+   "cls": "stmt_node_arg:.exec_stmt",
+   "file": "test_v11.py",
+   "kind": "excluded",
+   "line": 212,
+   "runner": ".exec_stmt",
+   "text": "interp.exec_stmt(program.stmts[1], env)"
+  },
+  {
+   "cls": "stmt_node_arg:.exec_stmt",
+   "file": "test_v11.py",
+   "kind": "excluded",
+   "line": 210,
+   "runner": ".exec_stmt",
+   "text": "interp.exec_stmt(program.stmts[0], env)"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_v11.py",
+   "kind": "excluded",
+   "line": 239,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, os.path.join(ROOT, 'bench', 'minof.py'), '-n', '1', 'fib20 direct'], capture_output=True, text=True, timeout=60)"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v20.py",
+   "kind": "forwarded",
+   "line": 68,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v20.py",
+   "kind": "forwarded",
+   "line": 73,
+   "runner": "host_modes",
+   "text": "src"
+  },
+  {
+   "cls": "call:.join",
+   "file": "test_v20.py",
+   "kind": "residual",
+   "line": 100,
+   "runner": ".run",
+   "text": "''.join(parts)"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v20.py",
+   "kind": "forwarded",
+   "line": 171,
+   "runner": "host_reason",
+   "text": "src"
+  },
+  {
+   "cls": "zip_nonliteral_column",
+   "file": "test_v20.py",
+   "kind": "residual",
+   "line": 301,
+   "name": "src",
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v22.py",
+   "kind": "forwarded",
+   "line": 60,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v22.py",
+   "kind": "forwarded",
+   "line": 65,
+   "runner": "host_modes",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v22.py",
+   "kind": "forwarded",
+   "line": 141,
+   "runner": "host_reason",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v22.py",
+   "kind": "forwarded",
+   "line": 179,
+   "runner": "host_reason",
+   "text": "src"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_v22.py",
+   "kind": "excluded",
+   "line": 269,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, prog, path], capture_output=True, text=True)"
+  },
+  {
+   "cls": "zip_nonliteral_column",
+   "file": "test_v22.py",
+   "kind": "residual",
+   "line": 303,
+   "name": "src",
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v22.py",
+   "kind": "forwarded",
+   "line": 380,
+   "runner": "parse_error",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v22.py",
+   "kind": "parse_only",
+   "line": 398,
+   "runner": "parse_error",
+   "src": "shape Foo Bar = @{x: num}\nlet r = 1\n",
+   "text": "'shape Foo Bar = @{x: num}\\nlet r = 1\\n'"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v22.py",
+   "kind": "parse_only",
+   "line": 412,
+   "runner": "parse_error",
+   "src": "if x > 3 print(\"big\")\n",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v22.py",
+   "kind": "parse_only",
+   "line": 412,
+   "runner": "parse_error",
+   "src": "let x = 5\nif x > 3 { 1 }\nelse 2\n",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v22.py",
+   "kind": "parse_only",
+   "line": 412,
+   "runner": "parse_error",
+   "src": "fn f(x) x + 1\n",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v22.py",
+   "kind": "parse_only",
+   "line": 412,
+   "runner": "parse_error",
+   "src": "let x = 1\nx = 2\n",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v22.py",
+   "kind": "parse_only",
+   "line": 412,
+   "runner": "parse_error",
+   "src": "let d = rescue { f(1) } catch Miss as e { 0 }\n",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v22.py",
+   "kind": "parse_only",
+   "line": 412,
+   "runner": "parse_error",
+   "src": "let r = {a: 1}\n",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v22.py",
+   "kind": "parse_only",
+   "line": 412,
+   "runner": "parse_error",
+   "src": "let r = [ {name: \"a\", qty: 2} ]\n",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v22.py",
+   "kind": "parse_only",
+   "line": 412,
+   "runner": "parse_error",
+   "src": "let r = {\n  a: 1\n}\n",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v22.py",
+   "kind": "parse_only",
+   "line": 412,
+   "runner": "parse_error",
+   "src": "let x = print(Calculating total)\n",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v22.py",
+   "kind": "parse_only",
+   "line": 412,
+   "runner": "parse_error",
+   "src": "let xs = [Hardware Unit, 2100]\n",
+   "text": "src"
+  },
+  {
+   "cls": "binop:Add",
+   "file": "test_v22.py",
+   "kind": "residual",
+   "line": 457,
+   "runner": ".run",
+   "text": "lib + 'let out = str(parse_whence(\"%s\"))\\n' % esc"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v22.py",
+   "kind": "parse_only",
+   "line": 453,
+   "runner": "parse_error",
+   "src": "let x = 1\nx = 2\n",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v22.py",
+   "kind": "parse_only",
+   "line": 526,
+   "runner": "parse_error",
+   "src": "if c { 1 } else\n  2\n",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v22.py",
+   "kind": "parse_only",
+   "line": 526,
+   "runner": "parse_error",
+   "src": "fn f(c) { if c { 1 }\n  2 }\nlet r = f(true)\n",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v22.py",
+   "kind": "parse_only",
+   "line": 526,
+   "runner": "parse_error",
+   "src": "if c { 1 }\nelse \"two\"\n",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v22.py",
+   "kind": "parse_only",
+   "line": 526,
+   "runner": "parse_error",
+   "src": "let s = 1\ns = 2\n",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v22.py",
+   "kind": "parse_only",
+   "line": 526,
+   "runner": "parse_error",
+   "src": "let d = rescue { f(1) }\n",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v22.py",
+   "kind": "parse_only",
+   "line": 526,
+   "runner": "parse_error",
+   "src": "let x = print(Calculating total)\n",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v22.py",
+   "kind": "parse_only",
+   "line": 526,
+   "runner": "parse_error",
+   "src": "let d = f one, two\n",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v22.py",
+   "kind": "parse_only",
+   "line": 526,
+   "runner": "parse_error",
+   "src": "let d = rescue(f(1)) catch(Miss as e) 0\n",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v22.py",
+   "kind": "parse_only",
+   "line": 526,
+   "runner": "parse_error",
+   "src": "let xs = [{name: \"a\", qty: 2}]\n",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v22.py",
+   "kind": "parse_only",
+   "line": 526,
+   "runner": "parse_error",
+   "src": "let xs = [Hardware Unit, 2100]\n",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v22.py",
+   "kind": "parse_only",
+   "line": 557,
+   "runner": "parse_error",
+   "src": "let d = f one, two\n",
+   "text": "'let d = f one, two\\n'"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v23.py",
+   "kind": "forwarded",
+   "line": 88,
+   "runner": "parse_error",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v23.py",
+   "kind": "parse_only",
+   "line": 130,
+   "runner": "parse_error",
+   "src": "if true { let x = 1 x } else { 2 }\n",
+   "text": "'if true { let x = 1 x } else { 2 }\\n'"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v23.py",
+   "kind": "parse_only",
+   "line": 128,
+   "runner": "parse_error",
+   "src": "fn f() { let x = 1 x }\nlet r = f()\n",
+   "text": "'fn f() { let x = 1 x }\\nlet r = f()\\n'"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v23.py",
+   "kind": "parse_only",
+   "line": 143,
+   "runner": "parse_error",
+   "src": "fn g(f, xs) { f(0, xs) }\nlet r = g(fn(acc, x) { let y = x acc + y }, [1])\n",
+   "text": "'fn g(f, xs) { f(0, xs) }\\nlet r = g(fn(acc, x) { let y = x acc + y }, [1])\\n'"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v23.py",
+   "kind": "parse_only",
+   "line": 170,
+   "runner": "parse_error",
+   "src": "fn f() { 1 } .x\n",
+   "text": "'fn f() { 1 } .x\\n'"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v23.py",
+   "kind": "parse_only",
+   "line": 169,
+   "runner": "parse_error",
+   "src": "let a = 1 [1, 2]\n",
+   "text": "'let a = 1 [1, 2]\\n'"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v23.py",
+   "kind": "forwarded",
+   "line": 252,
+   "runner": "parse_error",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v23.py",
+   "kind": "forwarded",
+   "line": 304,
+   "runner": "parse_error",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v23.py",
+   "kind": "parse_only",
+   "line": 312,
+   "runner": "parse_error",
+   "src": "let a = 1 let b = 2\n",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v23.py",
+   "kind": "parse_only",
+   "line": 312,
+   "runner": "parse_error",
+   "src": "let a = 1 2\n",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v23.py",
+   "kind": "parse_only",
+   "line": 312,
+   "runner": "parse_error",
+   "src": "let a = 1 \"s\"\n",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v23.py",
+   "kind": "parse_only",
+   "line": 312,
+   "runner": "parse_error",
+   "src": "fn f() { 1 } (2)\n",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v23.py",
+   "kind": "parse_only",
+   "line": 312,
+   "runner": "parse_error",
+   "src": "let d = f one, two\n",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v23.py",
+   "kind": "parse_only",
+   "line": 312,
+   "runner": "parse_error",
+   "src": "let a = b shape P = @{x: num}\nlet r = 1\n",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v23.py",
+   "kind": "parse_only",
+   "line": 312,
+   "runner": "parse_error",
+   "src": "let shape = 1\nlet x = shape foo\n",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v23.py",
+   "kind": "parse_only",
+   "line": 312,
+   "runner": "parse_error",
+   "src": "let a = b shape P\n",
+   "text": "src"
+  },
+  {
+   "cls": "call:.join",
+   "file": "test_v23.py",
+   "kind": "residual",
+   "line": 372,
+   "runner": ".run",
+   "text": "''.join(prog)"
+  },
+  {
+   "cls": "binop:Add",
+   "file": "test_v23.py",
+   "kind": "residual",
+   "line": 391,
+   "runner": ".run",
+   "text": "lib + 'let out = str(parse_whence(\"let a = 1\\\\nlet b = 2 let c = 3\"))\\n'"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_v23.py",
+   "kind": "excluded",
+   "line": 471,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, os.path.join(ROOT, 'run.py'), os.path.join(ROOT, 'examples', name)], capture_output=True, text=True)"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_v24.py",
+   "kind": "excluded",
+   "line": 173,
+   "runner": ".run",
+   "text": "subprocess.run(['git', 'ls-files', 'languages/whence/examples'], cwd=C.REPO_GIT_ROOT, capture_output=True, text=True)"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v24.py",
+   "kind": "parse_only",
+   "line": 276,
+   "runner": "parse_error",
+   "src": "let a = 1\nlet a = 2\n",
+   "text": "'let a = 1\\nlet a = 2\\n'"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v24.py",
+   "kind": "parse_only",
+   "line": 285,
+   "runner": "parse_error",
+   "src": "let z = fn() { let b = 1\n  let b = 2 }",
+   "text": "'let z = fn() { let b = 1\\n let b = 2 }'"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v24.py",
+   "kind": "parse_only",
+   "line": 299,
+   "runner": "parse_error",
+   "src": "let m = 1\nlet m = fn() {\n1 }\n",
+   "text": "'let m = 1\\nlet m = fn() {\\n1 }\\n'"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v24.py",
+   "kind": "parse_only",
+   "line": 297,
+   "runner": "parse_error",
+   "src": "let q = 1\n\n\nlet q = 2\n",
+   "text": "'let q = 1\\n\\n\\nlet q = 2\\n'"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v24.py",
+   "kind": "parse_only",
+   "line": 296,
+   "runner": "parse_error",
+   "src": "let f = 1\nfn f() { 1 }\n",
+   "text": "'let f = 1\\nfn f() { 1 }\\n'"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v24.py",
+   "kind": "parse_only",
+   "line": 295,
+   "runner": "parse_error",
+   "src": "let a = 1\nlet a = 2\n",
+   "text": "'let a = 1\\nlet a = 2\\n'"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v24.py",
+   "kind": "parse_only",
+   "line": 312,
+   "runner": "parse_error",
+   "src": "let x = (1",
+   "text": "'let x = (1'"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v24.py",
+   "kind": "parse_only",
+   "line": 308,
+   "runner": "parse_error",
+   "src": "let x =",
+   "text": "'let x ='"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v24.py",
+   "kind": "forwarded",
+   "line": 321,
+   "runner": "parse_error",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v24.py",
+   "kind": "parse_only",
+   "line": 334,
+   "runner": "parse_error",
+   "src": "let let = 1",
+   "text": "'let let = 1'"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v24.py",
+   "kind": "parse_only",
+   "line": 333,
+   "runner": "parse_error",
+   "src": "let x = [,]",
+   "text": "'let x = [,]'"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v24.py",
+   "kind": "parse_only",
+   "line": 332,
+   "runner": "parse_error",
+   "src": "check \"l\" 1 == 1",
+   "text": "'check \"l\" 1 == 1'"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v24.py",
+   "kind": "parse_only",
+   "line": 331,
+   "runner": "parse_error",
+   "src": "let = 2",
+   "text": "'let = 2'"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v24.py",
+   "kind": "parse_only",
+   "line": 372,
+   "runner": "parse_error",
+   "src": "let r = {a: 1}",
+   "text": "'let r = {a: 1}'"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v24.py",
+   "kind": "parse_only",
+   "line": 371,
+   "runner": "parse_error",
+   "src": "fn f(a)",
+   "text": "'fn f(a)'"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v24.py",
+   "kind": "parse_only",
+   "line": 370,
+   "runner": "parse_error",
+   "src": "let a = 1\na = 2",
+   "text": "'let a = 1\\na = 2'"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v26.py",
+   "kind": "forwarded",
+   "line": 59,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "file_read",
+   "file": "test_v26.py",
+   "kind": "excluded",
+   "line": 219,
+   "name": "src",
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_v26.py",
+   "kind": "excluded",
+   "line": 190,
+   "runner": ".run",
+   "text": "subprocess.run(['git', 'ls-files', '--', 'examples/*.lang'], cwd=C.WHENCE_GIT_ROOT, capture_output=True, text=True, check=True)"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_v26.py",
+   "kind": "excluded",
+   "line": 241,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, os.path.join(ROOT, 'run.py')] + args + ['-'], cwd=ROOT, input=src, capture_output=True, text=True, timeout=timeout)"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v27.py",
+   "kind": "forwarded",
+   "line": 73,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v27.py",
+   "kind": "forwarded",
+   "line": 77,
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v27.py",
+   "kind": "forwarded",
+   "line": 104,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Add",
+   "file": "test_v27.py",
+   "kind": "residual",
+   "line": 156,
+   "name": "src",
+   "runner": "_exercise",
+   "text": "src"
+  },
+  {
+   "cls": "bound_nonconstant:sequence",
+   "file": "test_v27.py",
+   "kind": "residual",
+   "line": 175,
+   "name": "src",
+   "runner": "_exercise",
+   "text": "src"
+  },
+  {
+   "cls": "binop:Add",
+   "file": "test_v27.py",
+   "kind": "residual",
+   "line": 204,
+   "runner": "_exercise",
+   "text": "BIG + src + '\\n'"
+  },
+  {
+   "cls": "binop:Mod",
+   "file": "test_v27.py",
+   "kind": "residual",
+   "line": 318,
+   "runner": "payload",
+   "text": "'let result = num(\"%s\")' % ('9' * (SHOW_INT_DIGITS + 1))"
+  },
+  {
+   "cls": "binop:Mod",
+   "file": "test_v27.py",
+   "kind": "residual",
+   "line": 317,
+   "runner": "payload",
+   "text": "'let result = num(\"%s\")' % ok"
+  },
+  {
+   "cls": "bound_nonconstant:subscript",
+   "file": "test_v27.py",
+   "kind": "residual",
+   "line": 364,
+   "name": "src",
+   "runner": "payload",
+   "text": "src"
+  },
+  {
+   "cls": "bound_nonconstant:subscript",
+   "file": "test_v27.py",
+   "kind": "residual",
+   "line": 379,
+   "name": "src",
+   "runner": "payload",
+   "text": "src"
+  },
+  {
+   "cls": "bound_nonconstant:subscript",
+   "file": "test_v27.py",
+   "kind": "residual",
+   "line": 376,
+   "name": "src",
+   "runner": "payload",
+   "text": "src"
+  },
+  {
+   "cls": "bound_nonconstant:call:sorted",
+   "file": "test_v27.py",
+   "kind": "residual",
+   "line": 425,
+   "name": "src",
+   "runner": "payload",
+   "text": "src"
+  },
+  {
+   "cls": "binop:Mod",
+   "file": "test_v27.py",
+   "kind": "residual",
+   "line": 457,
+   "runner": "payload",
+   "text": "src % n"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_v27.py",
+   "kind": "excluded",
+   "line": 586,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, os.path.join(ROOT, 'run.py')] + list(flags) + [path], capture_output=True, text=True, timeout=300)"
+  },
+  {
+   "cls": "file_read",
+   "file": "test_v27.py",
+   "kind": "excluded",
+   "line": 653,
+   "runner": ".run",
+   "text": "open(path, encoding='utf-8').read()"
+  },
+  {
+   "cls": "file_read",
+   "file": "test_v27.py",
+   "kind": "excluded",
+   "line": 676,
+   "runner": ".run",
+   "text": "open(os.path.join(ROOT, 'examples', 'tco.lang'), encoding='utf-8').read()"
+  },
+  {
+   "cls": "stmt_node_arg:.exec_stmt",
+   "file": "test_v27.py",
+   "kind": "excluded",
+   "line": 550,
+   "runner": ".exec_stmt",
+   "text": "i.exec_stmt(stmt, env)"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v29.py",
+   "kind": "forwarded",
+   "line": 327,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "call:.join",
+   "file": "test_v29.py",
+   "kind": "residual",
+   "line": 359,
+   "runner": ".run",
+   "text": "''.join(parts)"
+  },
+  {
+   "cls": "bound_by:comprehension",
+   "file": "test_v29.py",
+   "kind": "residual",
+   "line": 375,
+   "name": "s",
+   "runner": "outcome",
+   "text": "s"
+  },
+  {
+   "cls": "call:.join",
+   "file": "test_v29.py",
+   "kind": "residual",
+   "line": 473,
+   "runner": ".run",
+   "text": "''.join(parts)"
+  },
+  {
+   "cls": "bound_by:comprehension",
+   "file": "test_v29.py",
+   "kind": "residual",
+   "line": 505,
+   "name": "s",
+   "runner": "outcome",
+   "text": "s"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v30.py",
+   "kind": "forwarded",
+   "line": 114,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "call:.join",
+   "file": "test_v30.py",
+   "kind": "residual",
+   "line": 126,
+   "runner": ".run",
+   "text": "''.join(parts)"
+  },
+  {
+   "cls": "zip_nonliteral_column",
+   "file": "test_v30.py",
+   "kind": "residual",
+   "line": 307,
+   "name": "src",
+   "runner": "host",
+   "text": "src"
+  },
+  {
+   "cls": "zip_nonliteral_column",
+   "file": "test_v30.py",
+   "kind": "residual",
+   "line": 300,
+   "name": "src",
+   "runner": "host",
+   "text": "src"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Mod",
+   "file": "test_v30.py",
+   "kind": "residual",
+   "line": 393,
+   "name": "src",
+   "runner": "host",
+   "text": "src"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_v30.py",
+   "kind": "excluded",
+   "line": 413,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, os.path.join(ROOT, 'run.py'), EXAMPLE], capture_output=True, text=True, cwd=ROOT)"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Mod",
+   "file": "test_v31.py",
+   "kind": "residual",
+   "line": 129,
+   "name": "src",
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "call:.join",
+   "file": "test_v31.py",
+   "kind": "residual",
+   "line": 141,
+   "runner": ".run",
+   "text": "''.join(parts)"
+  },
+  {
+   "cls": "call:.join",
+   "file": "test_v31.py",
+   "kind": "residual",
+   "line": 361,
+   "runner": ".run",
+   "text": "''.join(parts)"
+  },
+  {
+   "cls": "file_read",
+   "file": "test_v31.py",
+   "kind": "excluded",
+   "line": 380,
+   "name": "src",
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_v31.py",
+   "kind": "excluded",
+   "line": 443,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, os.path.join(ROOT, 'run.py'), path], capture_output=True, text=True, cwd=ROOT)"
+  },
+  {
+   "cls": "call:.join",
+   "file": "test_v31.py",
+   "kind": "residual",
+   "line": 464,
+   "runner": ".run",
+   "text": "''.join(parts)"
+  },
+  {
+   "cls": "param:program",
+   "file": "test_v31.py",
+   "kind": "forwarded",
+   "line": 524,
+   "runner": ".run",
+   "text": "program"
+  },
+  {
+   "cls": "call:.join",
+   "file": "test_v31.py",
+   "kind": "residual",
+   "line": 533,
+   "runner": ".run",
+   "text": "''.join(parts)"
+  },
+  {
+   "cls": "zip_nonliteral_column",
+   "file": "test_v31.py",
+   "kind": "residual",
+   "line": 566,
+   "name": "program",
+   "runner": "host_value",
+   "text": "program"
+  },
+  {
+   "cls": "zip_nonliteral_column",
+   "file": "test_v31.py",
+   "kind": "residual",
+   "line": 592,
+   "name": "program",
+   "runner": "host_value",
+   "text": "program"
+  },
+  {
+   "cls": "zip_nonliteral_column",
+   "file": "test_v31.py",
+   "kind": "residual",
+   "line": 607,
+   "name": "program",
+   "runner": "host_value",
+   "text": "program"
+  },
+  {
+   "cls": "zip_nonliteral_column",
+   "file": "test_v31.py",
+   "kind": "residual",
+   "line": 607,
+   "name": "program",
+   "runner": "host_value",
+   "text": "program"
+  },
+  {
+   "cls": "zip_nonliteral_column",
+   "file": "test_v31.py",
+   "kind": "residual",
+   "line": 694,
+   "name": "program",
+   "runner": "host_value",
+   "text": "program"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Mod",
+   "file": "test_v31.py",
+   "kind": "residual",
+   "line": 707,
+   "name": "src",
+   "runner": "host_value",
+   "text": "src"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_v31.py",
+   "kind": "excluded",
+   "line": 751,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, os.path.join(ROOT, 'run.py'), EXAMPLE], capture_output=True, text=True, cwd=ROOT)"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v32.py",
+   "kind": "forwarded",
+   "line": 55,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v32.py",
+   "kind": "forwarded",
+   "line": 60,
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "bound_nonconstant:call:.join",
+   "file": "test_v32.py",
+   "kind": "residual",
+   "line": 121,
+   "name": "src",
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v32.py",
+   "kind": "forwarded",
+   "line": 175,
+   "runner": "drops",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v32.py",
+   "kind": "forwarded",
+   "line": 175,
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "stmt_node_arg:.exec_stmt",
+   "file": "test_v32.py",
+   "kind": "excluded",
+   "line": 251,
+   "runner": ".exec_stmt",
+   "text": "i.exec_stmt(stmt, env)"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_v32.py",
+   "kind": "excluded",
+   "line": 299,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, RUN, '--strict-miss', prog], capture_output=True, text=True)"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_v32.py",
+   "kind": "excluded",
+   "line": 291,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, RUN, '--strict-miss', path], capture_output=True, text=True)"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_v32.py",
+   "kind": "excluded",
+   "line": 289,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, RUN, path], capture_output=True, text=True)"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_v32.py",
+   "kind": "excluded",
+   "line": 281,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, RUN, prog], capture_output=True, text=True)"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_v32.py",
+   "kind": "excluded",
+   "line": 305,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, RUN, '--help'], capture_output=True, text=True)"
+  },
+  {
+   "cls": "file_read",
+   "file": "test_v32.py",
+   "kind": "excluded",
+   "line": 334,
+   "runner": ".run",
+   "text": "open(os.path.join(ROOT, rel), encoding='utf-8').read()"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_v32.py",
+   "kind": "excluded",
+   "line": 327,
+   "runner": ".run",
+   "text": "subprocess.run(['git', 'ls-files', 'examples'], capture_output=True, text=True, cwd=C.WHENCE_GIT_ROOT)"
+  },
+  {
+   "cls": "binop:Add",
+   "file": "test_v32.py",
+   "kind": "residual",
+   "line": 348,
+   "runner": ".run",
+   "text": "lib + '\\nprint(str(gv(\"println(1)\")))\\nprint(str(gv(\"return(1)\")))\\n'"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v33.py",
+   "kind": "forwarded",
+   "line": 171,
+   "runner": "err",
+   "text": "src"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v33.py",
+   "kind": "parse_only",
+   "line": 180,
+   "runner": "err",
+   "src": "let then = 1\nfn f(x) {\n    if x == 1 then\n        2\n    else\n        3\n}\nf(1)\n",
+   "text": "src"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v33.py",
+   "kind": "parse_only",
+   "line": 209,
+   "runner": "err",
+   "src": "let xs = [1]\nfn g(a) {\n    for d in xs {\n        d\n    }\n}\ng(1)\n",
+   "text": "src2"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v33.py",
+   "kind": "parse_only",
+   "line": 203,
+   "runner": "err",
+   "src": "fn f(a, b) { a }\nlet r = f one_hundred, 2\nr\n",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v33.py",
+   "kind": "forwarded",
+   "line": 238,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "call:.join",
+   "file": "test_v33.py",
+   "kind": "residual",
+   "line": 429,
+   "runner": ".run",
+   "text": "''.join(parts)"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 259,
+   "runner": "err",
+   "src": "let x = == 2\nx\n",
+   "text": "'let x = %s 2\\nx\\n' % op"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 259,
+   "runner": "err",
+   "src": "let x = != 2\nx\n",
+   "text": "'let x = %s 2\\nx\\n' % op"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 259,
+   "runner": "err",
+   "src": "let x = < 2\nx\n",
+   "text": "'let x = %s 2\\nx\\n' % op"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 259,
+   "runner": "err",
+   "src": "let x = <= 2\nx\n",
+   "text": "'let x = %s 2\\nx\\n' % op"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 259,
+   "runner": "err",
+   "src": "let x = > 2\nx\n",
+   "text": "'let x = %s 2\\nx\\n' % op"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 259,
+   "runner": "err",
+   "src": "let x = >= 2\nx\n",
+   "text": "'let x = %s 2\\nx\\n' % op"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 259,
+   "runner": "err",
+   "src": "let x = + 2\nx\n",
+   "text": "'let x = %s 2\\nx\\n' % op"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 259,
+   "runner": "err",
+   "src": "let x = - 2\nx\n",
+   "text": "'let x = %s 2\\nx\\n' % op"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 259,
+   "runner": "err",
+   "src": "let x = * 2\nx\n",
+   "text": "'let x = %s 2\\nx\\n' % op"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 259,
+   "runner": "err",
+   "src": "let x = / 2\nx\n",
+   "text": "'let x = %s 2\\nx\\n' % op"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 259,
+   "runner": "err",
+   "src": "let x = % 2\nx\n",
+   "text": "'let x = %s 2\\nx\\n' % op"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 259,
+   "runner": "err",
+   "src": "let x = and 2\nx\n",
+   "text": "'let x = %s 2\\nx\\n' % op"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 259,
+   "runner": "err",
+   "src": "let x = or 2\nx\n",
+   "text": "'let x = %s 2\\nx\\n' % op"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 259,
+   "runner": "err",
+   "src": "let x = rescue 2\nx\n",
+   "text": "'let x = %s 2\\nx\\n' % op"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 259,
+   "runner": "err",
+   "src": "let x = not 2\nx\n",
+   "text": "'let x = %s 2\\nx\\n' % op"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 257,
+   "runner": "err",
+   "src": "let x = 1 == 2\nx\n",
+   "text": "'let x = 1 %s 2\\nx\\n' % op"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 257,
+   "runner": "err",
+   "src": "let x = 1 != 2\nx\n",
+   "text": "'let x = 1 %s 2\\nx\\n' % op"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 257,
+   "runner": "err",
+   "src": "let x = 1 < 2\nx\n",
+   "text": "'let x = 1 %s 2\\nx\\n' % op"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 257,
+   "runner": "err",
+   "src": "let x = 1 <= 2\nx\n",
+   "text": "'let x = 1 %s 2\\nx\\n' % op"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 257,
+   "runner": "err",
+   "src": "let x = 1 > 2\nx\n",
+   "text": "'let x = 1 %s 2\\nx\\n' % op"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 257,
+   "runner": "err",
+   "src": "let x = 1 >= 2\nx\n",
+   "text": "'let x = 1 %s 2\\nx\\n' % op"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 257,
+   "runner": "err",
+   "src": "let x = 1 + 2\nx\n",
+   "text": "'let x = 1 %s 2\\nx\\n' % op"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 257,
+   "runner": "err",
+   "src": "let x = 1 - 2\nx\n",
+   "text": "'let x = 1 %s 2\\nx\\n' % op"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 257,
+   "runner": "err",
+   "src": "let x = 1 * 2\nx\n",
+   "text": "'let x = 1 %s 2\\nx\\n' % op"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 257,
+   "runner": "err",
+   "src": "let x = 1 / 2\nx\n",
+   "text": "'let x = 1 %s 2\\nx\\n' % op"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 257,
+   "runner": "err",
+   "src": "let x = 1 % 2\nx\n",
+   "text": "'let x = 1 %s 2\\nx\\n' % op"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 257,
+   "runner": "err",
+   "src": "let x = 1 and 2\nx\n",
+   "text": "'let x = 1 %s 2\\nx\\n' % op"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 257,
+   "runner": "err",
+   "src": "let x = 1 or 2\nx\n",
+   "text": "'let x = 1 %s 2\\nx\\n' % op"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 257,
+   "runner": "err",
+   "src": "let x = 1 rescue 2\nx\n",
+   "text": "'let x = 1 %s 2\\nx\\n' % op"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 257,
+   "runner": "err",
+   "src": "let x = 1 not 2\nx\n",
+   "text": "'let x = 1 %s 2\\nx\\n' % op"
+  },
+  {
+   "cls": "binop:Mod",
+   "file": "test_v34.py",
+   "kind": "residual",
+   "line": 269,
+   "runner": "err",
+   "text": "'let x = 1\\n%s 2\\n' % op"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 279,
+   "runner": "err",
+   "src": "let x = 1\nrescue 2\n",
+   "text": "'let x = 1\\nrescue 2\\n'"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v34.py",
+   "kind": "forwarded",
+   "line": 304,
+   "runner": "err",
+   "text": "src"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 316,
+   "runner": "err",
+   "src": "fn f(x) {\n    shape P = @{a: num}\n}\nf(1)\n",
+   "text": "'fn f(x) {\\n shape P = @{a: num}\\n}\\nf(1)\\n'"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 326,
+   "runner": "err",
+   "src": "fn f(x) {\n    let Foo = @{__shape: \"Foo\", a: \"num\"}\n}\nf(1)\n",
+   "text": "'fn f(x) {\\n let Foo = @{__shape: \"Foo\", a: \"num\"}\\n}\\nf(1)\\n'"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 332,
+   "runner": "err",
+   "src": "fn f(x) {\n    let r = @{a: 1}\n}\nf(1)\n",
+   "text": "'fn f(x) {\\n let r = @{a: 1}\\n}\\nf(1)\\n'"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 337,
+   "runner": "err",
+   "src": "fn f(x) {\n}\nf(1)\n",
+   "text": "'fn f(x) {\\n}\\nf(1)\\n'"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 354,
+   "runner": "err",
+   "src": "fn f(x) {\n    let z = 1\n    let z = 2\n}\nf(1)\n",
+   "text": "'fn f(x) {\\n let z = 1\\n let z = 2\\n}\\nf(1)\\n'"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 350,
+   "runner": "err",
+   "src": "fn f(x) {\n    let y = 1\n    let z = 2\n}\nf(1)\n",
+   "text": "'fn f(x) {\\n let y = 1\\n let z = 2\\n}\\nf(1)\\n'"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 363,
+   "runner": "err",
+   "src": "let g = fn adder(a, b) { a + b }\ng(1, 2)\n",
+   "text": "'let g = fn adder(a, b) { a + b }\\ng(1, 2)\\n'"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 372,
+   "runner": "err",
+   "src": "let g = fn fact(n) { if n < 2 { 1 } else { n * fact(n - 1) } }\ng(3)\n",
+   "text": "'let g = fn fact(n) { if n < 2 { 1 } else { n * fact(n - 1) } }\\ng(3)\\n'"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 382,
+   "runner": "err",
+   "src": "let g = fn walk(r) { let m = @{a: 1}  walk(m) }\ng(1)\n",
+   "text": "'let g = fn walk(r) { let m = @{a: 1} walk(m) }\\ng(1)\\n'"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 390,
+   "runner": "err",
+   "src": "let g = fn adder(a, b) { a + b }\nadder(1, 2)\n",
+   "text": "'let g = fn adder(a, b) { a + b }\\nadder(1, 2)\\n'"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 398,
+   "runner": "err",
+   "src": "let g = fn adder(a, b) { a + b\n",
+   "text": "'let g = fn adder(a, b) { a + b\\n'"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 406,
+   "runner": "err",
+   "src": "fn adder(a, b) { a + b }\nadder(1, 2)\n",
+   "text": "'fn adder(a, b) { a + b }\\nadder(1, 2)\\n'"
+  },
+  {
+   "cls": "runner:err",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 412,
+   "runner": "err",
+   "src": "let xs = [Hardware Unit]\nxs\n",
+   "text": "'let xs = [Hardware Unit]\\nxs\\n'"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v34.py",
+   "kind": "forwarded",
+   "line": 421,
+   "runner": "err",
+   "text": "src"
+  },
+  {
+   "cls": "call:.join",
+   "file": "test_v34.py",
+   "kind": "residual",
+   "line": 440,
+   "runner": "err",
+   "text": "'\\n'.join(out)"
+  },
+  {
+   "cls": "runner:_cure_of",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 435,
+   "runner": "_cure_of",
+   "src": "fn classify(score, limit) {\n    if score < limit {\n        let risk = \"HIGH\"\n    } else {\n        \"LOW\"\n    }\n}\nclassify(1, 2)\n",
+   "text": "src"
+  },
+  {
+   "cls": "call:.join",
+   "file": "test_v34.py",
+   "kind": "residual",
+   "line": 460,
+   "runner": "err",
+   "text": "'\\n'.join(out)"
+  },
+  {
+   "cls": "runner:_cure_of",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 456,
+   "runner": "_cure_of",
+   "src": "fn total(xs) {\n    fold(fn sum(a, b) { a + b }, 0, xs)\n}\ntotal([1, 2, 3])\n",
+   "text": "src"
+  },
+  {
+   "cls": "runner:_cure_of",
+   "file": "test_v34.py",
+   "kind": "parse_only",
+   "line": 469,
+   "runner": "_cure_of",
+   "src": "let g = fn fact(n) { if n < 2 { 1 } else { n * fact(n - 1) } }\ng(3)\n",
+   "text": "src"
+  },
+  {
+   "cls": "binop:Add",
+   "file": "test_v34.py",
+   "kind": "residual",
+   "line": 599,
+   "runner": ".run",
+   "text": "'\\n'.join(prog) + '\\n'"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v34.py",
+   "kind": "forwarded",
+   "line": 617,
+   "runner": "err",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v35.py",
+   "kind": "parse_only",
+   "line": 248,
+   "runner": "parse_error",
+   "src": "let g = fn adder(a, b) { a + b }",
+   "text": "'let g = fn adder(a, b) { a + b }'"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v35.py",
+   "kind": "parse_only",
+   "line": 254,
+   "runner": "parse_error",
+   "src": "let g = fn fact(n) { fact(n) }",
+   "text": "'let g = fn fact(n) { fact(n) }'"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v35.py",
+   "kind": "parse_only",
+   "line": 262,
+   "runner": "parse_error",
+   "src": "let y = if true 1 else 2",
+   "text": "'let y = if true 1 else 2'"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v35.py",
+   "kind": "parse_only",
+   "line": 268,
+   "runner": "parse_error",
+   "src": "fn f(a b) { 0 }",
+   "text": "'fn f(a b) { 0 }'"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v35.py",
+   "kind": "forwarded",
+   "line": 294,
+   "runner": "parse_error",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v35.py",
+   "kind": "forwarded",
+   "line": 294,
+   "runner": "parse_error",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v35.py",
+   "kind": "parse_only",
+   "line": 316,
+   "runner": "parse_error",
+   "src": "let x = (1 + 2",
+   "text": "'let x = (1 + 2'"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v35.py",
+   "kind": "parse_only",
+   "line": 332,
+   "runner": "parse_error",
+   "src": "let x = (1",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v35.py",
+   "kind": "parse_only",
+   "line": 332,
+   "runner": "parse_error",
+   "src": "let = 2",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v35.py",
+   "kind": "parse_only",
+   "line": 332,
+   "runner": "parse_error",
+   "src": "let x = [1, 2 # why",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v35.py",
+   "kind": "parse_only",
+   "line": 332,
+   "runner": "parse_error",
+   "src": "let x = (1",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v35.py",
+   "kind": "parse_only",
+   "line": 332,
+   "runner": "parse_error",
+   "src": "let = 2",
+   "text": "src"
+  },
+  {
+   "cls": "runner:parse_error",
+   "file": "test_v35.py",
+   "kind": "parse_only",
+   "line": 332,
+   "runner": "parse_error",
+   "src": "let x = [1, 2 # why",
+   "text": "src"
+  },
+  {
+   "cls": "binop:Mod",
+   "file": "test_v36.py",
+   "kind": "residual",
+   "line": 309,
+   "runner": ".run",
+   "text": "'let a = num(\"%s\")\\n' % text"
+  },
+  {
+   "cls": "binop:Add",
+   "file": "test_v36.py",
+   "kind": "residual",
+   "line": 344,
+   "runner": ".run",
+   "text": "'\\n'.join(prog) + '\\n'"
+  },
+  {
+   "cls": "binop:Add",
+   "file": "test_v36.py",
+   "kind": "residual",
+   "line": 401,
+   "runner": ".run",
+   "text": "'\\n'.join(prog) + '\\n'"
+  },
+  {
+   "cls": "binop:Add",
+   "file": "test_v36.py",
+   "kind": "residual",
+   "line": 448,
+   "runner": ".run",
+   "text": "lib + 'let out = str(parse_whence(\"%s\"))\\n' % S.escape(src)"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_v37.py",
+   "kind": "excluded",
+   "line": 224,
+   "runner": ".run",
+   "text": "subprocess.run(['git', 'show', '--name-only', '--format=', V37_COMMIT, '--', 'whence/'], cwd=ROOT, capture_output=True, text=True)"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v38.py",
+   "kind": "parse_only",
+   "line": 65,
+   "runner": "reason",
+   "src": "let k = 0\n\nshape S = @{a: num}\nshape S = @{b: num}\nS",
+   "text": "'let k = 0\\n\\nshape S = @{a: num}\\nshape S = @{b: num}\\nS'"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v38.py",
+   "kind": "parse_only",
+   "line": 63,
+   "runner": "reason",
+   "src": "shape S = @{a: num}\nshape S = @{b: num}\nS",
+   "text": "'shape S = @{a: num}\\nshape S = @{b: num}\\nS'"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v38.py",
+   "kind": "parse_only",
+   "line": 97,
+   "runner": "reason",
+   "src": "shape S = @{a: num}\nshape S = @{b: num}\nS",
+   "text": "src"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v38.py",
+   "kind": "parse_only",
+   "line": 97,
+   "runner": "reason",
+   "src": "let k = 0\n\nshape S = @{a: num}\nshape S = @{b: num}\nS",
+   "text": "src"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v38.py",
+   "kind": "parse_only",
+   "line": 97,
+   "runner": "reason",
+   "src": "\nshape S = @{a: num}\nlet k = 0\n# c\nshape S = @{b: num}\nS",
+   "text": "src"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v38.py",
+   "kind": "parse_only",
+   "line": 97,
+   "runner": "reason",
+   "src": "let z = fn() {\n shape S = @{a: num}\n\n shape S = @{b: num} }",
+   "text": "src"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v38.py",
+   "kind": "parse_only",
+   "line": 96,
+   "runner": "reason",
+   "src": "shape S = @{a: num}\nshape S = @{b: num}\nS",
+   "text": "src"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v38.py",
+   "kind": "parse_only",
+   "line": 96,
+   "runner": "reason",
+   "src": "let k = 0\n\nshape S = @{a: num}\nshape S = @{b: num}\nS",
+   "text": "src"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v38.py",
+   "kind": "parse_only",
+   "line": 96,
+   "runner": "reason",
+   "src": "\nshape S = @{a: num}\nlet k = 0\n# c\nshape S = @{b: num}\nS",
+   "text": "src"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v38.py",
+   "kind": "parse_only",
+   "line": 96,
+   "runner": "reason",
+   "src": "let z = fn() {\n shape S = @{a: num}\n\n shape S = @{b: num} }",
+   "text": "src"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v38.py",
+   "kind": "parse_only",
+   "line": 119,
+   "runner": "reason",
+   "src": "shape S = @{a: num}\nfn f() {\n shape S = @{b: num}\n\n shape S = @{c: num}\n 1 }\nf()",
+   "text": "src"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v38.py",
+   "kind": "parse_only",
+   "line": 138,
+   "runner": "reason",
+   "src": "\nshape S = @{a: num}\nlet k = 0\nshape S = @{b: num}\nS",
+   "text": "decl_on_2_then_shape"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v38.py",
+   "kind": "parse_only",
+   "line": 136,
+   "runner": "reason",
+   "src": "\nshape S = @{a: num}\nlet k = 0\nlet S = 1\nS",
+   "text": "decl_on_2_then_let"
+  },
+  {
+   "cls": "runner:position",
+   "file": "test_v38.py",
+   "kind": "parse_only",
+   "line": 151,
+   "runner": "position",
+   "src": "let z = fn() {\n shape S = @{a: num}\n\n shape S = @{b: num} }",
+   "text": "'let z = fn() {\\n shape S = @{a: num}\\n\\n shape S = @{b: num} }'"
+  },
+  {
+   "cls": "runner:position",
+   "file": "test_v38.py",
+   "kind": "parse_only",
+   "line": 150,
+   "runner": "position",
+   "src": "shape S = @{a: num}\nshape S = @{b: num}\nS",
+   "text": "'shape S = @{a: num}\\nshape S = @{b: num}\\nS'"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v38.py",
+   "kind": "parse_only",
+   "line": 226,
+   "runner": "reason",
+   "src": "let a = 1\nlet a = 2",
+   "text": "'let a = 1\\nlet a = 2'"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v38.py",
+   "kind": "parse_only",
+   "line": 221,
+   "runner": "reason",
+   "src": "let k = 0\n\nshape S = @{a: num}\nshape S = @{b: num}\nS",
+   "text": "'let k = 0\\n\\nshape S = @{a: num}\\nshape S = @{b: num}\\nS'"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v38.py",
+   "kind": "parse_only",
+   "line": 249,
+   "runner": "reason",
+   "src": "let a = 1\na = 2",
+   "text": "src"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v38.py",
+   "kind": "parse_only",
+   "line": 249,
+   "runner": "reason",
+   "src": "let y = if true 1 else 2",
+   "text": "src"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v38.py",
+   "kind": "parse_only",
+   "line": 249,
+   "runner": "reason",
+   "src": "let r = {a: 1}",
+   "text": "src"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v38.py",
+   "kind": "parse_only",
+   "line": 249,
+   "runner": "reason",
+   "src": "let f = fn(x) { x }\nlet d = f 1",
+   "text": "src"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v38.py",
+   "kind": "parse_only",
+   "line": 249,
+   "runner": "reason",
+   "src": "let a = 1 let b = 2",
+   "text": "src"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v38.py",
+   "kind": "parse_only",
+   "line": 249,
+   "runner": "reason",
+   "src": "let f = fn() { }",
+   "text": "src"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v38.py",
+   "kind": "parse_only",
+   "line": 249,
+   "runner": "reason",
+   "src": "let f = fn() { let a = 1 }",
+   "text": "src"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v38.py",
+   "kind": "parse_only",
+   "line": 249,
+   "runner": "reason",
+   "src": "let g = fn adder(a, b) { a + b }",
+   "text": "src"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v39.py",
+   "kind": "parse_only",
+   "line": 134,
+   "runner": "reason",
+   "src": "let \"let\" = 1",
+   "text": "'let \"let\" = 1'"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v39.py",
+   "kind": "parse_only",
+   "line": 133,
+   "runner": "reason",
+   "src": "let let = 1",
+   "text": "'let let = 1'"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v39.py",
+   "kind": "forwarded",
+   "line": 165,
+   "runner": "reason",
+   "text": "src"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v39.py",
+   "kind": "parse_only",
+   "line": 170,
+   "runner": "reason",
+   "src": "let x\nlet y = 1",
+   "text": "'let x\\nlet y = 1'"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v39.py",
+   "kind": "parse_only",
+   "line": 169,
+   "runner": "reason",
+   "src": "let x\nlet y = 1",
+   "text": "'let x\\nlet y = 1'"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v39.py",
+   "kind": "parse_only",
+   "line": 177,
+   "runner": "reason",
+   "src": "check 1.5: 1 == 1",
+   "text": "'check 1.5: 1 == 1'"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v39.py",
+   "kind": "parse_only",
+   "line": 175,
+   "runner": "reason",
+   "src": "check 1: 1 == 1",
+   "text": "'check 1: 1 == 1'"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v39.py",
+   "kind": "parse_only",
+   "line": 214,
+   "runner": "reason",
+   "src": "fn f(9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999) { 1 }",
+   "text": "'fn f(%s) { 1 }' % small"
+  },
+  {
+   "cls": "binop:Mod",
+   "file": "test_v39.py",
+   "kind": "residual",
+   "line": 207,
+   "runner": "reason",
+   "text": "'fn f(%s) { 1 }' % digits"
+  },
+  {
+   "cls": "binop:Mod",
+   "file": "test_v39.py",
+   "kind": "residual",
+   "line": 223,
+   "runner": "reason",
+   "text": "'fn f(%s) { 1 }' % digits"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Mod",
+   "file": "test_v39.py",
+   "kind": "residual",
+   "line": 246,
+   "name": "src",
+   "runner": "reason",
+   "text": "src"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Mod",
+   "file": "test_v39.py",
+   "kind": "residual",
+   "line": 245,
+   "name": "src",
+   "runner": "reason",
+   "text": "src"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v39.py",
+   "kind": "parse_only",
+   "line": 287,
+   "runner": "reason",
+   "src": "fn f(\"a\u0000b\") { 1 }",
+   "text": "'fn f(\"a\\x00b\") { 1 }'"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v39.py",
+   "kind": "forwarded",
+   "line": 336,
+   "runner": "position",
+   "text": "src"
+  },
+  {
+   "cls": "runner:reason",
+   "file": "test_v39.py",
+   "kind": "parse_only",
+   "line": 375,
+   "runner": "reason",
+   "src": "let f = fn(x) { x }\nlet v = f(1 \"a'b\")",
+   "text": "'let f = fn(x) { x }\\nlet v = f(1 \"a\\'b\")'"
+  },
+  {
+   "cls": "binop:Mod",
+   "file": "test_v40.py",
+   "kind": "residual",
+   "line": 62,
+   "runner": ".run",
+   "text": "'let a = num(\"%s\")\\n' % text"
+  },
+  {
+   "cls": "binop:Mod",
+   "file": "test_v40.py",
+   "kind": "residual",
+   "line": 113,
+   "runner": ".run",
+   "text": "'let a = num(\"%s\")\\nlet b = 1 + 1\\n' % ('9' * (CAP + 1))"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_v40.py",
+   "kind": "excluded",
+   "line": 125,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, os.path.join(ROOT, 'run.py'), str(prog)], capture_output=True, text=True, timeout=120)"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v42.py",
+   "kind": "forwarded",
+   "line": 50,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "file_read",
+   "file": "test_v42.py",
+   "kind": "excluded",
+   "line": 194,
+   "name": "src",
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "file_read",
+   "file": "test_v42.py",
+   "kind": "excluded",
+   "line": 190,
+   "name": "src",
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "bound_nonconstant:call:.join/constant:str",
+   "file": "test_v42.py",
+   "kind": "residual",
+   "line": 208,
+   "name": "src",
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "bound_nonconstant:call:.join/constant:str",
+   "file": "test_v42.py",
+   "kind": "residual",
+   "line": 235,
+   "name": "src",
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v42.py",
+   "kind": "forwarded",
+   "line": 302,
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v42.py",
+   "kind": "forwarded",
+   "line": 302,
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_v42.py",
+   "kind": "excluded",
+   "line": 314,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, RUN] + list(extra) + [str(p)], capture_output=True, text=True)"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v43.py",
+   "kind": "forwarded",
+   "line": 68,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v43.py",
+   "kind": "forwarded",
+   "line": 74,
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v43.py",
+   "kind": "forwarded",
+   "line": 81,
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "stmt_node_arg:.exec_stmt",
+   "file": "test_v43.py",
+   "kind": "excluded",
+   "line": 92,
+   "runner": ".exec_stmt",
+   "text": "i.exec_stmt(stmt, env)"
+  },
+  {
+   "cls": "binop:Mod",
+   "file": "test_v43.py",
+   "kind": "residual",
+   "line": 196,
+   "runner": "report",
+   "text": "'print(%s)\\n' % expr"
+  },
+  {
+   "cls": "binop:Add",
+   "file": "test_v43.py",
+   "kind": "residual",
+   "line": 195,
+   "runner": "report",
+   "text": "expr + '\\n'"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Mod",
+   "file": "test_v43.py",
+   "kind": "residual",
+   "line": 265,
+   "name": "src",
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Mod",
+   "file": "test_v43.py",
+   "kind": "residual",
+   "line": 240,
+   "name": "src",
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "binop:Add",
+   "file": "test_v43.py",
+   "kind": "residual",
+   "line": 305,
+   "runner": "value_of",
+   "text": "expr + '\\n'"
+  },
+  {
+   "cls": "binop:Mod",
+   "file": "test_v43.py",
+   "kind": "residual",
+   "line": 358,
+   "runner": "printed",
+   "text": "'print(%s)\\n' % expr"
+  },
+  {
+   "cls": "binop:Add",
+   "file": "test_v43.py",
+   "kind": "residual",
+   "line": 356,
+   "runner": "value_of",
+   "text": "expr + '\\n'"
+  },
+  {
+   "cls": "binop:Mod",
+   "file": "test_v43.py",
+   "kind": "residual",
+   "line": 354,
+   "runner": "printed",
+   "text": "'print(%s)\\n' % expr"
+  },
+  {
+   "cls": "binop:Add",
+   "file": "test_v43.py",
+   "kind": "residual",
+   "line": 353,
+   "runner": "value_of",
+   "text": "expr + '\\n'"
+  },
+  {
+   "cls": "binop:Mod",
+   "file": "test_v43.py",
+   "kind": "residual",
+   "line": 375,
+   "runner": "run",
+   "text": "'print(%snosuch(1)%s)\\n' % ('[' * deep, ']' * deep)"
+  },
+  {
+   "cls": "call:.join",
+   "file": "test_v43.py",
+   "kind": "residual",
+   "line": 384,
+   "runner": "run",
+   "text": "''.join(('print([%d])\\n' % k for k in range(50)))"
+  },
+  {
+   "cls": "module_call:subprocess",
+   "file": "test_v43.py",
+   "kind": "excluded",
+   "line": 501,
+   "runner": ".run",
+   "text": "subprocess.run([sys.executable, os.path.join(ROOT, 'run.py'), os.path.join(ex, name)], capture_output=True, text=True, timeout=300)"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v44.py",
+   "kind": "forwarded",
+   "line": 82,
+   "runner": ".run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v44.py",
+   "kind": "forwarded",
+   "line": 88,
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "param:src",
+   "file": "test_v44.py",
+   "kind": "forwarded",
+   "line": 96,
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "file_read",
+   "file": "test_v44.py",
+   "kind": "excluded",
+   "line": 177,
+   "runner": ".run",
+   "text": "open(path).read()"
+  },
+  {
+   "cls": "binop:Mod",
+   "file": "test_v44.py",
+   "kind": "residual",
+   "line": 397,
+   "runner": "report",
+   "text": "'print(%s)\\n' % expr"
+  },
+  {
+   "cls": "binop:Add",
+   "file": "test_v44.py",
+   "kind": "residual",
+   "line": 396,
+   "runner": "report",
+   "text": "expr + '\\n'"
+  },
+  {
+   "cls": "bound_nonconstant:binop:Mod",
+   "file": "test_v44.py",
+   "kind": "residual",
+   "line": 410,
+   "name": "src",
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "stmt_node_arg:.exec_stmt",
+   "file": "test_v44.py",
+   "kind": "excluded",
+   "line": 425,
+   "runner": ".exec_stmt",
+   "text": "it.exec_stmt(prog.stmts[0], env)"
+  },
+  {
+   "cls": "file_read",
+   "file": "test_v44.py",
+   "kind": "excluded",
+   "line": 463,
+   "name": "src",
+   "runner": "run",
+   "text": "src"
+  },
+  {
+   "cls": "file_read",
+   "file": "test_v44.py",
+   "kind": "excluded",
+   "line": 457,
+   "name": "src",
+   "runner": "run",
+   "text": "src"
+  }
+ ],
+ "stats": {
+  "ambiguous_scopes": 22,
+  "calls": 918,
+  "dup_cross_file": 19,
+  "dup_in_file": 210,
+  "executing_runners": 69,
+  "file_reads": 12,
+  "files": 63,
+  "fold_capped": 7,
+  "forwarded_args": 81,
+  "module_calls": 45,
+  "multivalued_nodes": 56,
+  "nonconstant_programs": 58,
+  "parse_only_distinct": 141,
+  "parse_only_programs": 25,
+  "parse_only_runners": 29,
+  "parse_only_strings": 186,
+  "programs": 764,
+  "programs_before_dedup": 783,
+  "stmt_node_args": 22,
+  "strings_folded": 1197,
+  "unparsed_programs": 18,
+  "unresolved_args": 56
+ }
+}

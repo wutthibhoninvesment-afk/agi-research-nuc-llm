@@ -931,9 +931,7 @@ def _walk_scope(scope):
     first = True
     while stack:
         node = stack.pop()
-        if not first and isinstance(node, (ast.FunctionDef,
-                                           ast.AsyncFunctionDef,
-                                           ast.Lambda, ast.ClassDef)):
+        if not first and isinstance(node, SCOPE_KINDS):
             continue
         first = False
         yield node
@@ -1053,6 +1051,120 @@ def _literal(node, lits=None, depth=0):
                 return _NOLIT
             out.append(v)
         return tuple(out) if isinstance(node, ast.Tuple) else out
+    # Round 468. Every shape below was named by a ROW in the itemised
+    # residual, not chosen because it seemed plausible; the count each one
+    # closes is in `knowledge/round-468-the-counter-that-could-only-be-
+    # believed.md`.  39 of the 94 unresolved names
+    # were bound by an ITERATION PROTOCOL (`zip`, `.items()`, a dict literal,
+    # a comprehension) rather than by a string expression, which is a
+    # different diagnosis from "the folder cannot build the string".
+    if isinstance(node, ast.Dict):
+        out = {}
+        for k, v in zip(node.keys, node.values):
+            if k is None:                        # `{**other}`
+                return _NOLIT
+            kk = _literal(k, lits, depth + 1)
+            vv = _literal(v, lits, depth + 1)
+            if kk is _NOLIT or vv is _NOLIT:
+                return _NOLIT
+            try:
+                out[kk] = vv
+            except TypeError:                    # unhashable key
+                return _NOLIT
+        return out
+    if isinstance(node, ast.BinOp):
+        return _literal_binop(node, lits, depth)
+    if isinstance(node, ast.Subscript):
+        base = _literal(node.value, lits, depth + 1)
+        idx = _literal(node.slice, lits, depth + 1)
+        if base is _NOLIT or idx is _NOLIT:
+            return _NOLIT
+        try:
+            return base[idx]
+        except Exception:                        # noqa: BLE001
+            return _NOLIT
+    if isinstance(node, ast.Call):
+        return _literal_call(node, lits, depth)
+    return _NOLIT
+
+
+# `**` is deliberately absent: `10 ** 100000` is a denial of service written
+# in four characters, and no row in the residual needs it.  `*` is capped for
+# the same reason -- `"x" * 10 ** 9` is a legal test fixture nobody would
+# want folded.
+LITERAL_REPEAT_CAP = 100000
+_LITERAL_BINOPS = {
+    ast.Add: lambda a, b: a + b,
+    ast.Sub: lambda a, b: a - b,
+    ast.FloorDiv: lambda a, b: a // b,
+    ast.Mod: lambda a, b: a % b,
+}
+
+
+def _literal_binop(node, lits, depth):
+    left = _literal(node.left, lits, depth + 1)
+    right = _literal(node.right, lits, depth + 1)
+    if left is _NOLIT or right is _NOLIT:
+        return _NOLIT
+    op = type(node.op)
+    if op is ast.Mult:
+        for a, b in ((left, right), (right, left)):
+            if isinstance(a, (str, bytes, list, tuple)) and                     isinstance(b, int) and not isinstance(b, bool):
+                if b < 0 or b * max(1, len(a)) > LITERAL_REPEAT_CAP:
+                    return _NOLIT
+                return a * b
+        if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+            return left * right
+        return _NOLIT
+    fn = _LITERAL_BINOPS.get(op)
+    if fn is None:
+        return _NOLIT
+    if op is ast.Add and isinstance(left, (str, bytes, list, tuple)) and             len(left) + len(right or ()) > LITERAL_REPEAT_CAP:
+        return _NOLIT
+    try:
+        return fn(left, right)
+    except Exception:                            # noqa: BLE001
+        return _NOLIT
+
+
+_LITERAL_SEQ_CALLS = ("zip", "list", "tuple", "sorted", "reversed",
+                      "enumerate")
+
+
+def _literal_call(node, lits, depth):
+    """The literal a call denotes, for the iteration-protocol calls that a
+    test table is actually written with.  No keywords are accepted: `sorted(
+    xs, key=f)` is a call to `f`, and this walk has no `f`."""
+    kind, nm = _callee(node)
+    if node.keywords:
+        return _NOLIT
+    if kind == "name" and nm in _LITERAL_SEQ_CALLS:
+        args = [_literal(a, lits, depth + 1) for a in node.args]
+        if any(a is _NOLIT for a in args) or not args:
+            return _NOLIT
+        if not all(isinstance(a, (list, tuple)) for a in args):
+            return _NOLIT
+        try:
+            if nm == "zip":
+                return [tuple(t) for t in zip(*args)]
+            if len(args) != 1:
+                return _NOLIT
+            if nm == "enumerate":
+                return list(enumerate(args[0]))
+            if nm == "sorted":
+                return sorted(args[0])
+            if nm == "reversed":
+                return list(reversed(args[0]))
+            return list(args[0]) if nm == "list" else tuple(args[0])
+        except Exception:                        # noqa: BLE001
+            return _NOLIT
+    if kind == "attr" and nm in ("items", "keys", "values") and not node.args:
+        base = _literal(node.func.value, lits, depth + 1)
+        if not isinstance(base, dict):
+            return _NOLIT
+        if nm == "items":
+            return [tuple(kv) for kv in base.items()]
+        return list(base) if nm == "keys" else list(base.values())
     return _NOLIT
 
 
@@ -1077,7 +1189,11 @@ def _const_strs(node, env=None, lits=None, depth=0):
     if isinstance(node, ast.Constant):
         return [node.value] if isinstance(node.value, str) else []
     if isinstance(node, ast.Name):
-        return list(env.get(node.id) or [])[:MAX_FOLD]
+        vals = list(env.get(node.id) or [])[:MAX_FOLD]
+        if vals:
+            return vals
+        lit = _literal(node, lits)
+        return [lit] if isinstance(lit, str) else []
     if isinstance(node, ast.IfExp):
         # Both arms. A conditional source is two programs, not an unknown.
         return (_const_strs(node.body, env, lits, depth + 1) +
@@ -1158,7 +1274,14 @@ def _const_strs(node, env=None, lits=None, depth=0):
             if base and isinstance(a, str) and isinstance(b, str):
                 return [x.replace(a, b) for x in base][:MAX_FOLD]
             return []
-    return []
+    # Round 468. One fallback rather than a branch per shape: a node the
+    # STRING folder cannot assemble may still be a plain literal string --
+    # `"(" * 40`, `CASES[1]`, `PREFIX + SUFFIX` where both are literal
+    # constants.  Three residual classes (`binop:Mult` inside `binop:Add`,
+    # `subscript`, and the `%` right-operands) resolve here and nowhere else.
+    # It runs LAST, so no existing branch changes its answer.
+    lit = _literal(node, lits, depth)
+    return [lit] if isinstance(lit, str) else []
 
 
 def _const_str(node, env=None):
@@ -1173,6 +1296,270 @@ def _const_str(node, env=None):
     caller can COUNT it rather than guess at it."""
     ss = _const_strs(node, env)
     return ss[0] if len(ss) == 1 else None
+
+
+# --- the residual, item by item (round 468) --------------------------------
+#
+# Round 462 split the residual from the exclusions and reduced it 258 -> 166,
+# and its own skill (`skills/residual-audited-both-ways`) states the rule it
+# used: *classify a residual item by item before narrowing it*. It then left
+# its OWN residual as three integers. Round 462's next-step 2 says so in as
+# many words -- "the 166 remaining residual entries are ARGUED undecidable,
+# not measured undecidable ... classify the 94 the way it classified the 131,
+# one row per entry".
+#
+# This is SPEC.md decision 57, minted in the round that wrote it and taken
+# from `python3 specreg.py next` rather than from the bottom of the registry
+# (round 464's next-step 3, whose fix is the reserved comment in SPEC.md).
+#
+# A COUNTER CANNOT BE AUDITED, ONLY BELIEVED. `unresolved_args: 94` supports
+# exactly one action, "widen the folder", and cannot say which widening or
+# whether any is possible. A ROW carries a file, a line, the source text of
+# the node that defeated the walk, and a CLASS derived from the AST -- and a
+# class is a thing a reader can refute by opening the file.
+#
+# Every outcome an argument in a source position can have now emits a row,
+# not just the two that were called residual: the exclusions (`module_call`,
+# `stmt_node_arg`), the two dedup drops, `parse_only` and `unparsed` too. The
+# rows and the counters are derived at the same site, so a row that is not
+# counted (or a count with no row) is a bug a test can see -- see
+# `test_depthcensus.py::test_rows_reconcile_with_the_counters`.
+
+# The scope kinds `_walk_scope` REFUSES to descend into, and therefore
+# exactly the kinds that must appear in the scope list themselves. Round 468:
+# the two lists disagreed. `_walk_scope` has stopped at `Lambda` and
+# `AsyncFunctionDef` since round 458, and `harvest_file`'s scope list held
+# only `FunctionDef` and `ClassDef` -- so a call inside a lambda body was
+# visited by NO scope and counted by NO counter, neither residual nor
+# exclusion. Measured before the fix: 9 calls inside lambda bodies in
+# `tests/`, 2 of them runner calls (`test_v09.py:245` and `:254`, both
+# `run(src)` inside a `lambda: ...` passed to `pytest.raises`). A blind spot
+# that is not in the residual is the one kind this instrument's own docstring
+# promises does not exist.
+SCOPE_KINDS = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda,
+               ast.ClassDef)
+
+ROW_TEXT_CAP = 160
+
+
+def _file_read_reason(node, cls):
+    """`"file_read"` when this source position holds the contents of a FILE.
+
+    Round 468, and it is an EXCLUSION rather than a residual for the reason
+    round 462 gave for `subprocess.run`: the harvester's declared population
+    is *a Python string constant in `tests/test_*.py`* (gate 1), and a file's
+    contents is not one.  The walk did not fail to reach these -- they are
+    outside what it set out to reach, and the twelve of them are
+    `examples/*.lang`, which this same module's OTHER mode (`census()` over
+    `EXAMPLES`, the default) censuses in full.  Folding them in here would
+    census the example corpus twice and call the second copy a test program.
+    """
+    if isinstance(node, ast.Call) and _callee(node) == ("attr", "read"):
+        return "file_read"
+    if cls == "bound_nonconstant:call:.read":
+        return "file_read"
+    return None
+
+
+# WHY `zip(LITERAL, runtime)` IS NOT WIDENED, written down rather than left
+# as an omission.  13 of the residual's rows are `for src, g in zip(CORPUS,
+# guest_eval_all(CORPUS))`, where the FIRST column is a literal table and the
+# second is a runtime list.  Binding `src` to every element of `CORPUS` would
+# be an OVER-approximation: `zip` truncates to its shortest argument, so the
+# strings that actually reach the runner are a SUBSET of that column, and a
+# census that publishes a superset is claiming programs the suite may never
+# run.  The harvester's job is the corpus the suite HAS, not an upper bound
+# on it.  The class is named (`zip_nonliteral_column`) so the decision is
+# visible and refutable: show that the columns are equal-length by
+# construction and the widening becomes sound.
+
+
+def _snippet(node):
+    """One line of source text for a node, capped. `ast.unparse` and not the
+    original slice: the original carries the file's own line breaks and a row
+    that spans lines is not a row."""
+    try:
+        t = ast.unparse(node)
+    except Exception:                            # noqa: BLE001
+        return "<unparseable %s>" % type(node).__name__
+    t = " ".join(t.split())
+    return t if len(t) <= ROW_TEXT_CAP else t[:ROW_TEXT_CAP - 3] + "..."
+
+
+def _node_class(node):
+    """The AST shape that defeated `_const_strs`, as a name.
+
+    Deliberately shallow -- one level, the callee name for a call. The point
+    is a class a reader can grep for, not a taxonomy.
+    """
+    if isinstance(node, ast.Constant):
+        return "constant:" + type(node.value).__name__
+    if isinstance(node, (ast.List, ast.Tuple)):
+        return "sequence"
+    if isinstance(node, ast.Call):
+        kind, nm = _callee(node)
+        if kind == "attr":
+            return "call:." + nm
+        if kind == "name":
+            return "call:" + nm
+        return "call:<expr>"
+    if isinstance(node, ast.Subscript):
+        return "subscript"
+    if isinstance(node, ast.Attribute):
+        return "attribute"
+    if isinstance(node, ast.BinOp):
+        return "binop:" + type(node.op).__name__
+    if isinstance(node, ast.JoinedStr):
+        return "fstring"
+    if isinstance(node, (ast.ListComp, ast.GeneratorExp, ast.SetComp,
+                         ast.DictComp)):
+        return "comprehension"
+    if isinstance(node, ast.IfExp):
+        return "ifexp"
+    if isinstance(node, ast.Starred):
+        return "starred"
+    if isinstance(node, ast.Name):
+        return "name"
+    return type(node).__name__.lower()
+
+
+# Every way a name can acquire a value, so that "this name is not bound" is a
+# statement about the FILE and not about the two statement kinds the
+# harvester's binder happens to read (`Assign` and `For`).
+def _binds(node):
+    """(name, form, value node or None) for every binding `node` performs.
+
+    The VALUE matters as much as the form. `unresolved_args: 94` is opaque;
+    `bound_nonconstant` is a little better; `bound_nonconstant:call:.join` is
+    a row a reader can act on, because it names the expression the folder
+    would have to learn."""
+    if isinstance(node, ast.Assign):
+        for t in node.targets:
+            for n in _target_names(t):
+                yield n, "assign", node.value
+    elif isinstance(node, ast.AnnAssign) and node.value is not None:
+        for n in _target_names(node.target):
+            yield n, "annassign", node.value
+    elif isinstance(node, ast.AugAssign):
+        for n in _target_names(node.target):
+            yield n, "augassign", node.value
+    elif isinstance(node, (ast.For, ast.AsyncFor)):
+        for n in _target_names(node.target):
+            yield n, "for", node.iter
+    elif isinstance(node, (ast.With, ast.AsyncWith)):
+        for it in node.items:
+            if it.optional_vars is not None:
+                for n in _target_names(it.optional_vars):
+                    yield n, "with", it.context_expr
+    elif isinstance(node, ast.NamedExpr):
+        for n in _target_names(node.target):
+            yield n, "walrus", node.value
+    elif isinstance(node, ast.ExceptHandler) and node.name:
+        yield node.name, "except", None
+    elif isinstance(node, ast.comprehension):
+        for n in _target_names(node.target):
+            yield n, "comprehension", node.iter
+    elif isinstance(node, (ast.Import, ast.ImportFrom)):
+        for a in node.names:
+            yield (a.asname or a.name.split(".")[0]), "import", None
+    elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef,
+                           ast.ClassDef)):
+        yield node.name, "def", None
+    elif isinstance(node, ast.Global):
+        for n in node.names:
+            yield n, "global", None
+
+
+def _target_names(t):
+    if isinstance(t, ast.Name):
+        return [t.id]
+    if isinstance(t, (ast.Tuple, ast.List)):
+        out = []
+        for e in t.elts:
+            out.extend(_target_names(e))
+        return out
+    if isinstance(t, ast.Starred):
+        return _target_names(t.value)
+    return []
+
+
+def _scope_bindings(scopes):
+    """id(scope) -> {name: set(binding form)}, using the harvester's OWN
+    notion of a scope (`_walk_scope`), so the answer is about the walk that
+    actually failed and not about a second, differently-shaped one."""
+    out = {}
+    for sc in scopes:
+        d = {}
+        for node in _walk_scope(sc):
+            for name, form, value in _binds(node):
+                e = d.setdefault(name, {"forms": set(), "values": []})
+                e["forms"].add(form)
+                if value is not None:
+                    e["values"].append(value)
+        if isinstance(sc, (ast.FunctionDef, ast.AsyncFunctionDef,
+                           ast.Lambda)):
+            for p in _param_order(sc) + [a.arg for a in sc.args.kwonlyargs]:
+                d.setdefault(p, {"forms": set(), "values": []})[
+                    "forms"].add("param")
+        out[id(sc)] = d
+    return out
+
+
+def _scope_parents(scopes):
+    """id(scope) -> enclosing scope node. Built by looking at the children of
+    the nodes `_walk_scope` yields, because `_walk_scope` deliberately does
+    not yield a nested scope itself."""
+    parent = {}
+    for sc in scopes:
+        for node in _walk_scope(sc):
+            for child in ast.iter_child_nodes(node):
+                if isinstance(child, SCOPE_KINDS):
+                    parent[id(child)] = sc
+    return parent
+
+
+def _unresolved_class(name, sc, tree, sbind, parent, lits=None):
+    """Why a bare name in a source position did not resolve.
+
+    The harvester's environment is `module bindings | this scope's bindings`
+    and NOTHING in between, so a name bound in an enclosing function or in a
+    class body is invisible to it however ordinary the binding is. That is a
+    property of the chain, not of the name, and it gets its own class.
+    """
+    lits = lits or {}
+    _EMPTY = {"forms": set(), "values": []}
+    here = sbind.get(id(sc), {}).get(name, _EMPTY)
+    mod = sbind.get(id(tree), {}).get(name, _EMPTY)
+    forms = here["forms"] | mod["forms"]
+    skipped = set()
+    cur = parent.get(id(sc))
+    while cur is not None and cur is not tree:
+        skipped |= sbind.get(id(cur), {}).get(name, _EMPTY)["forms"]
+        cur = parent.get(id(cur))
+    if skipped and not forms:
+        return "bound_in_skipped_scope:" + ",".join(sorted(skipped))
+    if not forms:
+        return "never_bound_in_file"
+    readable = forms & {"assign", "for"}
+    if not readable:
+        return "bound_by:" + ",".join(sorted(forms))
+    vals = here["values"] + mod["values"]
+    kinds = sorted({_node_class(v) for v in vals})
+    if kinds == ["call:zip"] and any(_zip_has_literal_column(v, lits)
+                                     for v in vals):
+        return "zip_nonliteral_column"
+    return "bound_nonconstant:" + ("/".join(kinds) if kinds else "?")
+
+
+def _zip_has_literal_column(node, lits):
+    """True for `zip(A, B)` where at least one argument IS a literal
+    sequence and at least one is not -- the shape the comment above refuses
+    to widen."""
+    if not (isinstance(node, ast.Call) and _callee(node) == ("name", "zip")):
+        return False
+    cols = [_literal(a, lits) for a in node.args]
+    lit = [c for c in cols if isinstance(c, (list, tuple))]
+    return bool(lit) and len(lit) < len(cols)
 
 
 def _param_order(fn):
@@ -1312,10 +1699,41 @@ def harvest_file(path):
              # for a reason is not a program the walk failed to reach, and
              # the two must not share a counter.
              "module_calls": 0, "stmt_node_args": 0,
-             "multivalued_nodes": 0, "fold_capped": 0}
+             "multivalued_nodes": 0, "fold_capped": 0,
+             # Round 468. `strings_folded` is every string a source position
+             # was found to denote; the four counters under it are the four
+             # things that can then happen to one. Without `dup_in_file` the
+             # string-level accounting could not be closed at all -- the
+             # per-file `seen` set dropped a repeat and incremented nothing.
+             "strings_folded": 0, "dup_in_file": 0, "file_reads": 0,
+             # Round 468. `parse_only_programs` counted an OCCURRENCE and
+             # called it a program: it fired once per folded string, before
+             # both the dedup and the parse gate that `programs` is measured
+             # after, so "145 parse-only against 559 harvested" compared two
+             # different units. The three counters below are the three
+             # different questions, each measured where it belongs.
+             "parse_only_strings": 0, "parse_only_srcs": [],
+             "rows": []}
 
     scopes = [tree] + [n for n in ast.walk(tree)
-                       if isinstance(n, (ast.FunctionDef, ast.ClassDef))]
+                       if isinstance(n, SCOPE_KINDS)]
+    parents = _scope_parents(scopes)
+
+    def _chain(sc):
+        """module -> ... -> `sc`, outermost first. The harvester's
+        environment was `module | this scope` and NOTHING in between, so a
+        name bound in an enclosing function was invisible however ordinary
+        the binding. Latent until round 468 put lambdas in the scope list --
+        `test_v09.py`'s `lambda: run(src)` is the first construct in this
+        tree whose enclosing scope is not the module."""
+        out, cur = [], sc
+        while cur is not None:
+            out.append(cur)
+            cur = parents.get(id(cur)) if cur is not tree else None
+        if out[-1] is not tree:
+            out.append(tree)
+        out.reverse()
+        return out
     # Two passes. Pass A takes the literal bindings; pass B re-runs with
     # pass A's names in scope so `LOOP + "..."` resolves. Repeated twice for
     # a two-link chain; a longer chain is left unresolved and counted rather
@@ -1335,12 +1753,45 @@ def harvest_file(path):
         for sc in scopes:
             b = bindings[id(sc)]
             lb = lit_bindings[id(sc)]
-            env = dict(bindings[id(tree)])
-            env.update(b)
-            lits = dict(lit_bindings[id(tree)])
-            lits.update(lb)
+            env, lits = {}, {}
+            for anc in _chain(sc):
+                env.update(bindings[id(anc)])
+                lits.update(lit_bindings[id(anc)])
+            def _bind_iter(target, it):
+                """`for t in <iterable>:` -- the binder for BOTH statement
+                and comprehension form. Round 468: `_walk_scope` already
+                descends into a comprehension (it is not a scope this walk
+                stops at), so `[host(src) for src in CASES]` was VISITED and
+                its target simply never bound -- 10 of the 94 unresolved
+                names, and the same construct the `ast.For` branch below has
+                read since round 458."""
+                seq = _literal(it, lits)
+                if seq is not _NOLIT and isinstance(seq, (list, tuple)):
+                    for elt in seq:
+                        if isinstance(target, ast.Name):
+                            if isinstance(elt, str):
+                                _bind(b, target.id, elt)
+                            _bind(lb, target.id, elt)
+                        elif isinstance(target, (ast.Tuple, ast.List)) \
+                                and isinstance(elt, (list, tuple)) \
+                                and len(elt) == len(target.elts):
+                            for t, v in zip(target.elts, elt):
+                                if not isinstance(t, ast.Name):
+                                    continue
+                                if isinstance(v, str):
+                                    _bind(b, t.id, v)
+                                _bind(lb, t.id, v)
+                elif isinstance(it, (ast.List, ast.Tuple)) and \
+                        isinstance(target, ast.Name):
+                    for elt in it.elts:
+                        for v in _const_strs(elt, env, lits):
+                            _bind(b, target.id, v)
+
             for node in _walk_scope(sc):
                 targets, value = None, None
+                if isinstance(node, ast.comprehension):
+                    _bind_iter(node.target, node.iter)
+                    continue
                 if isinstance(node, ast.Assign):
                     targets, value = node.targets, node.value
                 elif isinstance(node, ast.For):
@@ -1353,27 +1804,7 @@ def harvest_file(path):
                     # NAME_SLOT_CASES:` over a module-level list of tuples.
                     # 25 of round 458's 131 non-constant nodes are a `%`
                     # whose right operand is a name bound only here.
-                    seq = _literal(node.iter, lits)
-                    if seq is not _NOLIT and isinstance(seq, (list, tuple)):
-                        for elt in seq:
-                            if isinstance(node.target, ast.Name):
-                                if isinstance(elt, str):
-                                    _bind(b, node.target.id, elt)
-                                _bind(lb, node.target.id, elt)
-                            elif isinstance(node.target, (ast.Tuple, ast.List)) \
-                                    and isinstance(elt, (list, tuple)) \
-                                    and len(elt) == len(node.target.elts):
-                                for t, v in zip(node.target.elts, elt):
-                                    if not isinstance(t, ast.Name):
-                                        continue
-                                    if isinstance(v, str):
-                                        _bind(b, t.id, v)
-                                    _bind(lb, t.id, v)
-                    elif isinstance(node.iter, (ast.List, ast.Tuple)) and \
-                            isinstance(node.target, ast.Name):
-                        for elt in node.iter.elts:
-                            for v in _const_strs(elt, env, lits):
-                                _bind(b, node.target.id, v)
+                    _bind_iter(node.target, node.iter)
                     continue
                 else:
                     continue
@@ -1386,19 +1817,29 @@ def harvest_file(path):
                     for t in targets:
                         if isinstance(t, ast.Name):
                             _bind(lb, t.id, lv)
-    module_b = bindings[id(tree)]
-    module_lb = lit_bindings[id(tree)]
+
+    sbind = _scope_bindings(scopes)
+    base = os.path.basename(path)
+
+    def _row(node, kind, cls, label, **extra):
+        r = {"file": base, "line": getattr(node, "lineno", 0),
+             "runner": label, "kind": kind, "cls": cls,
+             "text": _snippet(node)}
+        r.update(extra)
+        stats["rows"].append(r)
+        return r
 
     out = []
     seen = set()
+    po_seen = set()
     for sc in scopes:
-        b = bindings[id(sc)]
-        env = dict(module_b)
-        env.update(b)
-        lits = dict(module_lb)
-        lits.update(lit_bindings[id(sc)])
+        env, lits = {}, {}
+        for anc in _chain(sc):
+            env.update(bindings[id(anc)])
+            lits.update(lit_bindings[id(anc)])
         params = set()
-        if isinstance(sc, ast.FunctionDef):
+        if isinstance(sc, (ast.FunctionDef, ast.AsyncFunctionDef,
+                           ast.Lambda)):
             params = set(_param_order(sc)) | \
                 set(p.arg for p in sc.args.kwonlyargs)
         # The depth a bare `interp.run(...)` in this scope would use: the
@@ -1447,9 +1888,12 @@ def harvest_file(path):
                 # `exec_stmt` takes a parsed statement rather than source.
                 if _receiver(node) in mods:
                     stats["module_calls"] += 1
+                    _row(node, "excluded", "module_call:" + str(_receiver(node)),
+                         "." + nm)
                     continue
                 if nm not in _SRC_ARG0_ATTRS:
                     stats["stmt_node_args"] += 1
+                    _row(node, "excluded", "stmt_node_arg:." + nm, "." + nm)
                     continue
                 cands = [node.args[0]]
                 depth = scope_depth
@@ -1475,37 +1919,78 @@ def harvest_file(path):
                         # the CALL SITE, which this walk also visits.
                         if a.id in params:
                             stats["forwarded_args"] += 1
+                            _row(a, "forwarded", "param:" + a.id, label)
+                            continue
+                        cls = _unresolved_class(a.id, sc, tree, sbind,
+                                                parents, lits)
+                        why = _file_read_reason(a, cls)
+                        if why:
+                            stats["file_reads"] += 1
+                            _row(a, "excluded", why, label, name=a.id)
                         else:
                             stats["unresolved_args"] += 1
+                            _row(a, "residual", cls, label, name=a.id)
                     else:
-                        stats["nonconstant_programs"] += 1
+                        why = _file_read_reason(a, None)
+                        if why:
+                            stats["file_reads"] += 1
+                            _row(a, "excluded", why, label)
+                        else:
+                            stats["nonconstant_programs"] += 1
+                            _row(a, "residual", _node_class(a), label)
+                stats["strings_folded"] += len(srcs)
                 for s in srcs:
                     if not executes:
-                        stats["parse_only_programs"] += 1
+                        stats["parse_only_strings"] += 1
+                        _row(a, "parse_only", "runner:" + str(label), label,
+                             src=s)
+                        if s not in po_seen:
+                            po_seen.add(s)
+                            stats["parse_only_srcs"].append(s)
                         continue
                     key = (s, depth)
                     if key in seen:
+                        stats["dup_in_file"] += 1
                         continue
                     seen.add(key)
                     try:
                         prog = parse_mod.parse(s)
-                    except Exception:            # noqa: BLE001
+                    except Exception as exc:     # noqa: BLE001
                         stats["unparsed_programs"] += 1
+                        _row(a, "unparsed", type(exc).__name__, label, src=s)
                         continue
                     if not getattr(prog, "stmts", None):
                         stats["unparsed_programs"] += 1
+                        _row(a, "unparsed", "no_statements", label, src=s)
                         continue
                     out.append({"file": os.path.basename(path),
                                 "line": node.lineno, "runner": label,
                                 "max_depth": depth, "src": s})
+    stats["parse_only_programs"] = sum(1 for x in stats["parse_only_srcs"]
+                                       if _is_program(x))
     return out, stats
 
 
-def harvest_tests(directory=None):
+def _is_program(src):
+    """Gate (2) of the declared population: lexes and parses as Whence with
+    at least one statement. The same gate `programs` is measured after."""
+    try:
+        prog = parse_mod.parse(src)
+    except Exception:                            # noqa: BLE001
+        return False
+    return bool(getattr(prog, "stmts", None))
+
+
+def harvest_tests(directory=None, keep_rows=False):
     """(programs, stats) over every `tests/test_*.py`. Programs are
     deduplicated on (source, max_depth) ACROSS files: the same one-liner
     appears in several version files and censusing it twice would inflate
-    every count without adding a value the repo builds."""
+    every count without adding a value the repo builds.
+
+    `keep_rows` (round 468) carries `harvest_file`'s per-entry rows up into
+    `stats["rows"]`. OFF by default and on purpose: `--json` dumps this dict
+    and 400-odd rows would change the shape of every artefact already on
+    disk. `--residual` turns it on."""
     directory = TESTS if directory is None else directory
     stats = {"files": 0, "calls": 0, "unresolved_args": 0,
              "forwarded_args": 0, "nonconstant_programs": 0,
@@ -1513,9 +1998,15 @@ def harvest_tests(directory=None):
              "ambiguous_scopes": 0, "programs_before_dedup": 0,
              "executing_runners": 0, "parse_only_runners": 0,
              "module_calls": 0, "stmt_node_args": 0,
-             "multivalued_nodes": 0, "fold_capped": 0}
+             "multivalued_nodes": 0, "fold_capped": 0,
+             "strings_folded": 0, "dup_in_file": 0, "dup_cross_file": 0,
+             "file_reads": 0, "parse_only_strings": 0,
+             "parse_only_distinct": 0}
+    if keep_rows:
+        stats["rows"] = []
     progs = []
     seen = set()
+    po_all = set()
     for f in sorted(os.listdir(directory)):
         if not (f.startswith("test_") and f.endswith(".py")):
             continue
@@ -1525,8 +2016,12 @@ def harvest_tests(directory=None):
                   "nonconstant_programs", "parse_only_programs",
                   "unparsed_programs", "ambiguous_scopes",
                   "module_calls", "stmt_node_args", "multivalued_nodes",
-                  "fold_capped"):
+                  "fold_capped", "strings_folded", "dup_in_file",
+                  "file_reads", "parse_only_strings"):
             stats[k] += s[k]
+        po_all.update(s["parse_only_srcs"])
+        if keep_rows:
+            stats["rows"].extend(s["rows"])
         stats["executing_runners"] += len(s["executing_runners"])
         stats["parse_only_runners"] += (len(s["runners"]) -
                                         len(s["executing_runners"]))
@@ -1534,10 +2029,13 @@ def harvest_tests(directory=None):
         for r in rows:
             key = (r["src"], r["max_depth"])
             if key in seen:
+                stats["dup_cross_file"] += 1
                 continue
             seen.add(key)
             progs.append(r)
     stats["programs"] = len(progs)
+    stats["parse_only_distinct"] = len(po_all)
+    stats["parse_only_programs"] = sum(1 for x in po_all if _is_program(x))
     return progs, stats
 
 
@@ -1727,24 +2225,103 @@ def render(rows, summary):
     return "\n".join(lines)
 
 
-def _main_tests(mode, limit, alloc, max_nodes, out_json):
+# Every key of the stats dict, in the order the report prints them. The
+# tuple exists so `test_every_counter_reaches_the_report` can assert that no
+# counter is collected and then never shown -- before round 468 SEVEN of them
+# were (`parse_only_programs`, `unparsed_programs`, `forwarded_args`,
+# `ambiguous_scopes`, `programs_before_dedup`, `executing_runners`,
+# `parse_only_runners`), which is how `parse_only_programs` could measure the
+# wrong unit for three rounds without anyone seeing the number.
+REPORT_KEYS = (
+    "programs", "files", "calls", "unresolved_args", "nonconstant_programs",
+    "module_calls", "stmt_node_args", "file_reads", "multivalued_nodes",
+    "fold_capped", "strings_folded", "dup_in_file", "dup_cross_file",
+    "programs_before_dedup", "parse_only_strings", "parse_only_distinct",
+    "parse_only_programs", "unparsed_programs", "forwarded_args",
+    "ambiguous_scopes", "executing_runners", "parse_only_runners",
+)
+
+
+def harvest_report(stats):
+    """The harvest's own coverage, as text. Every counter in `stats` appears
+    exactly once; see `REPORT_KEYS`."""
+    residual = stats["unresolved_args"] + stats["nonconstant_programs"]
+    return (
+        "harvest:  %d programs from %d files, %d calls\n"
+        "residual: %d (%d unresolved names + %d non-constant nodes)\n"
+        "excluded: %d module calls + %d statement-node args + %d file reads "
+        "(not residual -- not source positions)\n"
+        "folded:   %d multi-valued nodes, %d capped at MAX_FOLD=%d\n"
+        "strings:  %d folded = %d parse-only + %d dup-in-file + %d unparsed "
+        "+ %d kept; %d kept - %d dup-cross-file = %d programs\n"
+        "parse-only: %d strings, %d distinct, %d of those are programs "
+        "(gate 2); %d of %d runners never execute\n"
+        "args:     %d forwarded to a call site this walk also visits\n"
+        "scopes:   %d with more than one Interpreter (depth from the first)\n"
+        "runners:  %d executing\n"
+        % (stats["programs"], stats["files"], stats["calls"], residual,
+           stats["unresolved_args"], stats["nonconstant_programs"],
+           stats["module_calls"], stats["stmt_node_args"],
+           stats["file_reads"],
+           stats["multivalued_nodes"], stats["fold_capped"], MAX_FOLD,
+           stats["strings_folded"], stats["parse_only_strings"],
+           stats["dup_in_file"], stats["unparsed_programs"],
+           stats["programs_before_dedup"], stats["programs_before_dedup"],
+           stats["dup_cross_file"], stats["programs"],
+           stats["parse_only_strings"], stats["parse_only_distinct"],
+           stats["parse_only_programs"], stats["parse_only_runners"],
+           stats["parse_only_runners"] + stats["executing_runners"],
+           stats["forwarded_args"], stats["ambiguous_scopes"],
+           stats["executing_runners"]))
+
+
+def residual_report(rows, limit=None):
+    """One line per row, grouped by kind and class. A COUNTER CANNOT BE
+    AUDITED, ONLY BELIEVED -- this is the same population as
+    `unresolved_args`/`nonconstant_programs`, printed as rows a reader can
+    open the file on."""
+    order = ("residual", "excluded", "parse_only", "unparsed", "forwarded")
+    by_kind = {}
+    for r in rows:
+        by_kind.setdefault(r["kind"], []).append(r)
+    out = []
+    for kind in order + tuple(sorted(k for k in by_kind if k not in order)):
+        sub = by_kind.get(kind)
+        if not sub:
+            continue
+        counts = {}
+        for r in sub:
+            counts[r["cls"]] = counts.get(r["cls"], 0) + 1
+        out.append("=== %s: %d row(s), %d class(es) ==="
+                   % (kind, len(sub), len(counts)))
+        for cls, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])):
+            out.append("  %4d  %s" % (n, cls))
+        if kind in ("residual", "excluded"):
+            for r in sorted(sub, key=lambda r: (r["cls"], r["file"],
+                                                r["line"]))[:limit]:
+                out.append("        %-34s:%-5d %-40s %s"
+                           % (r["file"], r["line"], r["cls"], r["text"]))
+        out.append("")
+    return "\n".join(out)
+
+
+def _main_tests(mode, limit, alloc, max_nodes, out_json, residual=False):
     """`--tests` : harvest `tests/`, then census what was harvested.
 
     Prints the residual FIRST and unconditionally. An instrument whose
     coverage line is below a hundred rows of output is an instrument whose
     coverage nobody reads."""
-    progs, stats = harvest_tests()
-    residual = stats["unresolved_args"] + stats["nonconstant_programs"]
-    sys.stderr.write(
-        "harvest: %d programs from %d files, %d calls\n"
-        "residual: %d (%d unresolved names + %d non-constant nodes)\n"
-        "excluded: %d module calls + %d statement-node args "
-        "(not residual -- not source positions)\n"
-        "folded:   %d multi-valued nodes, %d capped at MAX_FOLD=%d\n"
-        % (stats["programs"], stats["files"], stats["calls"], residual,
-           stats["unresolved_args"], stats["nonconstant_programs"],
-           stats["module_calls"], stats["stmt_node_args"],
-           stats["multivalued_nodes"], stats["fold_capped"], MAX_FOLD))
+    progs, stats = harvest_tests(keep_rows=residual)
+    sys.stderr.write(harvest_report(stats))
+    if residual:
+        rows = stats.pop("rows")
+        print(residual_report(rows))
+        if out_json:
+            with open(out_json, "w") as fh:
+                json.dump({"mode": mode, "stats": stats, "rows": rows},
+                          fh, indent=1, sort_keys=True)
+                fh.write("\n")
+        return 0
     if limit == 0:
         if out_json:
             with open(out_json, "w") as fh:
@@ -1773,6 +2350,7 @@ def main(argv):
     alloc = True
     paths = None
     tests_mode = None
+    residual = False
     limit = None
     max_nodes = DEFAULT_MAX_NODES
     i = 0
@@ -1800,6 +2378,13 @@ def main(argv):
             limit = 0
             i += 1
             continue
+        if a == "--residual":
+            # Round 462's next-step 2: "classify the 94 the way it
+            # classified the 131 -- one row per entry".
+            tests_mode = tests_mode or "suite"
+            residual = True
+            i += 1
+            continue
         if a == "--json":
             out_json = args[i + 1]
             i += 2
@@ -1821,12 +2406,14 @@ def main(argv):
             sys.stderr.write("usage: depthcensus.py [--roots all|env] "
                              "[--no-alloc] [--program NAME] [--max-nodes N] "
                              "[--tests suite|default] [--limit N] "
-                             "[--harvest-only] [--json OUT]\n")
+                             "[--harvest-only] [--residual] "
+                             "[--json OUT]\n")
             return 2
         continue
 
     if tests_mode is not None:
-        return _main_tests(tests_mode, limit, alloc, max_nodes, out_json)
+        return _main_tests(tests_mode, limit, alloc, max_nodes, out_json,
+                           residual)
 
     rows = census(paths, roots, max_nodes,
                   progress=lambda p: sys.stderr.write(
