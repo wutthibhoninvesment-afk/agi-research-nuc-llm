@@ -481,10 +481,76 @@ def test_the_unit_command_pins_pytest_ini():
 # ------------------------------------- what round 469 measured at this HEAD --
 
 def test_the_real_tree_yields_the_units_round_469_measured():
+    """Round 469 measured 27 units / 102 marked nodes. Round 470 added ONE
+    unit — `test_testcorpus_suite_census.py`, 11 marked tests, the suite-mode
+    `--tests` census round 469's §5 decided belongs in its own file — and
+    that unit is what moved these numbers. Re-pinned WITH the reason rather
+    than relaxed to an inequality: the point of this assertion is that a
+    change to the tier's membership is a thing somebody had to write down."""
     units = W.slow_tier_units()
-    assert len(units) == 27
-    assert sum(len(u["tests"]) for u in units) == 102
+    assert len(units) == 28
+    assert sum(len(u["tests"]) for u in units) == 113
     assert not [u for u in units if u["registry_error"]]
+    by = dict((u["id"], u) for u in units)
+    assert len(by["test_testcorpus_suite_census.py"]["tests"]) == 11
+
+
+def test_a_module_level_pytestmark_is_discovered(tmp_path):
+    """Round 470's fail-open, pinned. `pytestmark = pytest.mark.whence_slow`
+    is the ordinary pytest spelling for "the whole file is in this tier", and
+    the AST scan read DECORATORS only. `pytest -m whence_slow` collected the
+    file's tests; `slow_tier_units()` reported the tier unchanged; the unit
+    would have been scheduled never and its 0% would have been invisible
+    inside a 100%.
+
+    A tier that discovers membership by one spelling of a two-spelling
+    construct silently loses units, which is the failure round 469 built this
+    module to make impossible."""
+    f = tmp_path / "test_whole.py"
+    f.write_text("import pytest\n"
+                 "pytestmark = pytest.mark.whence_slow\n"
+                 "def test_a():\n    pass\n"
+                 "def test_b():\n    pass\n"
+                 "def helper():\n    pass\n")
+    assert W.marked_tests(str(f)) == ["test_a", "test_b"]
+
+
+def test_the_three_pytestmark_spellings_pytest_accepts_are_all_read():
+    """A bare mark, a list and a tuple. pytest accepts all three; a scan that
+    read only the bare form would lose a file that also carries `slow`."""
+    import ast as _ast
+    for body in ("pytest.mark.whence_slow",
+                 "[pytest.mark.whence_slow]",
+                 "(pytest.mark.usefixtures('x'), pytest.mark.whence_slow)"):
+        tree = _ast.parse("pytestmark = %s\n" % body)
+        assert W._module_marked(tree) is True, body
+    for body in ("pytest.mark.slow", "[]", "None"):
+        tree = _ast.parse("pytestmark = %s\n" % body)
+        assert W._module_marked(tree) is False, body
+
+
+def test_a_module_pytestmark_does_not_mark_non_test_functions(tmp_path):
+    """`pytestmark` applies to the file's TESTS. A module-level helper is not
+    a test and must not appear in a unit's named membership, or the unit's
+    count stops matching what pytest collects — which is the one cross-check
+    `verify` has."""
+    f = tmp_path / "test_helpers.py"
+    f.write_text("import pytest\n"
+                 "pytestmark = pytest.mark.whence_slow\n"
+                 "def make_thing():\n    pass\n"
+                 "def test_only_this():\n    pass\n")
+    assert W.marked_tests(str(f)) == ["test_only_this"]
+
+
+def test_a_decorated_test_in_a_pytestmark_file_is_not_counted_twice(tmp_path):
+    """Belt and braces is a legal thing for an author to write and must not
+    inflate the denominator."""
+    f = tmp_path / "test_both.py"
+    f.write_text("import pytest\n"
+                 "pytestmark = pytest.mark.whence_slow\n"
+                 "@pytest.mark.whence_slow\n"
+                 "def test_a():\n    pass\n")
+    assert W.marked_tests(str(f)) == ["test_a"]
 
 
 def test_test_tiering_is_not_a_unit_despite_two_grep_hits():

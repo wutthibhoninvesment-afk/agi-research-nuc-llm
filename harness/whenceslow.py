@@ -219,11 +219,53 @@ def subject_digest(root=WHENCE_ROOT, files=None):
 
 # ------------------------------------------------------------------- units --
 
+def _module_marked(tree):
+    """True when a module-level `pytestmark` applies the marker to EVERY test
+    in the file.
+
+    Round 470, and it was a live fail-open rather than a hypothetical. That
+    round wrote `languages/whence/tests/test_testcorpus_suite_census.py` with
+    `pytestmark = pytest.mark.whence_slow` at module level — the ordinary
+    pytest spelling for "the whole file is in this tier". `pytest -m
+    whence_slow` collected all 11 of its tests. This function's AST scan,
+    which looks only at DECORATORS, returned `[]`, so `slow_tier_units()`
+    reported the tier unchanged at 27 units and the file would never have
+    been scheduled, never have produced a ledger row, and never have shown up
+    in the 0-vs-100% recall number round 469 built the tier to publish.
+
+    A tier whose membership is discovered by one spelling of a two-spelling
+    construct is a tier that silently loses units. Both forms are read now;
+    `pytestmark` wins over the decorators because it applies to everything.
+
+    Handles the three shapes pytest itself accepts: a bare mark, a list, and
+    a tuple.
+    """
+    for node in tree.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        if not any(isinstance(t, ast.Name) and t.id == "pytestmark"
+                   for t in node.targets):
+            continue
+        v = node.value
+        parts = v.elts if isinstance(v, (ast.List, ast.Tuple)) else [v]
+        for part in parts:
+            try:
+                text = ast.unparse(part)
+            except Exception:                   # pragma: no cover - py<3.9
+                text = ""
+            if MARKER in text:
+                return True
+    return False
+
+
 def marked_tests(path):
     """Names of top-level `def`/`class` nodes carrying the marker, by AST.
 
     Returns None when the file cannot be parsed — a caller must treat that as
     "this file's membership is unknown", never as "this file has no marks".
+
+    Round 470: a module-level `pytestmark` marks EVERY test in the file, and
+    is read here for the reason `_module_marked`'s docstring gives.
     """
     try:
         with open(path, encoding="utf-8") as f:
@@ -231,19 +273,25 @@ def marked_tests(path):
     except (IOError, OSError, SyntaxError, UnicodeDecodeError):
         return None
     found = []
+    whole_file = _module_marked(tree)
 
     def visit(node, prefix=""):
         for child in getattr(node, "body", []):
             if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef,
                                   ast.ClassDef)):
+                marked = whole_file and prefix == "" and (
+                    child.name.startswith("test") or
+                    isinstance(child, ast.ClassDef))
                 for dec in child.decorator_list:
                     try:
                         text = ast.unparse(dec)
                     except Exception:           # pragma: no cover - py<3.9
                         text = ""
                     if MARKER in text:
-                        found.append(prefix + child.name)
+                        marked = True
                         break
+                if marked:
+                    found.append(prefix + child.name)
                 if isinstance(child, ast.ClassDef):
                     visit(child, prefix + child.name + "::")
     visit(tree)

@@ -1361,17 +1361,327 @@ def _file_read_reason(node, cls):
     return None
 
 
-# WHY `zip(LITERAL, runtime)` IS NOT WIDENED, written down rather than left
-# as an omission.  13 of the residual's rows are `for src, g in zip(CORPUS,
-# guest_eval_all(CORPUS))`, where the FIRST column is a literal table and the
-# second is a runtime list.  Binding `src` to every element of `CORPUS` would
-# be an OVER-approximation: `zip` truncates to its shortest argument, so the
-# strings that actually reach the runner are a SUBSET of that column, and a
-# census that publishes a superset is claiming programs the suite may never
-# run.  The harvester's job is the corpus the suite HAS, not an upper bound
-# on it.  The class is named (`zip_nonliteral_column`) so the decision is
-# visible and refutable: show that the columns are equal-length by
-# construction and the widening becomes sound.
+# ROUND 470 -- THE `zip(LITERAL, runtime)` REFUSAL, REFUTED AND REPLACED.
+#
+# What round 468 wrote here, kept verbatim so the reversal is legible:
+#
+#   "13 of the residual's rows are `for src, g in zip(CORPUS,
+#    guest_eval_all(CORPUS))`, where the FIRST column is a literal table and
+#    the second is a runtime list.  Binding `src` to every element of
+#    `CORPUS` would be an OVER-approximation: `zip` truncates to its shortest
+#    argument, so the strings that actually reach the runner are a SUBSET of
+#    that column ... The class is named (`zip_nonliteral_column`) so the
+#    decision is visible and refutable: show that the columns are equal-length
+#    by construction and the widening becomes sound."
+#
+# The refusal was an argument about `zip`, not about these call sites, and
+# `zip` was never the variable.  At every one of the 13 sites the second
+# column is `f(A)` where `A` IS the first column -- so the question is not
+# "can zip truncate" (it can, in general) but "can THIS second column be
+# shorter than THIS first column", and that is decidable from the AST.
+#
+# Two things are proved here, per site, and NOTHING is bound without them:
+#
+#   (1) `_len_preserving_param(fn)` -- the parameter whose length `fn`'s
+#       return value's length EQUALS, by one of three syntactic shapes that
+#       cannot shorten (a comprehension over `range(len(P))`, over `P`, or
+#       over `enumerate(P)`; or an accumulator list with exactly one
+#       `append` at the top level of exactly one loop over the same, with no
+#       `break`/`continue`).  All three producers in this tree are shape (a)
+#       or (c), and all three ASSERT on a missing element rather than
+#       skipping it -- a short answer is an exception, not a short list.
+#
+#   (2) `_len_token(e)` -- a token such that two expressions carrying the
+#       same token provably have the same length.  It threads through a sole
+#       assignment, an unfiltered one-generator comprehension, `list`,
+#       `sorted`, `enumerate`, `range(len(...))`, and a call to a function
+#       (1) says is length-preserving.  Two of the 13 sites need the full
+#       chain: `zip(SHARING, guests)` with `guests = guest_batch(srcs, lib)`
+#       and `srcs = [s for s, _ in SHARING]` is three links.
+#
+# `zip(..., strict=True)` is accepted outright: it raises on unequal length,
+# so equality is the only outcome in which the loop body runs at all.
+#
+# FAIL-CLOSED IN THE OVER-APPROXIMATION DIRECTION.  No proof -> no binding,
+# and the row stays in the residual under a class that now says WHICH of the
+# two things was missing: `zip_nonliteral_column` (a literal column is
+# present, the length relation is not provable) or `zip_no_literal_column`
+# (there is no literal column to bind at all -- `test_v30.py:307`'s first
+# column is `[s for s in AGREE if ...]`, a FILTERED comprehension, and no
+# amount of zip reasoning makes a filtered comprehension a literal).
+
+_LEN_PRESERVING_BUILTINS = ("list", "sorted", "tuple", "reversed")
+
+
+_SIBLING_CACHE = {}
+
+
+def _sibling_tree(path):
+    """The parsed AST of a `tests/` module, cached. `None` if it is not
+    there or does not parse -- an unreadable sibling proves nothing."""
+    if path not in _SIBLING_CACHE:
+        try:
+            _SIBLING_CACHE[path] = ast.parse(
+                open(path, encoding="utf-8").read())
+        except Exception:                        # noqa: BLE001
+            _SIBLING_CACHE[path] = None
+    return _SIBLING_CACHE[path]
+
+
+def _fn_index(tree, path=None):
+    """name -> FunctionDef, or name -> None where the name is ambiguous.
+
+    Fail-closed twice over. A name defined more than once in the file maps
+    to `None`, because two definitions prove nothing about either. And the
+    index reaches ACROSS FILES only through an explicit
+    `from test_XX import name` naming a sibling in the same directory --
+    never a star import, never an aliased one, never a package elsewhere.
+
+    The cross-file half is round 470 and it is not decoration: it is the
+    whole of `test_v22.py:303`, the ONE zip site of the thirteen that the
+    intra-file analysis could not close. `test_v22.py` line 45 is
+    `from test_v20 import guest_eval_all, reason`, so the producer whose
+    length behaviour decides the site is defined in another module and the
+    residual class it carried (`zip_nonliteral_column`) named the wrong
+    thing: the literal column was there and the length was provable -- the
+    FUNCTION was somewhere this walk was not looking."""
+    out = {}
+    for n in ast.walk(tree):
+        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            out[n.name] = None if n.name in out else n
+    if path is None:
+        return out
+    here = os.path.dirname(os.path.abspath(path))
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ImportFrom) or node.level or \
+                not node.module or "." in node.module:
+            continue
+        # The bound is the DIRECTORY, not a name prefix: `os.path.join`
+        # + the `os.path.isfile` below is what stops this reaching a package
+        # elsewhere on `sys.path`. An earlier draft required the module name
+        # to start with "test", which is arbitrary -- `tests/conftest.py` and
+        # `tests/_helpers.py` are as much siblings as `test_v20.py` is.
+        cand = os.path.join(here, node.module + ".py")
+        if not os.path.isfile(cand):
+            continue
+        sib = _sibling_tree(cand)
+        if sib is None:
+            continue
+        theirs = {n.name: n for n in sib.body
+                  if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+        for a in node.names:
+            if a.name == "*" or a.asname is not None:
+                continue
+            if a.name in out:            # a local definition wins, and an
+                out[a.name] = None       # import that shadows one is
+                continue                 # ambiguous, not resolved
+            if a.name in theirs:
+                out[a.name] = theirs[a.name]
+    return out
+
+
+def _returns_name(fn):
+    """(the single `return <Name>` node's id, the Return node) or (None, None).
+
+    Exactly ONE return in the function body, and it must be the last
+    statement: an early return is a path on which the accumulator is short,
+    and this analysis does not reason about paths."""
+    rets = [n for n in _walk_scope(fn) if isinstance(n, ast.Return)]
+    if len(rets) != 1 or fn.body[-1] is not rets[0]:
+        return None, None
+    return rets[0].value, rets[0]
+
+
+def _iter_param(it, params):
+    """The parameter `it` iterates, for `P`, `enumerate(P)`, `range(len(P))`."""
+    if isinstance(it, ast.Name):
+        return it.id if it.id in params else None
+    if isinstance(it, ast.Call):
+        kind, nm = _callee(it)
+        if kind != "name" or not it.args:
+            return None
+        if nm == "enumerate":
+            return _iter_param(it.args[0], params)
+        if nm == "range" and len(it.args) == 1:
+            a = it.args[0]
+            if isinstance(a, ast.Call) and _callee(a) == ("name", "len") \
+                    and len(a.args) == 1:
+                return _iter_param(a.args[0], params)
+    return None
+
+
+def _len_preserving_param(fn):
+    """The parameter whose length `fn`'s returned sequence length EQUALS.
+
+    Returns the parameter NAME or None.  Narrow on purpose -- it is asked
+    only about functions this tree actually uses as a zip column, and every
+    widening it authorises is a program added to a published corpus."""
+    if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        return None
+    params = set(_param_order(fn)) | set(a.arg for a in fn.args.kwonlyargs)
+    val, _ret = _returns_name(fn)
+    if val is None:
+        return None
+    # shape (a)/(b): `return [ ... for x in P ]`, one generator, no filter
+    if isinstance(val, (ast.ListComp, ast.GeneratorExp)):
+        if len(val.generators) != 1 or val.generators[0].ifs:
+            return None
+        return _iter_param(val.generators[0].iter, params)
+    # shape (c): `out = []` ... one loop ... one `out.append(...)`
+    if not isinstance(val, ast.Name):
+        return None
+    acc = val.id
+    inits = [n for n in _walk_scope(fn)
+             if isinstance(n, ast.Assign) and
+             any(isinstance(t, ast.Name) and t.id == acc for t in n.targets)]
+    if len(inits) != 1 or not (isinstance(inits[0].value, ast.List)
+                               and not inits[0].value.elts):
+        return None
+    appends = [n for n in _walk_scope(fn)
+               if isinstance(n, ast.Call)
+               and _callee(n) == ("attr", "append")
+               and isinstance(n.func.value, ast.Name)
+               and n.func.value.id == acc]
+    if len(appends) != 1:
+        return None
+    loops = [n for n in _walk_scope(fn) if isinstance(n, (ast.For, ast.While))]
+    owning = [lp for lp in loops if any(a is appends[0]
+                                        for st in lp.body
+                                        for a in ast.walk(st))]
+    if len(owning) != 1 or not isinstance(owning[0], ast.For):
+        return None
+    lp = owning[0]
+    # the append must be a STATEMENT at the loop body's own top level: an
+    # append under an `if` is a filter wearing a loop's clothes.
+    if not any(isinstance(st, ast.Expr) and st.value is appends[0]
+               for st in lp.body):
+        return None
+    for n in ast.walk(lp):
+        if isinstance(n, (ast.Break, ast.Continue)):
+            return None
+    # and the accumulator must not be rebound or extended anywhere else
+    for n in _walk_scope(fn):
+        if isinstance(n, ast.Call) and _callee(n)[0] == "attr" \
+                and isinstance(getattr(n.func, "value", None), ast.Name) \
+                and n.func.value.id == acc \
+                and n.func.attr not in ("append",):
+            return None
+    return _iter_param(lp.iter, params)
+
+
+def _sole_value(name, sc, tree, sbind, parent):
+    """The one node assigned to `name` in scope `sc` or the module, or None.
+
+    `forms` must be exactly `{"assign"}`: a name that is also a parameter, a
+    loop target or an `augassign` has a second length nobody has looked at."""
+    for scope in (sc, tree):
+        e = sbind.get(id(scope), {}).get(name)
+        if e and e["forms"] == {"assign"} and len(e["values"]) == 1:
+            return e["values"][0]
+    return None
+
+
+def _len_token(e, sc, tree, sbind, parent, fns, depth=0):
+    """A token two expressions share iff they provably have the same length.
+
+    `None` means "not proved", never "different".  Every branch is a rule
+    that CANNOT change a length; there is deliberately no branch for
+    slicing, `+`, `*`, a filtered comprehension or a `set`."""
+    if depth > 6 or e is None:
+        return None
+    if isinstance(e, (ast.List, ast.Tuple, ast.Set)):
+        return ("elts", id(e))
+    if isinstance(e, ast.Name):
+        v = _sole_value(e.id, sc, tree, sbind, parent)
+        if v is None:
+            return None
+        return _len_token(v, sc, tree, sbind, parent, fns, depth + 1)
+    if isinstance(e, (ast.ListComp, ast.GeneratorExp)):
+        if len(e.generators) != 1 or e.generators[0].ifs:
+            return None
+        return _len_token(e.generators[0].iter, sc, tree, sbind, parent,
+                          fns, depth + 1)
+    if isinstance(e, ast.Call):
+        kind, nm = _callee(e)
+        if kind != "name" or not e.args or any(
+                isinstance(a, ast.Starred) for a in e.args):
+            return None
+        if nm in _LEN_PRESERVING_BUILTINS or nm == "enumerate":
+            return _len_token(e.args[0], sc, tree, sbind, parent, fns,
+                              depth + 1)
+        if nm == "range" and len(e.args) == 1 and isinstance(e.args[0], ast.Call) \
+                and _callee(e.args[0]) == ("name", "len") \
+                and len(e.args[0].args) == 1:
+            return _len_token(e.args[0].args[0], sc, tree, sbind, parent,
+                              fns, depth + 1)
+        fn = fns.get(nm)
+        if fn is None:
+            return None
+        p = _len_preserving_param(fn)
+        if p is None:
+            return None
+        order = _param_order(fn)
+        for kw in e.keywords:
+            if kw.arg == p:
+                return _len_token(kw.value, sc, tree, sbind, parent, fns,
+                                  depth + 1)
+        if p in order and order.index(p) < len(e.args):
+            return _len_token(e.args[order.index(p)], sc, tree, sbind,
+                              parent, fns, depth + 1)
+    return None
+
+
+def _zip_bindable_columns(node, lits, sc, tree, sbind, parent, fns):
+    """`{column index: the literal list}` this `zip(...)` may be unpacked
+    from without over-approximating, or `{}`.
+
+    A column `i` is bindable when `_literal` gives it a concrete sequence
+    AND every OTHER column is provably at least as long -- either a literal
+    that is longer, or an expression carrying column `i`'s own length
+    token.  `strict=True` makes every column bindable by itself."""
+    if not (isinstance(node, ast.Call) and _callee(node) == ("name", "zip")):
+        return {}
+    if any(isinstance(a, ast.Starred) for a in node.args) or not node.args:
+        return {}
+    strict = any(kw.arg == "strict" and isinstance(kw.value, ast.Constant)
+                 and kw.value.value is True for kw in node.keywords)
+    cols = [_literal(a, lits) for a in node.args]
+    toks = [_len_token(a, sc, tree, sbind, parent, fns) for a in node.args]
+    out = {}
+    for i, c in enumerate(cols):
+        if not isinstance(c, (list, tuple)):
+            continue
+        if strict:
+            out[i] = list(c)
+            continue
+        ok = True
+        for j, other in enumerate(cols):
+            if j == i:
+                continue
+            if isinstance(other, (list, tuple)) and len(other) >= len(c):
+                continue
+            if toks[i] is not None and toks[i] == toks[j]:
+                continue
+            ok = False
+            break
+        if ok:
+            out[i] = list(c)
+    return out
+
+
+def _zip_class(node, lits):
+    """The residual class for a `zip` iterable this walk could NOT bind:
+    which of the two missing things was missing.
+
+    `zip_nonliteral_column` keeps round 468's spelling on purpose (its
+    next-step 2 says "do not delete the class name") and keeps round 468's
+    meaning: a literal column IS present and something about the other
+    columns is not provable. `zip_no_literal_column` is the case round 468
+    never separated out -- there is nothing to bind at all."""
+    cols = [_literal(a, lits) for a in getattr(node, "args", [])]
+    if any(isinstance(c, (list, tuple)) for c in cols):
+        return "zip_nonliteral_column"
+    return "zip_no_literal_column"
 
 
 def _snippet(node):
@@ -1540,21 +1850,59 @@ def _unresolved_class(name, sc, tree, sbind, parent, lits=None):
         return "bound_in_skipped_scope:" + ",".join(sorted(skipped))
     if not forms:
         return "never_bound_in_file"
-    readable = forms & {"assign", "for"}
+    # Round 470. `"comprehension"` joins the readable forms, and the reason is
+    # that a class OUTLIVED ITS OWN FIX. `bound_by:comprehension` was minted
+    # when `_bind_iter` could not read a comprehension target; round 468 taught
+    # it to, and the class went on being reported for two rows in
+    # `test_v29.py` (`:375`, `:505`) whose comprehension the binder reads
+    # perfectly well. What actually defeats those two is `CASES =
+    # build_cases()` -- a table computed at import time, which no folder can
+    # reach -- and a reader who opened the file on the strength of the class
+    # would have gone looking at the wrong construct.
+    #
+    # THE CLASS IS THE ONLY THING A READER ACTS ON. Getting it wrong is not a
+    # cosmetic defect; it is the itemisation failing at the one job round 462
+    # built it for.
+    readable = forms & {"assign", "for", "comprehension"}
     if not readable:
         return "bound_by:" + ",".join(sorted(forms))
     vals = here["values"] + mod["values"]
+    # ...and one dereference, for the same reason: a value that is itself a
+    # bare NAME reports `bound_nonconstant:name`, which names the shape of the
+    # blocker rather than the blocker. Following it one link gives
+    # `bound_nonconstant:call:build_cases`, which a reader can act on.
+    deref = []
+    for v in vals:
+        if isinstance(v, ast.Name):
+            e2 = (sbind.get(id(sc), {}).get(v.id)
+                  or sbind.get(id(tree), {}).get(v.id))
+            inner = (e2["values"][0]
+                     if e2 and len(e2["values"]) == 1
+                     and e2["values"][0] is not v else None)
+            deref.append(inner if inner is not None else v)
+        else:
+            deref.append(v)
+    vals = deref
     kinds = sorted({_node_class(v) for v in vals})
-    if kinds == ["call:zip"] and any(_zip_has_literal_column(v, lits)
-                                     for v in vals):
-        return "zip_nonliteral_column"
+    if kinds == ["call:zip"]:
+        # Round 470. The class now says which of the two things the zip
+        # analysis was missing, and it is reported for EVERY all-zip name
+        # rather than only for one with a literal column -- the old
+        # condition returned the literal-column class as soon as ANY of the
+        # name's bindings had one, so `test_v30.py:307` (whose own zip has
+        # no literal column at all) carried a class earned by the loop
+        # seven lines above it.
+        return "/".join(sorted({_zip_class(v, lits) for v in vals}))
     return "bound_nonconstant:" + ("/".join(kinds) if kinds else "?")
 
 
 def _zip_has_literal_column(node, lits):
     """True for `zip(A, B)` where at least one argument IS a literal
-    sequence and at least one is not -- the shape the comment above refuses
-    to widen."""
+    sequence and at least one is not.
+
+    Round 470: no longer on the classification path (`_zip_class` is), and
+    kept because it is the exact predicate round 468 wrote the refusal
+    against, so a test can still ask the old question of the new tree."""
     if not (isinstance(node, ast.Call) and _callee(node) == ("name", "zip")):
         return False
     cols = [_literal(a, lits) for a in node.args]
@@ -1643,8 +1991,19 @@ def runners_in(tree):
                     if runners[nm]["executes"]:
                         executes = True
                 sink_order, sink_src = None, ()
-                if (kind == "attr" and nm in _SRC_ARG0_ATTRS
-                        and not mod_recv) or nm in _PARSE_CALLS:
+                # Round 470. `and not mod_recv` on BOTH disjuncts. It was
+                # on the first only, so `<module>.parse(x)` -- `ast.parse`
+                # above all -- made the enclosing function a guest-source
+                # runner and its argument a "program". The guard three lines
+                # above has read `mods` since round 462 for exactly this
+                # reason; the `_PARSE_CALLS` disjunct simply never got it.
+                # Found by this round's OWN test helper: `_fn(src, name)` in
+                # `test_testcorpus_census.py` calls `ast.parse(src)`, the
+                # file's `calls` went 1 -> 7 and `runners` gained `_fn`, and
+                # a pinned total that had been right since round 468 went
+                # red. Your own artefacts are in the corpus.
+                if ((kind == "attr" and nm in _SRC_ARG0_ATTRS)
+                        or nm in _PARSE_CALLS) and not mod_recv:
                     sink_order = ["<src>"]
                 elif kind == "name" and nm in runners and nm != fn.name:
                     sink_order = runners[nm]["order"]
@@ -1743,6 +2102,14 @@ def harvest_file(path):
     for sc in scopes:
         bindings[id(sc)] = {}
         lit_bindings[id(sc)] = {}
+    # Round 470. `sbind` and `fns` are pure over `scopes`/`tree` and are
+    # built BEFORE the fold, because `_bind_iter`'s zip branch needs them:
+    # proving `guests` is as long as `SHARING` means following `guests` to
+    # its sole assignment and that assignment to a function definition.
+    # They used to be built after the fold, which was the only reason the
+    # zip column analysis could not have been written inside it.
+    sbind = _scope_bindings(scopes)
+    fns = _fn_index(tree, path)
 
     def _bind(b, name, v):
         cur = b.setdefault(name, [])
@@ -1765,23 +2132,40 @@ def harvest_file(path):
                 its target simply never bound -- 10 of the 94 unresolved
                 names, and the same construct the `ast.For` branch below has
                 read since round 458."""
+                def _bind_elt(t, v):
+                    """One target against one element, recursively, so a
+                    nested target destructures a nested element. Round 470
+                    made this a function; the two-level version was inline
+                    and could not be reused by the zip branch."""
+                    if isinstance(t, ast.Name):
+                        if isinstance(v, str):
+                            _bind(b, t.id, v)
+                        _bind(lb, t.id, v)
+                    elif isinstance(t, (ast.Tuple, ast.List)) \
+                            and isinstance(v, (list, tuple)) \
+                            and len(v) == len(t.elts):
+                        for tt, vv in zip(t.elts, v):
+                            _bind_elt(tt, vv)
+
                 seq = _literal(it, lits)
                 if seq is not _NOLIT and isinstance(seq, (list, tuple)):
                     for elt in seq:
-                        if isinstance(target, ast.Name):
-                            if isinstance(elt, str):
-                                _bind(b, target.id, elt)
-                            _bind(lb, target.id, elt)
-                        elif isinstance(target, (ast.Tuple, ast.List)) \
-                                and isinstance(elt, (list, tuple)) \
-                                and len(elt) == len(target.elts):
-                            for t, v in zip(target.elts, elt):
-                                if not isinstance(t, ast.Name):
-                                    continue
-                                if isinstance(v, str):
-                                    _bind(b, t.id, v)
-                                _bind(lb, t.id, v)
-                elif isinstance(it, (ast.List, ast.Tuple)) and \
+                        _bind_elt(target, elt)
+                    return
+                # Round 470. `for a, b in zip(LITERAL, runtime)`: bind the
+                # columns whose length relation is PROVED (see
+                # `_zip_bindable_columns`), and only those. The target must
+                # be a tuple of the same arity as the zip -- anything else
+                # is a shape this analysis has not looked at.
+                cbind = _zip_bindable_columns(it, lits, sc, tree, sbind,
+                                              parents, fns)
+                if cbind and isinstance(target, (ast.Tuple, ast.List)) \
+                        and len(target.elts) == len(it.args):
+                    for i, col in cbind.items():
+                        for elt in col:
+                            _bind_elt(target.elts[i], elt)
+                    return
+                if isinstance(it, (ast.List, ast.Tuple)) and \
                         isinstance(target, ast.Name):
                     for elt in it.elts:
                         for v in _const_strs(elt, env, lits):
@@ -1818,7 +2202,6 @@ def harvest_file(path):
                         if isinstance(t, ast.Name):
                             _bind(lb, t.id, lv)
 
-    sbind = _scope_bindings(scopes)
     base = os.path.basename(path)
 
     def _row(node, kind, cls, label, **extra):

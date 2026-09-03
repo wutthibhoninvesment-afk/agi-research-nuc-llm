@@ -455,7 +455,7 @@ def test_the_residual_fell_by_more_than_a_third_and_did_not_reach_zero(
     instrument's job."""
     _, stats = harvest
     residual = stats["unresolved_args"] + stats["nonconstant_programs"]
-    assert residual <= 120, residual          # 166 at round 462, 114 now
+    assert residual <= 100, residual   # 166 r462, 114 r468, 100 r470
     assert residual < 258 * 2 // 3
     assert stats["unresolved_args"] > 0
     assert stats["nonconstant_programs"] > 0
@@ -730,3 +730,500 @@ def test_the_multivalued_fold_is_load_bearing_and_not_decorative(harvest):
     classes however many shapes it learned."""
     _, stats = harvest
     assert stats["multivalued_nodes"] >= 10, stats["multivalued_nodes"]
+
+
+# ---------------------------------------------------------------------------
+# 7. round 470 -- the `zip` refusal, refuted
+# ---------------------------------------------------------------------------
+# Round 468's next-step 2: "`zip_nonliteral_column` is a DECISION, not an
+# omission, and it is refutable. 13 rows ... The refusal rests on `zip`
+# truncating to its shortest argument. If someone shows the columns are
+# equal-length by construction at every one of those 13 sites -- they look
+# it, and looking is not showing -- the widening becomes sound."
+#
+# It was shown, and the showing is these tests. The refusal was an argument
+# about `zip` rather than about the call sites, and `zip` was never the
+# variable: at all 13 sites the second column is `f(A)` where `A` IS the
+# first column, so the question is whether THIS second column can be shorter
+# than THIS first one. Every test below is one step of that proof or one
+# case the proof must REFUSE.
+# ---------------------------------------------------------------------------
+
+def _fn(src, name):
+    tree = ast.parse(src)
+    return tree, dict((n.name, n) for n in ast.walk(tree)
+                      if isinstance(n, ast.FunctionDef))[name]
+
+
+def _tree_of(fname):
+    path = os.path.join(HERE, fname)
+    return ast.parse(open(path, encoding="utf-8").read()), path
+
+
+# --- 7.1 the three producers in this tree ----------------------------------
+
+def test_all_three_producers_in_this_tree_are_length_preserving():
+    """THE REFUTATION, stated as the thing round 468 asked for. Each of the
+    three functions that build the second column of a `zip` in this suite
+    pins its output length to a named input's, by a syntactic shape that
+    cannot shorten. `guest_eval_all` and `guest_batch` are the accumulator
+    shape; `guest_values` is the comprehension shape. Note what they do on a
+    missing element: `assert`, not `continue` -- a short answer is an
+    exception, not a short list."""
+    for fname, fn, param in (("test_self_eval.py", "guest_eval_all", "sources"),
+                             ("test_v20.py", "guest_eval_all", "sources"),
+                             ("test_v30.py", "guest_batch", "sources"),
+                             ("test_v31.py", "guest_values", "programs")):
+        tree, _ = _tree_of(fname)
+        node = dict((n.name, n) for n in ast.walk(tree)
+                    if isinstance(n, ast.FunctionDef))[fn]
+        assert dc._len_preserving_param(node) == param, (fname, fn)
+
+
+def test_the_thirteen_zip_sites_are_zip_of_a_function_of_the_first_column():
+    """The structural claim, checked at every site rather than argued once.
+    For each `for <t> in zip(A, B)` in the four files that held the 13 rows,
+    `B` carries `A`'s own length token -- i.e. the walk can follow `B` back
+    to `A` through assignments, comprehensions and length-preserving calls.
+
+    `test_v30.py`'s second loop is the exception and it is IN the list: its
+    first column is `[s for s in AGREE if ...]`, a filtered comprehension,
+    so there is no literal column and the site is unbindable for a reason
+    that has nothing to do with lengths."""
+    seen, unbindable = 0, 0
+    for fname in ("test_self_eval.py", "test_v20.py", "test_v22.py",
+                  "test_v30.py", "test_v31.py"):
+        tree, path = _tree_of(fname)
+        sbind = dc._scope_bindings(
+            [tree] + [n for n in ast.walk(tree)
+                      if isinstance(n, dc.SCOPE_KINDS)])
+        fns = dc._fn_index(tree, path)
+        for sc in [tree] + [n for n in ast.walk(tree)
+                            if isinstance(n, dc.SCOPE_KINDS)]:
+            for node in dc._walk_scope(sc):
+                if not isinstance(node, ast.For):
+                    continue
+                it = node.iter
+                if not (isinstance(it, ast.Call)
+                        and dc._callee(it) == ("name", "zip")):
+                    continue
+                seen += 1
+                lits = {}
+                for n2 in ast.walk(tree):
+                    if isinstance(n2, ast.Assign) and len(n2.targets) == 1 \
+                            and isinstance(n2.targets[0], ast.Name):
+                        v = dc._literal(n2.value, lits)
+                        if v is not dc._NOLIT:
+                            lits[n2.targets[0].id] = [v]
+                cb = dc._zip_bindable_columns(it, lits, sc, tree, sbind,
+                                              {}, fns)
+                if not cb:
+                    unbindable += 1
+    assert seen >= 13, seen
+    assert unbindable <= 2, unbindable
+
+
+def test_the_length_token_threads_a_three_link_chain():
+    """`zip(SHARING, guests)` needs THREE links, and a one-link rule would
+    have refused it: `guests` -> `guest_batch(srcs, lib)` -> `srcs` ->
+    `[s for s, _ in SHARING]` -> `SHARING`. This is the case that decides
+    whether the analysis is real or a special case for the shape that
+    happened to be read first."""
+    tree, path = _tree_of("test_v30.py")
+    scopes = [tree] + [n for n in ast.walk(tree)
+                       if isinstance(n, dc.SCOPE_KINDS)]
+    sbind = dc._scope_bindings(scopes)
+    fns = dc._fn_index(tree, path)
+    target = None
+    for sc in scopes:
+        for node in dc._walk_scope(sc):
+            if isinstance(node, ast.For) and isinstance(node.iter, ast.Call) \
+                    and dc._callee(node.iter) == ("name", "zip") \
+                    and isinstance(node.iter.args[0], ast.Name) \
+                    and node.iter.args[0].id == "SHARING":
+                target = (sc, node.iter)
+    assert target is not None, "the SHARING zip has moved"
+    sc, it = target
+    a = dc._len_token(it.args[0], sc, tree, sbind, {}, fns)
+    b = dc._len_token(it.args[1], sc, tree, sbind, {}, fns)
+    assert a is not None and a == b, (a, b)
+
+
+def test_the_producer_may_live_in_a_sibling_module():
+    """`test_v22.py:303` was the ONE site of the thirteen the intra-file
+    analysis could not close, and its residual class named the wrong thing:
+    the literal column was there and the length was provable -- the FUNCTION
+    was in another file. `test_v22.py:45` is
+    `from test_v20 import guest_eval_all, reason`."""
+    tree, path = _tree_of("test_v22.py")
+    local = dc._fn_index(tree)
+    both = dc._fn_index(tree, path)
+    assert "guest_eval_all" not in local
+    assert dc._len_preserving_param(both["guest_eval_all"]) == "sources"
+
+
+# --- 7.2 what the proof must REFUSE ----------------------------------------
+
+_MOD = ('import sys\n'
+        'sys.path.insert(0, "..")\n'
+        'from whence.interp import Interpreter\n'
+        '\n'
+        'def run(src):\n'
+        '    return Interpreter().run(src)\n'
+        '\n'
+        'CASES = ["let a = 1\\n", "let b = 2\\n", "let c = 3\\n"]\n')
+
+
+def _residual_classes(rows):
+    return sorted(r["cls"] for r in rows if r["kind"] == "residual")
+
+
+def test_a_filtered_comprehension_is_not_length_preserving():
+    src = "def f(xs):\n    return [g(x) for x in xs if x]\n"
+    _t, fn = _fn(src, "f")
+    assert dc._len_preserving_param(fn) is None
+
+
+def test_an_append_under_an_if_is_a_filter_wearing_a_loops_clothes():
+    src = ("def f(xs):\n    out = []\n    for x in xs:\n"
+           "        if x:\n            out.append(x)\n    return out\n")
+    _t, fn = _fn(src, "f")
+    assert dc._len_preserving_param(fn) is None
+
+
+def test_a_break_defeats_the_proof():
+    src = ("def f(xs):\n    out = []\n    for x in xs:\n"
+           "        out.append(x)\n        if x:\n            break\n"
+           "    return out\n")
+    _t, fn = _fn(src, "f")
+    assert dc._len_preserving_param(fn) is None
+
+
+def test_a_second_return_defeats_the_proof():
+    """An early return is a path on which the accumulator is short, and this
+    analysis does not reason about paths."""
+    src = ("def f(xs):\n    out = []\n    if not xs:\n        return []\n"
+           "    for x in xs:\n        out.append(x)\n    return out\n")
+    _t, fn = _fn(src, "f")
+    assert dc._len_preserving_param(fn) is None
+
+
+def test_an_extend_on_the_accumulator_defeats_the_proof():
+    """`append` adds exactly one per iteration; `extend` adds a length
+    nobody has looked at."""
+    src = ("def f(xs):\n    out = []\n    for x in xs:\n"
+           "        out.append(x)\n        out.extend(x)\n    return out\n")
+    _t, fn = _fn(src, "f")
+    assert dc._len_preserving_param(fn) is None
+
+
+def test_the_three_iteration_forms_are_accepted_and_a_slice_is_not():
+    for it, want in (("xs", "xs"), ("enumerate(xs)", "xs"),
+                     ("range(len(xs))", "xs"), ("xs[1:]", None),
+                     ("sorted(set(xs))", None), ("zip(xs, xs)", None)):
+        src = "def f(xs):\n    return [1 for _q in %s]\n" % it
+        _t, fn = _fn(src, "f")
+        assert dc._len_preserving_param(fn) == want, it
+
+
+def test_an_unproven_second_column_binds_nothing_and_stays_residual():
+    """Fail-closed in the over-approximation direction. `mystery()` is not a
+    function this walk can see, so nothing about its length is known and the
+    literal column is NOT harvested."""
+    progs, stats = _harvest_source(
+        _MOD + "def t():\n    for s, g in zip(CASES, mystery()):\n"
+               "        run(s)\n", "zz_tmp_zip_unproven.py")
+    assert progs == []
+    assert _residual_classes(stats["rows"]) == ["zip_nonliteral_column"]
+
+
+def test_two_literal_columns_truncate_and_the_third_element_is_not_claimed():
+    """The exact hazard round 468 named, checked rather than assumed -- and
+    it was ALREADY handled, by a path this round did not write. When BOTH
+    columns are literal, `_literal_call` (round 468) evaluates the `zip`
+    itself and truncation happens in real Python, so `let c = 3` is never
+    claimed. Round 470's column analysis is not even reached here.
+
+    Written expecting the opposite and left as the shape that taught it:
+    the first version asserted that only the shorter column binds, which
+    would have been the answer if the new code were the only code."""
+    progs, stats = _harvest_source(
+        _MOD + 'TWO = ["let x = 9\\n", "let y = 8\\n"]\n'
+               "def t():\n    for s, u in zip(CASES, TWO):\n"
+               "        run(s)\n        run(u)\n", "zz_tmp_zip_short.py")
+    got = sorted(p["src"] for p in progs)
+    assert got == ["let a = 1\n", "let b = 2\n",
+                   "let x = 9\n", "let y = 8\n"], got
+    assert "let c = 3\n" not in got, "zip truncation was over-approximated"
+    assert _residual_classes(stats["rows"]) == []
+
+
+def test_strict_true_is_what_reaches_the_new_column_analysis():
+    """Why the `strict=True` case above is not a duplicate of the one before
+    it: `_literal_call` refuses ANY call with keywords ("`sorted(xs, key=f)`
+    is a call to `f`, and this walk has no `f`"), so `zip(A, B, strict=True)`
+    falls through to round 470's branch. The two tests exercise two
+    different code paths that happen to be spelled alike."""
+    tree = ast.parse("zip(A, B, strict=True)")
+    call = tree.body[0].value
+    assert dc._literal(call, {"A": [[1]], "B": [[2]]}) is dc._NOLIT
+
+
+def test_a_module_receiver_does_not_make_a_function_a_guest_runner():
+    """Round 470, and it was found by this round's own test helper rather
+    than by looking. `runners_in` had `and not mod_recv` on its
+    `_SRC_ARG0_ATTRS` disjunct and NOT on its `_PARSE_CALLS` one, so
+    `ast.parse(src)` made the enclosing function a runner of guest source
+    and its argument a program. `_fn(src, name)` in this very file does
+    exactly that: the file's `calls` went 1 -> 7, `runners` gained `_fn`,
+    and the round-468 pin of 987 total calls went red on a change that had
+    nothing to do with the harvester."""
+    tree = ast.parse("import ast\n"
+                     "def f(src):\n    return ast.parse(src)\n")
+    assert dc.runners_in(tree) == {}
+    tree = ast.parse("from whence.parser import parse\n"
+                     "def f(src):\n    return parse(src)\n")
+    assert "f" in dc.runners_in(tree)
+
+
+def test_strict_true_binds_every_column_because_it_cannot_truncate():
+    """`zip(..., strict=True)` raises on unequal length, so equality is the
+    only outcome in which the loop body runs at all."""
+    progs, _stats = _harvest_source(
+        _MOD + 'TWO = ["let x = 9\\n", "let y = 8\\n"]\n'
+               "def t():\n"
+               "    for s, u in zip(CASES, TWO, strict=True):\n"
+               "        run(s)\n        run(u)\n", "zz_tmp_zip_strict.py")
+    got = sorted(p["src"] for p in progs)
+    assert got == ["let a = 1\n", "let b = 2\n", "let c = 3\n",
+                   "let x = 9\n", "let y = 8\n"], got
+
+
+def test_a_starred_zip_argument_binds_nothing():
+    progs, _stats = _harvest_source(
+        _MOD + "def t():\n    for s, g in zip(*[CASES, CASES]):\n"
+               "        run(s)\n", "zz_tmp_zip_star.py")
+    assert progs == []
+
+
+def test_a_target_of_the_wrong_arity_binds_nothing():
+    """`for row in zip(A, B)` binds `row` to a TUPLE, not to a string, and
+    this analysis has not looked at that shape."""
+    progs, _stats = _harvest_source(
+        _MOD + "def t():\n    for row in zip(CASES, CASES):\n"
+               "        run(row[0])\n", "zz_tmp_zip_arity.py")
+    assert progs == []
+
+
+def test_an_aliased_import_is_not_resolved():
+    """Fail-closed on the cross-file half: an alias is a name this walk
+    cannot check against the sibling's definition without tracking the
+    rename, so it does not try."""
+    other = "def mk(xs):\n    return [x for x in xs]\n"
+    path = os.path.join(HERE, "zz_tmp_sib.py")
+    open(path, "w", encoding="utf-8").write(other)
+    try:
+        tree = ast.parse("from zz_tmp_sib import mk as maker\n")
+        assert dc._fn_index(tree, os.path.join(HERE, "x.py")) == {}
+        tree = ast.parse("from zz_tmp_sib import mk\n")
+        idx = dc._fn_index(tree, os.path.join(HERE, "x.py"))
+        assert dc._len_preserving_param(idx["mk"]) == "xs"
+    finally:
+        os.remove(path)
+        dc._SIBLING_CACHE.clear()
+
+
+def test_a_locally_shadowed_import_proves_nothing():
+    """Two definitions of a name prove nothing about either, so the index
+    maps it to `None` rather than picking one."""
+    other = "def mk(xs):\n    return [x for x in xs]\n"
+    path = os.path.join(HERE, "zz_tmp_sib2.py")
+    open(path, "w", encoding="utf-8").write(other)
+    try:
+        tree = ast.parse("from zz_tmp_sib2 import mk\n"
+                         "def mk(a, b):\n    return [1]\n")
+        idx = dc._fn_index(tree, os.path.join(HERE, "x.py"))
+        assert idx["mk"] is None
+    finally:
+        os.remove(path)
+        dc._SIBLING_CACHE.clear()
+
+
+# --- 7.3 the nested target, which was a separate defect --------------------
+
+def test_a_two_level_table_target_now_destructures():
+    """NOT a zip finding, and it is here because it was found by the same
+    change. The old element binder was two levels of `isinstance` with
+    `if not isinstance(t, ast.Name): continue` at the bottom, so
+    `for site, (src, _) in sorted(TABLE.items())` bound `site` and silently
+    dropped `src`. That is `test_v27.py:425`, the 14th residual row this
+    round closed and the only one that is not a zip."""
+    progs, _stats = _harvest_source(
+        _MOD + 'TABLE = {"a": ("let a = 1\\n", 1), "b": ("let b = 2\\n", 2)}\n'
+               "def t():\n"
+               "    for site, (src, _n) in sorted(TABLE.items()):\n"
+               "        run(src)\n", "zz_tmp_nested.py")
+    assert sorted(p["src"] for p in progs) == ["let a = 1\n", "let b = 2\n"]
+
+
+def test_the_nested_binder_refuses_a_shape_mismatch():
+    """A 3-name target against 2-tuples binds nothing rather than binding
+    what fits."""
+    progs, _stats = _harvest_source(
+        _MOD + 'TABLE = [("let a = 1\\n", 1), ("let b = 2\\n", 2)]\n'
+               "def t():\n"
+               "    for (src, _n, _extra) in TABLE:\n"
+               "        run(src)\n", "zz_tmp_mismatch.py")
+    assert progs == []
+
+
+# --- 7.4 the classification, which was reporting the wrong reason ----------
+
+def test_the_two_zip_classes_name_different_missing_things():
+    """`zip_nonliteral_column` keeps round 468's spelling and round 468's
+    meaning -- a literal column IS present, the length relation is not
+    provable. `zip_no_literal_column` is the case round 468 never separated
+    out: there is nothing to bind at all."""
+    _p, s1 = _harvest_source(
+        _MOD + "def t():\n    for s, g in zip(CASES, mystery()):\n"
+               "        run(s)\n", "zz_tmp_cls1.py")
+    _p, s2 = _harvest_source(
+        _MOD + "def t():\n    for s, g in zip(mystery(), other()):\n"
+               "        run(s)\n", "zz_tmp_cls2.py")
+    assert _residual_classes(s1["rows"]) == ["zip_nonliteral_column"]
+    assert _residual_classes(s2["rows"]) == ["zip_no_literal_column"]
+
+
+def test_a_class_is_no_longer_earned_by_a_sibling_binding_of_the_same_name():
+    """The defect this round found by reading the rows rather than the
+    counters. `_unresolved_class` reported `zip_nonliteral_column` as soon
+    as ANY binding of the name had a literal column, so `test_v30.py:307` --
+    whose own zip is `zip(counts, guest_batch(counts, lib))`, no literal
+    column anywhere in it -- carried a class earned by the loop seven lines
+    above it. The class is now the union over the bindings, and a reader can
+    see that the two are different."""
+    _p, st = _harvest_source(
+        _MOD + "def t():\n"
+               "    for s, g in zip(mystery(), other()):\n"
+               "        run(s)\n"
+               "    for s, g in zip(more(), other()):\n"
+               "        run(s)\n", "zz_tmp_union1.py")
+    assert _residual_classes(st["rows"]) == ["zip_no_literal_column"] * 2
+    _p, st = _harvest_source(
+        _MOD + "def t():\n"
+               "    for s, g in zip(CASES, mystery()):\n"
+               "        run(s)\n"
+               "    for s, g in zip(more(), other()):\n"
+               "        run(s)\n", "zz_tmp_union2.py")
+    # one name, two bindings, two different reasons -- both are reported
+    assert _residual_classes(st["rows"]) == \
+        ["zip_no_literal_column/zip_nonliteral_column"] * 2
+
+
+# --- 7.5 the corpus, after ------------------------------------------------
+
+def test_the_corpus_grew_and_no_zip_row_survives(harvest, harvest_rows):
+    """Round 468: 765 programs, residual 114, of which 13 were zip rows.
+    Round 470: the zip rows are gone from the live tree and the corpus is
+    strictly larger. Bounds rather than pins, as the rest of this file does:
+    the corpus is meant to grow."""
+    _progs, stats = harvest
+    assert stats["programs"] >= 829, stats["programs"]
+    residual = stats["unresolved_args"] + stats["nonconstant_programs"]
+    assert residual <= 100, residual
+    assert not [r for r in harvest_rows
+                if r["kind"] == "residual" and r["cls"].startswith("zip")]
+
+
+def test_the_widening_did_not_move_the_other_residual_half(harvest):
+    """`nonconstant_programs` is the half a zip row cannot be in --
+    `_unresolved_class` is consulted only for a bare NAME. It was 58 at
+    round 468 and a change to it would mean this round did something it did
+    not intend."""
+    _progs, stats = harvest
+    assert stats["nonconstant_programs"] == 58, stats["nonconstant_programs"]
+
+
+# --- 7.6 a class that outlived its own fix ---------------------------------
+
+def test_a_comprehension_is_a_readable_form_and_no_longer_a_diagnosis():
+    """Found by READING the rows, which is what round 468's next-step 1
+    asked for and what no counter would have produced.
+
+    `bound_by:comprehension` was minted when `_bind_iter` could not read a
+    comprehension target. Round 468 taught it to -- and the class went on
+    being reported, for `test_v29.py:375` and `:505`, whose comprehensions
+    the binder reads perfectly well. What actually defeats those two is
+    `CASES = build_cases()`, a table computed at import time. A reader who
+    opened the file on the strength of the class would have gone looking at
+    the wrong construct.
+
+    The class is the only thing a reader ACTS on. This is the itemisation
+    failing at the one job round 462 built it for, so it is a defect, not a
+    coarseness."""
+    src = ("import sys\n"
+           "sys.path.insert(0, '..')\n"
+           "from whence.interp import Interpreter\n"
+           "def run(src):\n    return Interpreter().run(src)\n"
+           "def build():\n    return ['let a = 1\\n']\n"
+           "TABLE = build()\n"
+           "def t():\n    return [run(s) for s in TABLE]\n")
+    _progs, stats = _harvest_source(src, "zz_tmp_comp.py")
+    assert _residual_classes(stats["rows"]) == \
+        ["bound_nonconstant:call:build"], _residual_classes(stats["rows"])
+
+
+def test_the_live_tree_no_longer_reports_a_form_the_binder_can_read(
+        harvest_rows):
+    """The same finding against the real tree: the two `test_v29.py` rows
+    now name `build_cases`, and no row anywhere blames a construct the
+    binder handles."""
+    by = {}
+    for r in harvest_rows:
+        if r["kind"] == "residual":
+            by[r["cls"]] = by.get(r["cls"], 0) + 1
+    assert "bound_by:comprehension" not in by, by
+    assert by.get("bound_nonconstant:call:build_cases") == 2, by
+
+
+def test_the_residual_that_is_not_string_building_is_seven_rows_in_three_shapes(
+        harvest_rows):
+    """Round 468's reading was "what is left really is string-building over
+    runtime values plus one written refusal". The refusal is gone (round 470
+    refuted it) and the sentence needs the amendment this test pins: 93 of
+    the 100 rows are string-building (`+`, `%`, `.join`) and SEVEN are not.
+
+    The seven, read one by one:
+      * 3 `bound_nonconstant:subscript` (`test_v27.py` :364/:376/:379) --
+        `src, wording = GROWTH_SITES[site]` where `site` comes from
+        `@pytest.mark.parametrize`. `GROWTH_SITES` folds (6 entries), so the
+        blocker is parametrize, plus a subscript `_const_strs` has no branch
+        for, plus a TUPLE-target assign `_bind` skips. Three widenings, not
+        one.
+      * 1 `bound_nonconstant:sequence` (`test_v27.py:175`) -- the same
+        parametrize name `op`, and this one needs ONLY parametrize:
+        `OTHER_SIDES` folds and `_const_strs` already reads the `+`/`%`.
+      * 2 `bound_nonconstant:call:build_cases` (`test_v29.py`) -- a corpus
+        computed at import time. Not reachable by any folder.
+      * 1 `bound_nonconstant:name` (`test_miss_message_differential.py:574`)
+        -- `for _, src in cases:` where `cases` is the enclosing function's
+        own parameter, one link further out than the `forwarded` class
+        reaches.
+
+    `@pytest.mark.parametrize` is the one un-modelled ITERATION PROTOCOL
+    left in this tree, and it is worth exactly one row on its own."""
+    rows = [r for r in harvest_rows if r["kind"] == "residual"]
+    building = [r for r in rows
+                if "binop:" in r["cls"] or ".join" in r["cls"]]
+    rest = [r for r in rows if r not in building]
+    assert len(rows) == 100, len(rows)
+    assert len(building) == 93, len(building)
+    assert sorted(r["cls"] for r in rest) == [
+        "bound_nonconstant:call:build_cases",
+        "bound_nonconstant:call:build_cases",
+        "bound_nonconstant:name",
+        "bound_nonconstant:sequence",
+        "bound_nonconstant:subscript",
+        "bound_nonconstant:subscript",
+        "bound_nonconstant:subscript",
+    ], sorted(r["cls"] for r in rest)
