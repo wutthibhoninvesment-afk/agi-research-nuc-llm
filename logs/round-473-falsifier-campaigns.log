@@ -31,3 +31,35 @@ Command exited with non-zero status 1
 703.62 s wall  (tierbudget)
 rc=1
 === whenceslow  10:05:43 ===
+unit whenceslow: subject harness/whenceslow.py  tests harness/tests/test_whenceslow.py
+  mutants 313 (315 generated, 2 in a __main__ guard, whole)  killed 178  survived 135  errored 0
+  mutation score 56.9%   attribution coverage 100.0%   (2039s)
+  nodes 64 passed at baseline, 0 skipped
+  VERDICT never_red: 1/64 node(s) never went red
+  NEVER-RED  harness.tests.test_whenceslow::test_plan_default_is_smaller_than_slowtiers
+  killer     harness.tests.test_whenceslow::test_an_edit_to_an_IMPORTED_test_file_stales_the_importer 69
+  killer     harness.tests.test_whenceslow::test_status_reports_its_own_recall 64
+  killer     harness.tests.test_whenceslow::test_rule3_a_dep_edit_stales_the_unit_and_names_the_file 62
+  killer     harness.tests.test_whenceslow::test_a_registry_error_unit_can_never_be_conclusive 61
+  killer     harness.tests.test_whenceslow::test_a_fresh_failure_is_counted_as_failing 60
+wrote state/swe/round-473/whenceslow.json
+Command exited with non-zero status 1
+2041.75 s wall  (whenceslow)
+rc=1
+=== redattrib  10:39:44 ===
+unit redattrib: subject harness/redattrib.py  tests harness/tests/test_redattrib.py
+  mutants 200 (443 generated, 2 in a __main__ guard, sample 200)  killed 105  survived 95  errored 0
+  mutation score 52.5%   attribution coverage 100.0%   (986s)
+  nodes 60 passed at baseline, 0 skipped
+  VERDICT never_red: 1/60 node(s) never went red
+  NEVER-RED  harness.tests.test_redattrib.TestCorpusGrammar::test_the_aggregate_line_is_not_a_checker_row
+  killer     harness.tests.test_redattrib.TestThisTree::test_the_scope_test_cli_runs_on_this_tree 48
+  killer     harness.tests.test_redattrib.TestThisTree::test_the_naive_p_is_the_most_extreme_of_the_five_readings 44
+  killer     harness.tests.test_redattrib.TestThisTree::test_the_shift_null_over_this_tree_has_six_members_and_a_floor 36
+  killer     harness.tests.test_redattrib.TestThisTree::test_the_cli_audit_exits_zero_on_this_tree 32
+  killer     harness.tests.test_redattrib.TestThisTree::test_the_registry_is_fail_closed_over_the_live_logs 30
+wrote state/swe/round-473/redattrib.json
+Command exited with non-zero status 1
+990.62 s wall  (redattrib)
+rc=1
+=== done 10:56:15 ===
