@@ -214,6 +214,12 @@
       "via": "harness/run_tests_fast.sh:51",
       "via_kind": "dir"
     },
+    "harness/tests/test_corpus_evidence.py": {
+      "status": "wired",
+      "via": "harness/run_tests_fast.sh:51",
+      "via_kind": "dir",
+      "reason": "Round 463 (harness A) shipped it with the corpus-evidence retention it tests; it sits inside the directory harness/run_tests_fast.sh hands to pytest, so the runner was already pointed at it. Undeclared for rounds 463-466 -- 4 rounds of W001 on three whole-tree nodes in harness/tests/test_wiring_audit.py. Declared by round 467 (SWE-loop D), which does run that suite. via/via_kind from `wiring_audit.py bootstrap`, not written by hand."
+    },
     "harness/tests/test_evals.py": {
       "status": "wired",
       "via": "harness/run_tests_fast.sh:51",
@@ -343,6 +349,12 @@
       "status": "wired",
       "via": "run_driver.sh:524",
       "via_kind": "path"
+    },
+    "languages/whence/specreg.py": {
+      "status": "wired",
+      "via": "languages/whence/tests/test_specreg.py:-",
+      "via_kind": "import",
+      "reason": "Round 464 (language C) shipped the SPEC.md decision registry and its 39-test sibling suite, which imports it; languages/whence/run_tests_fast.sh is pointed at that directory. The same 4-round W001 as the row above, opened by a different track. via/via_kind from `wiring_audit.py bootstrap`."
     },
     "languages/whence/tests/test_timetravel.py": {
       "status": "wired",

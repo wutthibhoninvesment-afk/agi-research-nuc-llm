@@ -129,7 +129,15 @@ import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
+# Under a mutation/repair copy this file is at `/tmp/<sandbox>/specreg.py`,
+# so `HERE/../..` resolves to `/tmp` -- outside the copy AND outside the
+# checkout, silently. `harness/swe/proc.py` exports `AGI_RESEARCH_ROOT` into
+# every such subprocess for exactly this, and seven other expressions in this
+# tree already reach the root through it. Round 467 (SWE-loop D): this was the
+# ONE unguarded escape here, and it kept three nodes of
+# `harness/tests/test_swe_copyparity_real_subject.py` red for rounds 464-466.
+REPO = (os.environ.get("AGI_RESEARCH_ROOT")
+        or os.path.abspath(os.path.join(HERE, "..", "..")))
 SPEC = os.path.join(HERE, "SPEC.md")
 SPEC_REL = "languages/whence/SPEC.md"
 
