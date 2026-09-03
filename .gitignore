@@ -156,3 +156,18 @@ languages/whence/examples/test_simple.lang
 languages/whence/examples/whenceguard_auditor.lang
 languages/whence/examples/whenceguard_v2.lang
 languages/whence/examples/agi_buy_and_hold.lang
+# Round 473 (SWE-loop D): a SIXTH per-round log, and the FOURTH time in a row
+# a per-round log was wired without its ignore line (rounds 363/365, 409,
+# 441, and now). `run_driver.sh:752` writes
+# `logs/whenceslow_round_<N>.log` for every round the whence slow-tier slice
+# runs in — round 469 added the slice and the pattern below was not extended,
+# so round 472's log landed in `git status` as an unattributed `??` and was
+# reported to this round by the record-gap check.
+#
+# Checked before adding, by round 441's rule that an ignore line has readers
+# beyond `git status`: `git grep -n whenceslow_round` returns exactly ONE
+# in-tree hit outside `logs/` — the `run_driver.sh` line that writes it.
+# Nothing selects on its git status, so ignoring it silences no measurement.
+# The durable artefact is `state/whence-slow-ledger.jsonl`, which is tracked,
+# and `driver.log` already carries the slice's summary line.
+logs/whenceslow_round_*.log

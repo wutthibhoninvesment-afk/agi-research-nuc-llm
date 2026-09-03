@@ -1,0 +1,1431 @@
+{
+ "attribution_coverage": 1.0,
+ "baseline": {
+  "evidence_verdict": "ok",
+  "n_nodes": 18,
+  "n_passed": 18,
+  "n_skipped": 0,
+  "returncode": 0,
+  "seconds": 0.59,
+  "skipped": [],
+  "tail": "..................                                                       [100%]\ntier-budget: 1/15 promoted files timed, 0.2s of a 56.6s budget \u2014 worst test_swe_scoreaudit.py 0.2s of 3.6s\n18 passed in 0.29s",
+  "timed_out": false
+ },
+ "errored": 0,
+ "killed": 61,
+ "kills": {
+  "harness.tests.test_swe_scoreaudit::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands": 25,
+  "harness.tests.test_swe_scoreaudit::test_a_post_349_error_status_maps_to_no_evidence_but_keeps_its_origin": 6,
+  "harness.tests.test_swe_scoreaudit::test_a_pytest_failure_summary_is_evidence": 10,
+  "harness.tests.test_swe_scoreaudit::test_a_timeout_stays_a_kill_and_carries_no_pytest_tail": 4,
+  "harness.tests.test_swe_scoreaudit::test_a_truncated_tail_is_still_evidence_via_the_FAILED_line": 10,
+  "harness.tests.test_swe_scoreaudit::test_an_empty_detail_is_unknown": 8,
+  "harness.tests.test_swe_scoreaudit::test_an_unevidenced_report_becomes_an_interval_not_a_number": 27,
+  "harness.tests.test_swe_scoreaudit::test_an_unrecognised_tail_is_unknown_not_silently_either_side": 12,
+  "harness.tests.test_swe_scoreaudit::test_audit_paths_skips_files_that_are_not_mutation_reports": 8,
+  "harness.tests.test_swe_scoreaudit::test_every_archived_mutant_classifies_into_a_known_bucket": 16,
+  "harness.tests.test_swe_scoreaudit::test_exit_zero_is_never_re_examined": 2,
+  "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence": 34,
+  "harness.tests.test_swe_scoreaudit::test_no_evidence_wins_over_kill_evidence_in_the_same_tail": 7,
+  "harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills": 30,
+  "harness.tests.test_swe_scoreaudit::test_suspect_records_carry_enough_to_re_run_them": 13,
+  "harness.tests.test_swe_scoreaudit::test_the_dominant_killer_is_reported_as_a_share": 25,
+  "harness.tests.test_swe_scoreaudit::test_the_round_137_shape_is_not_evidence": 10,
+  "harness.tests.test_swe_scoreaudit::test_timeouts_count_toward_the_audited_lower_bound": 10
+ },
+ "mutants": [
+  {
+   "description": "negate if-condition",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_every_archived_mutant_classifies_into_a_known_bucket\nFAILED harness/tests/test_swe_scoreaudit.py::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills\n17 failed, 1 passed in 0.26s",
+   "end_line": 114,
+   "id": "scoreaudit.py:113:ifneg#1",
+   "junit_ok": true,
+   "line": 113,
+   "n_nodes": 18,
+   "op": "ifneg",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands",
+    "harness.tests.test_swe_scoreaudit::test_a_post_349_error_status_maps_to_no_evidence_but_keeps_its_origin",
+    "harness.tests.test_swe_scoreaudit::test_a_pytest_failure_summary_is_evidence",
+    "harness.tests.test_swe_scoreaudit::test_a_timeout_stays_a_kill_and_carries_no_pytest_tail",
+    "harness.tests.test_swe_scoreaudit::test_a_truncated_tail_is_still_evidence_via_the_FAILED_line",
+    "harness.tests.test_swe_scoreaudit::test_an_empty_detail_is_unknown",
+    "harness.tests.test_swe_scoreaudit::test_an_unevidenced_report_becomes_an_interval_not_a_number",
+    "harness.tests.test_swe_scoreaudit::test_an_unrecognised_tail_is_unknown_not_silently_either_side",
+    "harness.tests.test_swe_scoreaudit::test_every_archived_mutant_classifies_into_a_known_bucket",
+    "harness.tests.test_swe_scoreaudit::test_exit_zero_is_never_re_examined",
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence",
+    "harness.tests.test_swe_scoreaudit::test_no_evidence_wins_over_kill_evidence_in_the_same_tail",
+    "harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills",
+    "harness.tests.test_swe_scoreaudit::test_suspect_records_carry_enough_to_re_run_them",
+    "harness.tests.test_swe_scoreaudit::test_the_dominant_killer_is_reported_as_a_share",
+    "harness.tests.test_swe_scoreaudit::test_the_round_137_shape_is_not_evidence",
+    "harness.tests.test_swe_scoreaudit::test_timeouts_count_toward_the_audited_lower_bound"
+   ],
+   "seconds": 0.55,
+   "status": "killed"
+  },
+  {
+   "description": "negate if-condition",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_every_archived_mutant_classifies_into_a_known_bucket\nFAILED harness/tests/test_swe_scoreaudit.py::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills\n16 failed, 2 passed in 0.28s",
+   "end_line": 116,
+   "id": "scoreaudit.py:115:ifneg#2",
+   "junit_ok": true,
+   "line": 115,
+   "n_nodes": 18,
+   "op": "ifneg",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands",
+    "harness.tests.test_swe_scoreaudit::test_a_post_349_error_status_maps_to_no_evidence_but_keeps_its_origin",
+    "harness.tests.test_swe_scoreaudit::test_a_pytest_failure_summary_is_evidence",
+    "harness.tests.test_swe_scoreaudit::test_a_timeout_stays_a_kill_and_carries_no_pytest_tail",
+    "harness.tests.test_swe_scoreaudit::test_a_truncated_tail_is_still_evidence_via_the_FAILED_line",
+    "harness.tests.test_swe_scoreaudit::test_an_empty_detail_is_unknown",
+    "harness.tests.test_swe_scoreaudit::test_an_unevidenced_report_becomes_an_interval_not_a_number",
+    "harness.tests.test_swe_scoreaudit::test_an_unrecognised_tail_is_unknown_not_silently_either_side",
+    "harness.tests.test_swe_scoreaudit::test_every_archived_mutant_classifies_into_a_known_bucket",
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence",
+    "harness.tests.test_swe_scoreaudit::test_no_evidence_wins_over_kill_evidence_in_the_same_tail",
+    "harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills",
+    "harness.tests.test_swe_scoreaudit::test_suspect_records_carry_enough_to_re_run_them",
+    "harness.tests.test_swe_scoreaudit::test_the_dominant_killer_is_reported_as_a_share",
+    "harness.tests.test_swe_scoreaudit::test_the_round_137_shape_is_not_evidence",
+    "harness.tests.test_swe_scoreaudit::test_timeouts_count_toward_the_audited_lower_bound"
+   ],
+   "seconds": 0.57,
+   "status": "killed"
+  },
+  {
+   "description": "negate if-condition",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence\nFAILED harness/tests/test_swe_scoreaudit.py::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills\n12 failed, 6 passed in 0.33s",
+   "end_line": 121,
+   "id": "scoreaudit.py:117:ifneg#3",
+   "junit_ok": true,
+   "line": 117,
+   "n_nodes": 18,
+   "op": "ifneg",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands",
+    "harness.tests.test_swe_scoreaudit::test_a_post_349_error_status_maps_to_no_evidence_but_keeps_its_origin",
+    "harness.tests.test_swe_scoreaudit::test_a_pytest_failure_summary_is_evidence",
+    "harness.tests.test_swe_scoreaudit::test_a_truncated_tail_is_still_evidence_via_the_FAILED_line",
+    "harness.tests.test_swe_scoreaudit::test_an_empty_detail_is_unknown",
+    "harness.tests.test_swe_scoreaudit::test_an_unevidenced_report_becomes_an_interval_not_a_number",
+    "harness.tests.test_swe_scoreaudit::test_an_unrecognised_tail_is_unknown_not_silently_either_side",
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence",
+    "harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills",
+    "harness.tests.test_swe_scoreaudit::test_suspect_records_carry_enough_to_re_run_them",
+    "harness.tests.test_swe_scoreaudit::test_the_dominant_killer_is_reported_as_a_share",
+    "harness.tests.test_swe_scoreaudit::test_the_round_137_shape_is_not_evidence"
+   ],
+   "seconds": 0.66,
+   "status": "killed"
+  },
+  {
+   "description": "negate if-condition",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_every_archived_mutant_classifies_into_a_known_bucket\nFAILED harness/tests/test_swe_scoreaudit.py::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills\n13 failed, 5 passed in 0.26s",
+   "end_line": 124,
+   "id": "scoreaudit.py:123:ifneg#4",
+   "junit_ok": true,
+   "line": 123,
+   "n_nodes": 18,
+   "op": "ifneg",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands",
+    "harness.tests.test_swe_scoreaudit::test_a_pytest_failure_summary_is_evidence",
+    "harness.tests.test_swe_scoreaudit::test_a_truncated_tail_is_still_evidence_via_the_FAILED_line",
+    "harness.tests.test_swe_scoreaudit::test_an_empty_detail_is_unknown",
+    "harness.tests.test_swe_scoreaudit::test_an_unevidenced_report_becomes_an_interval_not_a_number",
+    "harness.tests.test_swe_scoreaudit::test_an_unrecognised_tail_is_unknown_not_silently_either_side",
+    "harness.tests.test_swe_scoreaudit::test_every_archived_mutant_classifies_into_a_known_bucket",
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence",
+    "harness.tests.test_swe_scoreaudit::test_no_evidence_wins_over_kill_evidence_in_the_same_tail",
+    "harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills",
+    "harness.tests.test_swe_scoreaudit::test_suspect_records_carry_enough_to_re_run_them",
+    "harness.tests.test_swe_scoreaudit::test_the_dominant_killer_is_reported_as_a_share",
+    "harness.tests.test_swe_scoreaudit::test_the_round_137_shape_is_not_evidence"
+   ],
+   "seconds": 0.76,
+   "status": "killed"
+  },
+  {
+   "description": "negate if-condition",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands\nFAILED harness/tests/test_swe_scoreaudit.py::test_an_unevidenced_report_becomes_an_interval_not_a_number\n2 failed, 16 passed in 0.48s",
+   "end_line": 196,
+   "id": "scoreaudit.py:186:ifneg#5",
+   "junit_ok": true,
+   "line": 186,
+   "n_nodes": 18,
+   "op": "ifneg",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands",
+    "harness.tests.test_swe_scoreaudit::test_an_unevidenced_report_becomes_an_interval_not_a_number"
+   ],
+   "seconds": 0.93,
+   "status": "killed"
+  },
+  {
+   "description": "negate if-condition",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_an_unevidenced_report_becomes_an_interval_not_a_number\nFAILED harness/tests/test_swe_scoreaudit.py::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence\n3 failed, 15 passed in 0.34s",
+   "end_line": 204,
+   "id": "scoreaudit.py:201:ifneg#6",
+   "junit_ok": true,
+   "line": 201,
+   "n_nodes": 18,
+   "op": "ifneg",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands",
+    "harness.tests.test_swe_scoreaudit::test_an_unevidenced_report_becomes_an_interval_not_a_number",
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence"
+   ],
+   "seconds": 0.67,
+   "status": "killed"
+  },
+  {
+   "description": "negate if-condition",
+   "detail": "=========================== short test summary info ============================\nFAILED harness/tests/test_swe_scoreaudit.py::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence\n1 failed, 17 passed in 0.68s",
+   "end_line": 255,
+   "id": "scoreaudit.py:253:ifneg#7",
+   "junit_ok": true,
+   "line": 253,
+   "n_nodes": 18,
+   "op": "ifneg",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence"
+   ],
+   "seconds": 1.42,
+   "status": "killed"
+  },
+  {
+   "description": "Eq -> NotEq",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_every_archived_mutant_classifies_into_a_known_bucket\nFAILED harness/tests/test_swe_scoreaudit.py::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills\n17 failed, 1 passed in 0.68s",
+   "end_line": 113,
+   "id": "scoreaudit.py:113:cmp#9",
+   "junit_ok": true,
+   "line": 113,
+   "n_nodes": 18,
+   "op": "cmp",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands",
+    "harness.tests.test_swe_scoreaudit::test_a_post_349_error_status_maps_to_no_evidence_but_keeps_its_origin",
+    "harness.tests.test_swe_scoreaudit::test_a_pytest_failure_summary_is_evidence",
+    "harness.tests.test_swe_scoreaudit::test_a_timeout_stays_a_kill_and_carries_no_pytest_tail",
+    "harness.tests.test_swe_scoreaudit::test_a_truncated_tail_is_still_evidence_via_the_FAILED_line",
+    "harness.tests.test_swe_scoreaudit::test_an_empty_detail_is_unknown",
+    "harness.tests.test_swe_scoreaudit::test_an_unevidenced_report_becomes_an_interval_not_a_number",
+    "harness.tests.test_swe_scoreaudit::test_an_unrecognised_tail_is_unknown_not_silently_either_side",
+    "harness.tests.test_swe_scoreaudit::test_every_archived_mutant_classifies_into_a_known_bucket",
+    "harness.tests.test_swe_scoreaudit::test_exit_zero_is_never_re_examined",
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence",
+    "harness.tests.test_swe_scoreaudit::test_no_evidence_wins_over_kill_evidence_in_the_same_tail",
+    "harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills",
+    "harness.tests.test_swe_scoreaudit::test_suspect_records_carry_enough_to_re_run_them",
+    "harness.tests.test_swe_scoreaudit::test_the_dominant_killer_is_reported_as_a_share",
+    "harness.tests.test_swe_scoreaudit::test_the_round_137_shape_is_not_evidence",
+    "harness.tests.test_swe_scoreaudit::test_timeouts_count_toward_the_audited_lower_bound"
+   ],
+   "seconds": 1.35,
+   "status": "killed"
+  },
+  {
+   "description": "Eq -> NotEq",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_every_archived_mutant_classifies_into_a_known_bucket\nFAILED harness/tests/test_swe_scoreaudit.py::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills\n16 failed, 2 passed in 0.59s",
+   "end_line": 115,
+   "id": "scoreaudit.py:115:cmp#10",
+   "junit_ok": true,
+   "line": 115,
+   "n_nodes": 18,
+   "op": "cmp",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands",
+    "harness.tests.test_swe_scoreaudit::test_a_post_349_error_status_maps_to_no_evidence_but_keeps_its_origin",
+    "harness.tests.test_swe_scoreaudit::test_a_pytest_failure_summary_is_evidence",
+    "harness.tests.test_swe_scoreaudit::test_a_timeout_stays_a_kill_and_carries_no_pytest_tail",
+    "harness.tests.test_swe_scoreaudit::test_a_truncated_tail_is_still_evidence_via_the_FAILED_line",
+    "harness.tests.test_swe_scoreaudit::test_an_empty_detail_is_unknown",
+    "harness.tests.test_swe_scoreaudit::test_an_unevidenced_report_becomes_an_interval_not_a_number",
+    "harness.tests.test_swe_scoreaudit::test_an_unrecognised_tail_is_unknown_not_silently_either_side",
+    "harness.tests.test_swe_scoreaudit::test_every_archived_mutant_classifies_into_a_known_bucket",
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence",
+    "harness.tests.test_swe_scoreaudit::test_no_evidence_wins_over_kill_evidence_in_the_same_tail",
+    "harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills",
+    "harness.tests.test_swe_scoreaudit::test_suspect_records_carry_enough_to_re_run_them",
+    "harness.tests.test_swe_scoreaudit::test_the_dominant_killer_is_reported_as_a_share",
+    "harness.tests.test_swe_scoreaudit::test_the_round_137_shape_is_not_evidence",
+    "harness.tests.test_swe_scoreaudit::test_timeouts_count_toward_the_audited_lower_bound"
+   ],
+   "seconds": 1.24,
+   "status": "killed"
+  },
+  {
+   "description": "Eq -> NotEq",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence\nFAILED harness/tests/test_swe_scoreaudit.py::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills\n12 failed, 6 passed in 0.59s",
+   "end_line": 117,
+   "id": "scoreaudit.py:117:cmp#11",
+   "junit_ok": true,
+   "line": 117,
+   "n_nodes": 18,
+   "op": "cmp",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands",
+    "harness.tests.test_swe_scoreaudit::test_a_post_349_error_status_maps_to_no_evidence_but_keeps_its_origin",
+    "harness.tests.test_swe_scoreaudit::test_a_pytest_failure_summary_is_evidence",
+    "harness.tests.test_swe_scoreaudit::test_a_truncated_tail_is_still_evidence_via_the_FAILED_line",
+    "harness.tests.test_swe_scoreaudit::test_an_empty_detail_is_unknown",
+    "harness.tests.test_swe_scoreaudit::test_an_unevidenced_report_becomes_an_interval_not_a_number",
+    "harness.tests.test_swe_scoreaudit::test_an_unrecognised_tail_is_unknown_not_silently_either_side",
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence",
+    "harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills",
+    "harness.tests.test_swe_scoreaudit::test_suspect_records_carry_enough_to_re_run_them",
+    "harness.tests.test_swe_scoreaudit::test_the_dominant_killer_is_reported_as_a_share",
+    "harness.tests.test_swe_scoreaudit::test_the_round_137_shape_is_not_evidence"
+   ],
+   "seconds": 1.22,
+   "status": "killed"
+  },
+  {
+   "description": "Or -> And",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_every_archived_mutant_classifies_into_a_known_bucket\nFAILED harness/tests/test_swe_scoreaudit.py::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills\n12 failed, 6 passed in 0.52s",
+   "end_line": 122,
+   "id": "scoreaudit.py:122:bool#12",
+   "junit_ok": true,
+   "line": 122,
+   "n_nodes": 18,
+   "op": "bool",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands",
+    "harness.tests.test_swe_scoreaudit::test_a_pytest_failure_summary_is_evidence",
+    "harness.tests.test_swe_scoreaudit::test_a_truncated_tail_is_still_evidence_via_the_FAILED_line",
+    "harness.tests.test_swe_scoreaudit::test_an_unevidenced_report_becomes_an_interval_not_a_number",
+    "harness.tests.test_swe_scoreaudit::test_an_unrecognised_tail_is_unknown_not_silently_either_side",
+    "harness.tests.test_swe_scoreaudit::test_every_archived_mutant_classifies_into_a_known_bucket",
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence",
+    "harness.tests.test_swe_scoreaudit::test_no_evidence_wins_over_kill_evidence_in_the_same_tail",
+    "harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills",
+    "harness.tests.test_swe_scoreaudit::test_suspect_records_carry_enough_to_re_run_them",
+    "harness.tests.test_swe_scoreaudit::test_the_dominant_killer_is_reported_as_a_share",
+    "harness.tests.test_swe_scoreaudit::test_the_round_137_shape_is_not_evidence"
+   ],
+   "seconds": 1.22,
+   "status": "killed"
+  },
+  {
+   "description": "drop 'not'",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_every_archived_mutant_classifies_into_a_known_bucket\nFAILED harness/tests/test_swe_scoreaudit.py::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills\n13 failed, 5 passed in 0.66s",
+   "end_line": 123,
+   "id": "scoreaudit.py:123:not#13",
+   "junit_ok": true,
+   "line": 123,
+   "n_nodes": 18,
+   "op": "not",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands",
+    "harness.tests.test_swe_scoreaudit::test_a_pytest_failure_summary_is_evidence",
+    "harness.tests.test_swe_scoreaudit::test_a_truncated_tail_is_still_evidence_via_the_FAILED_line",
+    "harness.tests.test_swe_scoreaudit::test_an_empty_detail_is_unknown",
+    "harness.tests.test_swe_scoreaudit::test_an_unevidenced_report_becomes_an_interval_not_a_number",
+    "harness.tests.test_swe_scoreaudit::test_an_unrecognised_tail_is_unknown_not_silently_either_side",
+    "harness.tests.test_swe_scoreaudit::test_every_archived_mutant_classifies_into_a_known_bucket",
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence",
+    "harness.tests.test_swe_scoreaudit::test_no_evidence_wins_over_kill_evidence_in_the_same_tail",
+    "harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills",
+    "harness.tests.test_swe_scoreaudit::test_suspect_records_carry_enough_to_re_run_them",
+    "harness.tests.test_swe_scoreaudit::test_the_dominant_killer_is_reported_as_a_share",
+    "harness.tests.test_swe_scoreaudit::test_the_round_137_shape_is_not_evidence"
+   ],
+   "seconds": 1.48,
+   "status": "killed"
+  },
+  {
+   "description": "negate if-condition",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence\nFAILED harness/tests/test_swe_scoreaudit.py::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills\n10 failed, 8 passed in 1.17s",
+   "end_line": 127,
+   "id": "scoreaudit.py:126:ifneg#14",
+   "junit_ok": true,
+   "line": 126,
+   "n_nodes": 18,
+   "op": "ifneg",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands",
+    "harness.tests.test_swe_scoreaudit::test_a_pytest_failure_summary_is_evidence",
+    "harness.tests.test_swe_scoreaudit::test_a_truncated_tail_is_still_evidence_via_the_FAILED_line",
+    "harness.tests.test_swe_scoreaudit::test_an_unevidenced_report_becomes_an_interval_not_a_number",
+    "harness.tests.test_swe_scoreaudit::test_an_unrecognised_tail_is_unknown_not_silently_either_side",
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence",
+    "harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills",
+    "harness.tests.test_swe_scoreaudit::test_suspect_records_carry_enough_to_re_run_them",
+    "harness.tests.test_swe_scoreaudit::test_the_dominant_killer_is_reported_as_a_share",
+    "harness.tests.test_swe_scoreaudit::test_the_round_137_shape_is_not_evidence"
+   ],
+   "seconds": 2.25,
+   "status": "killed"
+  },
+  {
+   "description": "negate if-condition",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_every_archived_mutant_classifies_into_a_known_bucket\nFAILED harness/tests/test_swe_scoreaudit.py::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills\n3 failed, 15 passed in 0.69s",
+   "end_line": 130,
+   "id": "scoreaudit.py:129:ifneg#15",
+   "junit_ok": true,
+   "line": 129,
+   "n_nodes": 18,
+   "op": "ifneg",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_an_unrecognised_tail_is_unknown_not_silently_either_side",
+    "harness.tests.test_swe_scoreaudit::test_every_archived_mutant_classifies_into_a_known_bucket",
+    "harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills"
+   ],
+   "seconds": 1.23,
+   "status": "killed"
+  },
+  {
+   "description": "Or -> And",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence\nFAILED harness/tests/test_swe_scoreaudit.py::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills\n7 failed, 11 passed in 0.22s",
+   "end_line": 136,
+   "id": "scoreaudit.py:136:bool#16",
+   "junit_ok": true,
+   "line": 136,
+   "n_nodes": 18,
+   "op": "bool",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands",
+    "harness.tests.test_swe_scoreaudit::test_an_unevidenced_report_becomes_an_interval_not_a_number",
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence",
+    "harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills",
+    "harness.tests.test_swe_scoreaudit::test_suspect_records_carry_enough_to_re_run_them",
+    "harness.tests.test_swe_scoreaudit::test_the_dominant_killer_is_reported_as_a_share",
+    "harness.tests.test_swe_scoreaudit::test_timeouts_count_toward_the_audited_lower_bound"
+   ],
+   "seconds": 0.5,
+   "status": "killed"
+  },
+  {
+   "description": "negate if-condition",
+   "detail": "=========================== short test summary info ============================\nFAILED harness/tests/test_swe_scoreaudit.py::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills\n1 failed, 17 passed in 0.30s",
+   "end_line": 145,
+   "id": "scoreaudit.py:144:ifneg#17",
+   "junit_ok": true,
+   "line": 144,
+   "n_nodes": 18,
+   "op": "ifneg",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills"
+   ],
+   "seconds": 0.58,
+   "status": "killed"
+  },
+  {
+   "description": "negate if-condition",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_the_dominant_killer_is_reported_as_a_share\nFAILED harness/tests/test_swe_scoreaudit.py::test_suspect_records_carry_enough_to_re_run_them\n2 failed, 16 passed in 0.31s",
+   "end_line": 154,
+   "id": "scoreaudit.py:146:ifneg#18",
+   "junit_ok": true,
+   "line": 146,
+   "n_nodes": 18,
+   "op": "ifneg",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_suspect_records_carry_enough_to_re_run_them",
+    "harness.tests.test_swe_scoreaudit::test_the_dominant_killer_is_reported_as_a_share"
+   ],
+   "seconds": 0.61,
+   "status": "killed"
+  },
+  {
+   "description": "Add -> Sub",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_timeouts_count_toward_the_audited_lower_bound\nFAILED harness/tests/test_swe_scoreaudit.py::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills\n2 failed, 16 passed in 0.67s",
+   "end_line": 156,
+   "id": "scoreaudit.py:156:arith#19",
+   "junit_ok": true,
+   "line": 156,
+   "n_nodes": 18,
+   "op": "arith",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills",
+    "harness.tests.test_swe_scoreaudit::test_timeouts_count_toward_the_audited_lower_bound"
+   ],
+   "seconds": 1.74,
+   "status": "killed"
+  },
+  {
+   "description": "Add -> Sub",
+   "detail": "",
+   "end_line": 157,
+   "id": "scoreaudit.py:157:arith#20",
+   "junit_ok": true,
+   "line": 157,
+   "n_nodes": 18,
+   "op": "arith",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [],
+   "seconds": 1.27,
+   "status": "survived"
+  },
+  {
+   "description": "5 -> 6",
+   "detail": "",
+   "end_line": 179,
+   "id": "scoreaudit.py:179:const#21",
+   "junit_ok": true,
+   "line": 179,
+   "n_nodes": 18,
+   "op": "const",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [],
+   "seconds": 1.27,
+   "status": "survived"
+  },
+  {
+   "description": "negate if-condition",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_every_archived_mutant_classifies_into_a_known_bucket\nFAILED harness/tests/test_swe_scoreaudit.py::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills\n4 failed, 14 passed in 0.26s",
+   "end_line": 213,
+   "id": "scoreaudit.py:212:ifneg#22",
+   "junit_ok": true,
+   "line": 212,
+   "n_nodes": 18,
+   "op": "ifneg",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_audit_paths_skips_files_that_are_not_mutation_reports",
+    "harness.tests.test_swe_scoreaudit::test_every_archived_mutant_classifies_into_a_known_bucket",
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence",
+    "harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills"
+   ],
+   "seconds": 1.0,
+   "status": "killed"
+  },
+  {
+   "description": "negate if-condition",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_every_archived_mutant_classifies_into_a_known_bucket\nFAILED harness/tests/test_swe_scoreaudit.py::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills\n4 failed, 14 passed in 0.29s",
+   "end_line": 220,
+   "id": "scoreaudit.py:219:ifneg#23",
+   "junit_ok": true,
+   "line": 219,
+   "n_nodes": 18,
+   "op": "ifneg",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_audit_paths_skips_files_that_are_not_mutation_reports",
+    "harness.tests.test_swe_scoreaudit::test_every_archived_mutant_classifies_into_a_known_bucket",
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence",
+    "harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills"
+   ],
+   "seconds": 1.4,
+   "status": "killed"
+  },
+  {
+   "description": "1 -> 2",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_the_dominant_killer_is_reported_as_a_share\nFAILED harness/tests/test_swe_scoreaudit.py::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills\n5 failed, 13 passed in 0.74s",
+   "end_line": 143,
+   "id": "scoreaudit.py:143:const#24",
+   "junit_ok": true,
+   "line": 143,
+   "n_nodes": 18,
+   "op": "const",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands",
+    "harness.tests.test_swe_scoreaudit::test_an_unevidenced_report_becomes_an_interval_not_a_number",
+    "harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills",
+    "harness.tests.test_swe_scoreaudit::test_the_dominant_killer_is_reported_as_a_share",
+    "harness.tests.test_swe_scoreaudit::test_timeouts_count_toward_the_audited_lower_bound"
+   ],
+   "seconds": 1.43,
+   "status": "killed"
+  },
+  {
+   "description": "Eq -> NotEq",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_the_dominant_killer_is_reported_as_a_share\nFAILED harness/tests/test_swe_scoreaudit.py::test_suspect_records_carry_enough_to_re_run_them\n2 failed, 16 passed in 0.67s",
+   "end_line": 146,
+   "id": "scoreaudit.py:146:cmp#25",
+   "junit_ok": true,
+   "line": 146,
+   "n_nodes": 18,
+   "op": "cmp",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_suspect_records_carry_enough_to_re_run_them",
+    "harness.tests.test_swe_scoreaudit::test_the_dominant_killer_is_reported_as_a_share"
+   ],
+   "seconds": 1.37,
+   "status": "killed"
+  },
+  {
+   "description": "negate if-condition",
+   "detail": "=========================== short test summary info ============================\nFAILED harness/tests/test_swe_scoreaudit.py::test_the_dominant_killer_is_reported_as_a_share\n1 failed, 17 passed in 0.63s",
+   "end_line": 154,
+   "id": "scoreaudit.py:151:ifneg#26",
+   "junit_ok": true,
+   "line": 151,
+   "n_nodes": 18,
+   "op": "ifneg",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_the_dominant_killer_is_reported_as_a_share"
+   ],
+   "seconds": 1.27,
+   "status": "killed"
+  },
+  {
+   "description": "1 -> 2",
+   "detail": "",
+   "end_line": 158,
+   "id": "scoreaudit.py:158:const#27",
+   "junit_ok": true,
+   "line": 158,
+   "n_nodes": 18,
+   "op": "const",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [],
+   "seconds": 2.2,
+   "status": "survived"
+  },
+  {
+   "description": "Eq -> NotEq",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_timeouts_count_toward_the_audited_lower_bound\nFAILED harness/tests/test_swe_scoreaudit.py::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills\n4 failed, 14 passed in 0.66s",
+   "end_line": 171,
+   "id": "scoreaudit.py:171:cmp#28",
+   "junit_ok": true,
+   "line": 171,
+   "n_nodes": 18,
+   "op": "cmp",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands",
+    "harness.tests.test_swe_scoreaudit::test_an_unevidenced_report_becomes_an_interval_not_a_number",
+    "harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills",
+    "harness.tests.test_swe_scoreaudit::test_timeouts_count_toward_the_audited_lower_bound"
+   ],
+   "seconds": 1.31,
+   "status": "killed"
+  },
+  {
+   "description": "Mod -> Mult",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_an_unevidenced_report_becomes_an_interval_not_a_number\nFAILED harness/tests/test_swe_scoreaudit.py::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence\n3 failed, 15 passed in 0.68s",
+   "end_line": 182,
+   "id": "scoreaudit.py:182:arith#29",
+   "junit_ok": true,
+   "line": 182,
+   "n_nodes": 18,
+   "op": "arith",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands",
+    "harness.tests.test_swe_scoreaudit::test_an_unevidenced_report_becomes_an_interval_not_a_number",
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence"
+   ],
+   "seconds": 1.35,
+   "status": "killed"
+  },
+  {
+   "description": "Mod -> Mult",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_an_unevidenced_report_becomes_an_interval_not_a_number\nFAILED harness/tests/test_swe_scoreaudit.py::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence\n3 failed, 15 passed in 0.72s",
+   "end_line": 185,
+   "id": "scoreaudit.py:183:arith#30",
+   "junit_ok": true,
+   "line": 183,
+   "n_nodes": 18,
+   "op": "arith",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands",
+    "harness.tests.test_swe_scoreaudit::test_an_unevidenced_report_becomes_an_interval_not_a_number",
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence"
+   ],
+   "seconds": 1.48,
+   "status": "killed"
+  },
+  {
+   "description": "drop 'not'",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_every_archived_mutant_classifies_into_a_known_bucket\nFAILED harness/tests/test_swe_scoreaudit.py::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills\n4 failed, 14 passed in 0.22s",
+   "end_line": 212,
+   "id": "scoreaudit.py:212:not#31",
+   "junit_ok": true,
+   "line": 212,
+   "n_nodes": 18,
+   "op": "not",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_audit_paths_skips_files_that_are_not_mutation_reports",
+    "harness.tests.test_swe_scoreaudit::test_every_archived_mutant_classifies_into_a_known_bucket",
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence",
+    "harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills"
+   ],
+   "seconds": 0.87,
+   "status": "killed"
+  },
+  {
+   "description": "Or -> And",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_audit_paths_skips_files_that_are_not_mutation_reports\nFAILED harness/tests/test_swe_scoreaudit.py::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills\n2 failed, 16 passed in 0.67s",
+   "end_line": 219,
+   "id": "scoreaudit.py:219:bool#32",
+   "junit_ok": true,
+   "line": 219,
+   "n_nodes": 18,
+   "op": "bool",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_audit_paths_skips_files_that_are_not_mutation_reports",
+    "harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills"
+   ],
+   "seconds": 1.5,
+   "status": "killed"
+  },
+  {
+   "description": "Mod -> Mult",
+   "detail": "=========================== short test summary info ============================\nFAILED harness/tests/test_swe_scoreaudit.py::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence\n1 failed, 17 passed in 0.72s",
+   "end_line": 252,
+   "id": "scoreaudit.py:250:arith#33",
+   "junit_ok": true,
+   "line": 250,
+   "n_nodes": 18,
+   "op": "arith",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence"
+   ],
+   "seconds": 1.39,
+   "status": "killed"
+  },
+  {
+   "description": "Eq -> NotEq",
+   "detail": "=========================== short test summary info ============================\nFAILED harness/tests/test_swe_scoreaudit.py::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence\n1 failed, 17 passed in 0.72s",
+   "end_line": 256,
+   "id": "scoreaudit.py:256:cmp#34",
+   "junit_ok": true,
+   "line": 256,
+   "n_nodes": 18,
+   "op": "cmp",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence"
+   ],
+   "seconds": 1.42,
+   "status": "killed"
+  },
+  {
+   "description": "0 -> 1",
+   "detail": "=========================== short test summary info ============================\nFAILED harness/tests/test_swe_scoreaudit.py::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence\n1 failed, 17 passed in 1.09s",
+   "end_line": 256,
+   "id": "scoreaudit.py:256:const#35",
+   "junit_ok": true,
+   "line": 256,
+   "n_nodes": 18,
+   "op": "const",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence"
+   ],
+   "seconds": 2.2,
+   "status": "killed"
+  },
+  {
+   "description": "1 -> 2",
+   "detail": "=========================== short test summary info ============================\nFAILED harness/tests/test_swe_scoreaudit.py::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence\n1 failed, 17 passed in 0.70s",
+   "end_line": 256,
+   "id": "scoreaudit.py:256:const#36",
+   "junit_ok": true,
+   "line": 256,
+   "n_nodes": 18,
+   "op": "const",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence"
+   ],
+   "seconds": 1.48,
+   "status": "killed"
+  },
+  {
+   "description": "1 -> 2",
+   "detail": "=========================== short test summary info ============================\nFAILED harness/tests/test_swe_scoreaudit.py::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills\n1 failed, 17 passed in 0.77s",
+   "end_line": 145,
+   "id": "scoreaudit.py:145:const#37",
+   "junit_ok": true,
+   "line": 145,
+   "n_nodes": 18,
+   "op": "const",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills"
+   ],
+   "seconds": 1.51,
+   "status": "killed"
+  },
+  {
+   "description": "Eq -> NotEq",
+   "detail": "=========================== short test summary info ============================\nFAILED harness/tests/test_swe_scoreaudit.py::test_the_dominant_killer_is_reported_as_a_share\n1 failed, 17 passed in 0.79s",
+   "end_line": 151,
+   "id": "scoreaudit.py:151:cmp#38",
+   "junit_ok": true,
+   "line": 151,
+   "n_nodes": 18,
+   "op": "cmp",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_the_dominant_killer_is_reported_as_a_share"
+   ],
+   "seconds": 1.47,
+   "status": "killed"
+  },
+  {
+   "description": "negate if-condition",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_audit_paths_skips_files_that_are_not_mutation_reports\nFAILED harness/tests/test_swe_scoreaudit.py::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence\n5 failed, 13 passed in 0.76s",
+   "end_line": 154,
+   "id": "scoreaudit.py:153:ifneg#39",
+   "junit_ok": true,
+   "line": 153,
+   "n_nodes": 18,
+   "op": "ifneg",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands",
+    "harness.tests.test_swe_scoreaudit::test_an_unevidenced_report_becomes_an_interval_not_a_number",
+    "harness.tests.test_swe_scoreaudit::test_audit_paths_skips_files_that_are_not_mutation_reports",
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence",
+    "harness.tests.test_swe_scoreaudit::test_the_dominant_killer_is_reported_as_a_share"
+   ],
+   "seconds": 1.47,
+   "status": "killed"
+  },
+  {
+   "description": "0 -> 1",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_timeouts_count_toward_the_audited_lower_bound\nFAILED harness/tests/test_swe_scoreaudit.py::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills\n3 failed, 15 passed in 1.46s",
+   "end_line": 171,
+   "id": "scoreaudit.py:171:const#40",
+   "junit_ok": true,
+   "line": 171,
+   "n_nodes": 18,
+   "op": "const",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands",
+    "harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills",
+    "harness.tests.test_swe_scoreaudit::test_timeouts_count_toward_the_audited_lower_bound"
+   ],
+   "seconds": 2.5,
+   "status": "killed"
+  },
+  {
+   "description": "And -> Or",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_audit_paths_skips_files_that_are_not_mutation_reports\nFAILED harness/tests/test_swe_scoreaudit.py::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence\n4 failed, 14 passed in 0.71s",
+   "end_line": 174,
+   "id": "scoreaudit.py:174:bool#41",
+   "junit_ok": true,
+   "line": 174,
+   "n_nodes": 18,
+   "op": "bool",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands",
+    "harness.tests.test_swe_scoreaudit::test_an_unevidenced_report_becomes_an_interval_not_a_number",
+    "harness.tests.test_swe_scoreaudit::test_audit_paths_skips_files_that_are_not_mutation_reports",
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence"
+   ],
+   "seconds": 1.39,
+   "status": "killed"
+  },
+  {
+   "description": "Mod -> Mult",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands\nFAILED harness/tests/test_swe_scoreaudit.py::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence\n2 failed, 16 passed in 0.74s",
+   "end_line": 189,
+   "id": "scoreaudit.py:187:arith#42",
+   "junit_ok": true,
+   "line": 187,
+   "n_nodes": 18,
+   "op": "arith",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands",
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence"
+   ],
+   "seconds": 1.46,
+   "status": "killed"
+  },
+  {
+   "description": "Mod -> Mult",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_an_unevidenced_report_becomes_an_interval_not_a_number\nFAILED harness/tests/test_swe_scoreaudit.py::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence\n2 failed, 16 passed in 0.68s",
+   "end_line": 194,
+   "id": "scoreaudit.py:191:arith#43",
+   "junit_ok": true,
+   "line": 191,
+   "n_nodes": 18,
+   "op": "arith",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_an_unevidenced_report_becomes_an_interval_not_a_number",
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence"
+   ],
+   "seconds": 1.34,
+   "status": "killed"
+  },
+  {
+   "description": "Mod -> Mult",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_an_unevidenced_report_becomes_an_interval_not_a_number\nFAILED harness/tests/test_swe_scoreaudit.py::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence\n2 failed, 16 passed in 0.81s",
+   "end_line": 196,
+   "id": "scoreaudit.py:195:arith#44",
+   "junit_ok": true,
+   "line": 195,
+   "n_nodes": 18,
+   "op": "arith",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_an_unevidenced_report_becomes_an_interval_not_a_number",
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence"
+   ],
+   "seconds": 1.69,
+   "status": "killed"
+  },
+  {
+   "description": "Mod -> Mult",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_an_unevidenced_report_becomes_an_interval_not_a_number\nFAILED harness/tests/test_swe_scoreaudit.py::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence\n2 failed, 16 passed in 1.36s",
+   "end_line": 198,
+   "id": "scoreaudit.py:198:arith#45",
+   "junit_ok": true,
+   "line": 198,
+   "n_nodes": 18,
+   "op": "arith",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_an_unevidenced_report_becomes_an_interval_not_a_number",
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence"
+   ],
+   "seconds": 2.4,
+   "status": "killed"
+  },
+  {
+   "description": "Mod -> Mult",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_an_unevidenced_report_becomes_an_interval_not_a_number\nFAILED harness/tests/test_swe_scoreaudit.py::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence\n2 failed, 16 passed in 0.84s",
+   "end_line": 200,
+   "id": "scoreaudit.py:200:arith#46",
+   "junit_ok": true,
+   "line": 200,
+   "n_nodes": 18,
+   "op": "arith",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_an_unevidenced_report_becomes_an_interval_not_a_number",
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence"
+   ],
+   "seconds": 1.54,
+   "status": "killed"
+  },
+  {
+   "description": "Mod -> Mult",
+   "detail": "",
+   "end_line": 204,
+   "id": "scoreaudit.py:202:arith#47",
+   "junit_ok": true,
+   "line": 202,
+   "n_nodes": 18,
+   "op": "arith",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [],
+   "seconds": 1.41,
+   "status": "survived"
+  },
+  {
+   "description": "drop 'not'",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_every_archived_mutant_classifies_into_a_known_bucket\nFAILED harness/tests/test_swe_scoreaudit.py::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills\n4 failed, 14 passed in 0.39s",
+   "end_line": 219,
+   "id": "scoreaudit.py:219:not#48",
+   "junit_ok": true,
+   "line": 219,
+   "n_nodes": 18,
+   "op": "not",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_audit_paths_skips_files_that_are_not_mutation_reports",
+    "harness.tests.test_swe_scoreaudit::test_every_archived_mutant_classifies_into_a_known_bucket",
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence",
+    "harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills"
+   ],
+   "seconds": 1.06,
+   "status": "killed"
+  },
+  {
+   "description": "NotIn -> In",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence\nFAILED harness/tests/test_swe_scoreaudit.py::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills\n3 failed, 15 passed in 0.49s",
+   "end_line": 219,
+   "id": "scoreaudit.py:219:cmp#49",
+   "junit_ok": true,
+   "line": 219,
+   "n_nodes": 18,
+   "op": "cmp",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_audit_paths_skips_files_that_are_not_mutation_reports",
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence",
+    "harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills"
+   ],
+   "seconds": 1.18,
+   "status": "killed"
+  },
+  {
+   "description": "5 -> 6",
+   "detail": "",
+   "end_line": 243,
+   "id": "scoreaudit.py:243:const#50",
+   "junit_ok": true,
+   "line": 243,
+   "n_nodes": 18,
+   "op": "const",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [],
+   "seconds": 1.47,
+   "status": "survived"
+  },
+  {
+   "description": "0 -> 1",
+   "detail": "=========================== short test summary info ============================\nFAILED harness/tests/test_swe_scoreaudit.py::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence\n1 failed, 17 passed in 0.65s",
+   "end_line": 256,
+   "id": "scoreaudit.py:256:const#51",
+   "junit_ok": true,
+   "line": 256,
+   "n_nodes": 18,
+   "op": "const",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence"
+   ],
+   "seconds": 1.36,
+   "status": "killed"
+  },
+  {
+   "description": "120 -> 121",
+   "detail": "",
+   "end_line": 131,
+   "id": "scoreaudit.py:131:const#52",
+   "junit_ok": true,
+   "line": 131,
+   "n_nodes": 18,
+   "op": "const",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [],
+   "seconds": 1.31,
+   "status": "survived"
+  },
+  {
+   "description": "Div -> Mult",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_timeouts_count_toward_the_audited_lower_bound\nFAILED harness/tests/test_swe_scoreaudit.py::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills\n4 failed, 14 passed in 1.04s",
+   "end_line": 169,
+   "id": "scoreaudit.py:169:arith#53",
+   "junit_ok": true,
+   "line": 169,
+   "n_nodes": 18,
+   "op": "arith",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands",
+    "harness.tests.test_swe_scoreaudit::test_an_unevidenced_report_becomes_an_interval_not_a_number",
+    "harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills",
+    "harness.tests.test_swe_scoreaudit::test_timeouts_count_toward_the_audited_lower_bound"
+   ],
+   "seconds": 2.19,
+   "status": "killed"
+  },
+  {
+   "description": "4 -> 5",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands\nFAILED harness/tests/test_swe_scoreaudit.py::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills\n2 failed, 16 passed in 0.69s",
+   "end_line": 169,
+   "id": "scoreaudit.py:169:const#54",
+   "junit_ok": true,
+   "line": 169,
+   "n_nodes": 18,
+   "op": "const",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands",
+    "harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills"
+   ],
+   "seconds": 1.43,
+   "status": "killed"
+  },
+  {
+   "description": "Div -> Mult",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands\nFAILED harness/tests/test_swe_scoreaudit.py::test_an_unevidenced_report_becomes_an_interval_not_a_number\n2 failed, 16 passed in 0.65s",
+   "end_line": 170,
+   "id": "scoreaudit.py:170:arith#55",
+   "junit_ok": true,
+   "line": 170,
+   "n_nodes": 18,
+   "op": "arith",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands",
+    "harness.tests.test_swe_scoreaudit::test_an_unevidenced_report_becomes_an_interval_not_a_number"
+   ],
+   "seconds": 1.26,
+   "status": "killed"
+  },
+  {
+   "description": "4 -> 5",
+   "detail": "=========================== short test summary info ============================\nFAILED harness/tests/test_swe_scoreaudit.py::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands\n1 failed, 17 passed in 0.63s",
+   "end_line": 170,
+   "id": "scoreaudit.py:170:const#56",
+   "junit_ok": true,
+   "line": 170,
+   "n_nodes": 18,
+   "op": "const",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands"
+   ],
+   "seconds": 1.41,
+   "status": "killed"
+  },
+  {
+   "description": "0 -> 1",
+   "detail": "=========================== short test summary info ============================\nFAILED harness/tests/test_swe_scoreaudit.py::test_the_dominant_killer_is_reported_as_a_share\n1 failed, 17 passed in 0.74s",
+   "end_line": 172,
+   "id": "scoreaudit.py:172:const#57",
+   "junit_ok": true,
+   "line": 172,
+   "n_nodes": 18,
+   "op": "const",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_the_dominant_killer_is_reported_as_a_share"
+   ],
+   "seconds": 1.42,
+   "status": "killed"
+  },
+  {
+   "description": "Div -> Mult",
+   "detail": "=========================== short test summary info ============================\nFAILED harness/tests/test_swe_scoreaudit.py::test_the_dominant_killer_is_reported_as_a_share\n1 failed, 17 passed in 0.70s",
+   "end_line": 173,
+   "id": "scoreaudit.py:173:arith#58",
+   "junit_ok": true,
+   "line": 173,
+   "n_nodes": 18,
+   "op": "arith",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_the_dominant_killer_is_reported_as_a_share"
+   ],
+   "seconds": 1.67,
+   "status": "killed"
+  },
+  {
+   "description": "4 -> 5",
+   "detail": "",
+   "end_line": 173,
+   "id": "scoreaudit.py:173:const#59",
+   "junit_ok": true,
+   "line": 173,
+   "n_nodes": 18,
+   "op": "const",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [],
+   "seconds": 1.27,
+   "status": "survived"
+  },
+  {
+   "description": "1 -> 2",
+   "detail": "",
+   "end_line": 233,
+   "id": "scoreaudit.py:233:const#60",
+   "junit_ok": true,
+   "line": 233,
+   "n_nodes": 18,
+   "op": "const",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [],
+   "seconds": 1.34,
+   "status": "survived"
+  },
+  {
+   "description": "0 -> 1",
+   "detail": "",
+   "end_line": 240,
+   "id": "scoreaudit.py:240:const#61",
+   "junit_ok": true,
+   "line": 240,
+   "n_nodes": 18,
+   "op": "const",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [],
+   "seconds": 1.96,
+   "status": "survived"
+  },
+  {
+   "description": "1 -> 2",
+   "detail": "=========================== short test summary info ============================\nFAILED harness/tests/test_swe_scoreaudit.py::test_an_unrecognised_tail_is_unknown_not_silently_either_side\n1 failed, 17 passed in 0.63s",
+   "end_line": 131,
+   "id": "scoreaudit.py:131:const#62",
+   "junit_ok": true,
+   "line": 131,
+   "n_nodes": 18,
+   "op": "const",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_an_unrecognised_tail_is_unknown_not_silently_either_side"
+   ],
+   "seconds": 1.36,
+   "status": "killed"
+  },
+  {
+   "description": "Or -> And",
+   "detail": "=========================== short test summary info ============================\nFAILED harness/tests/test_swe_scoreaudit.py::test_the_dominant_killer_is_reported_as_a_share\n1 failed, 17 passed in 0.72s",
+   "end_line": 152,
+   "id": "scoreaudit.py:152:bool#63",
+   "junit_ok": true,
+   "line": 152,
+   "n_nodes": 18,
+   "op": "bool",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_the_dominant_killer_is_reported_as_a_share"
+   ],
+   "seconds": 1.59,
+   "status": "killed"
+  },
+  {
+   "description": "1 -> 2",
+   "detail": "=========================== short test summary info ============================\nFAILED harness/tests/test_swe_scoreaudit.py::test_the_dominant_killer_is_reported_as_a_share\n1 failed, 17 passed in 0.66s",
+   "end_line": 154,
+   "id": "scoreaudit.py:154:const#64",
+   "junit_ok": true,
+   "line": 154,
+   "n_nodes": 18,
+   "op": "const",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_the_dominant_killer_is_reported_as_a_share"
+   ],
+   "seconds": 1.4,
+   "status": "killed"
+  },
+  {
+   "description": "Add -> Sub",
+   "detail": "=========================== short test summary info ============================\nFAILED harness/tests/test_swe_scoreaudit.py::test_an_unevidenced_report_becomes_an_interval_not_a_number\n1 failed, 17 passed in 0.89s",
+   "end_line": 170,
+   "id": "scoreaudit.py:170:arith#65",
+   "junit_ok": true,
+   "line": 170,
+   "n_nodes": 18,
+   "op": "arith",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_an_unevidenced_report_becomes_an_interval_not_a_number"
+   ],
+   "seconds": 1.59,
+   "status": "killed"
+  },
+  {
+   "description": "0 -> 1",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_every_archived_mutant_classifies_into_a_known_bucket\nFAILED harness/tests/test_swe_scoreaudit.py::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills\n3 failed, 15 passed in 0.32s",
+   "end_line": 172,
+   "id": "scoreaudit.py:172:const#66",
+   "junit_ok": true,
+   "line": 172,
+   "n_nodes": 18,
+   "op": "const",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_every_archived_mutant_classifies_into_a_known_bucket",
+    "harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills",
+    "harness.tests.test_swe_scoreaudit::test_the_dominant_killer_is_reported_as_a_share"
+   ],
+   "seconds": 0.98,
+   "status": "killed"
+  },
+  {
+   "description": "Or -> And",
+   "detail": "",
+   "end_line": 193,
+   "id": "scoreaudit.py:193:bool#67",
+   "junit_ok": true,
+   "line": 193,
+   "n_nodes": 18,
+   "op": "bool",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [],
+   "seconds": 1.36,
+   "status": "survived"
+  },
+  {
+   "description": "Mult -> Add",
+   "detail": "",
+   "end_line": 204,
+   "id": "scoreaudit.py:204:arith#68",
+   "junit_ok": true,
+   "line": 204,
+   "n_nodes": 18,
+   "op": "arith",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [],
+   "seconds": 1.37,
+   "status": "survived"
+  },
+  {
+   "description": "1 -> 2",
+   "detail": "",
+   "end_line": 255,
+   "id": "scoreaudit.py:255:const#69",
+   "junit_ok": true,
+   "line": 255,
+   "n_nodes": 18,
+   "op": "const",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [],
+   "seconds": 1.99,
+   "status": "survived"
+  },
+  {
+   "description": "1 -> 2",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_every_archived_mutant_classifies_into_a_known_bucket\nFAILED harness/tests/test_swe_scoreaudit.py::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills\n3 failed, 15 passed in 0.31s",
+   "end_line": 173,
+   "id": "scoreaudit.py:173:const#70",
+   "junit_ok": true,
+   "line": 173,
+   "n_nodes": 18,
+   "op": "const",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_every_archived_mutant_classifies_into_a_known_bucket",
+    "harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills",
+    "harness.tests.test_swe_scoreaudit::test_the_dominant_killer_is_reported_as_a_share"
+   ],
+   "seconds": 1.03,
+   "status": "killed"
+  },
+  {
+   "description": "0 -> 1",
+   "detail": "",
+   "end_line": 193,
+   "id": "scoreaudit.py:193:const#71",
+   "junit_ok": true,
+   "line": 193,
+   "n_nodes": 18,
+   "op": "const",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [],
+   "seconds": 1.76,
+   "status": "survived"
+  },
+  {
+   "description": "1 -> 2",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_an_unevidenced_report_becomes_an_interval_not_a_number\nFAILED harness/tests/test_swe_scoreaudit.py::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence\n2 failed, 16 passed in 0.92s",
+   "end_line": 197,
+   "id": "scoreaudit.py:197:const#72",
+   "junit_ok": true,
+   "line": 197,
+   "n_nodes": 18,
+   "op": "const",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_an_unevidenced_report_becomes_an_interval_not_a_number",
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence"
+   ],
+   "seconds": 1.68,
+   "status": "killed"
+  },
+  {
+   "description": "100 -> 101",
+   "detail": "",
+   "end_line": 204,
+   "id": "scoreaudit.py:204:const#73",
+   "junit_ok": true,
+   "line": 204,
+   "n_nodes": 18,
+   "op": "const",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [],
+   "seconds": 1.27,
+   "status": "survived"
+  },
+  {
+   "description": "Mod -> Mult",
+   "detail": "=========================== short test summary info ============================\nFAILED harness/tests/test_swe_scoreaudit.py::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence\n1 failed, 17 passed in 1.30s",
+   "end_line": 252,
+   "id": "scoreaudit.py:252:arith#74",
+   "junit_ok": true,
+   "line": 252,
+   "n_nodes": 18,
+   "op": "arith",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence"
+   ],
+   "seconds": 2.14,
+   "status": "killed"
+  },
+  {
+   "description": "1 -> 2",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_every_archived_mutant_classifies_into_a_known_bucket\nFAILED harness/tests/test_swe_scoreaudit.py::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills\n3 failed, 15 passed in 0.26s",
+   "end_line": 154,
+   "id": "scoreaudit.py:154:const#75",
+   "junit_ok": true,
+   "line": 154,
+   "n_nodes": 18,
+   "op": "const",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_every_archived_mutant_classifies_into_a_known_bucket",
+    "harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills",
+    "harness.tests.test_swe_scoreaudit::test_the_dominant_killer_is_reported_as_a_share"
+   ],
+   "seconds": 0.94,
+   "status": "killed"
+  },
+  {
+   "description": "0 -> 1",
+   "detail": "FAILED harness/tests/test_swe_scoreaudit.py::test_every_archived_mutant_classifies_into_a_known_bucket\nFAILED harness/tests/test_swe_scoreaudit.py::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills\n3 failed, 15 passed in 0.32s",
+   "end_line": 173,
+   "id": "scoreaudit.py:173:const#76",
+   "junit_ok": true,
+   "line": 173,
+   "n_nodes": 18,
+   "op": "const",
+   "path": "harness/swe/scoreaudit.py",
+   "red": [
+    "harness.tests.test_swe_scoreaudit::test_every_archived_mutant_classifies_into_a_known_bucket",
+    "harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills",
+    "harness.tests.test_swe_scoreaudit::test_the_dominant_killer_is_reported_as_a_share"
+   ],
+   "seconds": 1.02,
+   "status": "killed"
+  }
+ ],
+ "never_red": [],
+ "node_loss": [],
+ "score": 0.8133,
+ "seconds": 308.7,
+ "selection": {
+  "funcs": null,
+  "generated": 77,
+  "head_biased": false,
+  "limit": null,
+  "main_guard_excluded": 2,
+  "sample": null,
+  "selected": 75
+ },
+ "sound": true,
+ "subject_paths": [
+  "harness/swe/scoreaudit.py"
+ ],
+ "survived": 14,
+ "test_paths": [
+  "harness/tests/test_swe_scoreaudit.py"
+ ],
+ "total": 75,
+ "unattributed_kills": [],
+ "unit": "scoreaudit",
+ "verdict": "all_falsifiable"
+}

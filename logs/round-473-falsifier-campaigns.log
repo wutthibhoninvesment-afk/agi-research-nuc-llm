@@ -1,0 +1,33 @@
+=== scoreaudit  09:48:47 ===
+unit scoreaudit: subject harness/swe/scoreaudit.py  tests harness/tests/test_swe_scoreaudit.py
+  mutants 75 (77 generated, 2 in a __main__ guard, whole)  killed 61  survived 14  errored 0
+  mutation score 81.3%   attribution coverage 100.0%   (309s)
+  nodes 18 passed at baseline, 0 skipped
+  VERDICT all_falsifiable: 0/18 node(s) never went red
+  killer     harness.tests.test_swe_scoreaudit::test_main_exit_code_is_nonzero_exactly_when_a_kill_lacks_evidence 34
+  killer     harness.tests.test_swe_scoreaudit::test_round_137_is_the_only_archived_campaign_with_unevidenced_kills 30
+  killer     harness.tests.test_swe_scoreaudit::test_an_unevidenced_report_becomes_an_interval_not_a_number 27
+  killer     harness.tests.test_swe_scoreaudit::test_a_fully_evidenced_report_is_confirmed_and_its_score_stands 25
+  killer     harness.tests.test_swe_scoreaudit::test_the_dominant_killer_is_reported_as_a_share 25
+wrote state/swe/round-473/scoreaudit.json
+311.46 s wall  (scoreaudit)
+rc=0
+=== tierbudget  09:53:59 ===
+unit tierbudget: subject harness/tierbudget.py  tests harness/tests/test_tierbudget.py
+  mutants 93 (95 generated, 2 in a __main__ guard, whole)  killed 45  survived 48  errored 0
+  mutation score 48.4%   attribution coverage 100.0%   (687s)
+  nodes 21 passed at baseline, 0 skipped
+  VERDICT never_red: 3/21 node(s) never went red
+  NEVER-RED  harness.tests.test_tierbudget::test_every_promoted_entry_records_how_and_when_it_was_measured
+  NEVER-RED  harness.tests.test_tierbudget::test_the_registry_only_promotes_files_the_filename_rule_would_have_slowed
+  NEVER-RED  harness.tests.test_tierbudget::test_the_tier_budget_line_is_printed_above_pytests_count_line
+  killer     harness.tests.test_tierbudget::test_the_drift_branch_names_the_file_and_the_remedy 16
+  killer     harness.tests.test_tierbudget::test_the_verify_line_is_not_pytest_shaped 13
+  killer     harness.tests.test_tierbudget::test_measure_classifies_the_four_outcomes 9
+  killer     harness.tests.test_tierbudget::test_the_drift_floor_stops_a_sub_second_file_alarming_on_noise 7
+  killer     harness.tests.test_tierbudget::test_a_promoted_file_that_did_not_run_is_not_evidence 6
+wrote state/swe/round-473/tierbudget.json
+Command exited with non-zero status 1
+703.62 s wall  (tierbudget)
+rc=1
+=== whenceslow  10:05:43 ===

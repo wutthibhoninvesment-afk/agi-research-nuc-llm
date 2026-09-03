@@ -2643,5 +2643,31 @@
   "id": "ich-neg-key",
   "expect": [],
   "prompt": "What's a good way to compute a stable content hash of a directory in Python, ignoring __pycache__ and .git?"
+ },
+ {
+  "id": "fks-near",
+  "expect": [
+   "falsifier-must-kill-something"
+  ],
+  "prompt": "Our parser module has 60 tests and they're all green, but I can't tell you which one would fail if the precedence table were wrong. Is there a way to find the tests that could never go red?"
+ },
+ {
+  "id": "fks-mid",
+  "expect": [
+   "falsifier-must-kill-something"
+  ],
+  "prompt": "Code review keeps asking for tests and we keep adding tests that pass the moment they're written. Nobody has ever watched one of them fail. How do I check whether they're actually asserting anything?"
+ },
+ {
+  "id": "fks-far",
+  "expect": [
+   "falsifier-must-kill-something"
+  ],
+  "prompt": "We publish a cache-hit-rate number in our dashboard and the docs say it's covered by tests. Before I quote it in a design doc, how would I prove the test suite would notice if the computation were off?"
+ },
+ {
+  "id": "fks-neg-key",
+  "expect": [],
+  "prompt": "How do I get pytest to write a junit XML report and upload it to our CI dashboard?"
  }
 ]

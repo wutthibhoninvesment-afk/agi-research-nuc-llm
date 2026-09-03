@@ -126,6 +126,14 @@
       "via": "harness/tests/test_swe_spacewitness.py:-",
       "via_kind": "import"
     },
+    "harness/swe/falsifiers.py": {
+      "status": "wired",
+      "via": "harness/tests/test_swe_falsifiers.py:-",
+      "via_kind": "import",
+      "owner": "SWE-loop(D)",
+      "reason": "Per-TEST falsification audit (round 473): a mutation campaign whose MUTANT runs each get a --junitxml, so a kill can be attributed to the test node that made it and a node that never went red can be named. Declared in the same commit that created it, which is the thing rounds 471 and 472 did not do for bank_audit.py and dose_response.py.",
+      "since_round": 473
+    },
     "harness/swe/fuzz.py": {
       "status": "wired",
       "via": "harness/tests/test_swe_regiontools.py:-",
@@ -401,6 +409,14 @@
       "owner": "NUC-integration(E)",
       "reason": "Same class as calib_decode.py -- a live on-box decode measurement, ~70 s of engine time per run. Deliberately hand-launched."
     },
+    "nuc/dose_response.py": {
+      "status": "wired",
+      "via": "nuc/tests/test_dose_response.py:-",
+      "via_kind": "import",
+      "owner": "NUC-integration(E)",
+      "reason": "Round 472 (E) built it and did not declare it, so W001 has been an ERROR on every run since. Declared by round 473 (D) rather than left standing: `nuc/run_checks_fast.sh:139` runs `pytest -q nuc/tests/`, and `nuc/tests/test_dose_response.py:25` imports the module, so the closure already reaches it and the only thing missing was the entry.",
+      "since_round": 473
+    },
     "nuc/expert_cache.py": {
       "status": "wired",
       "via": "nuc/tests/test_fast_lane.py:-",
@@ -515,6 +531,14 @@
       "status": "wired",
       "via": "harness/tests/test_run_driver_record_gap_check.py:-",
       "via_kind": "join"
+    },
+    "skills/prediction-banking/scripts/bank_audit.py": {
+      "status": "wired",
+      "via": "skills/prediction-banking/scripts/test_bank_audit.py:-",
+      "via_kind": "import",
+      "owner": "skills(B)",
+      "reason": "Round 471 (B) built it and did not declare it, so W001 has been an ERROR on every run since. Declared by round 473 (D). `wired` is about the FILE, not the verbs: `corpus_check.py`'s `unit_tests` checker runs `pytest -q skills/*/scripts/test_*.py`, which imports the module, so the closure reaches it -- while round 471's own next-step 1 (`bank_audit.py corpus` is not scheduled) is about a VERB and is exactly the distinction this registry's `_scope` note reserves for verb_audit.py. Both statements are true at once; declaring the file does not discharge the scheduling debt.",
+      "since_round": 473
     },
     "skills/run_checks_fast.sh": {
       "status": "wired",
