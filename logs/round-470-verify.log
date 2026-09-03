@@ -1,0 +1,152 @@
+=== [1] tests/test_depthcensus.py (whence_slow) ===
+...                                                                      [100%]
+3 passed, 45 deselected in 405.37s (0:06:45)
+
+=== [2] tests/test_testcorpus_suite_census.py (whence_slow) ===
+...........                                                              [100%]
+11 passed in 103.51s (0:01:43)
+rc=0
+=== [3] whence fast tier ===
+........................................................................ [  2%]
+........................................................................ [  5%]
+........................................................................ [  8%]
+........................................................................ [ 11%]
+........................................................................ [ 14%]
+........................................................................ [ 17%]
+........................................................................ [ 20%]
+........................................................................ [ 23%]
+.....................................sss................................ [ 26%]
+........................................................................ [ 29%]
+........................................................................ [ 31%]
+........................................................................ [ 34%]
+........................................................................ [ 37%]
+........................................................................ [ 40%]
+........................................................................ [ 43%]
+........................................................................ [ 46%]
+........................................................................ [ 49%]
+........................................................................ [ 52%]
+........................................................................ [ 55%]
+........................................................................ [ 58%]
+........................................................................ [ 61%]
+........................................................................ [ 63%]
+........................................................................ [ 66%]
+........................................................................ [ 69%]
+........................................................................ [ 72%]
+........................................................................ [ 75%]
+........................................................................ [ 78%]
+........................................................................ [ 81%]
+........................................................................ [ 84%]
+........................................................................ [ 87%]
+........................................................................ [ 90%]
+........................................................................ [ 92%]
+........................................................................ [ 95%]
+........................................................................ [ 98%]
+..............................                                           [100%]
+2475 passed, 3 skipped, 114 deselected in 258.03s (0:04:18)
+rc=0
+=== [4] harness fast tier (harness/run_tests_fast.sh) ===
+........................................................................ [  4%]
+........................................................................ [  9%]
+........................................................................ [ 14%]
+........................................................................ [ 19%]
+........................................................................ [ 24%]
+........................................................................ [ 29%]
+........................................................................ [ 34%]
+........................................................................ [ 39%]
+........................................................................ [ 44%]
+........................................................................ [ 49%]
+........................................................................ [ 54%]
+........................................................................ [ 59%]
+........................................................................ [ 64%]
+........................................................................ [ 69%]
+........................................................................ [ 74%]
+........................................................................ [ 79%]
+........................................................................ [ 84%]
+........................................................................ [ 89%]
+........................................................................ [ 94%]
+........................................................................ [ 99%]
+...........                                                              [100%]
+tier-budget: 15/15 promoted files timed, 55.0s of a 56.6s budget — worst test_swe_copyparity_real_subject.py 10.4s of 17.1s
+1451 passed, 361 deselected in 295.91s (0:04:55)
+
+--- end of measured output; recorded status below ---
+
+slow tier: 32 files / 33 units, 0 conclusive against checkout dd543b138163f529 (0% recall), 0 failing
+  + 1 file(s) LAST RAN RED, at a checkout that has since moved — not evidence about this one, and the first thing a slow-tier slice should re-run
+  + 10 file(s) conclusive WITHIN their measured read-scope only (30% combined) — the checkout moved outside what they read
+  test_swe_abconfound.py                 fresh_pass_scoped  1s  3.0h ago
+      scope: (nothing)
+  test_swe_alias_effects.py              fresh_pass_scoped  328s  10.6h ago
+      scope: whence
+  test_swe_bymap.py                      stale_checkout     44s  3.1h ago
+  test_swe_campaign.py[heavy]            stale_checkout     3000s  0.9h ago
+  test_swe_campaign.py[light]            stale_checkout     3000s  6.3h ago
+      excludes: test_cli_runs_offline_stages_and_stops
+  test_swe_copyparity.py                 stale_checkout     9s  3.1h ago
+  test_swe_copyparity_real_subject.py    stale_checkout     9s  3.0h ago
+  test_swe_coverage.py                   stale_checkout     4s  3.0h ago
+  test_swe_depthceiling.py               fresh_pass_scoped  1s  3.1h ago
+      scope: whence
+  test_swe_equivalence.py                stale_checkout     76s  3.1h ago
+  test_swe_exemptaudit.py                fresh_pass_scoped  31s  3.1h ago
+      scope: examples, whence
+  test_swe_exemptmap.py                  fresh_pass_scoped  105s  7.7h ago
+      scope: whence
+  test_swe_fuzz.py                       stale_checkout     88s  5.2h ago
+  test_swe_guardpin.py                   stale_checkout     11s  3.0h ago
+  test_swe_guest.py                      fresh_pass_scoped  336s  8.4h ago
+      scope: examples, whence
+  test_swe_instrument.py                 stale_checkout     1s  3.0h ago
+  test_swe_killerrepin.py                stale_checkout     17s  4.1h ago
+  test_swe_killers.py                    stale_checkout     29s  3.1h ago
+  test_swe_loop.py                       fresh_pass_scoped  0s  3.1h ago
+      scope: whence
+  test_swe_loop_cli.py                   stale_checkout     77s  4.1h ago
+  test_swe_mutation.py                   stale_checkout     18s  4.1h ago
+  test_swe_oraclekill.py                 stale_checkout     60s  5.2h ago
+  test_swe_oracles.py                    stale_checkout     5s  3.1h ago
+  test_swe_prioritize.py                 stale_checkout     3s  3.0h ago
+  test_swe_proc.py                       stale_checkout     7s  3.0h ago
+  test_swe_regiontools.py                fresh_pass_scoped  0s  3.0h ago
+      scope: whence
+  test_swe_repair.py                     stale_checkout     94s  5.2h ago
+  test_swe_review.py                     stale_checkout     95s  4.1h ago
+  test_swe_sandbox_evidence.py           stale_checkout     7s  3.1h ago   [last run RED]
+  test_swe_scoreaudit.py                 fresh_pass_scoped  1s  3.0h ago
+      scope: (nothing)
+  test_swe_spacewitness.py               stale_checkout     2s  3.0h ago
+  test_swe_toolliveness.py               stale_checkout     3s  3.0h ago
+  test_swe_triage.py                     fresh_pass_scoped  1s  3.0h ago
+      scope: (nothing)
+  NOTE: 23 unit(s) are NOT evidence about this checkout.
+
+RECORDED 2026-08-31T20:28:10Z (2.4 days ago) — a stored verdict, not a run just now
+  HEAD HAS MOVED SINCE: recorded at 50c7bb3caf0a, now 15f5b3ed68f0 — this verdict is NOT about the current tree
+ref HEAD (50c7bb3caf0a)   verdict dirty_worktree
+  the live tree differs from HEAD in 1 tracked file(s);
+  a differential against it cannot attribute anything.  Commit or stash first:
+    M state/baseline-ledger.jsonl
+
+procreap scan: under=/home/pgain/agi-research-nuc-llm verdict=residue matched=8 unreadable=0 (protected=2 vanished=0)
+  pid=680210   ppid=1      ORPHANED cwd=/home/pgain/agi-research-nuc-llm
+      open: /home/pgain/agi-research-nuc-llm/logs/driver_bg.log, /home/pgain/agi-research-nuc-llm/logs/round-470.json, /home/pgain/agi-research-nuc-llm/run_driver.sh, /home/pgain/agi-research-nuc-llm/state/.driver.lock
+  pid=3358159  ppid=680210          cwd=/home/pgain/agi-research-nuc-llm
+      open: /home/pgain/agi-research-nuc-llm/logs/round-470.json, /home/pgain/agi-research-nuc-llm/state/.driver.lock
+  pid=3358160  ppid=3358159          cwd=/home/pgain/agi-research-nuc-llm
+      open: /home/pgain/agi-research-nuc-llm/claude-wrapper.sh, /home/pgain/agi-research-nuc-llm/logs/round-470.json, /home/pgain/agi-research-nuc-llm/state/.driver.lock
+  pid=3358161  ppid=3358160          cwd=/home/pgain/agi-research-nuc-llm
+      open: /home/pgain/agi-research-nuc-llm/logs/round-470.json, /home/pgain/agi-research-nuc-llm/state/.driver.lock, /proc/3358161/statm
+  pid=3364216  ppid=3358161          cwd=/home/pgain/agi-research-nuc-llm
+      open: /tmp/claude-1001/-home-pgain-agi-research-nuc-llm/0c5d62fd-403f-43f7-8d70-5bfe05cbe0b4/tasks/bp8iqkhoc.output
+  pid=3364430  ppid=3358161          cwd=/home/pgain/agi-research-nuc-llm
+      open: /tmp/claude-1001/-home-pgain-agi-research-nuc-llm/0c5d62fd-403f-43f7-8d70-5bfe05cbe0b4/tasks/b32ytljdn.output
+  pid=3372329  ppid=3364216          cwd=/home/pgain/agi-research-nuc-llm
+      open: /tmp/claude-1001/-home-pgain-agi-research-nuc-llm/0c5d62fd-403f-43f7-8d70-5bfe05cbe0b4/tasks/bp8iqkhoc.output
+  pid=3372349  ppid=3364430          cwd=/home/pgain/agi-research-nuc-llm
+      open: /tmp/claude-1001/-home-pgain-agi-research-nuc-llm/0c5d62fd-403f-43f7-8d70-5bfe05cbe0b4/tasks/b32ytljdn.output
+
+whence slow tier: 28 units / 113 marked (AST), 0 conclusive against subject 51815f61cf970845 (0% recall), 0 failing
+NOTE: 28 unit(s) are NOT evidence about this checkout
+  test_checkpin.py                           stale_subject    4 tests  52.5s
+rc=0
+ALLDONE

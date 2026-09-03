@@ -25111,6 +25111,226 @@ successor — 448→449, 449→450, 450→451, 451→452, 452→453.)*
   cases, X004 by the knowledge file, K001 by the ledger entry).
 - **Knowledge:** `knowledge/round-468-the-counter-that-could-only-be-believed.md`.
 
+### Round 469 — harness(A) — 2026-09-03 — the tier that had no slot
+
+*Backfilled by round 470. Round 469 died at `max_turns` after committing its
+code (`691596d`, `7e3bd71`) but before its knowledge file, its three test
+repairs, its ledger entry or this entry. Round 470 verified the leftovers
+rather than assuming them and landed them at `2d0c232`.*
+
+- **The `whence_slow` tier had no runner, and that is the answer to a
+  question five rounds had deferred.** Round 468's item 3 asked whether a
+  full suite-mode census was "worth a slow-tier slot". The tier held 103
+  nodes across 27 files, the driver deselected every one of them every
+  round, no module in `harness/` selected the marker, `run_driver.sh`
+  invoked `pristine_check.py` (its only named runner) on no code path, and
+  the tier had been run **twice in the program's history, both on
+  2026-08-30**. Recall against the current checkout: **0 of 27 units**.
+- **Three ways of counting it gave three answers** — `grep` 104 across 28
+  files, AST 102 across 27, `pytest --collect-only` 103 across 27. Two grep
+  hits are prose in `test_tiering.py`'s own docstring (the file documenting
+  the marker has no marked test); one AST-marked test is parametrized into
+  two nodes. `104 - 2 + 1 = 103`.
+- **The tier was run and is green: 27 of 27 passed, recall 0% -> 100%,
+  1449.1 s.** `test_depthcensus.py` alone is 472.2 s (33%). Mark count does
+  not predict cost — the two files with the MOST marked tests cost 11.8 s
+  and 30.4 s. Unit granularity costs ~7 s (0.5%), not the 60-200 s
+  predicted.
+- **The digest role-split works and is not the fix.** Splitting
+  `languages/whence/` into subject (everything but `tests/`) and per-unit dep
+  digests (the test's transitive closure *within* `tests/`) changes the
+  verdict on 15% of commits and removes 14% of invalidations; **80 of 120
+  commits (67%) legitimately invalidate every unit.** Recall was never a
+  freshness problem — nothing was running the tests.
+- **Shipped with a runner, not as a report:** `harness/whenceslow.py`,
+  `harness/run_whenceslow_slice.sh` (the sixth per-round driver check),
+  ledger-landing commit from the first row, and the recall echoed into every
+  round's health log. Driver measured budget 240 s -> **360 s**, said so in
+  the script and the comment. 120 s buys a replayed mean recall of **53.9%**
+  over 114 real rounds.
+- **Its own regression was its theme in miniature.**
+  `test_the_commit_is_scoped_and_never_stages_the_tree` bounded the slow-tier
+  ledger-commit block by a landmark far downstream; inserting the new check
+  between made the test audit someone else's block, and its
+  forbidden-substring scan for dangerous CODE fired on a COMMENT that states
+  the rule. Both repaired in the test.
+- **Predictions:** 6 HIT, 3 MISS, 1 PARTIAL of 10 — the first bank to apply
+  round 468's rule. P3's band came from a genuine recorded distribution and
+  was still 31% low, because the population gained a member of a different
+  kind: *a rate measured over a population is a prediction about that
+  population.*
+- **Tests:** `test_whenceslow.py` 60 passed, `test_run_driver_whenceslow_slice.py`
+  12 passed. Harness fast tier after the fixes: **1 failed, 1446 passed, 361
+  deselected in 1216.79 s** — the target node PASSES (1445 -> 1446); the one
+  red is `test_swe_mutation.py::test_the_grandchild_pid_survives_a_grandchild_slower_than_the_cap`,
+  declared `environmental` by round 461 §8, red under a 4.3x contention
+  slowdown because the whence-slow slice was running concurrently on a
+  1-CPU box. Solo at round 470's HEAD: **1 passed in 2.11 s**.
+- **Knowledge:** `knowledge/round-469-the-tier-that-had-no-slot.md`.
+
+### Round 470 — language(C) — 2026-09-03 — the refusal that was about `zip`
+
+- **Round 468's next-step 2 is CLOSED as a REFUTATION.** The refusal was an
+  argument about `zip` rather than about the 13 call sites, and `zip` was
+  never the variable: at all thirteen the second column is `f(A)` where `A`
+  IS the first column. The three producers (`guest_eval_all` in two files,
+  `guest_batch`, `guest_values`) pin output length to an input's by shapes
+  that cannot shorten, and all ASSERT on a missing element — **a short answer
+  is an exception, not a short list.** `_len_preserving_param` +
+  `_len_token` + `_zip_bindable_columns`, fail-closed: no proof, no binding.
+  **13 rows -> 0.**
+- **Two of the thirteen need a three-link chain** (`SHARING` -> `srcs =
+  [s for s, _ in SHARING]` -> `guest_batch(srcs, lib)` -> `guests`); a
+  one-link rule would have refused them. The thirteenth needed something
+  else entirely: `test_v22.py:45` imports its producer from `test_v20`, so
+  `_fn_index` now reaches a sibling `tests/` module through an explicit
+  `from X import name` — bounded by the DIRECTORY, never a star or aliased
+  import, and a locally shadowed name maps to `None`.
+- **Corpus 765 -> 829 programs (+64); residual 114 -> 100; unresolved names
+  56 -> 42; `nonconstant_programs` 58, unmoved as intended.** All 829 run
+  green in suite mode: 0 errors, 0 allocation disagreements, 0 caps hit, 0
+  invariant violations, champion 20000.
+- **Three further defects, none of them a zip finding.** (a) The element
+  binder read exactly ONE level of tuple target (`if not isinstance(t,
+  ast.Name): continue`), so `for site, (src, _) in sorted(TABLE.items())`
+  bound `site` and dropped `src` — made recursive, which the zip branch
+  needs anyway, and which closed a FOURTEENTH row that has no zip in it.
+  (b) `runners_in` had `and not mod_recv` on one disjunct and not the other,
+  so `ast.parse(src)` made the enclosing function a runner of guest source —
+  found by this round's OWN test helper, which calls `ast.parse`. (c)
+  `bound_by:comprehension` **outlived its own fix**: round 468 taught the
+  binder to read comprehension targets and the class went on being reported
+  for two rows whose real blocker is `CASES = build_cases()`.
+- **The widening has a COST, and it is this round's own new hazard.** The
+  harvester's environment is per-SCOPE, not per-BINDING. Resolving one of
+  two loops that share a name makes the name resolve at BOTH call sites, so
+  the unread loop's residual row disappears and the read loop's programs are
+  stamped with the unread loop's LINE. Live at `test_v30.py`: `SHARING`'s two
+  programs are labelled `:307`, which is the `counts` loop. The corpus is
+  unharmed; the attribution and the row are not. Pinned, with the cost of
+  the fix (per-binding environments) stated.
+- **Round 468's item 1 discharged: all 114 rows read, and the sentence
+  amended.** 93 of the remaining 100 are string-building; SEVEN are not.
+  `@pytest.mark.parametrize` is the one un-modelled iteration protocol left
+  — and it closes **one** row, not the four it looks like: the other three
+  need parametrize PLUS a `Subscript` branch in `_const_strs` PLUS a
+  tuple-target `Assign` in `_bind`.
+- **Round 469's §5 built.** `tests/test_testcorpus_suite_census.py`, NEW,
+  `whence_slow`, 11 tests / **90.4 s** — fourth-costliest unit in the tier.
+  Its two closing tests are the EMPIRICAL counterpart to the static proof:
+  the producers are called at sizes 1 and 2 and their output length checked.
+- **The tier could not see the new file.** `pytestmark = pytest.mark.whence_slow`
+  is invisible to an AST scan that reads DECORATORS only: `pytest -m` collected
+  11 tests, `slow_tier_units()` reported 27 units unchanged, and the unit would
+  have been scheduled never — one round after round 469 built the tier to make
+  that impossible. `whenceslow._module_marked` now reads all three spellings
+  pytest accepts. Tier **27 -> 28 units, 102 -> 113 marked**; `verify` differs
+  only on round 469's known parametrize expansion.
+- **Predictions:** 6 HIT, 3 PARTIAL, 2 MISS of 11. The STRUCTURAL half scored
+  **25%** against the RATE half's **71%** — the reverse of round 468's
+  expectation, and legible: every structural miss was a prediction about the
+  mechanism of code that had not been read, while every rate hit was
+  arithmetic over a baseline re-derived at HEAD. P1, the only structural HIT,
+  is the one whose subject the bank's own §0.1 records as already read.
+- **Tests:** `tests/test_testcorpus_census.py` **45 -> 74 passed in 7.0 s**;
+  `tests/test_testcorpus_suite_census.py` **11 passed in 90.4 s**;
+  `harness/tests/test_whenceslow.py` **60 -> 64**;
+  `harness/tests/test_run_driver_whenceslow_slice.py` 13. **Final verification, run solo after the last edit and captured to
+  `logs/round-470-verify.log`: whence fast tier 2475 passed, 3 skipped,
+  114 deselected in 258.03 s; harness fast tier 1451 passed, 361 deselected
+  in 295.91 s (ZERO red); `tests/test_depthcensus.py` 3 passed in 405.37 s;
+  `tests/test_testcorpus_suite_census.py` 11 passed in 103.51 s.** The
+  driver's own concurrent health-check reported `1 failed` on
+  `test_swe_mutation.py::test_timeout_kills_grandchild_holding_stdout` at
+  903.72 s for the same tier the solo run took 295.91 s — a 3.1x contention
+  penalty on a 1-CPU box, the same `environmental` node round 469 hit, and
+  not a regression.
+- **Knowledge:** `knowledge/round-470-the-refusal-that-was-about-zip.md`.
+
+## Next steps (as of round 470)
+
+1. **`@pytest.mark.parametrize` is the last un-modelled ITERATION PROTOCOL in
+   this tree, and it is worth ONE row, not four.** `test_v27.py:175` needs
+   only parametrize. `:364`, `:376` and `:379` need parametrize PLUS a
+   `Subscript` branch in `_const_strs` (there is none) PLUS a tuple-target
+   `Assign` in `_bind` (it handles `ast.Name` targets only). Do not start it
+   expecting four. `GROWTH_SITES` (6), `OTHER_SIDES` (7) and `SMALL` (2)
+   already fold to literals, so the tables are not the obstacle.
+   language(C).
+2. **The harvester's environment is per-SCOPE and this round made that
+   live.** Resolving one of two loops sharing a name silences the other
+   loop's residual row and mis-attributes the first loop's programs to the
+   second loop's line — `test_v30.py`, measured, §3 of the round file. The
+   corpus is unharmed; `file:line` as a program's identity is not. Fixing it
+   is a data-model change (per-binding environments), and
+   `test_two_loops_one_name_and_the_second_loops_row_disappears_with_it` is
+   what will go red when somebody builds it. Do not "fix" it by re-adding a
+   row. language(C).
+3. **`file:line` is not a key for a source position; `(file, line, col)` is.**
+   Round 470's P4 read a repeated `test_v31.py:607` as a dedup defect and it
+   was two `host_value(program)` calls on one physical line. Round 462's
+   next-step 4 says decision 55's `file:line` citation is not durable for a
+   DIFFERENT reason. The two are the same coordinate under-determining a
+   site and should be answered together. language(C).
+4. **The rule this round's misses earn, for `skills/prediction-banking`.**
+   Round 468's rule was "if your structural prediction has a count in it,
+   bank it as a rate". The companion: **if your structural prediction is
+   about a file you have not opened, say so in the line, and expect it to
+   score like a guess.** Round 470's structural half hit 25% against its
+   rate half's 71%, and the single structural HIT is the one whose subject
+   the bank's own §0.1 records as already read. skills(B).
+5. **The `whence_slow` tier is 28 units / 113 marked nodes and every unit
+   except two is STALE at this HEAD.** Round 470 ran `test_depthcensus.py`
+   and the new `test_testcorpus_suite_census.py`; the other 26 carry round
+   469's ledger rows against a subject digest this round moved. Round 469's
+   own §3 says a subject-touching commit invalidates all of them, and 67% of
+   commits are subject-touching. The driver's 120 s slice will work through
+   them at a replayed mean recall of 53.9%. Do not quote 100% recall.
+   harness(A).
+6. **Round 469's §9 items stand, untouched by this round:** the tier never
+   measured in a single process (the ~7 s granularity cost is a bound, not a
+   reading); the measured read-scope refinement priced at a ~33% ceiling and
+   not built (`harness/swe/readscope.py` is root-injectable); and round 469's
+   per-unit `seconds` are contended upper bounds that should be re-taken by
+   an idle slice before anyone quotes them as the tier's cost. harness(A).
+7. **`CASES = build_cases()` is not reachable by any folder** and
+   `test_miss_message_differential.py:574` (`for _, src in cases:`, `cases`
+   the enclosing function's own parameter) is one link further out than the
+   `forwarded` class reaches. Three rows, both out of scope for a folder;
+   say so in a decision rather than leaving them to be re-diagnosed a fourth
+   time. language(C).
+8. **Round 468's items 4 and 5 are UNTOUCHED and now two language rounds
+   older** — round 462's decision 55 `file:line` non-durability (see item 3
+   above, which is the same coordinate) and `FULL_SHOW_NODES` /
+   `DEFAULT_MAX_DEPTH` both being 20000 with nothing saying whether that is
+   a decision or a coincidence; and `S006`'s five uncited decisions (4, 5,
+   10, 11, 12), reported as WARNs every `specreg.py audit` run for 470
+   rounds. Do NOT retire one without reading the section it summarises.
+   language(C).
+9. **`nproc` on this box is 1.** Respected: every suite in this round ran
+   alone, and the one number that is not clean-room (the new unit's 90.4 s)
+   is flagged as an over-estimate in the safe direction. Round 469's harness
+   fast tier took 1216.79 s against 285.31 s solo — a 4.3x contention
+   penalty that produced a red in a node declared `environmental`. Plan
+   every suite as serialised, and do not read a timing red taken under
+   contention as a regression.
+10. **Standing, and untouched by this round:** round 468's items 8 and 9 in
+   full; round 467's items 1-5; the operator-blocked `--cap 196` and the E3
+   A/B; `case_coverage`'s 49-of-103 disagreeing verdicts; `claim_check`
+   executing 0 of its commands; the NUC journal capture for rounds 202-250;
+   the NUC `retention --strict` deadline; and CLAUDE.md's `CRITICAL MISSION`
+   block, carried in **39** next-steps blocks before this one and still a
+   one-line deletion for the operator. **The ordinal in that sentence is not
+   a count and rounds should stop incrementing it** — round 470 checked, and
+   `re-escalated for the NINETEENTH time` appears FOUR times,
+   `TWENTY-FIRST` and `TWENTY-SECOND` three each, and `TWENTY-EIGHTH` never,
+   because rounds have been copying the previous block's word rather than
+   deriving it. The derivable number is
+   `grep -c "re-escalated for the" state/research-state.md`. `languages/whence/SECURITY.md` is still
+   uncommitted, still not this program's, and still the operator's decision
+   — **do not copy a carry count for it from this file**; the checker's own
+   line is the only source.
+
 ## Next steps (as of round 468)
 
 1. **The remaining 114 residual rows are now legible and the next language

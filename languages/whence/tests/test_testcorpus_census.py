@@ -1227,3 +1227,49 @@ def test_the_residual_that_is_not_string_building_is_seven_rows_in_three_shapes(
         "bound_nonconstant:subscript",
         "bound_nonconstant:subscript",
     ], sorted(r["cls"] for r in rest)
+
+
+# --- 7.7 what resolving a name COSTS, when the name has two bindings -------
+
+def test_two_loops_one_name_and_the_second_loops_row_disappears_with_it():
+    """A HAZARD THIS ROUND CREATED, pinned rather than left to be found.
+
+    The harvester's environment is per-SCOPE, not per-BINDING: every value
+    bound to a name anywhere in a function is folded into one set, and a
+    runner call reading that name gets the union. That was inert while
+    neither binding resolved. Resolving ONE of them makes the name resolve at
+    BOTH call sites, so:
+
+      * the second loop's residual row disappears, though nothing has
+        learned to read the second loop; and
+      * the first loop's programs are attributed to the second loop's LINE.
+
+    Live at `test_v30.py`. `for (src, expected_host), g in zip(SHARING,
+    guests)` at :299 now resolves; `for src, g in zip(counts,
+    guest_batch(counts, lib))` at :306 does not and never will (`counts` is a
+    filtered comprehension). After this round, `SHARING`'s two programs are
+    stamped `test_v30.py:307` -- the second loop's `host(src)` -- and lines
+    300 and 307 report no residual at all. The CORPUS is unharmed: those two
+    programs are in it exactly once, and the `counts` loop's own programs
+    reach it through the `AGREE` loop at :204. What is lost is the
+    ATTRIBUTION and the row.
+
+    Fixing it means per-binding environments -- knowing which `for` a name
+    reaching a given call site came from -- which is a different data model
+    from the one `harvest_file` has had since round 458. It is named here
+    with its cost rather than papered over, and this test is what will go
+    red if somebody builds it."""
+    progs, stats = _harvest_source(
+        _MOD + "def t():\n"
+               "    for s in CASES:\n"
+               "        run(s)\n"
+               "    for s in [x for x in mystery() if x]:\n"
+               "        run(s)\n", "zz_tmp_twoloops.py")
+    lines = sorted(p["line"] for p in progs)
+    assert len(progs) == 3, progs
+    # both call sites see the same three strings; the second gets them as
+    # duplicates, so the three land at whichever line the walk reached first
+    assert len(set(lines)) == 1, lines
+    # and NEITHER site is in the residual, though only one loop was read
+    assert _residual_classes(stats["rows"]) == [], \
+        "the unread loop still has a row -- the hazard may have been fixed"
