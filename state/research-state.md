@@ -24801,6 +24801,162 @@ successor — 448→449, 449→450, 450→451, 451→452, 452→453.)*
   `quote` — the new test proves the old anchor is weak, not that it was there.
 - **Knowledge:** `knowledge/round-465-the-anchor-that-matched-without-locating.md`.
 
+### Round 466 — NUC-integration(E) — 2026-09-03 — the population that was the observer
+
+- **Box DOWN the whole round. SIXTH consecutive down window** (436, 442, 448,
+  454, 460, 466), one continuous outage. Two probes, both rc 255
+  (tailnet 00:59:37Z, LAN 00:59:57Z — the LAN key still does not exist on this
+  host); CLAUDE.md's two-failure rule fired after the second. `LastSeen
+  2026-09-01T18:27:56.1Z` **byte-identical to rounds 448, 454 and 460**.
+  Confirmed streak **29h50m36s** (upper bracket 30h53m18s), beating the log's
+  longest completed streak by a **definite 10h12m30s** — it extends its own
+  round-460 record. `unobserved_total_s` unmoved at 396 378 s. **Zero ssh
+  sessions succeeded: nothing read from or written to the box, port 8001 never
+  contacted.** Round 466's row appended by round 460's `replay` producer.
+  Round 460's item 1 ran first: `coverage --strict` 0,
+  `precision-audit --strict` 0, `lastseen-drift --strict` 1 (the documented
+  red, not a new break).
+- **Round 436's item 6 is CLOSED after five E rounds carried it, and the
+  answer is about this program rather than about the box.**
+- **(a) The fire population is `.service`-only and the journal is mostly not
+  services.** In round 424's ten-day PID-1 journal: 1652 `Starting .service`
+  lines are visible, and **1709 start lines are invisible** — 1401
+  `Started session-N.scope`, 84 timer, 12 socket, 6 path, 206 `Started` on
+  services that also announce. **No `.scope` emits `Starting` at all**, which
+  is round 436's own `Type=simple` mechanism, so its two-pass no-double-count
+  rule generalises to scopes with NO new decision — only the kind alternation
+  widens. `parse_unit_starts_any_kind(text, kinds)` is that widening, pinned
+  byte-identical to `parse_unit_starts_complete` at its default.
+- Widening moves every headline: costly-bucket coverage **19/52 -> 44/52**,
+  named bytes **8.42 -> 29.65 GiB (26.7 % -> 94.0 % of the window's
+  swap-out)**. Scopes alone name 29/52 and 72.3 %.
+- **(b) "How many of the other 13 sit inside an OOM or restart window?" —
+  NONE.** 8 marks (4 OOM lines / 3 episodes, 3 `Scheduled restart`, 1
+  `Failed`), 6 distinct instants; at +/-30 min and +/-60 min, **0 of 13**. Only
+  `2026-08-23 21:20:02`, the one round 436 already knew, is in such a window.
+  Base rate across all 52 costly buckets is 7/52. The hypothesis is dead.
+- **94 % is a TRAP, and the choice of null decides its sign.** A uniform-
+  placement null expects **39.5/52** for a 1401-fire population and grades the
+  observed 29 as *below* chance (p = 1.000). A **circular-shift** null — rigidly
+  translate the whole fire train and wrap it, preserving count, cadence, bursts
+  and every inter-arrival gap, destroying only alignment — expects **6.7/52**
+  and gives p <= 0.0005. These fires arrive in bursts (53 bursts >30 min apart,
+  largest **517 sessions in 486 min**), so uniform draws touch far more
+  DISTINCT buckets than the real population can. Measured, 2000 draws:
+  services 19 vs 8.37; **scopes 29 vs 6.70** — *the invisible population
+  predicts costly swap better than the entire published one*; services+scopes
+  44 vs 13.41; engine 18 vs 2.11. Whole-DAY shifts give scopes 3..10.
+- **Of round 436's 14 unnamed buckets (re-derived exactly, 4.25 GiB), session
+  scopes name 7 — including the 2.34 GiB largest** — against a null mean of
+  1.79, **p = 0.002**.
+- **AND THE SCOPES ARE THIS PROGRAM'S OWN FOOTPRINTS.** All 1401 are
+  `session-N.scope`, "Session N of User jab". **Median lifetime 1 s, 1253/1396
+  (89.8 %) <= 5 s** — `ssh host 'cmd'`, not a person (the record still holds a
+  4-day session, so the median is the population's property). **33 of the 35
+  successful probes in `state/nuc-reachability-log.jsonl` have a scope start
+  within 120 s, 18 within +/-1 second** — two files, different programs,
+  different hosts, recording the same events. On the 33 costly buckets the
+  log's dates cover, **13 of the 14 scope-named ones sit in an E-round window**
+  against 5 of the other 19: **Fisher two-sided p = 2.5e-4**.
+- **So the strongest single "explanation" of costly swap on this box over ten
+  days is this program's own measurement traffic**, and the 94 % gets there by
+  attributing the box's cost to its observer. Direction argued rather than
+  assumed: the driver's rotation runs on another host with no reading of the
+  NUC's memory state, so it cannot be selecting busy moments — which does not
+  prove the logins CAUSED the swap, but rules out the observer choosing its
+  times. **Therefore the widening DEFAULTS TO `("service",)`: built, correct,
+  tested, and OFF.**
+- **19 of the 52 costly buckets are UNTESTABLE, not negative** — they predate
+  the reachability log's first row. Scoring them as "not in a window" would
+  have manufactured 19 negatives and made the Fisher table look better.
+- **The fast path had to be checked against the instrument, and that caught two
+  bugs.** `BucketMap` is built BY calling `cost_ledger` and ships `verify()`.
+  The first draft reimplemented the placement rule; the self-check caught a
+  mishandled post-restart row, and **`LEDGER_EXCLUDE_UNITS` not applied on the
+  map path, which took the published population's coverage from 19 to 50**.
+  Either would have produced a confident, wrong null.
+- **New:** `perturbation.py population` (coverage + null; refuses to report
+  coverage bare) and `perturbation.py observer` (`--census`, `--strict`).
+  **Tests: `nuc/tests` 915 -> 946, all green** (174.4 s); the round-466 block
+  alone is 37.9 s after a `BucketMap` cache (208.1 s before). **Seven
+  falsifiers, TWO of which came back 0 red on the first run and are now
+  closed** — F1 had no fixture colliding a unit NAME across two KINDS, and
+  F7's identity branch was unreachable by any random-draw test (offset 0 is
+  drawn about once in a million from an 864 000-second span), so `shift_null`
+  gained an explicit `shifts=` argument. **0 red is a finding about the test
+  suite, not a pass. Skill:** `skills/null-must-preserve-the-shape`, 3 trigger
+  cases, `skill_lint --strict --house` 0 errors 0 warnings.
+- **Predictions (D-013):** `nuc/predictions-e-round466.md`, banked before any
+  instrument ran, with a §0 recording the three exploratory reads that preceded
+  it and TWO items declared no-basis. **11 HIT, 2 PARTIAL, 1 MISS of 14.** The
+  MISS is P5 — I predicted the 2.34 GiB run-up bucket would stay unnamed and
+  reasoned from ONE session where the record holds sixty. One PARTIAL is P14
+  and it is a bracket error in PROSE while `precision-audit` was green:
+  "the confirmed streak passes 30 h" used the UPPER bracket's arithmetic;
+  confirmed is 29h50m36s, 9m24s short.
+- **Knowledge:** `knowledge/round-466-the-population-that-was-the-observer.md`.
+
+## Next steps (as of round 466)
+
+1. **The decision this round deliberately did not take alone: should
+   `session-*.scope` join `LEDGER_EXCLUDE_UNITS`?** `sysstat-collect` is
+   excluded because it WRITES the bucket; a session scope would be excluded
+   because it IS the observer. Different reason, and it deserves a written
+   decision rather than a silent filter. Run `population` both ways and publish
+   both tables. **The exclusion is NOT obviously right**: if the program's own
+   traffic really costs the box 4 GiB of swap, that is a fact about the
+   deployment and hiding it is worse than naming it. NUC(E).
+2. **The observer effect is now a measured hypothesis with an experiment, and
+   the experiment is OFFLINE.** If the logins cost the memory, the cost should
+   scale with what the round DID, not with the login count — a probe-only E
+   round should be cheap and one that scps a 1.0 MB journal + 1.3 MB sar + a
+   tar should not. `state/nuc-reachability-log.jsonl` knows which rounds were
+   which. Do this on the banked capture before spending a live window. NUC(E).
+3. **Round 436's items 4, 5 and 9 stand UNTOUCHED for a fourth round** — the
+   `commit` channel vs the 9.25 GB weights load, `Consumed` coverage at 4 of 26
+   units, and the separability route. Item 6 is now CLOSED; **do not carry it
+   forward.** NUC(E).
+4. **A rule this round earned, for `skills/prediction-banking`.** P5 failed
+   because I predicted against a rate-shaped population as though it were a
+   single event ("a run-up bucket cannot be named by a scope created later" —
+   true of one session, irrelevant when sixty fire in the same 91 minutes).
+   **Before predicting that X cannot coincide with Y, count the X's.**
+   skills(B).
+5. **And a second one, from P14.** A round that ships bracket discipline should
+   read its own bracket before quoting a streak number. `precision-audit` was
+   green while the prose mixed a confirmed value with an upper-bracket one —
+   the instrument does not read the round file. Whether that is checkable is
+   itself a question worth an answer. skills(B) or NUC(E).
+6. **If the box comes up:** capture `sa23`/`sa24`/`sar23`/`sar24` first, then
+   READ `Persistent=` (round 448's §2 correction is wrong in the dangerous
+   direction if it says `true`), then a journal interior covering rounds
+   202-250 — round 460's seven `REBOOT_ONLY` gaps and 16h49m are still one
+   journal capture away from a bound. NUC(E).
+7. **The `.gitignore` question (round 460 item 3) is STILL the operator's and
+   still unanswered.** Seven log rows and eleven tests depend on
+   `logs/round-*.json`, which is ignored on purpose. This round's pristine
+   baseline (912 passed / 2 failed / 1 skipped of 915, transcripts symlinked in)
+   confirms the two failures are both the worktree lacking gitignored files.
+   Say which of the two is intended; do not "fix" it by deleting the tests.
+8. **Widening the `nuc-checks` line to carry the strict instruments' exit codes
+   is STILL harness(A)'s call** (round 460 item 4), untouched here.
+9. **Standing, and untouched by this round:** the operator-blocked `--cap 196`
+   (band [129, 204], `bounded_by: engine_lru`, 1.096 GB margin —
+   **twenty-fifth** round unchanged, with round 436's three-OOM-episode
+   evidence behind it) and the E3 A/B with its full six-gate table;
+   `case_coverage`'s 49-of-103 disagreeing verdicts; `claim_check` executing 0
+   of its commands; and CLAUDE.md's `CRITICAL MISSION` block, re-escalated for
+   the TWENTIETH time and still a one-line deletion for the operator.
+   `languages/whence/SECURITY.md` is still uncommitted, still not this
+   program's, and still the operator's decision — **do not copy a carry count
+   for it from this file**; the checker's own line is the only source.
+10. **Rounds 465's and 464's next-steps lists stand because nothing here
+   touched them**, not because anything checked them. Re-derive before quoting:
+   this round re-derived four carried numbers (52 costly buckets, 31.53 GiB,
+   19/52 named, the 14-bucket residual) and all four held — but they all came
+   from round 436, whose knowledge file recorded the derivation rather than
+   just the result. any track.
+
 ## Next steps (as of round 465)
 
 1. **K006 has a vacuity hole and nothing detects it.** It substitutes only

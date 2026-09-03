@@ -2427,3 +2427,463 @@ def test_the_oom_cli_runs_on_the_banked_capture():
     d = json.loads(out.stdout)
     assert d["n_oom_lines"] == 10 and d["n_episodes"] == 3
     assert d["context"]["n_episodes_in_a_costly_bucket"] == 2
+
+
+# =========================================================================
+# Round 466: the population that was the observer
+#
+# Round 436 left its item 6 open for five E rounds: `session-*.scope` records
+# "were skipped by this round's `.service`-only default", and 14 costly
+# buckets / 4.25 GiB were named by no fire. Both halves are answered here, and
+# the second answer is not the one the question expected.
+#
+# Every test below runs offline against the round-424 capture already on disk
+# or against a synthetic grid. Nothing opens a socket.
+
+_SESSION_JRNL = """\
+2026-08-23T01:00:01+00:00 pgain-nuc systemd[1]: Starting fwupd-refresh.service - Refresh fwupd metadata.
+2026-08-23T01:00:02+00:00 pgain-nuc systemd[1]: Started fwupd-refresh.service - Refresh fwupd metadata.
+2026-08-23T01:05:00+00:00 pgain-nuc systemd[1]: Started session-11.scope - Session 11 of User jab.
+2026-08-23T01:05:01+00:00 pgain-nuc systemd[1]: session-11.scope: Deactivated successfully.
+2026-08-23T02:15:00+00:00 pgain-nuc systemd[1]: Started session-12.scope - Session 12 of User jab.
+2026-08-23T09:15:00+00:00 pgain-nuc systemd[1]: session-12.scope: Deactivated successfully.
+2026-08-23T03:00:00+00:00 pgain-nuc systemd[1]: Started unattended-upgrades.service - Unattended Upgrades Shutdown.
+2026-08-23T03:10:00+00:00 pgain-nuc systemd[1]: Started sysstat-collect.timer - Run system activity accounting tool every 10 minutes.
+"""
+
+
+# One `BucketMap` costs ~11 s to build (86 400 synthetic fires per day through
+# the real `cost_ledger`, ten days). It is a pure function of the two fixture
+# texts, so the block below builds it once. Tests that need a FRESH one --
+# there are none today -- must call `pt.BucketMap` directly and say why.
+_BMAP466 = None
+
+
+def _bmap():
+    global _BMAP466
+    if _BMAP466 is None:
+        _BMAP466 = pt.BucketMap(_SAR430, _JRNL430)
+    return _BMAP466
+
+
+def test_a_scope_never_announces_starting_in_the_real_journal():
+    """The premise of the whole widening. If a `.scope` DID emit `Starting`,
+    admitting scopes would need a new double-count decision rather than round
+    436's existing one, and this round's fix would be unsound."""
+    c = pt.unit_kind_census(_JRNL430)["by_kind"]
+    assert c["scope"]["n_starting"] == 0
+    assert c["scope"]["n_started"] == 1401
+    assert c["scope"]["n_units_never_announcing_starting"] == \
+        c["scope"]["n_distinct_units"] == 696
+    # ... and the same holds for every kind the published regex cannot see
+    for kind in ("scope", "timer", "path"):
+        assert c[kind]["n_starting"] == 0, kind
+        assert c[kind]["visible_to_parse_unit_starts"] is False
+
+
+def test_only_services_are_visible_to_the_published_population():
+    c = pt.unit_kind_census(_JRNL430)
+    assert c["by_kind"]["service"]["visible_to_parse_unit_starts"] is True
+    assert c["n_lines_visible_to_published_population"] == 1652
+    # Every line the `.service`-pinned regex drops: 1401 scope `Started`,
+    # 84 timer `Started`, 6 path `Started`, 12 socket `Starting` -- a socket
+    # DOES announce itself, and is dropped for its kind, not its verb -- plus
+    # the 206 `Started` lines on services that also say `Starting`.
+    assert c["n_lines_invisible"] == 1401 + 84 + 6 + 12 + 206 == 1709
+    # more than the published population itself, which is 1652
+    assert c["n_lines_invisible"] > c["n_lines_visible_to_published_population"]
+
+
+def test_widening_to_services_only_reproduces_round_436_exactly():
+    """The compatibility pin. With the default `kinds` the widened parser must
+    be byte-identical to round 436's, so no published number can move by
+    accident -- only by someone passing a wider `kinds` on purpose."""
+    a = pt.parse_unit_starts_any_kind(_JRNL430)
+    b = pt.parse_unit_starts_complete(_JRNL430)
+    assert a == b
+    assert len(a) == 1692
+
+
+def test_the_widened_parser_keeps_the_no_double_count_rule():
+    """`fwupd-refresh` says both verbs and must be counted once; `session-11`
+    says only `Started` and must be counted once; and the kind is part of the
+    key, so a service announcing itself cannot suppress a scope that does not."""
+    svc = pt.parse_unit_starts_any_kind(_SESSION_JRNL, ("service",))
+    assert [e.label for e in svc] == ["fwupd-refresh", "unattended-upgrades"]
+    both = pt.parse_unit_starts_any_kind(_SESSION_JRNL, ("service", "scope"))
+    assert [e.label for e in both] == [
+        "fwupd-refresh", "session-11.scope", "session-12.scope",
+        "unattended-upgrades"]
+    assert [e.at_utc for e in both] == [
+        "2026-08-23T01:00:01Z", "2026-08-23T01:05:00Z",
+        "2026-08-23T02:15:00Z", "2026-08-23T03:00:00Z"]
+
+
+# `apply` exists as BOTH a service that announces itself and a scope that never
+# does. Nothing in the real journal collides this way today, which is exactly
+# why the fixture is synthetic: the kind belongs in the dedup key on purpose,
+# and the next journal to hold such a pair must not silently lose the scope.
+_KIND_COLLISION = """\
+2026-08-23T01:00:01+00:00 pgain-nuc systemd[1]: Starting apply.service - x.
+2026-08-23T01:00:02+00:00 pgain-nuc systemd[1]: Started apply.service - x.
+2026-08-23T01:10:00+00:00 pgain-nuc systemd[1]: Started apply.scope - y.
+"""
+
+
+def test_the_dedup_key_includes_the_kind_so_a_service_cannot_hide_a_scope():
+    """Falsifier F1. Drop `kind` from the announced-set key and `apply.scope`
+    vanishes, because `apply` "already announced itself" as a service. The
+    first run of F1 went 0 red -- no fixture in the suite collided a name
+    across kinds, so the key's second element was untested."""
+    svc = pt.parse_unit_starts_any_kind(_KIND_COLLISION, ("service",))
+    assert [e.label for e in svc] == ["apply"]          # counted once, not twice
+    both = pt.parse_unit_starts_any_kind(_KIND_COLLISION, ("service", "scope"))
+    assert [e.label for e in both] == ["apply", "apply.scope"]
+    scope_only = pt.parse_unit_starts_any_kind(_KIND_COLLISION, ("scope",))
+    assert [(e.at_utc, e.label) for e in scope_only] == [
+        ("2026-08-23T01:10:00Z", "apply.scope")]
+
+
+def test_an_unknown_unit_kind_is_refused_rather_than_silently_empty():
+    with pytest.raises(pt.PerturbationError) as e:
+        pt.parse_unit_starts_any_kind(_JRNL430, ("service", "widget"))
+    assert "widget" in str(e.value)
+
+
+# ---- the bucket map, and the self-check that caught two real bugs --------
+
+def test_the_bucket_map_agrees_with_cost_ledger_on_every_population():
+    """The map exists to make 2000 null draws affordable. If it ever diverges
+    from `cost_ledger`, the null is a null on a paraphrase. Round 466's first
+    draft DID diverge, twice: a mishandled post-restart row, and
+    `LEDGER_EXCLUDE_UNITS` not applied on the map path -- the second took the
+    published population from 19 named buckets to 50 by counting the
+    instrument that writes the buckets."""
+    bmap = pt.BucketMap(_SAR430, _JRNL430)   # built fresh: this is the test OF it
+    assert bmap.n_buckets == 991 and len(bmap.costly) == 52
+    for pop in (pt.parse_unit_starts(_JRNL430),
+                pt.parse_unit_starts_complete(_JRNL430),
+                pt.parse_unit_starts_any_kind(_JRNL430, ("service", "scope")),
+                pt.parse_unit_starts_any_kind(_JRNL430, ("scope",))):
+        v = bmap.verify(pop)
+        assert v["identical"], v
+
+
+def test_the_map_applies_the_ledgers_own_exclusions():
+    """Regression on the second bug above, pinned as a number rather than a
+    property: `sysstat-collect` is 1005 of the 1652 `Starting .service` lines,
+    so forgetting the exclusion is not a rounding error."""
+    bmap = _bmap()
+    pop = pt.parse_unit_starts(_JRNL430)
+    assert len(pop) == 1652
+    assert len(bmap.seconds(pop)) == 647
+    kept = [e for e in pop if e.label != "sysstat-collect"]
+    assert len(kept) == 647
+
+
+# ---- the null ------------------------------------------------------------
+
+def test_the_shift_null_preserves_count_and_cadence():
+    """A rigid translation cannot change how many fires there are or how they
+    are spaced -- that is the entire reason to prefer it to a uniform draw."""
+    bmap = _bmap()
+    secs = bmap.seconds(pt.parse_unit_starts_any_kind(_JRNL430, ("scope",)))
+    span = bmap.span_s
+    for delta in (0, 1, 37, span // 3, span - 1):
+        moved = sorted((s + delta) % span for s in secs)
+        assert len(moved) == len(secs)
+    # spacing is preserved everywhere except the single wrap point
+    base = sorted(secs)
+    gaps = sorted(base[i + 1] - base[i] for i in range(len(base) - 1))
+    mv = sorted((s + 12345) % span for s in secs)
+    mgaps = sorted(mv[i + 1] - mv[i] for i in range(len(mv) - 1))
+    assert sum(1 for a, b in zip(gaps, mgaps) if a != b) <= 2
+
+
+def test_the_published_population_beats_its_own_shift_null():
+    bmap = _bmap()
+    n = pt.shift_null(bmap, pt.parse_unit_starts(_JRNL430), trials=200)
+    assert n["observed"] == 19
+    assert n["null_mean"] < 12 and n["null_p95"] <= 15
+    assert n["p_value"] <= 0.02
+
+
+def test_the_scope_population_beats_its_null_by_more_than_the_service_one():
+    """The result that makes this round's finding a finding rather than a
+    regex fix: the invisible population is a BETTER predictor of costly swap
+    than the entire published one."""
+    bmap = _bmap()
+    svc = pt.shift_null(bmap, pt.parse_unit_starts(_JRNL430), trials=200)
+    scp = pt.shift_null(bmap, pt.parse_unit_starts_any_kind(
+        _JRNL430, ("scope",)), trials=200)
+    assert scp["observed"] == 29 > svc["observed"] == 19
+    assert scp["null_mean"] < svc["null_mean"]
+    assert scp["p_value"] <= svc["p_value"]
+
+
+def test_the_uniform_null_and_the_shift_null_disagree_in_opposite_directions():
+    """The methodological core, exhibited rather than asserted. A uniform draw
+    of the same number of fires touches far more DISTINCT buckets than a real
+    bursty population can, so it expects MORE coverage than was observed and
+    grades a real effect as sub-chance. This test fails the day someone
+    'simplifies' `shift_null` into a uniform sampler."""
+    import random as _r
+    bmap = _bmap()
+    pop = pt.parse_unit_starts_any_kind(_JRNL430, ("scope",))
+    obs = pt.shift_null(bmap, pop, trials=200)
+    rng = _r.Random(7)
+    n_fires = obs["n_fires"]
+    uni = []
+    for _ in range(200):
+        hit = set()
+        for _ in range(n_fires):
+            s = rng.randrange(bmap.span_s)
+            v = bmap._map.get((s // 86400, s % 86400))
+            if v is not None:
+                hit.add(v)
+        uni.append(len(hit))
+    uniform_mean = sum(uni) / len(uni)
+    assert obs["observed"] == 29
+    assert obs["null_mean"] < obs["observed"]        # shift null: significant
+    assert uniform_mean > obs["observed"]            # uniform null: sub-chance
+    assert obs["null_mean"] < uniform_mean / 3
+
+
+def test_shift_null_reports_whether_its_ties_were_the_identity_draw():
+    """Falsifier F7. Offset 0 is drawn about once in a million from an
+    864 000-second span, so with random draws alone `n_identity_draws` is a
+    field no test can exercise -- F7 deleted the branch and nothing went red.
+    `shifts=` makes it reachable, which is why that argument exists."""
+    bmap = _bmap()
+    pop = pt.parse_unit_starts(_JRNL430)
+    n = pt.shift_null(bmap, pop, trials=50)
+    assert n["n_identity_draws"] <= n["n_draws_ge_observed"]
+    assert n["p_floor"] == 1 / 50 and n["trials"] == 50
+    assert n["offsets_were_explicit"] is False
+
+    # offset 0 IS the identity: it must tie the observation and be counted
+    e = pt.shift_null(bmap, pop, shifts=[0])
+    assert e["offsets_were_explicit"] is True and e["trials"] == 1
+    assert e["observed"] == e["null_mean"] == 19
+    assert e["n_draws_ge_observed"] == 1 and e["n_identity_draws"] == 1
+    assert e["p_value"] == 1.0
+
+    # a full wrap is the same shift, and must be recognised as one
+    w = pt.shift_null(bmap, pop, shifts=[bmap.span_s])
+    assert w["n_identity_draws"] == 1 and w["observed"] == 19
+
+    # and a real reshuffle that happens to tie is NOT called an identity
+    mixed = pt.shift_null(bmap, pop, shifts=[0, 3600, 7200])
+    assert mixed["trials"] == 3
+    assert mixed["n_identity_draws"] == 1
+    assert mixed["n_draws_ge_observed"] >= 1
+
+
+def test_shift_null_refuses_an_empty_explicit_offset_list():
+    with pytest.raises(pt.PerturbationError):
+        pt.shift_null(_bmap(), pt.parse_unit_starts(_JRNL430), shifts=[])
+
+
+def test_shift_null_refuses_zero_trials():
+    bmap = _bmap()
+    with pytest.raises(pt.PerturbationError):
+        pt.shift_null(bmap, pt.parse_unit_starts(_JRNL430), trials=0)
+
+
+# ---- round 436's item 6, answered ---------------------------------------
+
+def _r436_fourteen(bmap):
+    svc = bmap.cover(bmap.seconds(pt.parse_unit_starts(_JRNL430)))
+    eng = set()
+    for shift in (0.0, 300.0, 600.0):
+        eng |= bmap.cover(bmap.seconds(
+            pt.parse_engine_events(_USER436, completion_shift_s=shift)))
+    return bmap.costly - svc - eng
+
+
+def test_round_436s_fourteen_unnamed_buckets_re_derive():
+    """Re-derive before quoting (round 435 item 10). Round 436 published
+    '14 buckets, 4.25 GiB, remain unnamed by anything'."""
+    bmap = _bmap()
+    fourteen = _r436_fourteen(bmap)
+    assert len(fourteen) == 14
+    assert ("2026-08-23", "21:20:02") in fourteen          # r436's largest
+    gib = sum(bmap.bucket_bytes[b] for b in fourteen) / 1024 ** 3
+    assert 4.2 < gib < 4.3
+
+
+def test_session_scopes_name_half_of_round_436s_fourteen():
+    bmap = _bmap()
+    fourteen = _r436_fourteen(bmap)
+    scopes = bmap.cover(bmap.seconds(
+        pt.parse_unit_starts_any_kind(_JRNL430, ("scope",))))
+    assert len(fourteen & scopes) == 7
+    # including the largest, which round 436 called "the run-up to an OOM
+    # episode" -- so the record's single biggest unexplained bucket is
+    # explained by an ssh login
+    assert ("2026-08-23", "21:20:02") in scopes
+
+
+def test_that_seven_is_not_what_a_population_that_size_names_by_chance():
+    bmap = _bmap()
+    n = pt.shift_null(bmap, pt.parse_unit_starts_any_kind(_JRNL430, ("scope",)),
+                      trials=200, target=_r436_fourteen(bmap))
+    assert n["n_target_buckets"] == 14 and n["observed"] == 7
+    assert n["null_mean"] < 3 and n["p_value"] <= 0.02
+
+
+def test_none_of_the_other_thirteen_sits_in_an_oom_or_restart_window():
+    """Round 436's item 6 asked this directly: 'ask how many of the other 13
+    sit inside an OOM or restart window before calling any of them
+    unexplained'. The answer is NONE -- the hypothesis is dead, and only the
+    one bucket round 436 already knew about is in such a window."""
+    bmap = _bmap()
+    others = _r436_fourteen(bmap) - {("2026-08-23", "21:20:02")}
+    assert len(others) == 13
+    marks = [pt._iso_seconds(l[:19] + "Z") for l in _JRNL430.splitlines()
+             if ("killed by the OOM killer" in l
+                 or "Scheduled restart job" in l
+                 or "Failed with result" in l)]
+    assert len(marks) == 8
+    def near(b):
+        t = pt._iso_seconds(f"{b[0]}T{b[1]}")
+        return any(abs(t - m) <= 1800 for m in marks)
+    assert sum(1 for b in others if near(b)) == 0
+    assert near(("2026-08-23", "21:20:02"))
+
+
+# ---- the observer --------------------------------------------------------
+
+def test_session_lifetimes_say_agent_not_human():
+    s = pt.session_scope_sessions(_JRNL430)
+    assert s["n_sessions"] == 1401
+    assert s["median_lifetime_s"] == 1
+    assert s["n_lifetime_le_5s"] == 1253
+    assert s["frac_lifetime_le_5s"] > 0.89
+    # and the record still contains genuinely long sessions, so the median is
+    # a property of the population and not of the parser
+    assert s["max_lifetime_s"] > 86400
+
+
+def test_session_lifetimes_on_a_two_session_fixture():
+    s = pt.session_scope_sessions(_SESSION_JRNL)
+    assert s["n_sessions"] == 2 and s["n_with_a_measured_lifetime"] == 2
+    assert s["n_lifetime_le_5s"] == 1          # session-11 lived 1 s
+    assert s["max_lifetime_s"] == 7 * 3600     # session-12 lived 7 h
+
+
+def _rows():
+    import pathlib
+    p = (pathlib.Path(__file__).resolve().parents[2]
+         / "state" / "nuc-reachability-log.jsonl")
+    return [json.loads(x) for x in p.read_text().splitlines() if x.strip()]
+
+
+def test_the_reachability_log_and_the_journal_record_the_same_events():
+    """33 of 35 successful probes have a session-scope start within 120 s and
+    18 within one second. Two files written by different programs on different
+    hosts, agreeing to the second."""
+    t = pt.observer_trace(_JRNL430, _rows())
+    assert t["n_probes_in_window"] == 35
+    assert t["n_probes_matched"] == 33
+    assert t["n_probes_matched_within_1s"] >= 15
+    assert t["frac_probes_matched"] > 0.9
+    # the two that miss, miss by ~7-9 minutes and are reported, not dropped
+    assert len(t["unmatched"]) == 2
+    assert all(abs(m["nearest_session_start_delta_s"]) < 600
+               for m in t["unmatched"])
+
+
+def test_observer_trace_says_nothing_when_there_are_no_scopes():
+    t = pt.observer_trace("2026-08-23T01:00:01+00:00 h systemd[1]: "
+                          "Starting fwupd-refresh.service - x.\n", _rows())
+    assert t["n_sessions"] == 0 and t["matched"] == []
+
+
+def test_the_scope_named_buckets_sit_in_this_programs_own_round_windows():
+    c = pt.observer_confounding(_bmap(),
+                                _JRNL430, _rows())
+    assert c["table"] == {"scope_named_in_window": 13,
+                          "scope_named_outside": 1,
+                          "other_in_window": 5, "other_outside": 14}
+    assert c["fisher_two_sided_p"] < 0.001
+
+
+def test_dates_before_the_log_existed_are_untestable_not_negative():
+    """19 of the 52 costly buckets are on 08-23/08-24 and the reachability
+    log's first row is 08-25. Counting those as 'not in a round window' would
+    manufacture 19 negatives out of a file that did not exist yet."""
+    c = pt.observer_confounding(_bmap(),
+                                _JRNL430, _rows())
+    assert c["first_probe_date"] == "2026-08-25"
+    assert c["n_untestable_before_the_log_existed"] == 19
+    assert c["n_testable"] + c["n_untestable_before_the_log_existed"] == 52
+    assert all(u < "2026-08-25" for u in c["untestable"])
+
+
+def test_observer_confounding_refuses_a_log_with_no_successful_probe():
+    with pytest.raises(pt.PerturbationError):
+        pt.observer_confounding(_bmap(), _JRNL430,
+                                [{"checked_at_utc": "2026-08-26T00:00:00Z",
+                                  "ssh_reachable": False}])
+
+
+def test_fisher_2x2_against_hand_computable_tables():
+    assert pt._fisher_2x2(0, 0, 0, 0) == 1.0
+    assert pt._fisher_2x2(5, 5, 5, 5) == pytest.approx(1.0)
+    # the classic tea-tasting table
+    assert pt._fisher_2x2(4, 0, 0, 4) == pytest.approx(2 / 70)
+
+
+# ---- coverage, and the refusal to publish it bare ------------------------
+
+def test_population_coverage_carries_a_null_on_every_row():
+    cov = pt.population_coverage(
+        _SAR430, _JRNL430,
+        {"published": pt.parse_unit_starts(_JRNL430),
+         "scopes": pt.parse_unit_starts_any_kind(_JRNL430, ("scope",))},
+        trials=100, bmap=_bmap())
+    assert cov["n_costly_buckets"] == 52 and cov["n_buckets"] == 991
+    assert len(cov["populations"]) == 2
+    for r in cov["populations"]:
+        assert "shift_null" in r and r["shift_null"]["trials"] == 100
+        assert r["n_costly_named"] + len(r["unnamed"]) == 52
+    pub, scp = cov["populations"]
+    assert pub["n_costly_named"] == 19 and scp["n_costly_named"] == 29
+    assert round(pub["frac_bytes_named"], 3) == 0.267
+    assert round(scp["frac_bytes_named"], 3) == 0.723
+
+
+def test_the_widened_population_names_94_percent_of_swapped_bytes():
+    """The number that would have been this round's headline if the null had
+    not been built: 26.7% -> 94.0% of every swapped byte 'attributed'."""
+    cov = pt.population_coverage(
+        _SAR430, _JRNL430,
+        {"widened": pt.parse_unit_starts_any_kind(
+            _JRNL430, ("service", "scope"))}, trials=50, bmap=_bmap())
+    r = cov["populations"][0]
+    assert r["n_costly_named"] == 44
+    assert round(r["frac_bytes_named"], 3) == 0.940
+
+
+def test_the_population_cli_verify_mode_runs_green_on_the_banked_capture():
+    out = subprocess.run(
+        [sys.executable, "nuc/perturbation.py", "population",
+         "--capture", str(_CAP430), "--verify"],
+        capture_output=True, text=True)
+    assert out.returncode == 0, out.stdout + out.stderr
+    d = json.loads(out.stdout)["verify"]
+    assert d and all(v["identical"] for v in d.values())
+
+
+def test_the_observer_cli_strict_goes_red_on_this_capture():
+    """`--strict` exits 1 when the journal's sessions ARE this program's
+    probes. On the round-424 capture it must, because they are -- and a check
+    that could never fire would be decoration."""
+    out = subprocess.run(
+        [sys.executable, "nuc/perturbation.py", "observer",
+         "--journal", str(_CAP430 / "journal-pid1-full.txt"), "--strict"],
+        capture_output=True, text=True)
+    assert out.returncode == 1, out.stdout[-500:]
+    d = json.loads(out.stdout)
+    assert d["trace"]["n_probes_matched"] == 33

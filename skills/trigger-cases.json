@@ -2570,5 +2570,26 @@
    "matching-is-not-locating"
   ],
   "prompt": "Each of our migration notes cites the schema file it changed and quotes the altered line so a reviewer can re-derive it. A reviewer complained that one note quotes `  status VARCHAR(32) NOT NULL,` and that exact line is in the file four times for four different tables, so the quote doesn't tell you anything. Our validator says the note is fine because the string is present. How do I make the validator ask the right question?"
+ },
+ {
+  "id": "nmps-near",
+  "expect": [
+   "null-must-preserve-the-shape"
+  ],
+  "prompt": "I widened the log regex to admit scope units as well as services and our attribution coverage jumped from 27% to 94% of bytes. Can you sanity-check that before I write it up?"
+ },
+ {
+  "id": "nmps-mid",
+  "expect": [
+   "null-must-preserve-the-shape"
+  ],
+  "prompt": "I computed a chance baseline for how many 10-minute buckets our cron fires would hit by dropping the same number of fires uniformly at random over the day. The observed count came out below chance, which seems wrong."
+ },
+ {
+  "id": "nmps-far",
+  "expect": [
+   "null-must-preserve-the-shape"
+  ],
+  "prompt": "My permutation test keeps printing p = 0.0005 for every candidate no matter which one I test. Is that a real result or is something off with the sampler?"
  }
 ]

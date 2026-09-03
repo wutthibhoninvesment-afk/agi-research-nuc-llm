@@ -1101,6 +1101,14 @@
    "where": "knowledge/round-465-the-anchor-that-matched-without-locating.md",
    "quote": "## 11. Predictions, scored\n\nBanked in `state/skills/round-465/PREDICTIONS.md` before measuring.",
    "note": "Section 11, one table row per banked line, all twelve scored -- no remainder. Banked at 90c33d5 after the carryforward baseline was re-derived and BEFORE any of the three target quantities (ambiguous anchors, anchor lengths, foreign-scope matches) was measured. Four MISSes. P3, P4a and P7 are one habit: every band derived by REASONING ABOUT a corpus not yet counted missed, while every band taken from something already read at HEAD (P1, P2, P6, P8, P9) landed -- the same split round 464 reported, in the same direction, now two rounds of evidence. P5 is a different error and the expensive one: it predicted the round's own severity DECISION before running the pricing instrument built to inform that decision, and was wrong in the direction that would have shipped two warnings nobody would ever pay. The anchor for this entry was cut out of `where` by index and checked for uniqueness and foreign scopes before the entry was written -- K005/K006, this round's own codes, applied to itself."
+  },
+  "466": {
+   "bank": "nuc/predictions-e-round466.md",
+   "status": "scored",
+   "scored_by": 466,
+   "where": "knowledge/round-466-the-population-that-was-the-observer.md",
+   "quote": "**11 HIT, 2 PARTIAL, 1 MISS of 14, plus two",
+   "note": "Section 7 of the knowledge file; the full table is in the bank file's own SCORING section. The bank carries a Section 0 naming the three exploratory reads that preceded it (a wc, a verb histogram, the OOM lines) so no prediction could be retro-fitted to them, and it declares TWO items as no-basis rather than guessing -- round 436's item 7 rule, used twice. The MISS is P5: the round predicted that the record's largest unexplained bucket (2026-08-23 21:20:02, 2.34 GiB) would stay unnamed after the widening, reasoning that a run-up cannot be named by a scope created later. Sound for ONE session; the record holds sixty in that 91-minute burst. A rate-shaped population cannot be predicted against as a single event. P9 is a PARTIAL that lost its side (predicted this program's logins were a MINORITY of all sessions, measured 51.3%). P14 is a PARTIAL and a bracket error in PROSE while precision-audit was green: 'the confirmed streak passes 30 h' used the UPPER bracket's arithmetic, and confirmed is 29h50m36s -- 9m24s short. Both no-basis items resolved cleanly, and P11's answer (102 timer/socket/path fires add exactly ZERO buckets and zero bytes) is one a guess would almost certainly have gotten wrong in a way that looked like a result."
   }
  }
 }

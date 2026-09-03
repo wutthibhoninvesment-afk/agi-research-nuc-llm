@@ -50,6 +50,7 @@ import argparse
 import json
 import math
 import os
+import random
 import re
 import sys
 from datetime import date as _date
@@ -3466,6 +3467,576 @@ def window_sweep(sar_text: str, journal_text: str,
 # ------------------------------------------------------------------- CLI
 
 
+# ===========================================================================
+# Round 466: the population that was the observer
+#
+# Round 436 established that `parse_unit_starts` sees only what its regex
+# chose, fixed the VERB half of that (`Starting` vs `Started`), and left an
+# item 6 open for five E rounds: `session-*.scope` records "were skipped by
+# this round's `.service`-only default", and 14 costly buckets / 4.25 GiB were
+# named by no fire at all.
+#
+# The `.service` half is a bigger hole than the verb half was. In round 424's
+# ten-day journal PID 1 logs 1652 `Starting <unit>.service` lines -- the entire
+# published fire population -- and 1401 `Started session-N.scope` lines, which
+# no instrument in this tree has ever read. Not one `.scope` emits `Starting`,
+# so round 436's two-pass rule (admit `Started` only for units that never say
+# `Starting`) generalises to them with no new decision about double-counting:
+# only the unit-kind alternation has to widen. `parse_unit_starts_any_kind`
+# is that widening and nothing else, and it is pinned to agree with
+# `parse_unit_starts_complete` exactly when `kinds == {"service"}`.
+#
+# Widening it moves every headline: costly-bucket coverage goes 19/52 -> 44/52
+# and named bytes 8.42 GiB -> 29.65 GiB (26.7% -> 94.0% of the window's
+# swap-out). THAT NUMBER IS A TRAP, and the trap is why the rest of this
+# section exists.
+#
+# A fire population "names" a bucket by landing in it. 1401 extra fires over a
+# 991-bucket grid will name a great many buckets whatever they are, so coverage
+# is only evidence against a null that holds the population's SIZE and SHAPE
+# fixed. Which null is not a detail -- it reverses the answer:
+#
+#   * uniform-random placement of 1401 fires over 991 buckets expects to name
+#     ~39 of the 52 costly ones. Against that null the observed 29 is BELOW
+#     chance and every population in this record looks anti-informative.
+#   * a CIRCULAR SHIFT of the whole fire train -- rigidly translate every fire
+#     by one offset and wrap inside the pooled window -- preserves burst
+#     structure, cadence and count exactly and destroys only alignment. Against
+#     that null the observed 29 sits against a mean of 6.8.
+#
+# The uniform null is the wrong one and it is wrong in the flattering
+# direction: these fires arrive in bursts, so a uniform draw touches far more
+# DISTINCT buckets than a real population of the same size ever could. Use the
+# shift null. `shift_null` reports `n_identity_draws` because at this effect
+# size the only draws that tie the observation are the ones that happened to
+# draw offset 0 (mod span), and a p-value at its floor should say why.
+#
+# And then the finding, which is not about systemd at all. The 1401 scopes are
+# ssh logins: median session lifetime 1 s, 89.8% under 5 s, every one of them
+# "Session N of User jab". 33 of the 35 successful probes in
+# `state/nuc-reachability-log.jsonl` have a scope start within 120 s and 15 of
+# them within +/-1 s -- the log and the journal are two instruments recording
+# THE SAME EVENTS. On the dates the log covers, 13 of the 14 scope-named costly
+# buckets fall inside an E-round window against 5 of the other 19
+# (Fisher two-sided p = 2.5e-4).
+#
+# So the strongest single "explanation" of costly swap on this box over ten
+# days is this research program's own measurement traffic. `observer_trace` is
+# the test for that, and it exists because the alternative was to publish
+# "94% of swapped bytes are now attributed" and be worse off than before.
+# `LEDGER_EXCLUDE_UNITS` already carries the precedent -- `sysstat-collect` is
+# excluded because it WRITES the bucket -- but a session scope needs excluding
+# for a different reason (it is the observer, not the instrument), and a
+# different reason has to be measured before it is applied, not assumed.
+
+_UNIT_VERB_ANY = re.compile(
+    r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:[+-]\d{2}:\d{2}|Z)?\s+"
+    r"\S+\s+systemd\[(\d+)\]:\s+(Starting|Started)\s+(\S+?)"
+    r"\.(service|scope|socket|timer|target|mount|path|slice|swap)\b")
+
+# `service` alone is the published population. Naming the default here rather
+# than defaulting to "everything" keeps the widening an explicit argument at
+# every call site.
+UNIT_KINDS_PUBLISHED = ("service",)
+
+
+def unit_kind_census(text: str) -> dict:
+    """Every `systemd[1]` start line in the text, by (verb, unit kind).
+
+    The measurement that says how much of a journal the published population
+    can see. Reported per kind rather than pooled, because the answer for
+    `.scope` (1401 lines, none of them `Starting`) and the answer for `.timer`
+    (84 lines, none of them `Starting`) have different consequences and a
+    single total would hide both.
+    """
+    by: dict = {}
+    starting: dict = {}
+    for line in text.splitlines():
+        m = _UNIT_VERB_ANY.match(line)
+        if not m or m.group(2) != "1":
+            continue
+        verb, unit, kind = m.group(3), m.group(4), m.group(5)
+        k = by.setdefault(kind, {"Starting": 0, "Started": 0, "units": set()})
+        k[verb] += 1
+        k["units"].add(unit)
+        if verb == "Starting":
+            starting.setdefault(kind, set()).add(unit)
+    out = {}
+    for kind, k in sorted(by.items()):
+        never = sorted(k["units"] - starting.get(kind, set()))
+        out[kind] = {
+            "n_starting": k["Starting"],
+            "n_started": k["Started"],
+            "n_distinct_units": len(k["units"]),
+            "n_units_never_announcing_starting": len(never),
+            "visible_to_parse_unit_starts": kind == "service",
+        }
+    return {
+        "by_kind": out,
+        "n_lines_visible_to_published_population":
+            out.get("service", {}).get("n_starting", 0),
+        "n_lines_invisible": sum(
+            v["n_starting"] + v["n_started"] for k, v in out.items()
+            if k != "service") + (out.get("service", {}).get("n_started", 0)),
+        "why": ("`parse_unit_starts` matches `systemd[1]: Starting "
+                "<unit>.service` and nothing else. A unit kind with no "
+                "`Starting` line at all is not half-counted by that regex, it "
+                "is absent from every ledger, base rate and denominator this "
+                "program has published."),
+    }
+
+
+def parse_unit_starts_any_kind(text: str,
+                               kinds: Iterable = UNIT_KINDS_PUBLISHED) -> list:
+    """Round 436's start-verb rule, applied to any set of unit kinds.
+
+    `Started` is admitted only for a (unit, kind) that never announces
+    `Starting` anywhere in the text -- round 436's exact no-double-count rule,
+    with the kind added to the key so a `foo.service` that announces itself
+    cannot suppress a `foo.scope` that never does.
+
+    Labels: a `.service` keeps its bare name, so this function is a drop-in for
+    `parse_unit_starts_complete`. Every other kind is labelled `<unit>.<kind>`,
+    because `session-407` and `session-407.scope` are not obviously the same
+    thing to a reader of a ledger and the suffix costs nothing.
+
+    Pinned by `test_widening_to_services_only_reproduces_round_436_exactly`:
+    with the default `kinds` this returns byte-identical events to
+    `parse_unit_starts_complete`, so the widening cannot silently move a
+    published number.
+    """
+    want = set(kinds)
+    bad = want - {"service", "scope", "socket", "timer", "target", "mount",
+                  "path", "slice", "swap"}
+    if bad:
+        raise PerturbationError(f"unknown unit kind(s): {sorted(bad)}")
+    announced = set()
+    rows = []
+    for line in text.splitlines():
+        m = _UNIT_VERB_ANY.match(line)
+        if not m or m.group(2) != "1":
+            continue
+        at, verb, unit, kind = (m.group(1) + "Z", m.group(3), m.group(4),
+                                m.group(5))
+        if verb == "Starting":
+            announced.add((unit, kind))
+        rows.append((at, verb, unit, kind))
+    out = []
+    for at, verb, unit, kind in rows:
+        if kind not in want:
+            continue
+        if verb == "Starting" or (unit, kind) not in announced:
+            out.append(Event(at_utc=at,
+                             label=unit if kind == "service"
+                             else f"{unit}.{kind}"))
+    out.sort(key=lambda e: (e.at_utc, e.label))
+    return out
+
+
+class BucketMap:
+    """Every second of the pooled window -> the costly bucket it falls in.
+
+    Built BY `cost_ledger`, not beside it: one synthetic fire per second per
+    day is run through the real ledger and the answer is read off its entries.
+    That is slower than reimplementing the placement rule and it is the whole
+    point -- the first draft of this class DID reimplement it, and the
+    self-check below caught two separate divergences (a mishandled
+    post-restart row, and `LEDGER_EXCLUDE_UNITS` not being applied to the
+    population). A null that measures a paraphrase of the instrument is not a
+    null on the instrument.
+    """
+
+    def __init__(self, sar_text: str, journal_text: str,
+                 channel: Channel = SWAP_CHANNEL, min_bytes=_UNSET,
+                 interval_s: int = SAR_INTERVAL_S,
+                 exclude_units: Iterable = LEDGER_EXCLUDE_UNITS):
+        frame = window_frame(sar_text, journal_text, channel, exclude_units)
+        secs = sar_sections(sar_text)
+        self.tables = [(parse_sar(secs[d["section"]]), d["date"])
+                       for d in frame["days"]
+                       if d["pairing"] == PAIRING_PAIRED]
+        if not self.tables:
+            raise PerturbationError(
+                "no poolable day-file: every sar day is unpaired")
+        self.days = [d for _, d in self.tables]
+        self.span_s = len(self.days) * 86400
+        self.channel = channel
+        self.interval_s = interval_s
+        self.exclude_units = tuple(exclude_units)
+        self._map: dict = {}
+        self.costly: set = set()
+        self.bucket_bytes: dict = {}
+        for di, (t, date) in enumerate(self.tables):
+            probes = [Event(at_utc="%sT%02d:%02d:%02dZ"
+                            % (date, s // 3600, s % 3600 // 60, s % 60),
+                            label="__bucketmap_probe__")
+                      for s in range(86400)]
+            led = cost_ledger(probes, t, date, interval_s,
+                              min_bytes=min_bytes, exclude_units=(),
+                              channel=channel)
+            self.min_bytes = led["min_bytes"]
+            for e in led["entries"]:
+                sod = _hms_to_s(e["at_utc"].split("T")[1][:8])
+                key = (date, e["bucket_end"])
+                self._map[(di, sod)] = key if e["costly"] else None
+                if e["costly"]:
+                    self.costly.add(key)
+                    self.bucket_bytes[key] = e["bucket_bytes"]
+        self.n_buckets = sum(
+            cost_ledger([], t, d, interval_s, min_bytes=min_bytes,
+                        exclude_units=(), channel=channel)["n_buckets"]
+            for t, d in self.tables)
+
+    # -- population -> absolute seconds, with the ledger's own exclusions ----
+    def seconds(self, fires: Iterable) -> list:
+        out = []
+        for ev in fires:
+            if ev.label in self.exclude_units:
+                continue
+            date, rest = ev.at_utc.split("T")
+            if date not in self.days:
+                continue
+            out.append(self.days.index(date) * 86400
+                       + _hms_to_s(rest[:8]))
+        return out
+
+    def cover(self, seconds: Iterable, shift_s: int = 0) -> set:
+        hit = set()
+        for s in seconds:
+            s = (s + shift_s) % self.span_s
+            v = self._map.get((s // 86400, s % 86400))
+            if v is not None:
+                hit.add(v)
+        return hit
+
+    def verify(self, fires: Iterable) -> dict:
+        """The map's answer against `cost_ledger`'s own, for one population."""
+        mine = self.cover(self.seconds(fires))
+        theirs = set()
+        for t, date in self.tables:
+            led = cost_ledger(fires, t, date, self.interval_s,
+                              min_bytes=self.min_bytes,
+                              exclude_units=self.exclude_units,
+                              channel=self.channel)
+            for e in led["entries"]:
+                if e["costly"]:
+                    theirs.add((date, e["bucket_end"]))
+        return {"map": len(mine), "cost_ledger": len(theirs),
+                "identical": mine == theirs,
+                "only_in_map": sorted(f"{a} {b}" for a, b in mine - theirs),
+                "only_in_cost_ledger":
+                    sorted(f"{a} {b}" for a, b in theirs - mine)}
+
+
+SHIFT_NULL_TRIALS = 2000
+
+
+def shift_null(bmap: BucketMap, fires: Iterable, trials: int = SHIFT_NULL_TRIALS,
+               seed: int = 20260903, target: Iterable = None,
+               shifts: Iterable = None) -> dict:
+    """Is this population's costly-bucket coverage more than its shape buys?
+
+    Rigidly translate the whole fire train by a random offset and wrap inside
+    the pooled window. Count, cadence, burst structure and inter-fire spacing
+    survive untouched; only the alignment with the buckets is destroyed. That
+    is the null a density argument needs, and it is not the uniform one -- see
+    this section's header for the case where they disagree in opposite
+    directions.
+
+    `target` restricts the count to a subset of the costly buckets (e.g. the
+    ones some other population left unnamed), so "does THIS explain what THAT
+    could not" is one call rather than a hand-rolled intersection.
+
+    `n_identity_draws` is reported because at a large effect size the only
+    draws that tie the observation are those that drew offset 0 mod the span.
+    A p-value sitting on its floor should be able to say whether its ties were
+    real reshuffles or the null accidentally drawing the identity.
+
+    `shifts` replaces the random draws with an explicit list of offsets. That
+    exists so the identity branch above is REACHABLE by a caller: with a random
+    generator over a 864 000-second span, offset 0 is drawn about once in a
+    million trials, so `n_identity_draws` was a field no test could ever
+    exercise -- round 466's falsifier F7 deleted the branch and nothing went
+    red. It is also the deterministic-reproduction hook for a published p.
+    """
+    if shifts is None and trials <= 0:
+        raise PerturbationError("trials must be > 0")
+    rng = random.Random(seed)
+    secs = bmap.seconds(fires)
+    tgt = set(bmap.costly if target is None else target)
+    obs = len(bmap.cover(secs) & tgt)
+    offsets = ([int(x) for x in shifts] if shifts is not None
+               else [rng.randrange(bmap.span_s) for _ in range(trials)])
+    if not offsets:
+        raise PerturbationError("no shift offsets to draw")
+    trials = len(offsets)
+    draws, identity, ge = [], 0, 0
+    for d in offsets:
+        n = len(bmap.cover(secs, d) & tgt)
+        draws.append(n)
+        if n >= obs:
+            ge += 1
+            if d % bmap.span_s == 0:
+                identity += 1
+    draws.sort()
+    mean = sum(draws) / len(draws)
+    return {
+        "n_fires": len(secs),
+        "n_target_buckets": len(tgt),
+        "observed": obs,
+        "null_mean": round(mean, 3),
+        "null_p05": draws[int(0.05 * trials)],
+        "null_p95": draws[int(0.95 * trials)],
+        "null_max": draws[-1],
+        "trials": trials,
+        "n_draws_ge_observed": ge,
+        "n_identity_draws": identity,
+        "p_value": ge / trials,
+        "p_floor": 1.0 / trials,
+        "offsets_were_explicit": shifts is not None,
+        "null": "circular shift of the whole fire train, wrapped in the "
+                "pooled window: count, cadence and burst structure preserved, "
+                "alignment destroyed",
+    }
+
+
+def population_coverage(sar_text: str, journal_text: str,
+                        populations: dict,
+                        channel: Channel = SWAP_CHANNEL,
+                        min_bytes=_UNSET,
+                        trials: int = SHIFT_NULL_TRIALS,
+                        seed: int = 20260903,
+                        bmap: BucketMap = None) -> dict:
+    """What each fire population covers, and whether that is more than chance.
+
+    Deliberately refuses to report a coverage figure without its null. Round
+    436 published "33 of 52 costly buckets hold no named fire" for five rounds
+    as a fact about the deployment; the number is real, and on its own it says
+    nothing at all, because no one had asked what a population of that size and
+    shape names when it is pointed at the wrong times.
+    """
+    bmap = bmap or BucketMap(sar_text, journal_text, channel, min_bytes)
+    total_bytes = sum(bmap.bucket_bytes.values())
+    rows = []
+    for name, fires in populations.items():
+        secs = bmap.seconds(fires)
+        hit = bmap.cover(secs)
+        rows.append({
+            "population": name,
+            "n_fires": len(secs),
+            "n_costly_named": len(hit),
+            "bytes_named": sum(bmap.bucket_bytes[b] for b in hit),
+            "frac_bytes_named": (sum(bmap.bucket_bytes[b] for b in hit)
+                                 / total_bytes if total_bytes else None),
+            "shift_null": shift_null(bmap, fires, trials, seed),
+            "unnamed": sorted(f"{a} {b}" for a, b in bmap.costly - hit),
+        })
+    return {
+        "channel": channel.name,
+        "min_bytes": bmap.min_bytes,
+        "n_days": len(bmap.days),
+        "n_buckets": bmap.n_buckets,
+        "n_costly_buckets": len(bmap.costly),
+        "total_costly_bytes": total_bytes,
+        "populations": rows,
+        "why": ("coverage without a null is not evidence: a population large "
+                "enough will name every bucket there is. The null holds the "
+                "population's size AND shape fixed and moves only its "
+                "alignment."),
+    }
+
+
+_SESSION_SCOPE = re.compile(
+    r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:[+-]\d{2}:\d{2}|Z)?\s+"
+    r"\S+\s+systemd\[1\]:\s+Started\s+(session-\d+)\.scope")
+_SESSION_END = re.compile(
+    r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:[+-]\d{2}:\d{2}|Z)?\s+"
+    r"\S+\s+systemd\[1\]:\s+(session-\d+)\.scope:\s+Deactivated successfully")
+
+# A round is bounded by the driver's `DRIVER_ROUND_TIMEOUT_S` (3300 s) and its
+# reachability probe is the FIRST thing it does, so a login caused by round N
+# lands in [probe - 300 s, probe + 3300 s]. The 300 s of slack before the probe
+# covers a round whose row was written after its first ssh call.
+OBSERVER_WINDOW_BEFORE_S = 300
+OBSERVER_WINDOW_AFTER_S = 3300
+# Two clocks, both truncated to the second, and 20 of the log's rows are
+# declared `coarse` (round 460). 120 s is comfortably outside that and well
+# inside the ~59 s median spacing of this program's own logins.
+OBSERVER_MATCH_S = 120
+
+
+def session_scope_sessions(journal_text: str) -> dict:
+    """The login sessions in a PID-1 journal, with their lifetimes.
+
+    A session scope is not a service: nothing starts it, a login creates it.
+    Its LIFETIME is what distinguishes an agent from a human -- `ssh host cmd`
+    opens and closes one in about a second, and a person's shell does not.
+    """
+    starts = []
+    ends: dict = {}
+    for line in journal_text.splitlines():
+        m = _SESSION_SCOPE.match(line)
+        if m:
+            starts.append((m.group(1) + "Z", m.group(2)))
+        m = _SESSION_END.match(line)
+        if m:
+            ends.setdefault(m.group(2), []).append(m.group(1) + "Z")
+    durations = []
+    for at, unit in starts:
+        later = sorted(x for x in ends.get(unit, []) if x >= at)
+        if later:
+            durations.append(
+                _iso_seconds(later[0]) - _iso_seconds(at))
+    durations.sort()
+    n = len(durations)
+    return {
+        "n_sessions": len(starts),
+        "n_with_a_measured_lifetime": n,
+        "median_lifetime_s": (durations[n // 2] if n else None),
+        "n_lifetime_le_5s": sum(1 for d in durations if d <= 5),
+        "frac_lifetime_le_5s": (sum(1 for d in durations if d <= 5) / n
+                                if n else None),
+        "max_lifetime_s": (durations[-1] if n else None),
+        "first": starts[0][0] if starts else None,
+        "last": starts[-1][0] if starts else None,
+        "why": ("a sub-5-second login session is a non-interactive "
+                "`ssh host 'cmd'`, which is how every capture in this program "
+                "was taken"),
+    }
+
+
+def _iso_seconds(at: str) -> int:
+    d, rest = at.split("T")
+    y, mo, da = (int(x) for x in d.split("-"))
+    return ((y * 372 + mo * 31 + da) * 86400) + _hms_to_s(rest[:8])
+
+
+def observer_trace(journal_text: str, reachability_rows: Iterable,
+                   match_s: int = OBSERVER_MATCH_S) -> dict:
+    """Are this journal's login sessions THIS PROGRAM's own ssh probes?
+
+    `state/nuc-reachability-log.jsonl` records one row per E round with the
+    instant its probe ran. The journal records one scope per login. If the two
+    line up, then a fire population that includes session scopes is a
+    population of the observer's own footprints, and any bucket it "explains"
+    is explained by the act of measuring.
+
+    Returns the match rate rather than a verdict. The log holds one row per
+    ROUND and a round makes many logins, so a low session-side rate is not
+    evidence against -- the probe-side rate is the one that discriminates.
+    """
+    starts = [at for at, _ in
+              ((m.group(1) + "Z", m.group(2)) for m in
+               (_SESSION_SCOPE.match(l) for l in journal_text.splitlines())
+               if m)]
+    if not starts:
+        return {"n_sessions": 0, "n_probes_in_window": 0, "matched": [],
+                "why": "no session scopes in this journal"}
+    secs = sorted(_iso_seconds(a) for a in starts)
+    lo, hi = secs[0], secs[-1]
+    matched, unmatched = [], []
+    n_probes = 0
+    for r in reachability_rows:
+        at = r.get("checked_at_utc")
+        if not at or not r.get("ssh_reachable"):
+            continue
+        t = _iso_seconds(at)
+        if not (lo <= t <= hi):
+            continue
+        n_probes += 1
+        delta = min(secs, key=lambda s: abs(s - t)) - t
+        (matched if abs(delta) <= match_s else unmatched).append(
+            {"round": r.get("round"), "checked_at_utc": at,
+             "nearest_session_start_delta_s": delta,
+             "precision": r.get("precision")})
+    return {
+        "n_sessions": len(starts),
+        "session_window": [starts[0], starts[-1]],
+        "n_probes_in_window": n_probes,
+        "n_probes_matched": len(matched),
+        "frac_probes_matched": (len(matched) / n_probes if n_probes else None),
+        "match_s": match_s,
+        "n_probes_matched_within_1s":
+            sum(1 for m in matched
+                if abs(m["nearest_session_start_delta_s"]) <= 1),
+        "matched": matched,
+        "unmatched": unmatched,
+        "why": ("a successful ssh probe IS a login and a login IS a session "
+                "scope; if the reachability log's instants sit on the "
+                "journal's scope starts, the two files are recording the same "
+                "events and the scopes are this program's own footprints"),
+    }
+
+
+def observer_confounding(bmap: BucketMap, journal_text: str,
+                         reachability_rows: Iterable,
+                         before_s: int = OBSERVER_WINDOW_BEFORE_S,
+                         after_s: int = OBSERVER_WINDOW_AFTER_S) -> dict:
+    """Do the costly buckets a scope population names sit in E-ROUND windows?
+
+    The question `observer_trace` cannot answer. That the scopes are our
+    logins makes them a suspect population; this asks whether the buckets they
+    name are concentrated where this program was working, which is what turns
+    "suspect" into "confounded".
+
+    Dates before the reachability log's first row are reported as UNTESTABLE
+    rather than as negatives -- absence of a probe row on 2026-08-23 is the log
+    not existing yet, not the box being quiet.
+    """
+    probes = sorted(_iso_seconds(r["checked_at_utc"])
+                    for r in reachability_rows
+                    if r.get("checked_at_utc") and r.get("ssh_reachable"))
+    if not probes:
+        raise PerturbationError("no successful probe in the reachability rows")
+    first_date = min(r["checked_at_utc"][:10] for r in reachability_rows
+                     if r.get("checked_at_utc") and r.get("ssh_reachable"))
+    scopes = parse_unit_starts_any_kind(journal_text, ("scope",))
+    named = bmap.cover(bmap.seconds(scopes))
+
+    def in_window(b):
+        t = _iso_seconds(f"{b[0]}T{b[1]}")
+        return any(-before_s <= (t - p) <= after_s for p in probes)
+
+    testable = sorted(b for b in bmap.costly if b[0] >= first_date)
+    untestable = sorted(b for b in bmap.costly if b[0] < first_date)
+    a = sum(1 for b in testable if b in named and in_window(b))
+    bq = sum(1 for b in testable if b in named and not in_window(b))
+    c = sum(1 for b in testable if b not in named and in_window(b))
+    d = sum(1 for b in testable if b not in named and not in_window(b))
+    return {
+        "first_probe_date": first_date,
+        "n_costly": len(bmap.costly),
+        "n_testable": len(testable),
+        "n_untestable_before_the_log_existed": len(untestable),
+        "untestable": sorted(f"{x} {y}" for x, y in untestable),
+        "window_s": [before_s, after_s],
+        "table": {"scope_named_in_window": a, "scope_named_outside": bq,
+                  "other_in_window": c, "other_outside": d},
+        "fisher_two_sided_p": _fisher_2x2(a, bq, c, d),
+        "why": ("a scope population that names buckets uniformly over the "
+                "window is measuring the box; one whose buckets sit inside "
+                "this program's own round windows is measuring the program"),
+    }
+
+
+def _fisher_2x2(a: int, b: int, c: int, d: int) -> float:
+    """Two-sided Fisher exact, by summing tables no likelier than observed."""
+    n = a + b + c + d
+    if n == 0:
+        return 1.0
+    comb = math.comb
+    p0 = comb(a + b, a) * comb(c + d, c) / comb(n, a + c)
+    tot = 0.0
+    for i in range(0, min(a + b, a + c) + 1):
+        k = a + c - i
+        if k < 0 or k > c + d:
+            continue
+        p = comb(a + b, i) * comb(c + d, k) / comb(n, a + c)
+        if p <= p0 * (1 + 1e-9):
+            tot += p
+    return min(1.0, tot)
+
+
 def _load(path: str) -> str:
     if path == "-":
         return sys.stdin.read()
@@ -3694,6 +4265,46 @@ def main(argv=None) -> int:
     sws.add_argument("--min-consistency", type=float,
                      default=ATTRIBUTION_MIN_CONSISTENCY)
 
+    spop = sub.add_parser(
+        "population",
+        help="round 466: what each fire population covers, WITH the "
+             "circular-shift null that says whether the coverage is more "
+             "than its size and shape buy")
+    spop.add_argument("--capture", required=True)
+    spop.add_argument("--journal", default=None,
+                      help="default: <capture>/journal-pid1-full.txt")
+    spop.add_argument("--engine-journal", default=None,
+                      help="pool the engine's own events in as a population")
+    spop.add_argument("--channel", default="swap", choices=sorted(CHANNELS))
+    spop.add_argument("--min-bytes", type=int, default=None)
+    spop.add_argument("--trials", type=int, default=SHIFT_NULL_TRIALS)
+    spop.add_argument("--seed", type=int, default=20260903)
+    spop.add_argument("--kinds", default="service,scope",
+                      help="comma-separated unit kinds to add as a widened "
+                           "population (default service,scope)")
+    spop.add_argument("--verify", action="store_true",
+                      help="print the BucketMap self-check against "
+                           "`cost_ledger` for every population and exit 1 on "
+                           "any divergence")
+
+    sobs = sub.add_parser(
+        "observer",
+        help="round 466: are this journal's login sessions THIS PROGRAM's own "
+             "ssh probes, and do the buckets they name sit in E-round windows")
+    sobs.add_argument("--journal", required=True)
+    sobs.add_argument("--log", default="state/nuc-reachability-log.jsonl")
+    sobs.add_argument("--capture", default=None,
+                      help="also run the confounding test, which needs the "
+                           "bucket grid")
+    sobs.add_argument("--channel", default="swap", choices=sorted(CHANNELS))
+    sobs.add_argument("--min-bytes", type=int, default=None)
+    sobs.add_argument("--census", action="store_true",
+                      help="also print the unit-kind census")
+    sobs.add_argument("--strict", action="store_true",
+                      help="exit 1 if the journal's session scopes match this "
+                           "program's own probes, i.e. if a scope-inclusive "
+                           "fire population would be measuring the observer")
+
     sd = sub.add_parser(
         "direct",
         help="round 436: systemd's own per-invocation cgroup accounting, and "
@@ -3885,6 +4496,57 @@ def main(argv=None) -> int:
             interval_s=args.interval_s, stitch=args.stitch,
             extra_fires=extra, max_family_p=args.max_family_p,
             min_consistency=args.min_consistency), indent=2))
+    elif args.mode == "population":
+        cap = args.capture
+        sar_path = (cap if cap.endswith(".txt")
+                    else os.path.join(cap, "sar-all.txt"))
+        jrnl_path = args.journal or os.path.join(
+            os.path.dirname(sar_path) or ".", "journal-pid1-full.txt")
+        sar_t, jr_t = _load(sar_path), _load(jrnl_path)
+        bmap = BucketMap(sar_t, jr_t, CHANNELS[args.channel],
+                         (_UNSET if args.min_bytes is None else args.min_bytes))
+        kinds = tuple(x.strip() for x in args.kinds.split(",") if x.strip())
+        pops = {
+            "published (PID-1 `Starting` .service)": parse_unit_starts(jr_t),
+            "round 436 complete (+ `Started`-only .service)":
+                parse_unit_starts_complete(jr_t),
+            f"widened ({','.join(kinds)})":
+                parse_unit_starts_any_kind(jr_t, kinds),
+        }
+        for k in kinds:
+            if k != "service":
+                pops[f"{k} ONLY"] = parse_unit_starts_any_kind(jr_t, (k,))
+        if args.engine_journal:
+            pops["engine events"] = parse_engine_events(
+                _load(args.engine_journal))
+        if args.verify:
+            checks = {k: bmap.verify(v) for k, v in pops.items()}
+            print(json.dumps({"verify": checks}, indent=2))
+            return 0 if all(c["identical"] for c in checks.values()) else 1
+        print(json.dumps(population_coverage(
+            sar_t, jr_t, pops, CHANNELS[args.channel],
+            (_UNSET if args.min_bytes is None else args.min_bytes),
+            trials=args.trials, seed=args.seed, bmap=bmap), indent=2))
+    elif args.mode == "observer":
+        jr_t = _load(args.journal)
+        rows = [json.loads(x) for x in _load(args.log).splitlines() if x.strip()]
+        out = {"sessions": session_scope_sessions(jr_t),
+               "trace": observer_trace(jr_t, rows)}
+        if args.census:
+            out["census"] = unit_kind_census(jr_t)
+        if args.capture:
+            cap = args.capture
+            sar_path = (cap if cap.endswith(".txt")
+                        else os.path.join(cap, "sar-all.txt"))
+            bmap = BucketMap(
+                _load(sar_path), jr_t, CHANNELS[args.channel],
+                (_UNSET if args.min_bytes is None else args.min_bytes))
+            out["confounding"] = observer_confounding(bmap, jr_t, rows)
+        print(json.dumps(out, indent=2))
+        if args.strict:
+            t = out["trace"]
+            return 1 if (t["n_probes_in_window"]
+                         and t["frac_probes_matched"] >= 0.5) else 0
     elif args.mode == "direct":
         texts = [_load(f) for f in args.journal]
         recs = [r for t in texts for r in parse_resource_accounting(t)]

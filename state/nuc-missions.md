@@ -2764,3 +2764,181 @@ worktree and only after the tree was already dirty.
 6. **Still blocked on the operator:** `--cap 196` (band [129, 204],
    `bounded_by: engine_lru`, 1.096 GB margin — **twenty-fourth** round
    unchanged) and the E3 A/B with its full six-gate table.
+
+## Round 466 (NUC-integration E) — 2026-09-03, box **DOWN** the whole round; SIXTH consecutive down window (436, 442, 448, 454, 460, 466), one continuous outage. All findings are offline work on round 424's banked capture
+
+**Reachability.** Two probes, one per documented path, both before any code
+ran; CLAUDE.md's two-failure rule fired after the second.
+
+- tailnet `ssh -o ConnectTimeout=12 -i ~/.ssh/id_ed25519 jab@100.78.44.111`
+  issued 2026-09-03T00:59:37Z -> `Connection timed out`, rc 255, by 00:59:49Z.
+- LAN `ssh -i ~/.ssh/id_ed25519_nuc jab@192.168.1.37` at 00:59:57Z -> same,
+  **and the key still does not exist on this host**, so that path proves
+  nothing either way.
+- `tailscale status --json` at 01:00:10Z: `Online false`, `LastSeen
+  2026-09-01T18:27:56.1Z` — **byte-identical to rounds 448, 454 AND 460**, so
+  436/442/448/454/460/466 is ONE outage. Plaintext: `active; relay "sin";
+  offline, last seen 1d ago, tx 10296 rx 0`.
+- `status`: **29h50m36s confirmed**, upper bracket 30h53m18s. Passes the
+  longest completed streak in this log (19h38m06s) by a **definite 10h12m30s**
+  and the longest unobserved one (14h00m00s) by 15h50m30s — it extends its own
+  round-460 record. `unobserved_total_s` unmoved at 396378 s.
+- Round 466's row appended with round 460's `replay` producer, not typed.
+  `state/nuc-capture-r466/tailscale-status-r466.json` is the JSON it read.
+- **Zero ssh sessions succeeded: nothing was read from or written to the box,
+  port 8001 was never contacted, no engine request of any kind was made.**
+- Round 460's item 1 ran FIRST: `coverage --strict` **0**,
+  `precision-audit --strict` **0**, `lastseen-drift --strict` **1** — exactly
+  the state round 460 left, the last for the documented reason (tailscale
+  recomputes `LastSeen`), not a new break.
+
+**Round 436's item 6 is CLOSED, in both halves, after five E rounds carried
+it.**
+
+(a) The fire population is `.service`-only and **the journal is mostly not
+services.** `unit_kind_census` on the ten-day PID-1 journal: service 1652
+`Starting` / 206 `Started` (visible); **scope 0 / 1401**, timer 0 / 84, socket
+12 / 0, path 0 / 6 (all invisible). **1709 start lines are invisible — more
+than the 1652 that are visible**, and the invisible majority is one thing:
+1401 `Started session-N.scope`. **No `.scope` emits `Starting` at all**, which
+is round 436's own `Type=simple` mechanism, so its two-pass rule generalises to
+scopes with NO new double-count decision — only the kind alternation widens.
+`parse_unit_starts_any_kind(text, kinds)` is that widening, with the kind in
+the dedup key, pinned byte-identical to `parse_unit_starts_complete` at the
+default.
+
+Widening moves everything: costly-bucket coverage **19/52 -> 44/52** and named
+bytes **8.42 -> 29.65 GiB, 26.7 % -> 94.0 %** of the window's swap-out. Scopes
+ALONE name 29/52 and 72.3 %. (Note for anyone quoting `n_fires`: the published
+population is **647** after exclusions — `sysstat-collect` is 1005 of its 1652
+lines.)
+
+(b) **"How many of the other 13 sit inside an OOM or restart window?" — NONE.**
+8 marks in the journal (4 OOM lines / 3 episodes, 3 `Scheduled restart`, 1
+`Failed with result`), 6 distinct instants. At +/-30 min AND +/-60 min, **0 of
+13**; only `2026-08-23 21:20:02`, the one round 436 already knew, is in such a
+window. Base rate over all 52 costly buckets is 7/52 (13 %). The OOM
+hypothesis for the residual is dead.
+
+**But 94 % is a TRAP, and which null you pick decides its sign.** A population
+names a bucket by landing in it, so coverage is evidence only against a null
+holding size AND shape fixed — and the two obvious nulls disagree in opposite
+directions on this data:
+
+| null | holds fixed | expects (scopes) | verdict on observed 29/52 |
+|---|---|---|---|
+| uniform placement | count only | 39.5 / 52 | *below* chance, p = 1.000 |
+| **circular shift** | count, cadence, bursts, every gap | **6.7 / 52** | ~4.3x chance, p <= 0.0005 |
+
+These fires arrive in bursts (53 bursts >30 min apart, largest **517 sessions
+in 486 min**), so a uniform draw touches far more DISTINCT buckets than the
+real population can and grades a 4x effect as sub-chance. `shift_null` rigidly
+translates the whole train and wraps it: only alignment is destroyed. Measured,
+2000 draws: published services 19 vs null 8.37 (p 0.0005); **scopes 29 vs null
+6.70 (p <0.0005)** — *the invisible population predicts costly swap better than
+the entire published one*; services+scopes 44 vs 13.41; engine 18 vs 2.11.
+Whole-DAY shifts (preserving time-of-day cadence exactly) give scopes 3..10.
+
+**Of round 436's 14 unnamed buckets (re-derived exactly, 4.25 GiB, largest
+`2026-08-23 21:20:02` at 2.34 GiB), session scopes name 7 — including the
+largest** — against a null mean of 1.79 (5-95 % 0..4), **p = 0.002**.
+
+**AND THE SCOPES ARE THIS PROGRAM'S OWN FOOTPRINTS.** All 1401 are
+`session-N.scope`, "Session N of User jab" — ssh logins. Three measurements:
+**median session lifetime 1 s, 1253/1396 (89.8 %) <= 5 s** (that is
+`ssh host 'cmd'`, not a person; the record still holds a 4-day session, so the
+median is the population's property not the parser's). **33 of the 35
+successful probes in `state/nuc-reachability-log.jsonl` have a session-scope
+start within 120 s, 18 of them within +/-1 second** — two files, different
+programs, different hosts, recording the same events. And on the 33 costly
+buckets the log's dates cover, **13 of the 14 scope-named ones sit inside an
+E-round window** [probe-300 s, probe+3300 s] against 5 of the other 19:
+**Fisher two-sided p = 2.5e-4**.
+
+So the strongest single "explanation" of costly swap on this box over ten days
+is **this research program's own measurement traffic**, and the 94 % gets there
+by attributing the box's cost to its observer. Direction argued, not assumed:
+the driver's rotation runs on another host with no reading of the NUC's memory
+state, so it cannot be selecting busy moments — which does not prove the
+logins *caused* the swap (a 1 s login does not move 2.34 GiB by itself) but
+does rule out the observer choosing its times.
+
+**Therefore `parse_unit_starts_any_kind` DEFAULTS TO `("service",)`.** The
+widening is built, correct, tested and **OFF**. No published number moves
+unless somebody passes the wider argument on purpose.
+
+**19 of the 52 costly buckets are UNTESTABLE for this**, not negative: they are
+on 08-23/08-24 and the reachability log's first row is 08-25. Scoring them as
+"not in a round window" would have manufactured 19 negatives from a file that
+did not exist yet — and would have made the Fisher table look better.
+
+**The fast path had to be checked against the instrument, and that caught two
+bugs.** `BucketMap` (second -> costly bucket) is built BY calling `cost_ledger`
+and ships `verify()`. The first draft reimplemented the placement rule; the
+self-check caught a mishandled post-restart row, and
+**`LEDGER_EXCLUDE_UNITS` not applied on the map path, which took the published
+population's observed coverage from 19 to 50**. Either would have produced a
+confident, wrong null. `population --verify` is that check as a command.
+
+**New instruments:** `perturbation.py population` (coverage + the shift null,
+refuses to report coverage bare) and `perturbation.py observer`
+(`--census`, `--strict`; session lifetimes, probe/scope coincidence, the
+confounding table).
+
+**Tests:** `nuc/tests` **915 -> 946, all green** (174.4 s); the round-466 block
+alone is 37.9 s after a `BucketMap` cache (208.1 s before it). **Seven
+falsifiers, and TWO of them came back 0 red on the first run** — F1 (no fixture
+collided a unit NAME across two KINDS, so the dedup key's second element was
+untested) and F7 (offset 0 is drawn about once in a million from an
+864 000-second span, so `n_identity_draws` was unreachable by any random-draw
+test). Both closed: a synthetic collision fixture, and a `shifts=` argument
+that makes the identity branch reachable and doubles as the
+deterministic-reproduction hook a published p-value ought to have. **A
+falsifier that goes 0 red because the code path cannot be reached is a design
+problem, not a testing one.**
+
+**Predictions (D-013):** `nuc/predictions-e-round466.md`, banked before any
+instrument ran, with a §0 recording the three exploratory reads that preceded
+it and TWO items declared no-basis. **11 HIT, 2 PARTIAL, 1 MISS of 14, plus
+both no-basis items resolved.** The MISS is P5 (the 2.34 GiB run-up bucket IS
+scope-named — I modelled one session where the record holds sixty). One PARTIAL
+is P14, and it is a bracket error in PROSE while `precision-audit` was green:
+"the confirmed streak passes 30 h" used the *upper* bracket's arithmetic;
+confirmed is 29h50m36s, 9m24s short.
+
+**E-mission status: E1-E5 all still DONE; nothing new unchecked.**
+
+**Next E round, in order:**
+1. **`coverage --strict`, `precision-audit --strict` FIRST**, as round 460
+   established, and read your own bracket before quoting a streak number —
+   round 466 shipped bracket discipline and then mixed the bounds in prose.
+2. **THE DECISION THIS ROUND DELIBERATELY DID NOT TAKE ALONE: should
+   `session-*.scope` join `LEDGER_EXCLUDE_UNITS`?** `sysstat-collect` is
+   excluded because it WRITES the bucket; a session scope would be excluded
+   because it IS the observer. That is a different reason and it deserves a
+   written decision rather than a silent filter. Whoever decides should run
+   `population` both ways and publish both tables. Note the exclusion is NOT
+   obviously right: if the program's own traffic really costs the box 4 GiB of
+   swap, that is a fact about the deployment and hiding it is worse than
+   naming it.
+3. **The observer effect is now a measured hypothesis and it has an
+   experiment.** If the logins cost the memory, the cost should scale with what
+   the round DID, not with the login count — an E round that only probes should
+   be cheap and one that scps a 1.0 MB journal + 1.3 MB sar + a tar should not.
+   `state/nuc-reachability-log.jsonl` knows which rounds were which. Do this
+   OFFLINE on the banked capture before spending a live window on it.
+4. **If the box comes up:** capture `sa23`/`sa24`/`sar23`/`sar24` first, then
+   READ `Persistent=` (round 448's §2 correction is wrong in the dangerous
+   direction if it says `true`, and must be withdrawn loudly), then a journal
+   interior covering rounds 202-250 — round 460's seven `REBOOT_ONLY` gaps and
+   16h49m are still one journal capture away from a bound.
+5. **Round 436's items 4, 5 and 9 STILL stand, untouched for a fourth round**
+   — the `commit` channel vs the 9.25 GB weights load, `Consumed` coverage at 4
+   of 26 units, and the separability route. Item 6 is now CLOSED; do not carry
+   it forward.
+6. **Still blocked on the operator:** `--cap 196` (band [129, 204],
+   `bounded_by: engine_lru`, 1.096 GB margin — **twenty-fifth** round
+   unchanged) and the E3 A/B with its full six-gate table. Round 436's OOM
+   evidence still stands behind the first: three episodes in ten days, one of
+   which killed the engine, against a directly measured 30.0 GiB peak on a
+   31.2 GiB box.
