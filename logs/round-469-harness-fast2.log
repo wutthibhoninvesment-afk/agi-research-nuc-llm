@@ -1,0 +1,128 @@
+........................................................................ [  4%]
+........................................................................ [  9%]
+........................................................................ [ 14%]
+........................................................................ [ 19%]
+........................................................................ [ 24%]
+........................................................................ [ 29%]
+........................................................................ [ 34%]
+........................................................................ [ 39%]
+........................................................................ [ 44%]
+........................................................................ [ 49%]
+........................................................................ [ 54%]
+........................................................................ [ 59%]
+........................................................................ [ 64%]
+........................................................................ [ 69%]
+...................................................................F.... [ 74%]
+........................................................................ [ 79%]
+........................................................................ [ 84%]
+........................................................................ [ 89%]
+........................................................................ [ 94%]
+........................................................................ [ 99%]
+.......                                                                  [100%]
+=================================== FAILURES ===================================
+______ test_the_grandchild_pid_survives_a_grandchild_slower_than_the_cap _______
+
+tmp_path = PosixPath('/tmp/pytest-of-pgain/pytest-3447/test_the_grandchild_pid_surviv0')
+
+    def test_the_grandchild_pid_survives_a_grandchild_slower_than_the_cap(tmp_path):
+        """Round 449 — round 447's health-check FAIL, reproduced without a spike.
+    
+        Round 447's `health-check FAIL` was this file's grandchild test, and the
+        traceback named neither a race nor a grandchild: it was a bare
+        `FileNotFoundError` on `pidfile.read_text()`, because the pidfile the
+        GRANDCHILD was supposed to write did not exist. The driver runs four
+        suites at once on a box whose `nproc` is 1, and the grandchild's
+        interpreter simply was not scheduled inside the 2.0 s cap.
+    
+        Round 443's technique applies exactly: the spike does not need producing,
+        it needs SIMULATING. Delaying the grandchild 3.0 s against the unchanged
+        2.0 s cap fails the old shape deterministically (measured: `pidfile:
+        False`) and passes this one, on an idle box, in about two seconds.
+    
+        The honest limit, measured with the same harness: this removes the
+        GRANDCHILD's startup from the race, not the parent's. At a 0.3 s cap both
+        shapes fail, because the mutant is killed before pytest has imported it —
+        and there the run really has proved nothing, which is why the assertion
+        above says so instead of raising `FileNotFoundError`.
+        """
+        root = make_project(tmp_path)
+        pidfile = tmp_path / "grandchild.pid"
+        m = generate(MOD, "mod.py")[0]
+        m.source = _grandchild_mutant(pidfile, startup_delay_s=3.0) + m.source
+        run_mutant(m, root, DEFAULT_TEST_CMD, timeout_s=2.0)
+        assert m.status == "timeout" and "group" in m.detail
+>       assert pidfile.exists(), "the parent must record the pid, not the grandchild"
+E       AssertionError: the parent must record the pid, not the grandchild
+E       assert False
+E        +  where False = exists()
+E        +    where exists = PosixPath('/tmp/pytest-of-pgain/pytest-3447/test_the_grandchild_pid_surviv0/grandchild.pid').exists
+
+harness/tests/test_swe_mutation.py:179: AssertionError
+tier-budget: 15/15 promoted files timed, 246.9s of a 56.6s budget — DRIFT: test_swe_copyparity_real_subject.py 61.1s > 17.1s, test_swe_coverage.py 30.6s > 11.5s, test_swe_mutation.py 50.5s > 36.3s, test_swe_oracles.py 27.1s > 10.0s, test_swe_prioritize.py 15.0s > 5.4s, test_swe_proc.py 35.0s > 13.4s, test_swe_spacewitness.py 11.7s > 5.9s, test_swe_toolliveness.py 10.1s > 4.8s (re-run `python3 harness/tierbudget.py measure` and re-decide)
+=========================== short test summary info ============================
+FAILED harness/tests/test_swe_mutation.py::test_the_grandchild_pid_survives_a_grandchild_slower_than_the_cap
+1 failed, 1446 passed, 361 deselected in 1216.79s (0:20:16)
+
+--- end of measured output; recorded status below ---
+
+slow tier: 32 files / 33 units, 21 conclusive against checkout 17742e0ec6d1d111 (64% recall), 1 failing
+  + 3 file(s) conclusive WITHIN their measured read-scope only (73% combined) — the checkout moved outside what they read
+  test_swe_sandbox_evidence.py           fresh_fail         7s  1.3h ago
+  test_swe_abconfound.py                 fresh_pass         1s  1.3h ago
+  test_swe_alias_effects.py              fresh_pass_scoped  328s  8.8h ago
+      scope: whence
+  test_swe_bymap.py                      fresh_pass         44s  1.3h ago
+  test_swe_campaign.py[heavy]            stale_checkout     3000s  9.9h ago
+  test_swe_campaign.py[light]            stale_checkout     3000s  4.5h ago
+      excludes: test_cli_runs_offline_stages_and_stops
+  test_swe_copyparity.py                 fresh_pass         9s  1.3h ago
+  test_swe_copyparity_real_subject.py    fresh_pass         9s  1.3h ago
+  test_swe_coverage.py                   fresh_pass         4s  1.3h ago
+  test_swe_depthceiling.py               fresh_pass         1s  1.3h ago
+  test_swe_equivalence.py                fresh_pass         76s  1.3h ago
+  test_swe_exemptaudit.py                fresh_pass         31s  1.3h ago
+  test_swe_exemptmap.py                  fresh_pass_scoped  105s  5.9h ago
+      scope: whence
+  test_swe_fuzz.py                       stale_checkout     88s  3.4h ago
+  test_swe_guardpin.py                   fresh_pass         11s  1.3h ago
+  test_swe_guest.py                      fresh_pass_scoped  336s  6.6h ago
+      scope: examples, whence
+  test_swe_instrument.py                 fresh_pass         1s  1.3h ago
+  test_swe_killerrepin.py                stale_checkout     17s  2.3h ago
+  test_swe_killers.py                    fresh_pass         29s  1.3h ago
+  test_swe_loop.py                       fresh_pass         0s  1.3h ago
+  test_swe_loop_cli.py                   stale_checkout     77s  2.3h ago
+  test_swe_mutation.py                   stale_checkout     18s  2.3h ago
+  test_swe_oraclekill.py                 stale_checkout     60s  3.5h ago
+  test_swe_oracles.py                    fresh_pass         5s  1.3h ago
+  test_swe_prioritize.py                 fresh_pass         3s  1.3h ago
+  test_swe_proc.py                       fresh_pass         7s  1.3h ago
+  test_swe_regiontools.py                fresh_pass         0s  1.3h ago
+  test_swe_repair.py                     stale_checkout     94s  3.4h ago
+  test_swe_review.py                     stale_checkout     95s  2.4h ago
+  test_swe_scoreaudit.py                 fresh_pass         1s  1.3h ago
+  test_swe_spacewitness.py               fresh_pass         2s  1.3h ago
+  test_swe_toolliveness.py               fresh_pass         3s  1.3h ago
+  test_swe_triage.py                     fresh_pass         1s  1.3h ago
+  NOTE: 9 unit(s) are NOT evidence about this checkout.
+
+RECORDED 2026-08-31T20:28:10Z (2.4 days ago) — a stored verdict, not a run just now
+  HEAD HAS MOVED SINCE: recorded at 50c7bb3caf0a, now 691596d6f81b — this verdict is NOT about the current tree
+ref HEAD (50c7bb3caf0a)   verdict dirty_worktree
+  the live tree differs from HEAD in 1 tracked file(s);
+  a differential against it cannot attribute anything.  Commit or stash first:
+    M state/baseline-ledger.jsonl
+
+procreap scan: under=/home/pgain/agi-research-nuc-llm verdict=residue matched=4 unreadable=0 (protected=2 vanished=1)
+  pid=680210   ppid=1      ORPHANED cwd=/home/pgain/agi-research-nuc-llm
+      open: /home/pgain/agi-research-nuc-llm/logs/driver_bg.log, /home/pgain/agi-research-nuc-llm/run_driver.sh, /home/pgain/agi-research-nuc-llm/state/.driver.lock
+  pid=3345900  ppid=680210          cwd=/home/pgain/agi-research-nuc-llm
+      open: /home/pgain/agi-research-nuc-llm/harness/run_tests_fast.sh, /home/pgain/agi-research-nuc-llm/logs/health_round_469.log, /home/pgain/agi-research-nuc-llm/state/.driver.lock
+  pid=3345901  ppid=680210          cwd=/home/pgain/agi-research-nuc-llm/languages/whence
+      open: /home/pgain/agi-research-nuc-llm/logs/whence_health_round_469.log, /home/pgain/agi-research-nuc-llm/state/.driver.lock
+  pid=3345908  ppid=3345900          cwd=/home/pgain/agi-research-nuc-llm
+      open: /home/pgain/agi-research-nuc-llm/logs/health_round_469.log, /home/pgain/agi-research-nuc-llm/state/.driver.lock
+
+whence slow tier: 27 units / 102 marked (AST), 27 conclusive against subject b583ef2472776330 (100% recall), 0 failing
+  test_checkpin.py                           fresh_pass       4 tests  52.5s
+  test_depthcensus.py                        fresh_pass       3 tests  472.2s

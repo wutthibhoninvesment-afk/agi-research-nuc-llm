@@ -239,3 +239,25 @@ def test_the_fast_tier_echoes_the_recall_after_its_own_sentinel():
         < body.index("harness/whenceslow.py status")
     assert "|| true" in body[body.index("harness/whenceslow.py status"):
                              body.index("harness/whenceslow.py status") + 120]
+
+
+def test_this_block_does_not_widen_the_slow_tiers_own_region():
+    """Round 469's own regression, pinned so the next check to be inserted
+    here cannot repeat it.
+
+    `test_run_driver_slowtier_commit.py` bounded the slow-tier ledger-commit
+    block by a landmark far downstream (`# Safety valve (round 150+)`).
+    Inserting THIS block between the two made that test read this one's
+    source as part of the block it was auditing, and it went red on a comment
+    that documents the very rule it enforces. Both blocks must be bounded by
+    something that is theirs."""
+    src = open(DRIVER_SRC).read()
+    slow_start = src.index("SLOWTIER_LEDGER_REL=")
+    mine_start = src.index('WHENCESLOW_SCRIPT="$WS/harness/run_whenceslow_slice.sh"')
+    assert slow_start < mine_start
+    from harness.tests.test_run_driver_slowtier_commit import (
+        _ledger_commit_block)
+    block = _ledger_commit_block(src)
+    assert "WHENCESLOW" not in block, \
+        "the slow tier's region has swallowed this check's block again"
+    assert "SLOWTIER_LEDGER_REL" in block

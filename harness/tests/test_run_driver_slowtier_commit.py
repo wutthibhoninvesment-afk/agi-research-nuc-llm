@@ -329,6 +329,35 @@ def test_the_subject_is_free_of_any_round_number_at_the_source(tmp_path):
 
 # ------------------------------------------------------------------ shape --
 
+def _ledger_commit_block(src):
+    """The slow-tier ledger-commit block ALONE, with comments stripped.
+
+    Both halves of that sentence are round 469 repairs, and both were found
+    by this test going red on a change that had nothing to do with it.
+
+    * The region used to run from `SLOWTIER_LEDGER_REL=` to
+      `# Safety valve (round 150+)` — a landmark far downstream with three
+      unrelated statements between. Round 469 inserted the whence-slow slice
+      there, and this test began asserting things about someone else's block:
+      an anchor that MATCHED without LOCATING. The end anchor is now the next
+      check's own first line when it exists, so the region is this block or
+      nothing.
+    * The forbidden-substring scan is about CODE — "no `git add -A`, no
+      `git commit -a`" — and it was reading COMMENTS. Round 469's block
+      documents its own rule in prose containing the words "no `git add`",
+      which is the opposite of a violation, and the test read it as one. A
+      scan for dangerous code that a comment can trip is a scan that
+      punishes documenting the rule.
+    """
+    start = src.index("SLOWTIER_LEDGER_REL=")
+    ends = [src.index(m, start) for m in
+            ('WHENCESLOW_SCRIPT="$WS/harness/run_whenceslow_slice.sh"',
+             "# Safety valve (round 150+)") if m in src[start:]]
+    block = src[start:min(ends)]
+    return "\n".join(l.split("#", 1)[0] if l.lstrip().startswith("#") else l
+                      for l in block.split("\n"))
+
+
 def test_the_commit_is_scoped_and_never_stages_the_tree():
     """No `git add -A`, no `git commit -a`. The AUTO-COMMIT v4 commit
     `e376750` deleted 38 lines of CLAUDE.md — including the whole `##
@@ -336,8 +365,7 @@ def test_the_commit_is_scoped_and_never_stages_the_tree():
     provenance section). An unscoped autonomous commit in this repo is not
     hypothetical."""
     src = open(DRIVER_SRC).read()
-    block_start = src.index("SLOWTIER_LEDGER_REL=")
-    block = src[block_start:src.index("# Safety valve (round 150+)", block_start)]
+    block = _ledger_commit_block(src)
     assert 'commit -q' in block
     assert '-- "$SLOWTIER_LEDGER_REL"' in block, block
     for forbidden in ("git add", "commit -a", "-A"):

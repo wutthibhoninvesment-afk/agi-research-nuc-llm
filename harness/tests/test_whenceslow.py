@@ -463,7 +463,11 @@ def test_latest_by_unit_takes_the_newest(tmp_path, tree):
 
 def test_the_unit_command_runs_only_the_marked_tests():
     argv = W.unit_argv("test_v29.py", python="py")
-    assert "-m" in argv and argv[argv.index("-m") + 1] == "whence_slow"
+    # `-m` appears TWICE — `python -m pytest` and pytest's own marker flag —
+    # so this indexes the LAST one. The first version of this test indexed
+    # the first and asserted the marker was "pytest".
+    last_m = len(argv) - 1 - argv[::-1].index("-m")
+    assert argv[last_m + 1] == "whence_slow", argv
     assert argv[-1] == "tests/test_v29.py"
 
 
@@ -576,3 +580,24 @@ def test_replay_uses_the_default_for_a_unit_with_no_measurement():
     r = W.replay({"a.py": 1.0}, [set()], 10.0, default_s=999.0,
                  units=["a.py", "unmeasured.py"])
     assert r["final"] == 0.5, "the unmeasured unit must not fit in 10s"
+
+
+def test_group_by_round_merges_a_rounds_commits_into_one_change_set():
+    """The driver runs ONE slice per round and a round commits several times.
+    Replaying one slice per COMMIT hands the planner one budget per commit and
+    overstates recall by the mean commits-per-round."""
+    commits = [["a"], ["b"], ["c"], ["d"]]
+    subjects = ["round 468 (language C), part 1", "round 468, part 2",
+                "round 469 (harness A): x", "round 469: y"]
+    groups, tags = W.group_by_round(commits, subjects)
+    assert groups == [["a", "b"], ["c", "d"]]
+    assert tags == ["468", "469"]
+
+
+def test_an_untagged_commit_joins_the_round_before_it():
+    """A driver ledger append names no round; it happened inside the window of
+    the round before it, so it must not open a new slice of its own."""
+    groups, _ = W.group_by_round(
+        [["a"], ["b"]],
+        ["round 468 (language C)", "driver: slow-tier ledger append"])
+    assert groups == [["a", "b"]]

@@ -1,0 +1,122 @@
+........................................................................ [  4%]
+........................................................................ [  9%]
+........................................................................ [ 14%]
+........................................................................ [ 19%]
+........................................................................ [ 24%]
+........................................................................ [ 29%]
+........................................................................ [ 34%]
+........................................................................ [ 39%]
+........................................................................ [ 44%]
+........................................................................ [ 49%]
+........................................................................ [ 54%]
+..................................F..................................... [ 59%]
+........................................................................ [ 64%]
+........................................................................ [ 69%]
+........................................................................ [ 74%]
+........................................................................ [ 79%]
+........................................................................ [ 84%]
+........................................................................ [ 89%]
+........................................................................ [ 94%]
+........................................................................ [ 99%]
+......                                                                   [100%]
+=================================== FAILURES ===================================
+_____________ test_the_commit_is_scoped_and_never_stages_the_tree ______________
+
+    def test_the_commit_is_scoped_and_never_stages_the_tree():
+        """No `git add -A`, no `git commit -a`. The AUTO-COMMIT v4 commit
+        `e376750` deleted 38 lines of CLAUDE.md — including the whole `##
+        Ground rules` body, unnoticed for 200 rounds (see CLAUDE.md's
+        provenance section). An unscoped autonomous commit in this repo is not
+        hypothetical."""
+        src = open(DRIVER_SRC).read()
+        block_start = src.index("SLOWTIER_LEDGER_REL=")
+        block = src[block_start:src.index("# Safety valve (round 150+)", block_start)]
+        assert 'commit -q' in block
+        assert '-- "$SLOWTIER_LEDGER_REL"' in block, block
+        for forbidden in ("git add", "commit -a", "-A"):
+>           assert forbidden not in block, "%r in the ledger-commit block" % forbidden
+E           AssertionError: 'git add' in the ledger-commit block
+E           assert 'git add' not in 'SLOWTIER_LE...\n  fi\n\n  '
+E             
+E             'git add' is contained here:
+E               spec, no `git add`, the workspace must
+E             ?           +++++++
+E                   # BE a repository root, and the round number goes in the BODY so
+E                   # `check_round_recorded.committed_per_git_log`'s subject grep cannot read
+E                   # a driver commit as the round having committed something itself....
+E             
+E             ...Full output truncated (25 lines hidden), use '-vv' to show
+
+harness/tests/test_run_driver_slowtier_commit.py:344: AssertionError
+tier-budget: 15/15 promoted files timed, 52.3s of a 56.6s budget — worst test_swe_copyparity_real_subject.py 10.0s of 17.1s
+=========================== short test summary info ============================
+FAILED harness/tests/test_run_driver_slowtier_commit.py::test_the_commit_is_scoped_and_never_stages_the_tree
+1 failed, 1445 passed, 361 deselected in 285.31s (0:04:45)
+
+--- end of measured output; recorded status below ---
+
+slow tier: 32 files / 33 units, 21 conclusive against checkout 17742e0ec6d1d111 (64% recall), 1 failing
+  + 3 file(s) conclusive WITHIN their measured read-scope only (73% combined) — the checkout moved outside what they read
+  test_swe_sandbox_evidence.py           fresh_fail         7s  0.8h ago
+  test_swe_abconfound.py                 fresh_pass         1s  0.7h ago
+  test_swe_alias_effects.py              fresh_pass_scoped  328s  8.3h ago
+      scope: whence
+  test_swe_bymap.py                      fresh_pass         44s  0.8h ago
+  test_swe_campaign.py[heavy]            stale_checkout     3000s  9.4h ago
+  test_swe_campaign.py[light]            stale_checkout     3000s  4.0h ago
+      excludes: test_cli_runs_offline_stages_and_stops
+  test_swe_copyparity.py                 fresh_pass         9s  0.8h ago
+  test_swe_copyparity_real_subject.py    fresh_pass         9s  0.7h ago
+  test_swe_coverage.py                   fresh_pass         4s  0.7h ago
+  test_swe_depthceiling.py               fresh_pass         1s  0.8h ago
+  test_swe_equivalence.py                fresh_pass         76s  0.8h ago
+  test_swe_exemptaudit.py                fresh_pass         31s  0.8h ago
+  test_swe_exemptmap.py                  fresh_pass_scoped  105s  5.4h ago
+      scope: whence
+  test_swe_fuzz.py                       stale_checkout     88s  2.9h ago
+  test_swe_guardpin.py                   fresh_pass         11s  0.7h ago
+  test_swe_guest.py                      fresh_pass_scoped  336s  6.1h ago
+      scope: examples, whence
+  test_swe_instrument.py                 fresh_pass         1s  0.7h ago
+  test_swe_killerrepin.py                stale_checkout     17s  1.8h ago
+  test_swe_killers.py                    fresh_pass         29s  0.7h ago
+  test_swe_loop.py                       fresh_pass         0s  0.8h ago
+  test_swe_loop_cli.py                   stale_checkout     77s  1.8h ago
+  test_swe_mutation.py                   stale_checkout     18s  1.8h ago
+  test_swe_oraclekill.py                 stale_checkout     60s  2.9h ago
+  test_swe_oracles.py                    fresh_pass         5s  0.7h ago
+  test_swe_prioritize.py                 fresh_pass         3s  0.7h ago
+  test_swe_proc.py                       fresh_pass         7s  0.7h ago
+  test_swe_regiontools.py                fresh_pass         0s  0.7h ago
+  test_swe_repair.py                     stale_checkout     94s  2.9h ago
+  test_swe_review.py                     stale_checkout     95s  1.8h ago
+  test_swe_scoreaudit.py                 fresh_pass         1s  0.7h ago
+  test_swe_spacewitness.py               fresh_pass         2s  0.7h ago
+  test_swe_toolliveness.py               fresh_pass         3s  0.7h ago
+  test_swe_triage.py                     fresh_pass         1s  0.7h ago
+  NOTE: 9 unit(s) are NOT evidence about this checkout.
+
+RECORDED 2026-08-31T20:28:10Z (2.4 days ago) — a stored verdict, not a run just now
+  HEAD HAS MOVED SINCE: recorded at 50c7bb3caf0a, now 691596d6f81b — this verdict is NOT about the current tree
+ref HEAD (50c7bb3caf0a)   verdict dirty_worktree
+  the live tree differs from HEAD in 1 tracked file(s);
+  a differential against it cannot attribute anything.  Commit or stash first:
+    M state/baseline-ledger.jsonl
+
+procreap scan: under=/home/pgain/agi-research-nuc-llm verdict=residue matched=6 unreadable=0 (protected=2 vanished=0)
+  pid=680210   ppid=1      ORPHANED cwd=/home/pgain/agi-research-nuc-llm
+      open: /home/pgain/agi-research-nuc-llm/logs/driver_bg.log, /home/pgain/agi-research-nuc-llm/logs/round-469.json, /home/pgain/agi-research-nuc-llm/run_driver.sh, /home/pgain/agi-research-nuc-llm/state/.driver.lock
+  pid=3324037  ppid=680210          cwd=/home/pgain/agi-research-nuc-llm
+      open: /home/pgain/agi-research-nuc-llm/logs/round-469.json, /home/pgain/agi-research-nuc-llm/state/.driver.lock
+  pid=3324038  ppid=3324037          cwd=/home/pgain/agi-research-nuc-llm
+      open: /home/pgain/agi-research-nuc-llm/claude-wrapper.sh, /home/pgain/agi-research-nuc-llm/logs/round-469.json, /home/pgain/agi-research-nuc-llm/state/.driver.lock
+  pid=3324039  ppid=3324038          cwd=/home/pgain/agi-research-nuc-llm
+      open: /home/pgain/agi-research-nuc-llm/logs/round-469.json, /home/pgain/agi-research-nuc-llm/state/.driver.lock, /proc/3324039/statm
+  pid=3334589  ppid=3324039          cwd=/home/pgain/agi-research-nuc-llm
+      open: /tmp/claude-1001/-home-pgain-agi-research-nuc-llm/cc5c1a24-0d66-4dad-9f39-aed620a60929/tasks/bpy4qrtpy.output
+  pid=3334639  ppid=3334589          cwd=/home/pgain/agi-research-nuc-llm
+      open: /tmp/claude-1001/-home-pgain-agi-research-nuc-llm/cc5c1a24-0d66-4dad-9f39-aed620a60929/tasks/bpy4qrtpy.output
+
+whence slow tier: 27 units / 102 marked (AST), 27 conclusive against subject b583ef2472776330 (100% recall), 0 failing
+  test_checkpin.py                           fresh_pass       4 tests  52.5s
+  test_depthcensus.py                        fresh_pass       3 tests  472.2s
