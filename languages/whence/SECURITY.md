@@ -1,35 +1,12 @@
-# Security Policy
+# 🔐 Security & Privacy Policy
 
-## Supported Versions
+Please report any security vulnerabilities responsibly so we can fix them before releasing a patch. Do not create issues in the public issue tracker. Instead, please email us at [Insert Email if desired] or DM me on Twitter/GitHub.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 0.19.x   | ✅ Yes              |
-| 0.14.x   | ⚠️ Research Only   |
+# 📜 Authorship & Origin (Important)
 
-## Reporting a Vulnerability
+**Whence (v0.6)** is an experimental programming language developed through **Autonomous AGI Research Loops**. 
 
-We take security seriously. If you discover a security vulnerability:
+While the core execution was performed by Claude Code (Anthropic) guided by specific architectural constraints and iterative research protocols, the **conceptual design, specification (SPEC.md), project direction, and final integration were authored and supervised by Jaby (@wutthibhoninvesment-afk)**.
 
-1. **Do NOT open a public Issue** — vulnerabilities should be handled privately
-2. Contact: `jaby@example.com` (or via GitHub Private Messages)
-3. Include steps to reproduce and expected behavior
-
-## Security Measures
-
-### 🔒 Code Safety
-- No hardcoded secrets, API keys, or credentials in source code
-- SSH keys and tokens managed via environment variables only
-- `.gitignore` excludes `.env`, `*.key`, and sensitive config files
-
-### 🧪 Automated Scanning
-- Pre-commit hook checks for accidental secret leaks
-- CI pipeline scans for known vulnerable dependencies
-
-### 📦 Package Distribution
-- All releases verified via SHA-256 checksums
-- Signed tags for official releases on GitHub
-
----
-
-*This project is provided as-is without warranty. Use at your own risk.*
+All artifacts in this repository are released under the **[MIT License](LICENSE)**. 
+However, because AI cannot currently hold copyright, **authorship is attributed to the human architect** who directed the autonomous agents to produce this work. Any reuse should acknowledge the original project URL and author credit.
