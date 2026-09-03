@@ -13,6 +13,7 @@ test lives in runs every one of its programs at `max_depth=500`.
 """
 
 import ast
+import collections
 import os
 import sys
 
@@ -455,7 +456,22 @@ def test_the_residual_fell_by_more_than_a_third_and_did_not_reach_zero(
     instrument's job."""
     _, stats = harvest
     residual = stats["unresolved_args"] + stats["nonconstant_programs"]
-    assert residual <= 100, residual   # 166 r462, 114 r468, 100 r470
+    # 166 r462, 114 r468, 100 r470, 101 r474.
+    #
+    # ROUND 474 RAISED THIS BOUND BY ONE, AND THE RAISE IS THE POINT.
+    # `residual <= N` with N only ever falling is a RATCHET, and a ratchet
+    # cannot tell "the folder read one more construct" from "a row was
+    # suppressed by a bug". Round 470 lowered this counter from 101 to 100
+    # by merging two loops' bindings, and this assertion went GREEN on the
+    # regression: the row it lost belonged to a loop nothing had learned to
+    # read. Round 474 restored per-binding environments and the row came
+    # back, so the honest bound is 101.
+    #
+    # A ratchet is safe only next to a CONSERVATION invariant, which is why
+    # `test_every_loop_that_drives_a_runner_is_accounted_for_at_its_own_span`
+    # exists. Raise this bound only together with a row that says where the
+    # new residual is.
+    assert residual <= 101, residual
     assert residual < 258 * 2 // 3
     assert stats["unresolved_args"] > 0
     assert stats["nonconstant_programs"] > 0
@@ -1122,17 +1138,35 @@ def test_a_class_is_no_longer_earned_by_a_sibling_binding_of_the_same_name():
 
 # --- 7.5 the corpus, after ------------------------------------------------
 
-def test_the_corpus_grew_and_no_zip_row_survives(harvest, harvest_rows):
+def test_the_corpus_grew_and_exactly_one_zip_row_survives(harvest,
+                                                          harvest_rows):
     """Round 468: 765 programs, residual 114, of which 13 were zip rows.
-    Round 470: the zip rows are gone from the live tree and the corpus is
-    strictly larger. Bounds rather than pins, as the rest of this file does:
-    the corpus is meant to grow."""
+    Round 470: "the zip rows are gone from the live tree".
+
+    ROUND 474 AMENDS THAT SENTENCE: twelve of the thirteen were closed by
+    round 470's zip analysis and the THIRTEENTH was closed by a bug in the
+    same commit. `test_v30.py:306`'s `for src, g in zip(counts,
+    guest_batch(counts, lib))` is not readable and round 470's own docstring
+    says so -- "does not and never will (`counts` is a filtered
+    comprehension)". Its row disappeared because the per-SCOPE binding
+    environment let that call site borrow the resolved bindings of the loop
+    seven lines above it. Per-binding environments (round 474) give the row
+    back, correctly classed as its own
+    `zip_no_literal_column/zip_nonliteral_column` rather than the class the
+    other loop earned.
+
+    So the surviving zip row is a MEASUREMENT, not a regression, and it is
+    pinned by identity rather than by count: a second one appearing means
+    the zip analysis lost something."""
     _progs, stats = harvest
     assert stats["programs"] >= 829, stats["programs"]
     residual = stats["unresolved_args"] + stats["nonconstant_programs"]
-    assert residual <= 100, residual
-    assert not [r for r in harvest_rows
-                if r["kind"] == "residual" and r["cls"].startswith("zip")]
+    assert residual <= 101, residual
+    zips = [r for r in harvest_rows
+            if r["kind"] == "residual" and r["cls"].startswith("zip")]
+    assert len(zips) == 1, [(r["file"], r["line"], r["cls"]) for r in zips]
+    assert (zips[0]["file"], zips[0]["cls"]) == \
+        ("test_v30.py", "zip_no_literal_column/zip_nonliteral_column"), zips[0]
 
 
 def test_the_widening_did_not_move_the_other_residual_half(harvest):
@@ -1212,11 +1246,18 @@ def test_the_residual_that_is_not_string_building_is_seven_rows_in_three_shapes(
 
     `@pytest.mark.parametrize` is the one un-modelled ITERATION PROTOCOL
     left in this tree, and it is worth exactly one row on its own."""
+    # ROUND 474: THE SEVEN ARE EIGHT, and the eighth is the zip row round
+    # 470's merge hazard had suppressed -- `test_v30.py:306`, `for src, g in
+    # zip(counts, guest_batch(counts, lib))`, whose `counts` is a filtered
+    # comprehension no folder reaches. It is the one row in this list that is
+    # not waiting on a widening: it is waiting on NOTHING, because round
+    # 470's own docstring says it never resolves. The other seven read
+    # exactly as the docstring above describes them.
     rows = [r for r in harvest_rows if r["kind"] == "residual"]
     building = [r for r in rows
                 if "binop:" in r["cls"] or ".join" in r["cls"]]
     rest = [r for r in rows if r not in building]
-    assert len(rows) == 100, len(rows)
+    assert len(rows) == 101, len(rows)
     assert len(building) == 93, len(building)
     assert sorted(r["cls"] for r in rest) == [
         "bound_nonconstant:call:build_cases",
@@ -1226,6 +1267,7 @@ def test_the_residual_that_is_not_string_building_is_seven_rows_in_three_shapes(
         "bound_nonconstant:subscript",
         "bound_nonconstant:subscript",
         "bound_nonconstant:subscript",
+        "zip_no_literal_column/zip_nonliteral_column",
     ], sorted(r["cls"] for r in rest)
 
 
@@ -1265,11 +1307,309 @@ def test_two_loops_one_name_and_the_second_loops_row_disappears_with_it():
                "        run(s)\n"
                "    for s in [x for x in mystery() if x]:\n"
                "        run(s)\n", "zz_tmp_twoloops.py")
+    #
+    # ===================================================================
+    # ROUND 474 FIRED THIS TRIPWIRE AND CONVERTED IT IN PLACE.
+    # ===================================================================
+    # The name and the docstring above are round 470's and are kept verbatim
+    # so that its two citations (`state/research-state.md`,
+    # `knowledge/round-470-the-refusal-that-was-about-zip.md`) still land on
+    # the thing they describe. Everything below the line is round 474's.
+    #
+    # `_visible()` in `depthcensus.py` gives every binding a REGION -- `None`
+    # for an `=`, the construct's own line span for a `for` or a
+    # comprehension -- and resolves the environment at the reading node's
+    # line. The first loop's `run(s)` now sees `CASES` and only `CASES`; the
+    # second loop's `run(s)` sees nothing and is a residual again.
+    #
+    # NOTE WHAT ROUND 470'S FIRST ASSERTION COULD NOT SEE. It asserted
+    # `len(set(lines)) == 1` -- the SHAPE of the attribution, not its VALUE.
+    # Three programs at the WRONG line and three programs at the RIGHT line
+    # both satisfy it, so the assert that reads as the attribution check is
+    # the one assert here that this fix does not move. It is kept, and the
+    # value assert it was missing is added under it. (Round 473's
+    # `skills/falsifier-must-kill-something` names this exact shape: an
+    # assertion on the SHAPE of an output where the VALUE is what matters.)
     lines = sorted(p["line"] for p in progs)
     assert len(progs) == 3, progs
-    # both call sites see the same three strings; the second gets them as
-    # duplicates, so the three land at whichever line the walk reached first
     assert len(set(lines)) == 1, lines
-    # and NEITHER site is in the residual, though only one loop was read
-    assert _residual_classes(stats["rows"]) == [], \
-        "the unread loop still has a row -- the hazard may have been fixed"
+    # THE VALUE. `_MOD` is 8 lines, so `def t():` is 9, the first `for` is 10
+    # and its `run(s)` is 11; the second `for` is 12 and its `run(s)` is 13.
+    # All three programs come from the FIRST loop, which is the loop that
+    # resolves. Under the per-SCOPE model they were stamped 13 -- the walk
+    # reaches the second call site first and the merged environment let it
+    # answer for both.
+    assert lines == [11, 11, 11], lines
+    # ...and the unread loop has its row back, at its OWN line.
+    resid = [r for r in stats["rows"] if r["kind"] == "residual"]
+    assert len(resid) == 1, resid
+    assert resid[0]["line"] == 13, resid[0]
+    assert resid[0]["cls"] == "bound_nonconstant:comprehension/sequence", \
+        resid[0]["cls"]
+
+
+# ---------------------------------------------------------------------------
+# 8. round 474 -- a source position, and what it is and is not a key for
+#
+# Round 470's next-step 3 said: "`file:line` is not a key for a source
+# position; `(file, line, col)` is." The first half is right and the second
+# half is the thing these tests measure rather than assume. `col` was added,
+# and over the live corpus it splits ONE of forty colliding keys. A harvested
+# program's position is a ONE-TO-MANY relation -- one call site inside a loop
+# over a 32-entry table denotes 32 programs, all at the same file, line AND
+# column -- so no positional refinement can key a program. What `col` is
+# genuinely for is stated in
+# `test_a_column_is_what_lets_a_row_and_a_program_name_the_same_site`.
+# ---------------------------------------------------------------------------
+
+def test_every_program_and_every_row_carries_a_column(harvest, harvest_rows):
+    """A position with no column is not a source position. Both records grew
+    the field in the same commit, because a position that only one of the two
+    carries cannot be joined against the other."""
+    progs, _stats = harvest
+    for p in progs:
+        assert isinstance(p["col"], int) and p["col"] >= 0, p
+    for r in harvest_rows:
+        assert isinstance(r["col"], int) and r["col"] >= 0, r
+
+
+def test_a_column_splits_one_of_forty_colliding_line_keys(harvest):
+    """THE MEASUREMENT THAT AMENDS ROUND 470'S NEXT-STEP 3.
+
+    Over the 829-program corpus, 346 programs (41.7 %) share a `(file, line)`
+    with at least one other. Adding the column takes that to 344 (41.5 %):
+    ONE of the forty colliding keys is a line holding two distinct call
+    sites; the other thirty-nine are ONE call site inside a loop, denoting
+    many programs at one column.
+
+    Round 470's own motivating example is in the second group, not the first.
+    It read a repeated `test_v31.py:607` as a dedup defect and diagnosed it
+    as two `host_value(program)` calls on one physical line -- which is what
+    the SOURCE says. But only one of those two calls emits: the other's
+    strings are all in-file duplicates by the time the walk reaches it. So
+    `:607`'s four programs share a single column, and the column does not
+    separate them.
+
+    Bounds, not pins -- the corpus is meant to grow -- except for the
+    direction, which is the finding: the column can only ever help, and here
+    it helps by 0.2 percentage points."""
+    progs, _stats = harvest
+    fl = collections.Counter((p["file"], p["line"]) for p in progs)
+    flc = collections.Counter((p["file"], p["line"], p["col"]) for p in progs)
+    in_fl = sum(v for v in fl.values() if v > 1)
+    in_flc = sum(v for v in flc.values() if v > 1)
+    assert in_flc <= in_fl, (in_flc, in_fl)
+    assert len(flc) >= len(fl), (len(flc), len(fl))
+    # the ratio is what the amendment rests on: adding a column recovers
+    # less than one percent of the collision.
+    recovered = (in_fl - in_flc) / float(in_fl)
+    assert recovered < 0.05, recovered
+    # and the collision is dominated by single-site folds, not by shared
+    # lines -- if this ever inverts, the amendment above stops being true.
+    cols_per_line = collections.defaultdict(set)
+    for p in progs:
+        cols_per_line[(p["file"], p["line"])].add(p["col"])
+    colliding = {k for k, v in fl.items() if v > 1}
+    multi_site = {k for k in colliding if len(cols_per_line[k]) > 1}
+    assert len(multi_site) * 4 < len(colliding), \
+        (len(multi_site), len(colliding))
+
+
+def test_a_column_is_what_lets_a_row_and_a_program_name_the_same_site(
+        harvest, harvest_rows):
+    """What the column IS for, since it is not a program key.
+
+    A residual row is anchored at the ARGUMENT node and a program at the
+    CALL node, so the two record different columns on the same line by
+    design. The join that matters is the other one: within a single kind,
+    `(file, line, col)` distinguishes sites that `(file, line)` merges, and
+    that is what makes a per-site conservation claim expressible at all.
+    Pinned here as a property rather than a count, because the corpus grows.
+    """
+    progs, _stats = harvest
+    rows = [r for r in harvest_rows if r["kind"] == "residual"]
+    prog_sites = {(p["file"], p["line"], p["col"]) for p in progs}
+    row_sites = {(r["file"], r["line"], r["col"]) for r in rows}
+    # a residual row is a site that produced NO program; with the column in
+    # hand that statement is checkable, and it holds.
+    assert not (prog_sites & row_sites), sorted(prog_sites & row_sites)[:5]
+
+
+def test_a_duplicate_string_leaves_a_row(harvest_rows):
+    """Round 468 gave `dup_in_file` a counter because the `seen` set
+    "dropped a repeat and incremented nothing". A counter closed the
+    string-level arithmetic and left the POSITION unrecorded, so a call site
+    whose every string was already seen vanished from the record entirely.
+    Round 474 gives it a row. Without this row the conservation invariant
+    below is not statable: one of the four things that can happen to a call
+    site would be invisible."""
+    dups = [r for r in harvest_rows if r["kind"] == "dup"]
+    assert dups
+    for r in dups:
+        assert r["cls"] == "in_file"
+        assert r["src"] and r["line"] > 0
+
+
+def test_every_loop_that_drives_a_runner_is_accounted_for_at_its_own_span():
+    """THE CONSERVATION INVARIANT, and the one that would have caught round
+    470's regression the round it shipped.
+
+    For every `for` statement in the corpus whose target name reaches a
+    runner call inside its own body, SOMETHING must be recorded inside that
+    loop's own line span: a program, or a residual row, or an exclusion, or a
+    duplicate. A loop with nothing at its span has been silently answered for
+    by another loop -- which is exactly what the per-scope binding
+    environment did to `test_v30.py:299-302`.
+
+    Measured both ways, round 474: against `depthcensus.py` at round 470's
+    HEAD this reports 7 unaccounted loops of 74 (the six dup-suppressed ones
+    and `test_v30.py:299`); against HEAD it reports 0. A ratchet on the
+    residual COUNT reported neither.
+
+    This is deliberately a whole-corpus walk and not a synthetic: the defect
+    it catches is one where the instrument answers a question correctly on
+    every small input and loses a row on a real file."""
+    unaccounted, total = [], 0
+    for f in sorted(os.listdir(dc.TESTS)):
+        if not (f.startswith("test_") and f.endswith(".py")):
+            continue
+        path = os.path.join(dc.TESTS, f)
+        progs, stats = dc.harvest_file(path)
+        tree = ast.parse(open(path, encoding="utf-8").read())
+        runners = dc.runners_in(tree)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.For):
+                continue
+            names = {t.id for t in ast.walk(node.target)
+                     if isinstance(t, ast.Name)}
+            drives = False
+            for c in ast.walk(node):
+                if not isinstance(c, ast.Call):
+                    continue
+                kind, nm = dc._callee(c)
+                if not ((kind == "name" and nm in runners) or
+                        (kind == "attr" and nm in dc._EXEC_ATTRS)):
+                    continue
+                for a in list(c.args) + [kw.value for kw in c.keywords]:
+                    if any(isinstance(x, ast.Name) and x.id in names
+                           for x in ast.walk(a)):
+                        drives = True
+            if not drives:
+                continue
+            total += 1
+            lo, hi = node.lineno, node.end_lineno
+            if not (any(lo <= p["line"] <= hi for p in progs) or
+                    any(lo <= r["line"] <= hi for r in stats["rows"])):
+                unaccounted.append((f, lo, hi))
+    assert total >= 74, total
+    assert unaccounted == [], unaccounted
+
+
+# --- 8.1 the region model itself -------------------------------------------
+
+def test_a_loop_variable_is_not_visible_after_its_own_loop():
+    """The region model's deliberate conservatism, pinned so that nobody
+    "fixes" it by accident.
+
+    In Python a loop variable outlives its loop, and `_visible` says it does
+    not. That direction is safe for this instrument -- it can move a program
+    back into the residual but can never invent one -- and it is the whole
+    reason two loops sharing a name stop merging. A reader who widens this to
+    "from the loop to the end of the scope" re-creates the merge for every
+    pair of loops in source order."""
+    progs, stats = _harvest_source(
+        _MOD + "def t():\n"
+               "    for s in CASES:\n"
+               "        pass\n"
+               "    run(s)\n", "zz_tmp_after_loop.py")
+    assert progs == [], progs
+    assert _residual_classes(stats["rows"]) == ["bound_nonconstant:sequence"], \
+        _residual_classes(stats["rows"])
+
+
+def test_the_same_string_bound_by_two_loops_is_two_bindings():
+    """`_bind` dedups on `(region, value)` and NOT on value.
+
+    Two loops over the same table are two independent bindings of the same
+    strings. Deduping on the value alone would keep the first loop's binding
+    and drop the second's, and the second loop's call site would then resolve
+    to nothing -- turning a correct resolution into a residual row. That is
+    the mirror-image failure of the one this round fixed, and it is the
+    reason the dedup key had to change in the same edit as the environment.
+    """
+    progs, stats = _harvest_source(
+        _MOD + "def t():\n"
+               "    for s in CASES:\n"
+               "        run(s)\n"
+               "    for s in CASES:\n"
+               "        run(s + 'x')\n", "zz_tmp_sametable.py")
+    lines = sorted(p["line"] for p in progs)
+    # three from the first loop at :11, three more from the second at :13 --
+    # the `+ 'x'` makes them distinct strings, so neither dedup hides them.
+    assert len(progs) == 6, [(p["line"], p["src"]) for p in progs]
+    assert lines == [11, 11, 11, 13, 13, 13], lines
+    assert _residual_classes(stats["rows"]) == [], stats["rows"]
+
+
+def test_a_multi_line_comprehension_scopes_its_own_element_expression():
+    """`ast.comprehension` carries no `lineno`, and the element expression
+    that holds the runner call can sit on an EARLIER line than the `for`
+    clause. Taking the region from the target would scope the comprehension's
+    own reader out of it and turn a resolved program into a residual row --
+    silently, because the row would look like an ordinary unresolved name.
+
+    `comp_span` therefore takes the span from the owning ListComp/SetComp/
+    DictComp/GeneratorExp. This is the test that goes red if somebody
+    simplifies that back to `node.target.lineno`."""
+    progs, stats = _harvest_source(
+        _MOD + "def t():\n"
+               "    return [\n"
+               "        run(s)\n"
+               "        for s in CASES\n"
+               "    ]\n", "zz_tmp_multiline_comp.py")
+    assert len(progs) == 3, [(p["line"], p["src"]) for p in progs]
+    assert sorted(p["line"] for p in progs) == [11, 11, 11], \
+        sorted(p["line"] for p in progs)
+    assert _residual_classes(stats["rows"]) == [], stats["rows"]
+
+
+def test_the_second_of_two_loops_is_the_one_that_answers_when_it_is_the_one_that_resolves():
+    """The mirror of the converted tripwire, and the half of the pair that
+    the tripwire's own assertions could not have distinguished.
+
+    Loop ONE is unreadable and loop TWO resolves. The programs must come
+    from loop two AND loop one must keep its residual row. Under the
+    per-scope model the programs landed in the same place by accident (the
+    walk reaches the second site first) while loop one's row was merged
+    away -- so this test fails on the ROW under round 470's model and passes
+    on the line. Written as a pair with the tripwire for that reason: one
+    test cannot separate "right answer" from "right answer by luck"."""
+    progs, stats = _harvest_source(
+        _MOD + "def t():\n"
+               "    for s in [x for x in mystery() if x]:\n"
+               "        run(s)\n"
+               "    for s in CASES:\n"
+               "        run(s)\n", "zz_tmp_twoloops_rev.py")
+    assert len(progs) == 3, progs
+    assert sorted(p["line"] for p in progs) == [13, 13, 13], \
+        sorted(p["line"] for p in progs)
+    resid = [r for r in stats["rows"] if r["kind"] == "residual"]
+    assert len(resid) == 1, resid
+    assert resid[0]["line"] == 11, resid[0]
+
+
+def test_census_labels_carry_an_ordinal_within_a_shared_site():
+    """The unit-level half of
+    `test_testcorpus_suite_census.py::test_every_censused_row_has_a_label_
+    that_names_exactly_one_program`, which lives in the `whence_slow` tier
+    because it runs all 829 programs. Three programs at ONE site get three
+    labels; two programs at two sites keep their own."""
+    progs = [{"file": "a.py", "line": 7, "col": 4, "runner": "run",
+              "max_depth": 200, "src": "let a = %d\n" % i}
+             for i in range(3)]
+    progs.append({"file": "a.py", "line": 9, "col": 4, "runner": "run",
+                  "max_depth": 200, "src": "let b = 1\n"})
+    rows = dc.census_tests(progs, depth="suite", alloc=False)
+    assert [r["program"] for r in rows] == [
+        "a.py:7:4#1", "a.py:7:4#2", "a.py:7:4#3", "a.py:9:4#1",
+    ], [r["program"] for r in rows]

@@ -222,3 +222,36 @@ def test_the_v30_and_v31_producers_return_one_element_per_input():
         else test_v31._library_source()
     assert len(test_v31.guest_values(dprogs[:1], lib31)) == 1
     assert len(test_v31.guest_values(dprogs, lib31)) == 2
+
+
+# ---------------------------------------------------------------------------
+# 5. round 474 -- a censused row must be nameable
+# ---------------------------------------------------------------------------
+
+def test_every_censused_row_has_a_label_that_names_exactly_one_program(
+        suite_census):
+    """Round 470's next-step 3: "`file:line` is not a key for a source
+    position; `(file, line, col)` is."
+
+    The first clause was right about this census and understated: with
+    `file:line` labels, 346 of 829 rows (41.7 %) shared a label with another
+    row, so the census could not name what it had measured. The second
+    clause is what round 474 measured and had to amend -- the column splits
+    ONE of the forty colliding keys, because 39 of the 40 are a single call
+    site inside a loop over a table, denoting many programs at one column.
+
+    A harvested program's POSITION is a one-to-many relation and cannot key
+    it. `census_tests` therefore labels `file:line:col#k`, k counting within
+    the site, which is unique AND says out loud that the site is shared. This
+    test is the one that goes red if somebody "simplifies" the ordinal away.
+    """
+    rows, _summary, _stats = suite_census
+    labels = [r["program"] for r in rows]
+    assert len(set(labels)) == len(labels), \
+        [l for l in labels if labels.count(l) > 1][:5]
+    # and the ordinal is load-bearing, not decorative: strip it and the
+    # labels collide again. If this ever stops being true the corpus has
+    # changed shape, not the instrument.
+    stripped = [l.rsplit("#", 1)[0] for l in labels]
+    assert len(set(stripped)) < len(stripped), \
+        "no site is shared any more -- re-read round 474 before deleting #k"

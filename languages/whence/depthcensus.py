@@ -74,6 +74,7 @@ returning a clean number it did not earn.
 """
 
 import ast
+import collections
 import json
 import os
 import sys
@@ -912,6 +913,45 @@ _PARSE_CALLS = ("parse", "lex", "tokens")
 _SRC_KEYWORDS = ("src", "source", "program", "code", "text")
 _NOLIT = object()
 MAX_FOLD = 32                    # strings one node may denote; see `_cross`
+
+
+def _visible(pairs, line):
+    """The binding environment a node AT `line` can see: `{name: [values]}`.
+
+    ROUND 474, and it is a data-model change rather than a filter bolted on
+    top of one. `bindings[id(sc)]` used to be `{name: [value, ...]}` -- one
+    set per name per SCOPE -- so two `for` loops in one function binding the
+    same name were indistinguishable and every call site in the function got
+    the UNION of both loops' values. That was inert only while neither loop
+    resolved. Round 470 taught the zip analysis to read one of them and the
+    hazard went live in the same commit: the second loop's residual row
+    vanished though nothing had learned to read the second loop, and the
+    FIRST loop's programs were stamped with the SECOND loop's line number.
+    `tests/test_testcorpus_census.py::test_two_loops_one_name_and_the_second
+    _loops_row_disappears_with_it` is round 470's own tripwire for this, and
+    it goes red when this function is wired in -- deliberately.
+
+    A binding is now `(region, value)` where `region` is `None` for a
+    scope-wide binding (an `=`) or `(lo_line, hi_line)` for one made by an
+    ITERATION PROTOCOL -- a `for` statement or a comprehension -- whose
+    values only exist inside that construct's own source span. A name with
+    no binding visible here is ABSENT from the returned dict, which is what
+    puts the unread loop back in the residual instead of silently borrowing
+    its neighbour's answer.
+
+    The span is the construct's, not a control-flow analysis: after
+    `for s in T: ...` the name `s` is still bound in Python, and this model
+    deliberately says it is not. That direction is safe for this instrument
+    -- it can only move a program back into the residual, never invent one --
+    and it is stated here rather than left to be discovered as a bug.
+    """
+    out = {}
+    for name, items in pairs.items():
+        vs = [v for reg, v in items
+              if reg is None or reg[0] <= line <= reg[1]]
+        if vs:
+            out[name] = vs
+    return out
 
 
 def _walk_scope(scope):
@@ -2111,20 +2151,43 @@ def harvest_file(path):
     sbind = _scope_bindings(scopes)
     fns = _fn_index(tree, path)
 
-    def _bind(b, name, v):
+    # Round 474. A binding is `(region, value)`; see `_visible`. The dedup
+    # is per (region, value) and NOT per value: the same string bound by two
+    # different loops is two bindings, and collapsing them is precisely the
+    # merge this change exists to undo. The MAX_FOLD cap stays per NAME, so
+    # `fold_capped` still counts what it counted.
+    def _bind(b, name, v, region=None):
         cur = b.setdefault(name, [])
-        if len(cur) < MAX_FOLD and not any(x is v or x == v for x in cur):
-            cur.append(v)
+        if len(cur) < MAX_FOLD and not any(
+                r == region and (x is v or x == v) for r, x in cur):
+            cur.append((region, v))
+
+    # Round 474. id(comprehension) -> its enclosing expression's line span.
+    # An `ast.comprehension` carries no `lineno` of its own, and the element
+    # expression that holds the runner call can sit on an EARLIER line than
+    # the `for` clause, so the span has to come from the ListComp/SetComp/
+    # DictComp/GeneratorExp that owns it or a multi-line comprehension would
+    # scope its own reader out.
+    comp_span = {}
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.ListComp, ast.SetComp, ast.DictComp,
+                             ast.GeneratorExp)):
+            span = (node.lineno, getattr(node, "end_lineno", node.lineno))
+            for gen in node.generators:
+                comp_span[id(gen)] = span
 
     for _pass in range(3):
         for sc in scopes:
             b = bindings[id(sc)]
             lb = lit_bindings[id(sc)]
-            env, lits = {}, {}
+            # The MERGED pair tables for this scope's chain. `_visible`
+            # narrows them to one line at each read; the merge itself still
+            # shadows outer scopes wholesale, exactly as before.
+            env_p, lit_p = {}, {}
             for anc in _chain(sc):
-                env.update(bindings[id(anc)])
-                lits.update(lit_bindings[id(anc)])
-            def _bind_iter(target, it):
+                env_p.update(bindings[id(anc)])
+                lit_p.update(lit_bindings[id(anc)])
+            def _bind_iter(target, it, region, env, lits):
                 """`for t in <iterable>:` -- the binder for BOTH statement
                 and comprehension form. Round 468: `_walk_scope` already
                 descends into a comprehension (it is not a scope this walk
@@ -2139,8 +2202,8 @@ def harvest_file(path):
                     and could not be reused by the zip branch."""
                     if isinstance(t, ast.Name):
                         if isinstance(v, str):
-                            _bind(b, t.id, v)
-                        _bind(lb, t.id, v)
+                            _bind(b, t.id, v, region)
+                        _bind(lb, t.id, v, region)
                     elif isinstance(t, (ast.Tuple, ast.List)) \
                             and isinstance(v, (list, tuple)) \
                             and len(v) == len(t.elts):
@@ -2169,13 +2232,20 @@ def harvest_file(path):
                         isinstance(target, ast.Name):
                     for elt in it.elts:
                         for v in _const_strs(elt, env, lits):
-                            _bind(b, target.id, v)
+                            _bind(b, target.id, v, region)
 
             for node in _walk_scope(sc):
                 targets, value = None, None
                 if isinstance(node, ast.comprehension):
-                    _bind_iter(node.target, node.iter)
+                    # Round 474: region = the owning comprehension's span.
+                    reg = comp_span.get(id(node))
+                    ln = reg[0] if reg else 0
+                    _bind_iter(node.target, node.iter, reg,
+                               _visible(env_p, ln), _visible(lit_p, ln))
                     continue
+                ln = getattr(node, "lineno", 0)
+                env = _visible(env_p, ln)
+                lits = _visible(lit_p, ln)
                 if isinstance(node, ast.Assign):
                     targets, value = node.targets, node.value
                 elif isinstance(node, ast.For):
@@ -2188,10 +2258,23 @@ def harvest_file(path):
                     # NAME_SLOT_CASES:` over a module-level list of tuples.
                     # 25 of round 458's 131 non-constant nodes are a `%`
                     # whose right operand is a name bound only here.
-                    _bind_iter(node.target, node.iter)
+                    #
+                    # Round 474: region = the `for` statement's own span, so
+                    # a second loop binding the same name in the same scope
+                    # is a SEPARATE binding rather than a merged one.
+                    _bind_iter(node.target, node.iter,
+                               (node.lineno,
+                                getattr(node, "end_lineno", node.lineno)),
+                               env, lits)
                     continue
                 else:
                     continue
+                # An `=` binds for the whole scope (`region=None`). Round
+                # 474 deliberately did NOT narrow this to "from this line
+                # down": every table in this tree is bound once at module or
+                # function top, so narrowing it would move no row while
+                # changing 400-odd of them, and an unmeasured refinement is
+                # not one this instrument should ship.
                 for v in _const_strs(value, env, lits):
                     for t in targets:
                         if isinstance(t, ast.Name):
@@ -2206,6 +2289,7 @@ def harvest_file(path):
 
     def _row(node, kind, cls, label, **extra):
         r = {"file": base, "line": getattr(node, "lineno", 0),
+             "col": getattr(node, "col_offset", 0),
              "runner": label, "kind": kind, "cls": cls,
              "text": _snippet(node)}
         r.update(extra)
@@ -2216,10 +2300,10 @@ def harvest_file(path):
     seen = set()
     po_seen = set()
     for sc in scopes:
-        env, lits = {}, {}
+        env_p, lit_p = {}, {}
         for anc in _chain(sc):
-            env.update(bindings[id(anc)])
-            lits.update(lit_bindings[id(anc)])
+            env_p.update(bindings[id(anc)])
+            lit_p.update(lit_bindings[id(anc)])
         params = set()
         if isinstance(sc, (ast.FunctionDef, ast.AsyncFunctionDef,
                            ast.Lambda)):
@@ -2244,6 +2328,13 @@ def harvest_file(path):
         for node in _walk_scope(sc):
             if not isinstance(node, ast.Call):
                 continue
+            # Round 474. The environment is resolved AT THE CALL SITE'S OWN
+            # LINE, not once for the enclosing scope. This is the whole
+            # attribution fix: a runner call inside the second of two `for`
+            # loops that bind the same name now sees the second loop's
+            # bindings and only those.
+            env = _visible(env_p, node.lineno)
+            lits = _visible(lit_p, node.lineno)
             kind, nm = _callee(node)
             executes = True
             if kind == "name" and nm in runners:
@@ -2334,6 +2425,19 @@ def harvest_file(path):
                     key = (s, depth)
                     if key in seen:
                         stats["dup_in_file"] += 1
+                        # Round 474. A duplicate now leaves a ROW. Round 468
+                        # gave `dup_in_file` a counter because the `seen` set
+                        # "dropped a repeat and incremented nothing"; a
+                        # counter closed the string-level arithmetic but left
+                        # the POSITION unrecorded, so a call site whose every
+                        # string was a repeat vanished from the record
+                        # entirely -- no program, no row, nothing to read.
+                        # Six loops in this tree are in exactly that state
+                        # (measured, round 474 SS4), and without this row the
+                        # conservation invariant below cannot be stated at
+                        # all: "every call site is accounted for" has no
+                        # meaning while one of the four outcomes is invisible.
+                        _row(a, "dup", "in_file", label, src=s)
                         continue
                     seen.add(key)
                     try:
@@ -2347,7 +2451,8 @@ def harvest_file(path):
                         _row(a, "unparsed", "no_statements", label, src=s)
                         continue
                     out.append({"file": os.path.basename(path),
-                                "line": node.lineno, "runner": label,
+                                "line": node.lineno,
+                                "col": node.col_offset, "runner": label,
                                 "max_depth": depth, "src": s})
     stats["parse_only_programs"] = sum(1 for x in stats["parse_only_srcs"]
                                        if _is_program(x))
@@ -2437,12 +2542,26 @@ def census_tests(programs=None, depth="suite", alloc=True,
     if limit is not None:
         programs = programs[:limit]
     rows = []
+    # Round 474. The census row's label was `file:line`, and over the live
+    # corpus 346 of 829 programs (41.7 %) shared one with another program --
+    # so a censused row could not be named. Round 470's next-step 3 proposed
+    # `(file, line, col)`; measured, the column splits ONE of the forty
+    # colliding keys, because the collision is not two calls on a line but
+    # ONE call inside a loop over a table. A program's position is a
+    # ONE-TO-MANY relation and no positional refinement keys it. The ordinal
+    # is what closes it: `file:line:col#k`, k counting from 1 within the
+    # site, is unique over the corpus and says out loud that the site is
+    # shared. `test_every_censused_row_has_a_label_that_names_exactly_one
+    # _program` is the check.
+    at_site = collections.Counter()
     for i, p in enumerate(programs):
         if progress:
             progress(i, p)
         md = (p["max_depth"] if depth == "suite"
               else DEFAULT_GUEST_MAX_DEPTH)
-        r = census_program("%s:%d" % (p["file"], p["line"]), "all",
+        site = (p["file"], p["line"], p.get("col", 0))
+        at_site[site] += 1
+        r = census_program("%s:%d:%d#%d" % (site + (at_site[site],)), "all",
                            max_nodes, max_roots, alloc,
                            src=p["src"], max_depth=md)
         r["runner"] = p["runner"]
@@ -2682,8 +2801,9 @@ def residual_report(rows, limit=None):
         if kind in ("residual", "excluded"):
             for r in sorted(sub, key=lambda r: (r["cls"], r["file"],
                                                 r["line"]))[:limit]:
-                out.append("        %-34s:%-5d %-40s %s"
-                           % (r["file"], r["line"], r["cls"], r["text"]))
+                out.append("        %-34s:%-9s %-40s %s"
+                           % (r["file"], "%d:%d" % (r["line"], r["col"]),
+                              r["cls"], r["text"]))
         out.append("")
     return "\n".join(out)
 
@@ -2715,7 +2835,8 @@ def _main_tests(mode, limit, alloc, max_nodes, out_json, residual=False):
     rows = census_tests(progs, depth=mode, alloc=alloc, max_nodes=max_nodes,
                         limit=limit,
                         progress=lambda i, p: sys.stderr.write(
-                            "  %4d %s:%d\n" % (i, p["file"], p["line"])))
+                            "  %4d %s:%d:%d\n"
+                            % (i, p["file"], p["line"], p.get("col", 0))))
     summary = summarise(rows)
     print(render(rows, summary))
     if out_json:

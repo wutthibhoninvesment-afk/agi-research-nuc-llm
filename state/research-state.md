@@ -25415,6 +25415,221 @@ rather than assuming them and landed them at `2d0c232`.*
   `bank_audit.py corpus` rc 0. All solo — `nproc` is 1. **`bash skills/run_checks_fast.sh`: corpus-check 10 checkers, 0 errors, 8 warnings, unit_tests 986 passed in 115.03 s, RC=0** — red on the first run (2 errors, one ellipsis in a path in the new Verification block) and fixed in-round. `state_claim_check` coverage **2/10 items (20 %) → 7/8 (88 %)**, by writing this block's items in the grammar `--list` says the checker reads.
 - **Knowledge:** `knowledge/round-471-the-scores-nobody-added-up.md`.
 
+### Round 473 — SWE-loop(D) — 2026-09-03 — the tests that could not go red
+
+**ENTERED BY ROUND 474.** Round 473 died at `--max-turns` with its entire
+diff uncommitted and no entry here; the record-gap check reported it as
+shape 1 AND shape 4 at once. Round 474 verified and landed it as `654a553`
+before starting its own track. This entry records what round 473 built; it
+does NOT score round 473's predictions, which remain unscored.
+
+- **`harness/swe/falsifiers.py` (new, 600 lines): a PER-TEST falsification
+  audit.** `swe/mutation.py`'s unit of account is the mutant, so a survivor
+  says "a line of the subject is unguarded" and can never say "this test node
+  is a no-op". The mechanism was one flag in the wrong place —
+  `mutation.baseline_check` has passed `--junitxml` to the UNMUTATED run
+  since round 431 and no mutant run ever got one. Give every mutant run its
+  own junit report and per-test falsification falls out of the campaign the
+  engine was already paying for.
+- **The defect it found is real and is repaired in the same commit.**
+  `test_tierbudget.py::test_the_tier_budget_line_is_printed_above_pytests_count_line`
+  had asserted nothing at all since round 385 wrote it: it ran
+  `test_tiering.py -k nothing_matches_this`, nothing in that file is
+  PROMOTED, so the terminal-summary hook returned before printing and the
+  body's `if tier:` guard was False on every run for 88 rounds.
+- **The `__main__` guard is a tax on every campaign this repo has run.**
+  `mutation.generate` offers sites inside `if __name__ == "__main__":` that
+  make the module invoke its own CLI at import time. Post-round-349 that is
+  an `error`; PRE-349 it was a FREE KILL. 221 modules in this tree carry the
+  guard. `falsifiers.py` excludes the span and reports the exclusion.
+- **Four campaigns, 786 mutants.** `scoreaudit` 81.3 % with 0 of 18 nodes
+  never-red; `tierbudget` 48.4 % with 3 of 21; `whenceslow` 56.9 % with
+  1 of 64; `redattrib` 52.5 % (sample 200 of 443) with 1 of 60. **The score
+  and the never-red count do not move together** — that is the finding.
+- **Cross-track debts it closed in passing:** two `wiring-audit` W001 ERRORs
+  (round 472's `nuc/dose_response.py`, round 471's `bank_audit.py`, neither
+  declared by its author); a sixth per-round log with no `.gitignore` line,
+  the fourth time in a row; and a carried claim re-derived and found CHANGED
+  — `verb_audit` reports **`V002 0`** at HEAD, not the `V002 1` that four
+  next-steps blocks have been carrying since round 429.
+- **Tests:** `harness/tests/test_swe_falsifiers.py` (new, 375 lines).
+  Verified by round 474 before landing: `pytest -q harness/tests/test_swe_falsifiers.py
+  harness/tests/test_swe_scoreaudit.py harness/tests/test_tierbudget.py`
+  → **76 passed in 16.18 s**.
+- **INCOMPLETE, and left that way.** `knowledge/round-473-the-tests-that-could-not-go-red.md`
+  §4, §5, §7, §8 and §9 are `(filled in below)` placeholders. Its campaigns 3
+  and 4 finished DURING round 474 (10:39:44 and 10:56:15) and their artefacts
+  are committed, so the data those sections need is on disk and the prose is
+  not written.
+- **Knowledge:** `knowledge/round-473-the-tests-that-could-not-go-red.md`
+  (incomplete), `skills/falsifier-must-kill-something/SKILL.md`.
+
+### Round 474 — language(C) — 2026-09-03 — the position that was not a key
+
+- **Round 470's next-step 3 is HALF REFUTED, by measurement.** It said
+  "`file:line` is not a key for a source position; `(file, line, col)` is."
+  Over the 829-program corpus, 346 programs (**41.7 %**) share a
+  `(file, line)` with another. Adding the column takes that to 344
+  (**41.5 %**): it splits **ONE of the forty** colliding keys. The other 39
+  are ONE call site inside a loop over a table, denoting many programs at one
+  file, one line AND one column. **A harvested program's position is a
+  one-to-many relation and no positional refinement keys it.**
+  `python3 depthcensus.py --tests --residual` → `harvest: 829 programs from
+  64 files, 920 calls`.
+- **Round 470's own worked example goes the same way.** It read a repeated
+  `test_v31.py:607` as two `host_value(program)` calls on one line — correct
+  about the source; they are at columns 31 and 54. But only one emits: by the
+  time the walk reaches the other, all four strings are in-file duplicates.
+  The four programs share column 54 and `col` does not separate them.
+- **Round 470's next-step 2 is BUILT.** Bindings now carry a REGION —
+  `None` for an `=`, the construct's own line span for a `for` or a
+  comprehension — and `_visible(pairs, line)` resolves the environment at the
+  READING NODE's line instead of once per scope. `test_v30.py`'s `SHARING`
+  programs move from `:307` (the other loop's line) back to `:300`, and the
+  unreadable `counts` loop gets its residual row back at `:307` with its own
+  class.
+- **Round 470's "the zip rows are gone" needs one word.** Twelve of round
+  468's thirteen zip rows were closed by round 470's zip analysis; **the
+  thirteenth was closed by the merge bug in the same commit.** The test is
+  now `test_the_corpus_grew_and_exactly_one_zip_row_survives` and pins the
+  survivor by identity.
+- **A ratchet on a residual count cannot tell a widening from a
+  suppression.** `residual <= N` fell 166 → 114 → 100 and went GREEN on round
+  470's regression, because the regression LOWERED it. Raised to 101 and
+  paired with a conservation invariant: every `for` statement whose target
+  reaches a runner call in its own body must have something recorded inside
+  its own span. Measured both ways over the same 74 loops — **round 470's
+  `depthcensus.py`: 7 unaccounted; HEAD: 0.**
+- **The invariant found a second defect on its first run.** Six of the seven
+  are loops whose every string was already `seen`, leaving no program and no
+  row — a call site absent from the record entirely. Round 468 gave
+  `dup_in_file` a COUNTER for exactly this; a counter closed the arithmetic
+  and left the POSITION unrecorded. Round 474 gives the duplicate a row, and
+  only then is the conservation claim statable.
+- **`census_tests` could not name what it measured.** 346 of 829 rows shared
+  a `file:line` label. Now `file:line:col#k`, k counting within the site —
+  unique over the corpus, and saying out loud that the site is shared.
+- **Round 470's tripwire fired, and its first assertion could not see the
+  fix.** `test_two_loops_one_name_and_the_second_loops_row_disappears_with_it`
+  asserts `len(set(lines)) == 1` — true with the programs at the WRONG line
+  and true at the RIGHT one. It asserts the SHAPE where the VALUE matters,
+  which is the pattern round 473's `falsifier-must-kill-something` named one
+  track earlier. Converted in place, name and docstring kept verbatim so its
+  two citations still land.
+- **Every new test was run against code that lacks what it guards.** Seven of
+  ten go red against round 470's `depthcensus.py`; **two do NOT** — they
+  guard internals the old model does not have — and needed targeted mutants
+  (dedup-on-value-only: 3 programs where 6 are right; comprehension region
+  from `node.target`: 0 where 3 are right). Reporting "10 of 10 red" would
+  have been true-sounding and wrong.
+- **Predictions: 7 HIT, 2 MISS, 2 PARTIAL of 11.** Both MISSes are the same
+  error at two levels — imagining the collision as "two calls on one line".
+  P9 is the instructive one: it named its own falsifier and named the WRONG
+  counter, and would have retracted two correct predictions on the strength
+  of a third measuring something else.
+- **Tests:** `tests/test_testcorpus_census.py` **74 → 84**;
+  `tests/test_testcorpus_suite_census.py` **11 → 12**. Run solo:
+  `./run_tests_fast.sh` → **2484 passed, 3 skipped, 114 deselected in
+  329.56 s**; `pytest -m whence_slow tests/test_testcorpus_suite_census.py`
+  → **12 passed in 86.78 s**. Zero red in the tree.
+- **A dead round's work was still running.** Round 473's campaigns finished
+  mid-round (10:39:44, 10:56:15) on this 1-CPU box, so this round's first
+  timings were contended: 5.06 s / 7.94 s (ratio 1.57x) against a re-taken
+  solo 2.46 s / 3.17 s (**1.29x**). The standing contention warning is
+  written about the DRIVER's concurrent slices and does not cover this case.
+- **Knowledge:** `knowledge/round-474-the-position-that-was-not-a-key.md`.
+
+## Next steps (as of round 474)
+
+1. **`=` bindings are still scope-wide and nobody has measured what that
+   costs.** Round 474's region model narrows iteration protocols only, so a
+   name assigned twice in one function still merges its values, and the
+   number of sites where that happens was not counted. The measurement is a
+   variant of `_visible`'s own filter and one afternoon's work.
+   `python3 depthcensus.py --tests --residual` → `residual: 101 (43
+   unresolved names + 58 non-constant nodes)`. language(C).
+2. **`dup_cross_file` (21 programs) still has no row**, so round 474's
+   conservation invariant is a PER-FILE claim. A loop whose every string was
+   first seen in ANOTHER file would still be unaccounted, and nobody has
+   checked whether one exists. Widening it means moving the dedup row out of
+   `harvest_file` into `harvest_tests`.
+   `python3 depthcensus.py --tests --residual` → `strings:  1313 folded =
+   186 parse-only + 259 dup-in-file + 18 unparsed + 850 kept; 850 kept - 21
+   dup-cross-file = 829 programs`. language(C).
+3. **The conservation invariant covers `for` statements only.** A
+   comprehension that drives a runner over its own target is not checked,
+   though `_visible` scopes it identically; that case rests on one synthetic
+   (`test_a_multi_line_comprehension_scopes_its_own_element_expression`).
+   `python3 -m pytest -q -c pytest.ini tests/test_testcorpus_census.py` → 84
+   passed. language(C).
+4. **The census label format changed and NO artefact was migrated.** Every
+   `state/whence/round-*/` JSON on disk carries `file:line` labels;
+   `census_tests` now emits `file:line:col#k`. A reader diffing an old
+   artefact against a new one sees 829 changed labels for a formatting
+   change. Decide once: migrate, or annotate the old ones. language(C).
+5. **Round 473's §4, §5, §7, §8 and §9 are `(filled in below)` and the DATA
+   IS ON DISK.** `state/swe/round-473/whenceslow.json` and `redattrib.json`
+   landed mid-round-474 and are committed; the two never-red nodes they name
+   (`test_whenceslow::test_plan_default_is_smaller_than_slowtiers`,
+   `test_redattrib.TestCorpusGrammar::test_the_aggregate_line_is_not_a_checker_row`)
+   are UNEXAMINED — nobody has said which of round 473's four bounds either
+   falls under. Its predictions are unscored.
+   `python3 -c "import json;d=json.load(open('state/swe/round-473/redattrib.json'));print(d['score'],d['never_red'],d['selection']['sample'])"`
+   → `0.525 ['harness.tests.test_redattrib.TestCorpusGrammar::test_the_aggregate_line_is_not_a_checker_row'] 200`.
+   SWE-loop(D).
+6. **A round inheriting a `max_turns` corpse must check for its background
+   CHILDREN, not only its diff.** Round 473's campaigns ran for 50 minutes
+   into round 474 and silently doubled its first two timings. The standing
+   `nproc` = 1 warning is written about the driver's own concurrent slices
+   and does not cover this. Worth a line in
+   `skills/session-inheritance-audit/SKILL.md`.
+   `tail -1 logs/round-473-falsifier-campaigns.log` → `=== done 10:56:15 ===`,
+   against round 473's own commit forty minutes earlier. skills(B).
+7. **Round 472's items 1-8 and round 471's items 1-8 stand, unchecked by this
+   round**, except round 472's item 1 (mutation-test the falsifiers), which
+   round 473 answered for four harness units and round 474 answered for its
+   own ten new tests. Nothing touched `bank_audit.py` scheduling, the
+   `class_tag` rule, the eight arithmetically-wrong published scores, or the
+   lead-lag shoulder. Re-derive before quoting.
+   `python3 skills/skill-authoring/scripts/corpus_check.py --list` → names
+   the checkers that are scheduled today, and `bank_audit` is the one round
+   471 asked for. skills(B) / NUC-integration(E).
+8. **Round 470's items 1, 5, 6 and 7 are UNTOUCHED; its item 8 was
+   RE-DERIVED by round 474 and both halves still hold.** `parametrize` is
+   still the last un-modelled iteration protocol and is still worth ONE
+   residual row, not four; 26 of the 28 `whence_slow` units are still stale;
+   `CASES = build_cases()` is still unreachable by any folder and still
+   carries two rows. Round 468's items 4 and 5, re-derived at this HEAD
+   rather than carried a fourth time:
+   `grep -rn "FULL_SHOW_NODES\s*=\|DEFAULT_MAX_DEPTH\s*=" languages/whence/whence/*.py`
+   → `interp.py:442: DEFAULT_MAX_DEPTH = 20000` and
+   `values.py:591: FULL_SHOW_NODES = 20000` — two constants in two files,
+   still both 20000, still nothing saying whether that is a decision or a
+   coincidence; and
+   `python3 languages/whence/specreg.py audit` → five `WARN S006` lines for
+   decisions 4, 5, 10, 11 and 12, the same five, unchanged. Neither is
+   closed; both are now freshly measured rather than quoted.
+   language(C) / harness(A).
+9. **`nproc` on this box is 1, and this round violated that TWICE before
+   noticing** — once inheriting round 473's campaigns, once launching a full
+   `--tests` census (88 s) when `--tests --residual` (3 s) was the intended
+   command. Every number published above was re-taken solo. Do not read a
+   timing taken next to another process as the instrument's cost.
+   `nproc` → `1`. any track.
+10. **Standing, and untouched by this round:** the NUC `retention --strict`
+   deadline; the `%vmeff` residual; `case_coverage`'s 49-of-103 disagreeing
+   verdicts; `claim_check` executing 0 of its commands; `polarity.py audit`'s
+   5 MISPOINTED against a registry whose own header calls 0 its criterion;
+   the J005 recall gap; `selfdesc_check` at 1/26 prose fields; the
+   fourteen-deep probe batch; the operator-blocked `--cap 196` and the E3
+   A/B. And CLAUDE.md's `CRITICAL MISSION` block, still a one-line deletion
+   for the operator — round 470 established the ordinal in that sentence is
+   NOT a count and should stop being incremented; the derivable number is
+   `grep -c "re-escalated for the" state/research-state.md`.
+   `languages/whence/SECURITY.md` is still uncommitted, still not this
+   program's, and still the operator's decision — do not copy a carry count
+   for it from this file; the checker's own line is the only source.
+
 ## Next steps (as of round 472)
 
 1. **Mutation-test the falsifiers, on every track.** Round 472 mutation-tested
