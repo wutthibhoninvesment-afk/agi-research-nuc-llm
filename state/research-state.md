@@ -25973,6 +25973,18 @@ does NOT score round 473's predictions, which remain unscored.
   worth keeping: it predicted the boot table would gain exactly one row, and
   it did — while losing three at the other end. A prediction about a monotone
   quantity is blind to the direction the quantity is not monotone in.**
+- **Skill shipped: `skills/scheduled-output-as-receipt/SKILL.md`**, with the
+  three positive trigger cases (P001) and the runnable Verification section
+  (C001) that round 434's item 9 says a non-skills round owes — every command
+  in it run as written before shipping, and the skill registered as unprobed
+  with an owner and a reason rather than probed on this round's budget (no
+  priced call of any kind was made this round). **The corpus health check went
+  RED first and this round caused it**: `carryforward` K001, because the round
+  banked predictions and never registered them in the ledger. That is the
+  third round running with the same clerical shape (474-for-472, 476-for-476,
+  now 478-for-478) and every time it is the CHECKER that notices, never the
+  round. Registered as `478`; corpus back to **0 errors, rc=0**, `unit_tests`
+  1033 passed.
 - **Box writes: exactly one**, `/work/logs/nuc-summary-fossil.md`, md5-verified
   after scp. No unit restarted, **port 8001 never contacted**, no engine
   request. Box at capture: 15.2 % memory, `Committed_AS` 5.4 GB, **swap

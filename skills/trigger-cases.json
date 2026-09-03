@@ -2735,5 +2735,26 @@
    "derived-subject-set"
   ],
   "prompt": "The docstring on our CI check says it runs pytest over every `packages/*/tests/test_*.py` file. The actual command lists three directories by name, and the glob matches four. A teammate read the docstring, concluded a tool in the fourth directory was covered, and marked a ticket done on that basis. How should I fix this so it cannot happen again?"
+ },
+ {
+  "id": "soar-bracket-too-wide",
+  "expect": [
+   "scheduled-output-as-receipt"
+  ],
+  "prompt": "A build agent dropped off the network some time on Saturday and came back Monday morning. Our monitoring only polls it every couple of hours during the working week, so the best I can say is the outage started somewhere in a seven-hour window, and my manager wants a start time. The machine itself is back up and I can log into it. Is there any way to narrow this down after the fact, or do I just have to report the window?"
+ },
+ {
+  "id": "soar-unexplained-gap",
+  "expect": [
+   "scheduled-output-as-receipt"
+  ],
+  "prompt": "Our uptime report has a column that says `unexplained_gap` for about a dozen periods and I have been treating those as unknowable, because nobody was watching and the metrics agent obviously was not running either. Before I write them off in the quarterly summary, is there anything else on the host that would have been keeping time during those gaps?"
+ },
+ {
+  "id": "soar-missing-nightly-file",
+  "expect": [
+   "scheduled-output-as-receipt"
+  ],
+  "prompt": "I noticed our nightly report directory has files for the 23rd through the 28th, then nothing for the 29th, then the 30th and 31st are there again. My first thought was that retention deleted the 29th, but the 23rd is still sitting there and it is older. What can I actually conclude from the one that is missing, and how do I tell a deleted file apart from one that was never written?"
  }
 ]

@@ -384,6 +384,32 @@ mutations, 14 killed, 0 survived.** The mutation list lives in the test file
 as `MUTATIONS`, and `test_mutation_list_is_honest` fails if it names a test
 that does not exist.
 
+### The skill
+
+**`skills/scheduled-output-as-receipt/SKILL.md`** — the technique is not about
+`sysstat`. It is: *a periodic job's output file is a receipt stamped at the
+instant it ran, so the file SET is a timeline of which runs happened, readable
+retroactively for instants you never probed.* Ten numbered steps, the load-
+bearing ones being step 4 (read the catch-up setting — `Persistent=`,
+`anacron`, `misfire_grace_time` — because without `no` you have a delay
+detector, not an availability witness) and step 5 (write the retention
+argument, or a missing receipt is just a deleted file and you have nothing).
+
+Round 434's item 9 is the rule for a non-skills round shipping a skill: it
+owes **three positive trigger cases** (P001, an ERROR) and a **runnable
+Verification section** (C001) — not merely a `known-unprobed-skills.json`
+entry, which silences a warning and says nothing about either error. Both
+shipped. The three cases (`soar-bracket-too-wide`, `soar-unexplained-gap`,
+`soar-missing-nightly-file`) are deliberately phrased away from this repo's
+vocabulary — a build agent, a quarterly summary, a nightly report directory —
+so that a probe measures the description rather than a shared idiom. The
+skill is registered as **unprobed** with an owner and a reason: probing costs
+live billed model calls, this round made no priced call of any kind, and a
+round probing its own new paraphrase scores its own wording (round 357's
+independence concern).
+
+Every command in its Verification block was run as written before shipping.
+
 ## 11. Tests
 
 ```
@@ -405,6 +431,22 @@ $ python3 -m pytest nuc/tests/test_summary_fossil.py -q
 
 Mutation pass, second run (`/tmp/mutate_fossil.py`, 14 mutations, each
 reverted after its test): **14 killed, 0 survived.**
+
+The corpus health check, which round 434's item 9 observed "goes red at the
+rate of the ROTATION":
+
+```
+$ python3 skills/skill-authoring/scripts/corpus_check.py --no-evidence
+corpus-check: 10 checker(s), 0 error(s), 8 warning(s)     rc=0
+```
+
+It went red first, and the round caused it: `carryforward` raised **K001**
+because this round banked predictions and never registered them in
+`state/prediction-bank-ledger.json`. That is the same clerical shape round 474
+recorded for round 472 and round 476 recorded against itself — three rounds
+running, the bank gets written and scored honestly and the ledger entry is
+forgotten, and every time it is *the checker* that notices, never the round.
+Registered as `478`, `unit_tests` back to 1033 passed, corpus green.
 
 ## 12. Next E round, in order
 
