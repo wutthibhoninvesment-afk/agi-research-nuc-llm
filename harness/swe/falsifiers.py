@@ -39,15 +39,15 @@ With per-mutant junit we get, for each mutant, the SET of test nodes that
 went red. Union those sets over the campaign and you have, per test node,
 the number of mutants it killed. Nodes at zero are `never_red`.
 
-THE CLAIM THIS MAKES, AND THE THREE WAYS IT IS BOUNDED
-------------------------------------------------------
+THE CLAIM THIS MAKES, AND THE FIVE WAYS IT IS BOUNDED
+-----------------------------------------------------
 `never_red` does NOT mean "vacuous". It means exactly:
 
     this node did not fail for any mutant of the subject files it was
-    audited against, in this campaign
+    audited against, IN THIS CAMPAIGN
 
 which is why `FalsifierUnit` carries its `subject_paths` into the report and
-why the summary prints them next to the verdict. Three bounds, all reported
+why the summary prints them next to the verdict. Five bounds, all reported
 rather than assumed away:
 
   1. SCOPE. A node about a different module cannot go red here and is not a
@@ -61,6 +61,45 @@ rather than assumed away:
   3. EQUIVALENT MUTANTS. Unchanged from `mutation.py`: a mutant with no
      behavioural difference is unkillable, and inflates nothing here
      (it simply attributes no kill to anyone).
+  4. SELECTION COMPLETENESS  (round 479 — this bound was MISSING, and its
+     absence published a false finding). A campaign narrowed by `--sample`,
+     `--limit` or `--funcs` ran a SUBSET of the subject's mutation sites, so
+     "this node did not fail for any mutant" is a claim about the subset and
+     not about the module. Round 473's `redattrib` campaign sampled 200 of
+     443 sites, reported `sound: true`, and published exactly one never-red
+     node:
+
+         harness.tests.test_redattrib.TestCorpusGrammar
+             ::test_the_aggregate_line_is_not_a_checker_row
+
+     Round 479 re-ran the FIVE sites inside `parse_corpus_row` — the whole
+     function, 22.7 s — and that node went red for two of them
+     (`redattrib.py:297:ifneg#4` and `redattrib.py:297:not#32`). BOTH were
+     among the 243 sites the stride skipped. The test was a perfectly good
+     falsifier and the finding was an artefact of the sample.
+
+     So `site_coverage` (selected / eligible, where eligible = generated
+     minus the `__main__` guard) is now part of `sound`, and any narrowing
+     turns the verdict into `unsound`. The list is still printed — it is
+     still a work list — but the report no longer claims it is the set.
+     `--sample` remains the right way to spend a bounded budget on a SCORE
+     (see the next section); it is simply not a way to buy a `never_red`.
+  5. OPERATOR COVERAGE. `mutation.generate`'s `const` operator mutates
+     `bool` and `int` and nothing else, and there is no string operator at
+     all. A test whose only dependence on the subject is a float, a string,
+     a bytes literal or `None` therefore CANNOT be reached by any mutant,
+     however complete the campaign. Round 473 stated this bound about
+     strings; the first node anyone classified under it was a float —
+
+         harness.tests.test_whenceslow::test_plan_default_is_smaller_than_slowtiers
+
+     asserts `signature(plan).parameters["default_s"].default == 120.0`, and
+     `120.0` generates NO site (`generate` emits 0 sites on that line), so
+     the node is unreachable rather than vacuous. `unreachable_constants` in
+     the report counts these per type over the subject sources, which turns
+     the bound from a caveat you have to remember into a number you can
+     read. It deliberately does NOT feed `sound`: it bounds what the
+     never-red list MEANS, not whether the campaign is complete.
 
 `limit` IS HEAD-BIASED AND `sample` EXISTS BECAUSE OF IT
 --------------------------------------------------------
@@ -103,6 +142,39 @@ from harness.pristine_check import parse_junit  # noqa: E402
 
 #: junit statuses that mean "this node went red for this mutant".
 RED = frozenset({"failed", "error"})
+
+#: Constant kinds `mutation.generate` cannot mutate. `const` handles `bool`
+#: and `int`; everything else in a subject is invisible to every mutant, so a
+#: test that depends only on one of these can never be reached. Bound 5.
+UNMUTABLE_KINDS = ("float", "str", "bytes", "complex", "NoneType")
+
+
+def unreachable_constants(source):
+    """`{type name: count}` for constants no mutation operator can change.
+
+    Docstrings are excluded the same way `mutation._sites` excludes them, so
+    the number counts constants a test could plausibly assert on rather than
+    every prose line in the file. `bool` is checked before `int` because
+    `isinstance(True, int)` is True -- the same order `_sites` uses.
+    """
+    tree = ast.parse(source)
+    docstrings = set()
+    for n in ast.walk(tree):
+        if isinstance(n, (ast.Module, ast.FunctionDef, ast.ClassDef)) and n.body \
+           and isinstance(n.body[0], ast.Expr) \
+           and isinstance(getattr(n.body[0], "value", None), ast.Constant) \
+           and isinstance(n.body[0].value.value, str):
+            docstrings.add(id(n.body[0].value))
+    out = {}
+    for n in ast.walk(tree):
+        if not isinstance(n, ast.Constant) or id(n) in docstrings:
+            continue
+        v = n.value
+        if isinstance(v, bool) or isinstance(v, int):
+            continue
+        name = type(v).__name__
+        out[name] = out.get(name, 0) + 1
+    return out
 
 #: Verdicts, in precedence order. `unsound` outranks everything: a campaign
 #: that lost attribution cannot support a `never_red` claim at all, and
@@ -332,7 +404,7 @@ def run_mutant_attributed(m, project_root, test_paths, timeout_s=120.0):
 
 class FalsifierReport(object):
     def __init__(self, unit, subject_paths, test_paths, base, attributions,
-                 selection, seconds):
+                 selection, seconds, unreachable=None):
         self.unit = unit
         self.subject_paths = list(subject_paths)
         self.test_paths = list(test_paths)
@@ -340,6 +412,8 @@ class FalsifierReport(object):
         self.attributions = list(attributions)
         self.selection = dict(selection or {})
         self.seconds = seconds
+        #: bound 5, per subject path: {path: {type name: count}}
+        self.unreachable = dict(unreachable or {})
 
     # -- mutant-side numbers (same definitions as MutationReport) ----------
     @property
@@ -406,14 +480,73 @@ class FalsifierReport(object):
                 and a.mutant.status != "error"]
 
     @property
+    def eligible_sites(self):
+        """Mutation sites this campaign COULD have run: everything `generate`
+        produced, minus the `__main__` guard, which is excluded by policy and
+        not by budget (see `main_guard_spans`)."""
+        gen = self.selection.get("generated")
+        if gen is None:
+            return len(self.attributions)
+        return max(0, gen - self.selection.get("main_guard_excluded", 0))
+
+    @property
+    def site_coverage(self):
+        """Sites RUN / sites eligible. Bound 4.
+
+        `selected` is the post-filter count `select_sites` recorded; it is
+        preferred over `len(attributions)` so a campaign interrupted mid-run
+        is not silently rated complete."""
+        elig = self.eligible_sites
+        ran = self.selection.get("selected", len(self.attributions))
+        return (ran / elig) if elig else 1.0
+
+    @property
+    def complete_selection(self):
+        """True only when every eligible site was run. Bound 4."""
+        return self.site_coverage >= 1.0
+
+    @property
+    def unsound_reasons(self):
+        """Why this campaign cannot support a `never_red` SET, in the order
+        the summary prints them. Empty iff `sound`."""
+        out = []
+        if self.unattributed_kills:
+            out.append("%d unattributed kill(s)" % len(self.unattributed_kills))
+        if self.errored:
+            out.append("%d errored mutant(s)" % len(self.errored))
+        if self.node_loss:
+            out.append("%d run(s) collected fewer nodes than the baseline"
+                       % len(self.node_loss))
+        if not self.complete_selection:
+            narrowing = []
+            if self.selection.get("funcs"):
+                narrowing.append("funcs=%s" % ",".join(self.selection["funcs"]))
+            if self.selection.get("sample"):
+                narrowing.append("sample=%s" % self.selection["sample"])
+            if self.selection.get("limit"):
+                narrowing.append("limit=%s" % self.selection["limit"])
+            out.append("only %d of %d eligible site(s) were run (%.0f%%%s)"
+                       % (self.selection.get("selected", len(self.attributions)),
+                          self.eligible_sites, 100 * self.site_coverage,
+                          "; " + " ".join(narrowing) if narrowing else ""))
+        return out
+
+    @property
     def sound(self):
         """May this campaign's `never_red` list be read as a finding?
 
-        False when any kill is unattributed, any run errored, or any mutant
-        collected fewer nodes than the baseline. All three make `never_red`
-        an UPPER BOUND rather than a list."""
+        False when any kill is unattributed, any run errored, any mutant
+        collected fewer nodes than the baseline, OR the campaign ran only a
+        subset of the subject's eligible mutation sites. All four make
+        `never_red` an UPPER BOUND rather than a list.
+
+        The fourth clause is round 479's, and it is not a precaution: round
+        473's `redattrib` campaign sampled 200 of 443 sites, reported
+        `sound: true`, and its single published never-red node goes red for
+        two of the sites the stride skipped. See bound 4 in the module
+        docstring."""
         return (not self.unattributed_kills and not self.errored
-                and not self.node_loss)
+                and not self.node_loss and self.complete_selection)
 
     @property
     def verdict(self):
@@ -422,6 +555,20 @@ class FalsifierReport(object):
         if not self.killed:
             return V_NO_KILLS
         return V_NEVER_RED if self.never_red else V_ALL_FALSIFIABLE
+
+    def _selection_phrase(self):
+        """How this campaign was narrowed, for the mutants line. Round 479:
+        `funcs` used to print as `whole`, so a function-scoped campaign
+        described itself as a whole-module one two lines above the verdict
+        it was about."""
+        parts = []
+        if self.selection.get("funcs"):
+            parts.append("funcs %s" % ",".join(self.selection["funcs"]))
+        if self.selection.get("sample"):
+            parts.append("sample %s" % self.selection["sample"])
+        if self.selection.get("limit"):
+            parts.append("head-limited %s" % self.selection["limit"])
+        return ", ".join(parts) if parts else "whole"
 
     def summary(self):
         k = self.kills
@@ -432,9 +579,7 @@ class FalsifierReport(object):
             "killed %d  survived %d  errored %d"
             % (len(self.attributions), self.selection.get("generated", 0),
                self.selection.get("main_guard_excluded", 0),
-               "sample %s" % self.selection["sample"] if self.selection.get("sample")
-               else ("head-limited %s" % self.selection["limit"]
-                     if self.selection.get("limit") else "whole"),
+               self._selection_phrase(),
                len(self.killed), len(self.survived), len(self.errored)),
             "  mutation score %.1f%%   attribution coverage %.1f%%   (%.0fs)"
             % (100 * self.score, 100 * self.attribution_coverage, self.seconds),
@@ -445,11 +590,23 @@ class FalsifierReport(object):
         ]
         if not self.sound:
             lines.append(
-                "  !! NOT SOUND -- %d unattributed kill(s), %d errored mutant(s), "
-                "%d run(s) collected fewer nodes than the baseline. The list "
-                "below is an UPPER BOUND on the never-red set, not the set."
-                % (len(self.unattributed_kills), len(self.errored),
-                   len(self.node_loss)))
+                "  !! NOT SOUND -- %s. The list below is an UPPER BOUND on the "
+                "never-red set, not the set."
+                % "; ".join(self.unsound_reasons))
+        # NB `k` above is `self.kills` and is read again below -- do not
+        # rebind it here. (Round 479 did, and the CLI test caught it.)
+        unreach = {}
+        for kinds in self.unreachable.values():
+            for kind, n in kinds.items():
+                unreach[kind] = unreach.get(kind, 0) + n
+        if unreach:
+            lines.append(
+                "  bound 5: %d constant(s) in the subject no operator can "
+                "mutate (%s) -- a node that depends only on one of them is "
+                "unreachable, not vacuous"
+                % (sum(unreach.values()),
+                   ", ".join("%s %d" % (kind, unreach[kind])
+                             for kind in sorted(unreach))))
         for n in self.never_red:
             lines.append("  NEVER-RED  %s" % n)
         top = sorted(k.items(), key=lambda kv: (-kv[1], kv[0]))[:5]
@@ -473,7 +630,12 @@ class FalsifierReport(object):
             "attribution_coverage": round(self.attribution_coverage, 4),
             "unattributed_kills": [a.mutant.id for a in self.unattributed_kills],
             "node_loss": [a.mutant.id for a in self.node_loss],
+            "site_coverage": round(self.site_coverage, 4),
+            "eligible_sites": self.eligible_sites,
+            "complete_selection": self.complete_selection,
+            "unreachable_constants": self.unreachable,
             "sound": self.sound,
+            "unsound_reasons": self.unsound_reasons,
             "verdict": self.verdict,
             "kills": self.kills,
             "never_red": self.never_red,
@@ -499,10 +661,12 @@ def audit(project_root, subject_paths, test_paths, unit=None, ops=None,
     mutants = []
     ranges = {}
     guards = []
+    unreachable = {}
     for rel in subject_paths:
         with open(os.path.join(project_root, rel), encoding="utf-8") as fh:
             src = fh.read()
         mutants.extend(mutation.generate(src, rel, ops=ops))
+        unreachable[rel] = unreachable_constants(src)
         if funcs:
             ranges.update(function_ranges(src))
         if skip_main_guard:
@@ -521,7 +685,7 @@ def audit(project_root, subject_paths, test_paths, unit=None, ops=None,
             on_result(a)
     return FalsifierReport(unit or (subject_paths[0] if subject_paths else "?"),
                            subject_paths, test_paths, base, attributions,
-                           selection, time.time() - t0)
+                           selection, time.time() - t0, unreachable=unreachable)
 
 
 def _main(argv=None):

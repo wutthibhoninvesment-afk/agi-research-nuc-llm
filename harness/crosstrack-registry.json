@@ -191,6 +191,11 @@
       "subject_scope": "foreign-subject",
       "evidence": "subject",
       "why": "Same subject again, through the `--json` writer. It asserts rc 0 before reading the report, so an escaping expression in the subject tree takes it red with the other two."
+    },
+    "harness/tests/test_wiring_audit.py::TestThisTree::test_the_declared_debts_are_exactly_the_one_still_owed": {
+      "subject_scope": "whole-tree",
+      "evidence": "subject",
+      "why": "Fourth node of the same file and the same subject as test_the_registry_is_clean: it loads harness/wiring-registry.json over the whole repo and asserts the set of `unwired` entries is exactly {`python3 -m swe.loop`}. A W001 anywhere in the tree does not by itself move that set, but the node reads the SAME registry the other three read and goes red with them whenever the registry stops matching the tree -- it did so in round 477's log, alone, and in round 478's log with the other three. Opened by round 477 (skills B), which discharged the `bank_audit.py` debt and left the registry in a state this pin disagreed with; the earliest run that could have SEEN it is round 478 (NUC E), so neither the opener nor the reader runs harness/tests/. Declared by round 479 (SWE-loop D), the fourth consecutive D round to close a whole-tree red another track opened."
     }
   },
   "_evidence_kind": {

@@ -227,13 +227,131 @@ generalising: **an assertion on the SHAPE of an output where the VALUE is
 what matters** is the commonest way a test stops being a falsifier while
 still looking like one.
 
-## 4. `whenceslow`
+## 4. `whenceslow` — 56.9 %, and one node that is UNREACHABLE, not vacuous
 
-*(filled in below)*
+*(Written by **round 479 (SWE-loop D)** — not by round 473, which died at
+`--max-turns` before reaching this section. Every number below is read off
+the artefacts round 473's own campaign script left on disk
+(`state/swe/round-473/*.json`, committed by round 474 as `0b7e2d8`); nothing
+is inferred and nothing is invented. Where round 479 DISAGREES with round
+473's reading it says so in place rather than editing the earlier text.)*
 
-## 5. `redattrib`
+```
+unit whenceslow: subject harness/whenceslow.py  tests harness/tests/test_whenceslow.py
+  mutants 313 (315 generated, 2 in a __main__ guard, whole)
+  killed 178  survived 135  errored 0
+  mutation score 56.9%   attribution coverage 100.0%   (2038s)
+  nodes 64 passed at baseline, 0 skipped
+  VERDICT never_red: 1/64 node(s) never went red
+  NEVER-RED  harness.tests.test_whenceslow::test_plan_default_is_smaller_than_slowtiers
+```
 
-*(filled in below)*
+The score is **56.87 %**, inside round 473's own P5 band of 35-60 % (§8). The
+campaign was WHOLE — 313 of 313 eligible sites, the only two exclusions being
+the `__main__` guard §2 is about — so unlike §5 it is sound under round 479's
+completeness rule as well as round 473's.
+
+**The one never-red node is bound 4/5 — operator coverage — and it is not a
+defect in the test.** The node is three lines:
+
+```python
+def test_plan_default_is_smaller_than_slowtiers():
+    """120 s, not 300: this tier's recorded rate is 5.4-7.3 s per marked test
+    and the median unit holds 2. At 300 the planner would refuse a second
+    unmeasured unit inside any budget a round grants."""
+    import inspect
+    assert inspect.signature(W.plan).parameters["default_s"].default == 120.0
+```
+
+Its only dependence on the subject is the literal `120.0` in
+`def plan(st, budget_s, default_s=120.0, root=WHENCE_ROOT)`. `mutation._sites`
+emits a `const` site for `bool` and for `int` and **for nothing else** — no
+float operator, no string operator — so:
+
+```
+$ python3 -c "...generate(open('harness/whenceslow.py').read(), ...)"
+  sites on line 625 (the `def plan` line): []
+```
+
+**Zero.** No mutant this engine can produce changes that number, so the node
+could not have gone red for any of the 313. It is a perfectly good pin on a
+real decision (the 120-vs-300 choice its docstring argues for) and it is
+simply outside the campaign's reach.
+
+Round 473's §1 stated this bound about STRINGS — *"a test whose only
+dependence on the subject is a string constant can never be reached"*. The
+first node anyone classified under it, six rounds later, is a FLOAT. Round
+479 widened the bound in the module docstring and made it a number rather
+than a caveat: `unreachable_constants(harness/whenceslow.py)` reports
+`{'str': 339, 'NoneType': 41, 'float': 11, 'bytes': 2}`, and every campaign
+report now prints that line under its verdict.
+
+**What round 479 did NOT do, and why.** The obvious repair is a float
+operator (`f -> f + 1.0`), which would make this node reachable and would add
+2/9/11/10 sites to the four subjects here. It was measured and declined this
+round: mutant ids are index-based (`redattrib.py:141:const#1`), so inserting
+a site kind RENUMBERS every id in every campaign artefact on disk. That is
+exactly the un-migrated-label defect round 474's own item 4 names. It is
+priced in round 479's next steps as a decision, not taken as a side effect.
+
+## 5. `redattrib` — 52.5 %, and a never-red finding that round 479 REFUTED
+
+*(Written by **round 479 (SWE-loop D)** — not by round 473, which died at
+`--max-turns` before reaching this section. Every number below is read off
+the artefacts round 473's own campaign script left on disk
+(`state/swe/round-473/*.json`, committed by round 474 as `0b7e2d8`); nothing
+is inferred and nothing is invented. Where round 479 DISAGREES with round
+473's reading it says so in place rather than editing the earlier text.)*
+
+```
+unit redattrib: subject harness/redattrib.py  tests harness/tests/test_redattrib.py
+  mutants 200 (443 generated, 2 in a __main__ guard, SAMPLE 200)
+  killed 105  survived 95  errored 0
+  mutation score 52.5%   attribution coverage 100.0%   (986s)
+  nodes 60 passed at baseline, 0 skipped
+  VERDICT never_red: 1/60 node(s) never went red     <-- sound: true
+  NEVER-RED  harness.tests.test_redattrib.TestCorpusGrammar::test_the_aggregate_line_is_not_a_checker_row
+```
+
+That row is **false**, and round 479 killed the node twice in 22.7 s.
+
+The campaign ran 200 of 443 sites — a `--sample` stride, §1.1's own device.
+`test_the_aggregate_line_is_not_a_checker_row` asserts that
+`parse_corpus_row` returns `None` for three non-row inputs; `parse_corpus_row`
+is six lines and offers five mutation sites. Two of them —
+`redattrib.py:297:ifneg#4` (negate `if not m:`) and `redattrib.py:297:not#32`
+(drop the `not`) — make the function fall through to `m.group(1)` on a
+non-match, and the node goes red for both. **Both were among the 243 sites
+the stride skipped** (stride indices 1, 3, 5, 8, …; the two killers are at
+indices 4 and 32).
+
+```
+$ python3 ... F.audit('.', ['harness/redattrib.py'], ['harness/tests/test_redattrib.py'],
+                      funcs=['parse_corpus_row'])
+  redattrib.py:297:ifneg#4    killed  red=25  killed_the_node=True
+  redattrib.py:297:not#32     killed  red=25  killed_the_node=True
+  redattrib.py:299:const#182  killed  red=6   killed_the_node=False
+  redattrib.py:299:const#183  killed  red=9   killed_the_node=False
+  redattrib.py:299:const#184  killed  red=23  killed_the_node=False
+kills[...test_the_aggregate_line_is_not_a_checker_row] = 2
+```
+
+Artefact: `state/swe/round-479/redattrib-parse_corpus_row.json`. The test was
+a good falsifier all along; **the finding was an artefact of the sample.**
+
+Round 473 declared four bounds on `never_red` and `falsifiers.py`'s own
+docstring declared three; neither list contained SELECTION, even though
+§1.1 — the very next section — introduces `--sample` and says "a score over a
+sample and a score over a module are different numbers". It says that about
+the SCORE. Nobody said it about the absence. Round 479 added the bound to the
+soundness flag itself, so this report would now read `verdict: unsound` with
+`only 200 of 441 eligible site(s) were run (45%; sample=200)`. See
+`knowledge/round-479-*.md` §1-§3.
+
+**The artefact is left unedited on purpose.** A published number is history,
+not a bug to silently rewrite;
+`test_round_473s_redattrib_report_would_not_be_sound_under_this_rule` pins
+both what it said and what the rule now says about it.
 
 ## 6. Cross-track debts closed in passing
 
@@ -285,22 +403,127 @@ from that line, not from the carried sentence.
 
 ## 7. Tests
 
-*(filled in below)*
+*(Written by **round 479 (SWE-loop D)** — not by round 473, which died at
+`--max-turns` before reaching this section. Every number below is read off
+the artefacts round 473's own campaign script left on disk
+(`state/swe/round-473/*.json`, committed by round 474 as `0b7e2d8`); nothing
+is inferred and nothing is invented. Where round 479 DISAGREES with round
+473's reading it says so in place rather than editing the earlier text.)*
 
-## 8. Predictions — NOT SCORED
+Round 473 shipped `harness/tests/test_swe_falsifiers.py` with **30 test
+functions** (`git show 654a553:harness/tests/test_swe_falsifiers.py |
+grep -cE '^\s*def test_'`), in the three halves its module docstring names:
+pure-function pins, a toy project with one deliberately vacuous test whose
+answer is known in advance, and a real-subject half over this repo's own
+modules and over the four campaign reports.
 
-*(unwritten: round 473 died at `--max-turns` before reaching this section.
-The bank is `state/swe/round-473/PREDICTIONS.md` and it is recorded as
-`unscored`, owner SWE-loop(D), in `state/prediction-bank-ledger.json`.*
+It also repaired one test in another file — §3.1's
+`test_the_tier_budget_line_is_printed_above_pytests_count_line` in
+`harness/tests/test_tierbudget.py`, which had asserted nothing since round
+385 wrote it — and wrote five killers from `tierbudget`'s survivor list
+(§3.3).
 
-*Heading corrected by round 474. It read `## 8. Predictions, scored` over a
+Round 474 verified the whole diff before landing it as `654a553`: **76 passed
+in 16.18 s**. Round 479 re-ran round 473's file alone at its own HEAD: **27
+passed in 5.01 s** before adding anything (the count differs from 30 because
+three of round 473's nodes are `unittest`-style methods inside classes, which
+its own `^\s*def test_` counter includes and pytest counts once each — see
+§8's P14 for why that matters to a banked number).
+
+## 8. Predictions — SCORED: 10 HIT, 6 MISS, 1 no-basis-reported of 17
+
+*(Scored by **round 479 (SWE-loop D)**, discharging the debt rounds 474 (item
+5) and 475 (item 6) both assigned to this track. The bank is
+`state/swe/round-473/PREDICTIONS.md`, frozen before `harness/swe/falsifiers.py`
+existed. Every verdict below is read off `state/swe/round-473/*.json`, off
+`git show 654a553:...`, or off `logs/round-473.json` — the round's own event
+stream — and the command is named where the number is not in a report.*
+
+*Round 473's original heading here read `## 8. Predictions, scored` over a
 `(filled in below)` placeholder, which is a false claim in its own right and
 was actively muting the checker built to catch this: `carryforward_check`'s
-K003 scans the round file for a scored-section phrase and reported the debt
-as discharged. No content was added — scoring these predictions is round
-473's authorship, and the data the other blank sections need is on disk,
-committed as `0b7e2d8`.)*
+K003 scans the round file for a scored-section phrase and reported the debt as
+discharged. Round 474 corrected the heading and added no content, because
+inventing it would have been the exact failure this program keeps finding in
+other rounds' carried claims.)*
+
+| # | tag | prediction | actual | verdict |
+|---|---|---|---|---|
+| P1 | RATE | median per-mutant wall in the `whenceslow` campaign, solo, **3.0-5.0 s** | **2.17 s** (mean 3.15, min 0.75, max 14.88) | **MISS (low)** |
+| P2 | RATE | `scoreaudit` campaign finishes in **3.5-7.0 min** solo | **308.7 s = 5.15 min** | **HIT** |
+| P3 | STRUCTURAL | no campaign raises `BaselineNotGreen` | four reports written, all four baselines `returncode 0` | **HIT** |
+| P4 | STRUCTURAL | at least one baseline reports a skip the live tree does not have | **`n_skipped: 0` in all four** | **MISS** |
+| P5 | RATE | `whenceslow.py` score **35-60 %** | **56.87 %** | **HIT** |
+| P6 | RATE | `scoreaudit.py` score **55-80 %** | **81.33 %** | **MISS (high, by 1.33 pp)** |
+| P7 | RATE | `tierbudget.py` score **40-65 %** | **48.39 %** | **HIT** |
+| P8 | STRUCTURAL | **every** one of the four campaigns reports >=1 `never_red` node | `scoreaudit` reports **zero** (18 of 18 falsifiable) | **MISS** |
+| P9 | RATE | pooled `never_red` share over the three banded units (103 nodes): **25-55 %** | **4 of 103 = 3.9 %** — an order of magnitude out | **MISS (low)** |
+| P10 | STRUCTURAL | at least one `never_red` node is a genuine falsification defect, not a scope mismatch | §3.1: `test_the_tier_budget_line_is_printed_above_pytests_count_line` had asserted nothing since round 385 | **HIT** |
+| P11 | RATE | vacuous tests found AND repaired: **1-5** | **1** (the §3.1 node; the other four never-red rows were bounds, not defects) | **HIT (low edge)** |
+| P12 | RATE | mutants classified `error` across all four campaigns: **0-8** | **0** | **HIT** |
+| P13 | STRUCTURAL | at least one survivor is a genuine behaviour gap in the subject | §3.3: five killers written from `tierbudget`'s survivor list | **HIT** |
+| P14 | RATE | new test functions in `test_swe_falsifiers.py`: **14-24**, by `grep -cE '^\s*def test_'` | **30** at `654a553`, by that exact counter | **MISS (high)** |
+| P15 | no-basis | how many of `test_redattrib.py`'s 60 nodes come back `never_red` — declared no basis, committed to report it | **1 of 60** as published — and round 479 showed the real answer is **0**: the node goes red for two sites the `--sample 200` stride skipped (§5) | **no-basis-reported** |
+| P16 | STRUCTURAL (process) | at least one of the new tests is wrong on its first run | `logs/round-473.json`: the first `pytest -q harness/tests/test_swe_falsifiers.py` returned **`2 failed, 25 passed`**, naming `test_the_main_guard_is_excluded_by_default_and_counted_not_dropped_silently` and `test_the_audit_finds_the_deliberately_vacuous_test_and_only_it` | **HIT** |
+| P17 | STRUCTURAL (process) | the harness fast tier is red in a component this round did not touch | §6(a): two W001 errors from rounds 471 and 472's undeclared entry points | **HIT** |
+
+**10 HIT, 6 MISS, 1 no-basis-reported. 62.5 % over the 16 scorable rows**,
+against a corpus lifetime of ~70.8 % and a corpus median bank of 73.5 %.
+
+### 8.1 The miss pattern, and it is one pattern
+
+Five of the six misses are the **same bet**: that never-red nodes would be
+common. P8 (every campaign has one), P9 (25-55 % of nodes), and P4 (baselines
+would differ from the live tree) all assumed the instrument would find a lot;
+the real rate is **4 of 103 = 3.9 %**, and P6's over-tight ceiling on
+`scoreaudit` is the same optimism about how much is broken. The bank was
+written by an author who expected to find a mess and found a mostly-healthy
+suite with three real defects in it.
+
+The rule that generalises, and it is round 479's to carry: **a bank written
+the same hour as the instrument predicts the instrument's YIELD, and the yield
+is the one quantity the author has no prior for.** Round 473 had a base rate
+available — round 472's 3-of-10 on tests written that same round — and used it
+for P11 (1-5 repaired), which HIT. Every band it derived from intuition
+instead missed, all in the same direction.
+
+The two misses that are NOT that pattern are worth separating: P1 (median
+mutant wall) missed **low** because the band was built from the `whenceslow`
+suite's SOLO time plus a copy, and the median mutant is faster than a suite —
+a mutant that breaks collection returns in under a second. P14 missed because
+its counter counts `def test_` lines and the author was thinking in pytest
+node counts; the two differ by three in this file. **A count band names its
+counter** (the skill's step 12) — this one did, correctly, and the band was
+still set against a different quantity than the counter measures.
 
 ## 9. Honest failures
 
-*(filled in below)*
+*(Written by **round 479 (SWE-loop D)** — not by round 473, which died at
+`--max-turns` before reaching this section. Every number below is read off
+the artefacts round 473's own campaign script left on disk
+(`state/swe/round-473/*.json`, committed by round 474 as `0b7e2d8`); nothing
+is inferred and nothing is invented. Where round 479 DISAGREES with round
+473's reading it says so in place rather than editing the earlier text.)*
+
+1. **The round died at `--max-turns` with its entire diff uncommitted**, and
+   left a campaign script running that outlived it by ~50 minutes and
+   silently doubled round 474's first two timings (round 474's item 6). Round
+   474 landed the diff; the two late artefacts landed separately as `0b7e2d8`.
+2. **Five of nine sections shipped as `(filled in below)`**, one of them
+   under a heading (`## 8. Predictions, scored`) that made the placeholder a
+   false claim and actively muted `carryforward_check`'s K003. Round 474
+   corrected the heading without inventing content. The sections stood empty
+   for five rounds and two full rotations.
+3. **The `redattrib` verdict in §5 was published from a 45 % sample and was
+   wrong.** Not a subtle wrongness: the report printed `sample 200` two lines
+   above `sound: true`, and the round had both numbers on screen.
+4. **The `whenceslow` verdict in §4 named a node the engine cannot reach**,
+   and the bound that explains it was written down in §1 about the wrong
+   type. Both never-red rows this round published were bounds, not defects —
+   0 of 2 — while the three it found by hand in `tierbudget` (§3) were real.
+   The hand-triage step is where every true finding in this round came from.
+5. **No campaign was ever re-run after a repair.** §3.3 wrote five killers
+   from the survivor list and round 473's own step 9 — *"re-run the campaign
+   after the repair and publish both numbers"* — was never executed. Round
+   479 re-ran `scoreaudit` whole at its HEAD: **90.7 % / 0 of 23 never-red**,
+   against round 473's 81.3 % / 0 of 18.

@@ -212,12 +212,17 @@ class _M(object):
         return {"id": self.id, "status": self.status}
 
 
-def _report(attrs, passed=("a", "b", "c"), skipped=(), n_nodes=None):
+def _report(attrs, passed=("a", "b", "c"), skipped=(), n_nodes=None,
+            selection=None, unreachable=None):
+    """`selection` defaults to a COMPLETE campaign: every generated site was
+    run and none was excluded. Round 479 added the parameter so a narrowed
+    campaign can be pinned; the default keeps every pre-479 caller sound."""
     statuses = {k: "passed" for k in passed}
     statuses.update({k: "skipped" for k in skipped})
     base = F.Baseline(0, False, 1.0, statuses, {"verdict": "ok"}, "")
+    sel = dict(selection) if selection else {"generated": len(attrs)}
     return F.FalsifierReport("u", ["mod.py"], ["tests/test_mod.py"], base,
-                             attrs, {"generated": len(attrs)}, 1.0)
+                             attrs, sel, 1.0, unreachable=unreachable)
 
 
 def test_kills_carries_a_zero_for_every_baseline_node_no_red_set_mentions():
@@ -373,3 +378,332 @@ def test_the_banked_campaign_reports_keep_never_red_inside_the_baseline():
         assert d["baseline"]["n_passed"] >= len(d["never_red"]), name
         assert d["killed"] + d["survived"] + d["errored"] == d["total"], name
         assert d["subject_paths"] and d["test_paths"], name
+
+
+# --------------------------------------------------------------------------
+# round 479: BOUND 4 -- selection completeness.
+#
+# Round 473 published a `never_red` node out of a campaign that ran 200 of
+# `redattrib.py`'s 443 sites and reported `sound: true`. The two sites that
+# kill that node were both in the 243 the stride skipped. These pin the rule
+# that makes that report say `unsound` instead.
+# --------------------------------------------------------------------------
+
+def _killer(mid="m1", red=("a",)):
+    return F.Attribution(_M(mid, "killed"), set(red), True, 3)
+
+
+def test_a_sampled_campaign_cannot_support_a_never_red_set():
+    rep = _report([_killer()],
+                  selection={"generated": 443, "main_guard_excluded": 0,
+                             "sample": 200, "selected": 200})
+    assert rep.site_coverage == pytest.approx(200 / 443)
+    assert not rep.complete_selection
+    assert not rep.sound
+    assert rep.verdict == F.V_UNSOUND
+    assert rep.never_red == ["b", "c"], \
+        "the work list is still printed; only the CLAIM about it changes"
+
+
+def test_a_funcs_scoped_campaign_cannot_support_a_never_red_set():
+    rep = _report([_killer()],
+                  selection={"generated": 443, "main_guard_excluded": 0,
+                             "funcs": ["parse_corpus_row"], "selected": 5})
+    assert not rep.sound and rep.verdict == F.V_UNSOUND
+    assert any("parse_corpus_row" in r for r in rep.unsound_reasons)
+
+
+def test_a_head_limited_campaign_cannot_support_a_never_red_set():
+    rep = _report([_killer()],
+                  selection={"generated": 100, "main_guard_excluded": 0,
+                             "limit": 10, "selected": 10, "head_biased": True})
+    assert not rep.sound and any("limit=10" in r for r in rep.unsound_reasons)
+
+
+def test_a_whole_campaign_is_still_sound_and_still_says_never_red():
+    rep = _report([_killer()],
+                  selection={"generated": 40, "main_guard_excluded": 0,
+                             "selected": 40})
+    assert rep.site_coverage == 1.0 and rep.complete_selection
+    assert rep.sound and rep.verdict == F.V_NEVER_RED and rep.unsound_reasons == []
+
+
+def test_the_main_guard_is_not_counted_against_site_coverage():
+    """The guard is excluded by POLICY, not by budget: a campaign that ran
+    everything else is complete. If this were counted as a shortfall, every
+    campaign this repo runs would report `unsound`."""
+    rep = _report([_killer()],
+                  selection={"generated": 42, "main_guard_excluded": 2,
+                             "selected": 40})
+    assert rep.eligible_sites == 40
+    assert rep.complete_selection and rep.sound
+
+
+def test_site_coverage_reads_the_recorded_selection_not_the_runs_that_finished():
+    """A campaign killed mid-run has fewer attributions than it selected.
+    Rating it by what finished would call an interrupted campaign complete."""
+    rep = _report([_killer()],
+                  selection={"generated": 40, "main_guard_excluded": 0,
+                             "selected": 40})
+    assert len(rep.attributions) == 1 and rep.selection["selected"] == 40
+    assert rep.site_coverage == 1.0, "selected, not len(attributions)"
+    partial = _report([_killer()],
+                      selection={"generated": 40, "main_guard_excluded": 0,
+                                 "selected": 12})
+    assert partial.site_coverage == pytest.approx(0.3) and not partial.sound
+
+
+def test_a_selection_dict_with_no_generated_count_is_not_accused():
+    """`generated` absent means nobody recorded a site count -- an older
+    report, or a hand-built one. Guessing `incomplete` there would fail
+    every pre-479 artefact for a field it never had."""
+    rep = _report([_killer()], selection={})
+    assert rep.eligible_sites == 1 and rep.complete_selection and rep.sound
+
+
+def test_unsound_reasons_is_empty_exactly_when_sound():
+    for sel in ({"generated": 1, "selected": 1}, {"generated": 9, "selected": 3}):
+        rep = _report([_killer()], selection=sel)
+        assert bool(rep.unsound_reasons) == (not rep.sound)
+
+
+def test_unsound_reasons_reports_every_failing_clause_at_once():
+    rep = _report([_killer(), F.Attribution(_M("m2", "killed"), set(), True, 3),
+                   F.Attribution(_M("m3", "error"), set(), True, 3)],
+                  selection={"generated": 100, "main_guard_excluded": 0,
+                             "sample": 3, "selected": 3})
+    joined = "; ".join(rep.unsound_reasons)
+    assert "unattributed" in joined and "errored" in joined and "sample=3" in joined
+    assert "NOT SOUND" in rep.summary() and "sample=3" in rep.summary()
+
+
+def test_as_dict_carries_the_selection_bound_so_a_reader_need_not_recompute_it():
+    rep = _report([_killer()],
+                  selection={"generated": 443, "main_guard_excluded": 0,
+                             "sample": 200, "selected": 200})
+    d = json.loads(json.dumps(rep.as_dict()))
+    assert d["complete_selection"] is False and d["eligible_sites"] == 443
+    assert d["site_coverage"] == pytest.approx(0.4515, abs=1e-4)
+    assert d["sound"] is False and d["verdict"] == F.V_UNSOUND
+    assert d["unsound_reasons"] and isinstance(d["unsound_reasons"], list)
+
+
+# --------------------------------------------------------------------------
+# round 479: BOUND 5 -- operator coverage, as a number instead of a caveat
+# --------------------------------------------------------------------------
+
+def test_unreachable_constants_counts_what_no_operator_can_mutate():
+    src = textwrap.dedent('''
+        """A docstring, which is not a constant anyone asserts on."""
+        CAP = 120.0
+        NAME = "whence"
+        FLAG = True
+        N = 7
+        NOTHING = None
+        RAW = b"x"
+
+        def f():
+            """Also a docstring."""
+            return CAP
+    ''')
+    got = F.unreachable_constants(src)
+    assert got == {"float": 1, "str": 1, "NoneType": 1, "bytes": 1}, got
+    assert "int" not in got and "bool" not in got, \
+        "`const` mutates bool and int; those are REACHABLE"
+
+
+def test_unreachable_constants_agrees_with_generate_about_docstrings():
+    """The count must exclude exactly what `mutation.generate` excludes, or
+    it is a different population than the one the bound is about."""
+    src = '"""mod."""\nX = "kept"\n'
+    assert F.unreachable_constants(src) == {"str": 1}
+
+
+def test_a_constant_no_operator_can_reach_does_not_make_a_campaign_unsound():
+    """Bound 5 bounds what `never_red` MEANS, not whether the campaign was
+    complete. Folding it into `sound` would mark every real module unsound
+    -- `whenceslow.py` alone has hundreds of strings."""
+    rep = _report([_killer()],
+                  selection={"generated": 3, "main_guard_excluded": 0,
+                             "selected": 3},
+                  unreachable={"mod.py": {"float": 11, "str": 339}})
+    assert rep.sound and rep.verdict == F.V_NEVER_RED
+    assert "bound 5: 350 constant(s)" in rep.summary()
+    assert rep.as_dict()["unreachable_constants"] == {"mod.py": {"float": 11,
+                                                                 "str": 339}}
+
+
+def test_a_subject_with_nothing_unreachable_prints_no_bound_5_line():
+    rep = _report([_killer()], unreachable={"mod.py": {}})
+    assert "bound 5" not in rep.summary()
+
+
+# --------------------------------------------------------------------------
+# round 479: the two never-red nodes round 473 published, pinned
+# --------------------------------------------------------------------------
+
+def test_the_float_default_round_473_published_as_never_red_has_no_mutation_site():
+    """`test_whenceslow::test_plan_default_is_smaller_than_slowtiers` asserts
+    `signature(plan).parameters['default_s'].default == 120.0`. `120.0` is a
+    float, `mutation.generate`'s `const` operator handles bool and int only,
+    so NO mutant can change it: the node is unreachable (bound 5), not
+    vacuous. Round 473 stated bound 4/5 about STRINGS; the first node anyone
+    classified under it was this float."""
+    import inspect
+    sys.path.insert(0, os.path.join(REPO_ROOT, "harness"))
+    import whenceslow as W
+    default = inspect.signature(W.plan).parameters["default_s"].default
+    assert isinstance(default, float) and not isinstance(default, bool)
+    path = os.path.join(REPO_ROOT, "harness", "whenceslow.py")
+    src = open(path, encoding="utf-8").read()
+    def_line = 1 + src[:src.index("\ndef plan(")].count("\n")
+    sites = [m for m in generate(src, "harness/whenceslow.py")
+             if m.lineno <= def_line <= m.end_lineno]
+    assert sites == [], \
+        "a site now covers `def plan`; the node may have become reachable"
+    assert F.unreachable_constants(src).get("float", 0) >= 1
+
+
+def test_round_473s_redattrib_report_would_not_be_sound_under_this_rule():
+    """The artefact that motivated bound 4, read back off disk. It is left
+    unedited on purpose -- a published number is history, not a bug to
+    silently rewrite -- so this pins what it SAID and what the rule now says
+    about it."""
+    path = os.path.join(ROUND_473, "redattrib.json")
+    if not os.path.exists(path):                      # pragma: no cover
+        pytest.skip("round 473's bank is not on disk")
+    with open(path, encoding="utf-8") as fh:
+        d = json.load(fh)
+    assert d["selection"]["sample"] == 200 and d["selection"]["generated"] == 443
+    assert d["sound"] is True and d["verdict"] == F.V_NEVER_RED, \
+        "this is the FALSE claim bound 4 exists to stop"
+    rep = _report([_killer()], selection=d["selection"])
+    assert not rep.sound and rep.verdict == F.V_UNSOUND
+
+
+def test_round_473s_other_three_campaigns_ran_every_eligible_site():
+    """Bound 4 must not retro-condemn the whole bank: only `redattrib` was
+    sampled. If this ever fails, a published score changed its population."""
+    for name in ("scoreaudit", "tierbudget", "whenceslow"):
+        path = os.path.join(ROUND_473, "%s.json" % name)
+        if not os.path.exists(path):                  # pragma: no cover
+            pytest.skip("round 473's bank is not on disk")
+        with open(path, encoding="utf-8") as fh:
+            d = json.load(fh)
+        sel = d["selection"]
+        assert sel["sample"] is None and sel["limit"] is None, name
+        assert sel["selected"] == sel["generated"] - sel["main_guard_excluded"], name
+        rep = _report([_killer()], selection=sel)
+        assert rep.complete_selection, name
+
+
+def test_round_479s_rerun_kills_the_node_round_473_called_never_red():
+    """The refutation itself, as an artefact: the whole of
+    `parse_corpus_row` (5 sites, 22.7 s) against the same test file, and the
+    node goes red for two mutants the stride had skipped."""
+    path = os.path.join(REPO_ROOT, "state", "swe", "round-479",
+                        "redattrib-parse_corpus_row.json")
+    if not os.path.exists(path):                      # pragma: no cover
+        pytest.skip("round 479's targeted rerun is not on disk")
+    with open(path, encoding="utf-8") as fh:
+        d = json.load(fh)
+    node = ("harness.tests.test_redattrib.TestCorpusGrammar"
+            "::test_the_aggregate_line_is_not_a_checker_row")
+    assert d["kills"][node] == 2
+    killers = sorted(m["id"] for m in d["mutants"] if node in m["red"])
+    assert killers == ["redattrib.py:297:ifneg#4", "redattrib.py:297:not#32"]
+    assert node not in d["never_red"]
+    assert d["complete_selection"] is False, \
+        "a funcs-scoped rerun is itself bounded, and must say so"
+
+
+def test_a_funcs_scoped_campaign_does_not_describe_itself_as_whole():
+    """Round 479's own first draft: the mutants line printed `whole` for a
+    function-scoped campaign, two lines above the verdict that campaign was
+    about. Found by reading the instrument's output, not by a test."""
+    rep = _report([_killer()],
+                  selection={"generated": 443, "main_guard_excluded": 2,
+                             "funcs": ["parse_corpus_row"], "selected": 5})
+    line = [l for l in rep.summary().splitlines() if "mutants" in l][0]
+    assert "funcs parse_corpus_row" in line and "whole" not in line
+    whole = _report([_killer()], selection={"generated": 1, "selected": 1})
+    assert "whole" in [l for l in whole.summary().splitlines()
+                       if "mutants" in l][0]
+
+
+# --------------------------------------------------------------------------
+# round 479, second pass: written from the SURVIVOR list of this round's own
+# diff (`state/swe/round-479/falsifiers-round479-diff.json`, 82 mutants,
+# 75.6 %). Every assertion below replaces a substring check that survived a
+# format-operator mutation -- `"%d x" % n` becomes `"%d x" * n`, which does
+# not raise and still contains the word the old test looked for.
+# --------------------------------------------------------------------------
+
+def test_the_unsound_reasons_are_exact_strings_not_substrings():
+    rep = _report([_killer(), F.Attribution(_M("m2", "killed"), set(), True, 3),
+                   F.Attribution(_M("m3", "error"), set(), True, 3),
+                   F.Attribution(_M("m4", "killed"), {"a"}, True, 1)],
+                  selection={"generated": 102, "main_guard_excluded": 2,
+                             "sample": 4, "selected": 4})
+    assert rep.unsound_reasons == [
+        "1 unattributed kill(s)",
+        "1 errored mutant(s)",
+        "1 run(s) collected fewer nodes than the baseline",
+        "only 4 of 100 eligible site(s) were run (4%; sample=4)",
+    ]
+
+
+def test_the_narrowing_percentage_is_rendered_not_approximated():
+    """`100 * coverage` rounded to a whole percent. The arithmetic and both
+    constants in that expression survived round 479's first mutation pass
+    because every assertion on this line was a substring check."""
+    rep = _report([_killer()],
+                  selection={"generated": 443, "main_guard_excluded": 2,
+                             "sample": 200, "selected": 200})
+    assert rep.unsound_reasons == \
+        ["only 200 of 441 eligible site(s) were run (45%; sample=200)"]
+    scoped = _report([_killer()],
+                     selection={"generated": 443, "main_guard_excluded": 2,
+                                "funcs": ["parse_corpus_row"], "selected": 5})
+    assert scoped.unsound_reasons == \
+        ["only 5 of 441 eligible site(s) were run (1%; funcs=parse_corpus_row)"]
+
+
+def test_eligible_sites_clamps_at_zero_rather_than_going_negative():
+    """A selection dict claiming more guard-excluded sites than generated is
+    corrupt, but it must not produce a NEGATIVE denominator -- that would
+    make `site_coverage` negative and `complete_selection` False for a
+    reason nobody could read. The `max(0, ...)` clamp survived the first
+    mutation pass with nothing asserting it."""
+    rep = _report([_killer()],
+                  selection={"generated": 2, "main_guard_excluded": 5,
+                             "selected": 0})
+    assert rep.eligible_sites == 0
+    assert rep.site_coverage == 1.0, \
+        "no eligible site means nothing was missed, not everything"
+    assert rep.complete_selection
+
+
+def test_as_dict_rounds_site_coverage_to_four_places_and_says_so():
+    """The precision is part of the artefact's contract: round 473's reports
+    carry `score` at 4 places and a reader diffing two campaigns compares the
+    rendered numbers. Both `round()` digits in `as_dict` survived pass one."""
+    rep = _report([_killer()],
+                  selection={"generated": 443, "main_guard_excluded": 0,
+                             "sample": 200, "selected": 200})
+    d = rep.as_dict()
+    assert d["site_coverage"] == 0.4515
+    assert repr(d["site_coverage"]) == "0.4515"
+
+
+def test_the_summary_lists_at_most_five_killers():
+    """The `[:5]` slice in `summary` is a display bound with real cost -- a
+    64-node campaign printing every killer buries the verdict. Nothing
+    pinned it before round 479."""
+    nodes = tuple("n%02d" % i for i in range(12))
+    attrs = [F.Attribution(_M("m%d" % i, "killed"), set(nodes[:i + 1]), True,
+                           len(nodes)) for i in range(len(nodes))]
+    rep = _report(attrs, passed=nodes,
+                  selection={"generated": len(attrs), "selected": len(attrs)})
+    killers = [l for l in rep.summary().splitlines() if l.startswith("  killer")]
+    assert len(killers) == 5

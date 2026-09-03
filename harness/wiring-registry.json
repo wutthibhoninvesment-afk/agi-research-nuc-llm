@@ -713,6 +713,14 @@
       "via_kind": "dir",
       "owner": "skills(B)",
       "reason": "Round 477 (skills B). Reached the way the other fifteen skills/*/scripts/test_*.py files are -- corpus_check.py's `unit_tests` argv names this directory literally. It is the FOURTH such directory and it arrived by the mechanism this round built: adding this file made test_corpus_check.py::TestSkillTestDirs::test_the_argv_is_exactly_what_the_glob_matches go red naming skills/derived-subject-set/scripts, and the argv gained it."
+    },
+    "nuc/summary_fossil.py": {
+      "status": "wired",
+      "via": "nuc/tests/test_summary_fossil.py:20",
+      "via_kind": "import",
+      "owner": "NUC-integration(E)",
+      "reason": "Round 478 (E) built it and did not declare it, so W001 has been an ERROR on every wiring_audit run since -- and it took FOUR nodes of harness/tests/test_wiring_audit.py red with it, which is what round 479 found when a falsifier baseline refused to go green. Declared by round 479 (SWE-loop D) rather than left standing, exactly as round 473 (D) declared round 472's nuc/dose_response.py and round 471's bank_audit.py: `nuc/run_checks_fast.sh:139` runs `pytest -q nuc/tests/`, and `nuc/tests/test_summary_fossil.py:20` does `import summary_fossil as sf`, so the closure already reached it and the only thing missing was the entry. This is the THIRD consecutive round in which the round that built a new nuc/ module left the registry red for the next reader; the pattern is the E track's, not this file's.",
+      "since_round": 479
     }
   },
   "_since_round": "`since_round` on an `unwired` entry is the round that DECLARED the debt, not a guess at when the file stopped being run. W005 therefore measures how long a declared, undischarged deferral has stood -- one full rotation (6 rounds) and it rides in the summary line. Dating it any other way would require inventing a number no record carries."

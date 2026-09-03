@@ -592,7 +592,23 @@ class TestThisTree:
         # start counting the rotations. Discharging it is skills(B)'s call:
         # add the directory to `unit_tests`, or schedule `bank_audit.py
         # corpus` as its own checker.
-        assert debts == ["skills/prediction-banking/scripts/bank_audit.py"]
+        #
+        # Round 477 (skills B) TOOK the first of those two exits, and the
+        # debt is closed: `skills/prediction-banking/scripts` is now one of
+        # four literal directories in corpus_check.py's `unit_tests` argv,
+        # so test_bank_audit.py's 19 tests run every round and the registry
+        # entry flipped to `wired` with a `[dir]` edge. Back to EMPTY, the
+        # same assertion round 419 left, for the same reason: a new
+        # `unwired` entry must be a deliberate edit here.
+        #
+        # This node was RED for three rounds because of that flip -- round
+        # 477's own log, round 478's, and round 479's opening run. Neither
+        # the round that opened it (477, skills B) nor the round that first
+        # could have seen it (478, NUC E) runs harness/tests/, which is the
+        # `invisible-open` shape redattrib.py measures; round 479 (SWE-loop
+        # D) both declared it in harness/crosstrack-registry.json and fixed
+        # it here.
+        assert debts == []
         # `Graph.closure()` is NOT the predicate W003 uses, and asserting it
         # flatly here was wrong on the tree that shipped it: `loop.py` is in
         # the raw closure (its own test file names it as text) and W003
