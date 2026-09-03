@@ -1225,6 +1225,12 @@
    "status": "unscored",
    "owner": "harness(A)",
    "why": "Banked by round 481 at HEAD 808de3e before any measurement of the via-pin population; registered in the SAME commit as the bank, per rounds 479/480, so the round cannot repeat the clerical shape where a bank exists and K001 -- not the round -- notices. Round 481 scores it in its own knowledge file; if this entry still says `unscored` after round 481's commits, round 481 died before scoring."
+  },
+  "482": {
+   "bank": "state/whence/round-482/PREDICTIONS.md",
+   "status": "unscored",
+   "owner": 482,
+   "note": "language(C) round 482: decision 58's generalisation sweep. Scored in knowledge/round-482-*.md."
   }
  }
 }
