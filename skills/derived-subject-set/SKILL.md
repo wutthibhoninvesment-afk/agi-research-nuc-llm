@@ -1,6 +1,6 @@
 ---
 name: derived-subject-set
-description: Use when an anti-rot test is green and you are about to trust that green — "every X is registered/owned/covered", a schema-vs-code consistency check, an exhaustiveness list. Symptoms: the check's LEFT-HAND SIDE is a literal (constants, a hard-coded count, a hand-copied enum) while its right side is the real artefact; a docstring promises "a new X arrives here as a failure" and none has since; a new family member shipped and the suite stayed green; a tool dies on a member missing from a hand-written MODULES tuple. DERIVE the subject set from the artefact, then cross-check it against an independent read. ONE BOUNDED EXCEPTION, check it FIRST: if a STATIC ANALYSER also reads your literal (a closure auditor, a dependency graph, a bundler), deriving makes the set invisible to it — keep the literal, derive the ORACLE. Symptom: a description already claiming the derivation while the code enumerates a subset. NOT for a checker nothing invokes (unrun-checker-latency) or a rolling prose claim (carried-claim-rot).
+description: Use when an anti-rot test is green and you are about to trust it — "every X is registered/owned/covered", a schema-vs-code check, an exhaustiveness list. Symptoms: the check's LEFT-HAND SIDE is a literal (constants, a count, a copied enum) and its right side is the real artefact; the list is in PROSE (a next-step, a doc) run as a work order; a docstring promises "a new X arrives here as a failure" and none has; a new member shipped and the suite stayed green; a tool dies on a member missing from a hand-written MODULES tuple. DERIVE the subject set from the artefact, then cross-check against an independent read — a derivation can itself return a SUBSET, making every property vacuous. ONE EXCEPTION, check FIRST: if a STATIC ANALYSER also reads the literal (a closure auditor, a bundler), deriving hides it — keep the literal, derive the ORACLE. Symptom: a description claiming a derivation the code does not do. NOT for an uninvoked checker (unrun-checker-latency) or a rolling prose claim (carried-claim-rot).
 ---
 
 # A hand-written list of the things a hand-written list might miss is not an anti-rot check
@@ -37,6 +37,10 @@ is green *because* the thing it guards grew and it did not.
   saying "every `X/*/y`" next to an argv, an `include:` list or a `MODULES`
   tuple that spells three of them out. The prose is a promise about a family;
   the code is a list; nobody checks them against each other.
+- **The list is in PROSE, not in a test** — a carried next-step, an ADR,
+  the "candidates" paragraph of the write-up that found the defect. Nobody
+  treats it as an anti-rot check because it is not a check, and the next
+  change executes it as the work order. See the round-482 section below.
 - **You are about to replace such a list with a glob** and something else in
   the tree reads that list statically. Stop and read the section on the
   bounded exception below before you do.
@@ -183,6 +187,106 @@ The moves:
 4. **Assert non-emptiness at the derivation, not at the assertion sites.** A
    selector that can legitimately return zero should say so; one that cannot
    should raise there, where the message can name the selector.
+
+## The list is often in PROSE, and prose is where it is least checkable (round 482)
+
+Every worked example above has the literal in *code*, where at least a
+future reader is looking at an assertion. The most consequential ones are
+not in code at all.
+
+Round 476 of this program fixed one class's `__repr__`, wrote the general
+rule into its spec registry, and closed with a next-step naming the
+candidates for the sweep:
+
+> The unrendered candidates a caller can reach: `Explanation`, `Closure`,
+> `Builtin`, `WList`, `PMap`, `Record`, `Miss`, `Guess`. `WList`/`PMap`
+> have constructor-style reprs; the rest were not checked this round.
+> **Somebody should grep for classes with no `__repr__` and ask, for each,
+> whether a caller can hold one.**
+
+Best conditions a list ever gets: written by the round that found the
+defect, one round after touching the code. Five rounds carried it. Run at
+last by CRAWLING the object graph — 19 classes reachable, **11 in
+violation against the remembered 8** — it was wrong in *both* directions:
+
+- the two members it waved through as already fine (`WList`, `PMap`) were
+  the two largest violations in the tree, at 156,787 and 22,986 characters;
+- nine violators were on no list at all, two of them structurally
+  un-listable by the proposed method: the engine class (a list of *value*
+  classes cannot contain the object the caller constructs first) and a
+  subclass that INHERITED a wrong repr (a grep for "classes with no
+  `__repr__`" skips it, because it has one).
+
+**A prose list is a measurement nobody took, and it is read as one.** The
+tells: it lives in a document a future change uses as its work order; it
+was written by the person who had just finished looking, which is exactly
+when a list feels complete; it carries a judgement per member ("these two
+are fine"), so acting on it inherits someone's verdict without their
+evidence; and the METHOD named beside it is itself a filter — "grep for
+classes with no `__repr__`" cannot see an inherited one. **When a
+next-step names a method, audit that method's blind spots first**, because
+everything it cannot see will be reported as absent.
+
+The move is step 3 with a wider notion of artefact: crawl the live object
+graph, walk the AST, query the schema — derive from the thing the claim is
+about, and pin the derived SET (not its count) so a silent shrink fails.
+
+### The derivation can silently return a SUBSET
+
+Step 5's cross-check exists for this, and here are two concrete ways a
+crawl shrinks with no error at all. Both were live in the same instrument
+on the same day, and both made it report a clean sweep.
+
+1. **`id()` is a key only for objects you are holding.** A `seen = set()`
+   of `id()`s is correct only while every visited object stays alive. A
+   lazily-built property —
+
+   ```python
+   @property
+   def inputs(self):
+       ins = self._ins
+       return ins if type(ins) is tuple else (ins,)     # a FRESH tuple
+   ```
+
+   — makes the walk allocate, record the id, drop the object, and then skip
+   a live object CPython hands the freed address to. Cost: one class,
+   silently. Fix: retain every visited object (`keep.append(obj)`), which
+   is not bookkeeping, it is correctness.
+
+2. **A budget cap turns "did not finish" into "found nothing more".** Once
+   the retention bug was fixed, the same crawl walked out of the subject
+   graph through a public attribute into the host's module `__dict__`s and
+   ran to its 60,000-step limit — reporting **13 of 19** classes and no
+   violations for the six it never reached. Bound the walk by TYPE (descend
+   the subject's own classes and plain containers, nothing else), and
+   report the budget state as data:
+
+   ```python
+   return found, {"steps": steps, "exhausted": bool(queue), "limit": limit}
+   ```
+
+   then assert `not exhausted` in the test. A crawl that ran out is a
+   different answer from a crawl that finished, and only one of them is a
+   result.
+
+Neither was found by reasoning about the crawl; both were found by a count
+that looked wrong — 18 where 19 was expected, then 13 where 19 was. That
+is the argument for pinning the derived SET rather than only asserting the
+property over it: the property held, vacuously, over whatever survived.
+
+### A rule set derived from one known failure finds that failure again
+
+A related trap, same round. The sweep's rules were written from the defect
+that prompted it (a heap address in a repr), giving R1 no-host-leak, R2
+bounded, R3 deterministic. They found nine instances of R1 — and passed a
+class whose inherited repr introduced it under the WRONG CLASS NAME and
+dropped its only distinguishing field. That became R4, and R4 exists only
+because the sweep ran.
+
+Budget for the rule the sweep adds after it first runs, and treat the
+first run's surprises as rule candidates rather than one-off fixes. A rule
+set that gains nothing on first contact with the full population is
+evidence the population was not enumerated.
 
 ## The bounded exception: when a static reader needs your literal (round 477)
 
@@ -344,6 +448,12 @@ python3 -m pytest tests/test_v33.py -k "owned_by_a_cure_rule" -q
 
 # 4. the sweep — every other hand-written subject set in the tree
 grep -rnE '^[A-Z][A-Z0-9_]+ = [([]' --include='*.py' . | head -40
+
+# 5. round 482: the derived set is pinned as a SET, and the crawl that
+#    produces it reports whether it FINISHED
+cd languages/whence && .venv/bin/python reprsweep.py          # 19 classes, complete
+cd languages/whence && .venv/bin/python -m pytest tests/test_v47.py -q \
+    -k "reached_set or stops_at_the_edge or retain_every_object"   # 3 passed
 ```
 
 You have done this when all of the following are true:
@@ -362,7 +472,16 @@ You have done this when all of the following are true:
    exempt side.
 6. **The sweep is recorded** — which other hand-written subject sets you
    found, and for each, derived or annotated-as-closed with a reason.
-7. **You asked who else reads the literal** before deriving it, and wrote
+7. **If the list was in prose, you said so in the diff.** A next-step, a
+   doc or a decision write-up that named members is now either deleted or
+   annotated as superseded by the derivation — otherwise the next change
+   reads the stale list, which is the failure this skill is about, one
+   layer up from the code.
+8. **The derivation reports whether it finished**, and a test asserts that
+   it did. A traversal that hit its budget, or one that lost objects to
+   `id()` reuse, returns a subset and every property you assert over it
+   holds vacuously.
+9. **You asked who else reads the literal** before deriving it, and wrote
    down the answer. If an analyser does, you derived the ORACLE and pinned
    the static property (round 477's section above), and you can state the
    measured cost of the alternative rather than the reason you avoided it.

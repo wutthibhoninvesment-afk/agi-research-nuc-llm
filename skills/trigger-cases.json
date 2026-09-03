@@ -2810,5 +2810,29 @@
   "id": "adf-neg-key",
   "expect": [],
   "prompt": "Our reconciliation report is correct but unreadable \u2014 it prints one line per mismatched row and there are 4000 of them. I want to group them by table and show the top offenders. What's a good layout?"
+ },
+ {
+  "id": "dss-prose-list",
+  "expect": [
+   "derived-subject-set"
+  ],
+  "prompt": "Last quarter's design doc lists the six serializers that still need the new bounds check, and notes the other two are already fine because they have custom writers. I'm about to work through that list this week \u2014 anything I should do first?",
+  "note": "round 482: the list is in PROSE, not in a test, so nothing treats it as an anti-rot check -- and the per-member judgement ('these two are fine') is inherited without its evidence"
+ },
+ {
+  "id": "dss-crawl-subset",
+  "expect": [
+   "derived-subject-set"
+  ],
+  "prompt": "I wrote a walker that reflects over our object graph to find every class the public API can hand back, and it reports 13 classes with no violations. I was expecting closer to 20. Where should I start?",
+  "note": "round 482: the DERIVATION returned a subset -- a walk that hit its step budget, or one keyed on id() without retaining what it visited, reports clean because the property holds vacuously over whatever survived"
+ },
+ {
+  "id": "dss-method-blindspot",
+  "expect": [
+   "derived-subject-set"
+  ],
+  "prompt": "The ticket says to grep for classes that don't define __eq__ and add one to each. Should I just run that grep and work through the hits?",
+  "note": "round 482: the next-step names a METHOD, and the method is itself a filter -- a grep for 'classes without __eq__' cannot see a class that INHERITS a wrong one, so everything it cannot see is reported as absent"
  }
 ]

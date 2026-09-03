@@ -904,6 +904,31 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    miss, no hint, a wrong answer — which is seven times the reachable
    coverage gap and entirely beyond a mechanism built on kinds and misses.
    See § Decision 59.
+60. **Decision 58's rule, applied by ENUMERATION rather than by a list —
+   and the list was wrong in both directions (round 482).** Decision 58
+   stated a general rule ("a value this implementation hands a caller is a
+   surface") and gave exactly one class, `Env`, a `__repr__`; round 476's
+   own next-step named eight more candidates from memory and was carried
+   un-run for five rounds. `reprsweep.py` does not take the list: it
+   crawls the public object graph from what `Interpreter.run` actually
+   returns and audits every class it reaches against four properties —
+   **R1** no host leak, **R2** bounded by `values.REPR_CAP` however large
+   the value, **R3** identical across `PYTHONHASHSEED`s, **R4** a
+   constructor-shaped repr names its own class. At the commit before this
+   version, **11 of 19 reachable classes violated**, against the eight
+   remembered. Two of the eight (`WList`, `PMap`) were on the list as
+   already-fine and were R2 failures at 156,787 and 22,986 characters;
+   nine violators were on no list at all — `Interpreter` itself (not a
+   value, so no list of value classes could hold it), `MergedProv` (which
+   passed R1-R3 while introducing itself as `Prov` and dropping `count`,
+   its only slot — R4 is the rule the sweep found rather than inherited),
+   and the seven AST node classes reachable through the public
+   `Closure.body`, whose generated repr recursed over the entire subtree.
+   The WHENCE-level surface was measured first and was already clean: every
+   leak was in the Python embedding API, one attribute below the object
+   decision 58 fixed. *A rule set derived from one known failure finds that
+   failure again; only enumerating finds the ones nobody thought of.*
+   See § Decision 60.
 
 ## Syntax (statements are newline-separated; `#` comments)
 ```
@@ -10044,3 +10069,149 @@ answer is measured against its own boundary: it is complete for calls that
 fail, and it says nothing at all about calls that succeed wrongly. Naming
 the boundary is the finding; `orderhint.py` is the instrument that will
 re-derive it rather than let a later round quote this section's numbers.
+
+---
+
+### Decision 60 (round 482, language C): the sweep decision 58 asked for, and what a crawl found that a list could not
+
+Decision 58 wrote a general rule into this registry and applied it to one
+class. Its own next-step said so:
+
+> Decision 58's rule is stated for `Env` and applied to `Env` only. The
+> generalisation — *every value this implementation hands a caller is a
+> surface* — has not been swept. The unrendered candidates a caller can
+> reach: `Explanation` (payload of `why`), `Closure`, `Builtin`, `WList`,
+> `PMap`, `Record`, `Miss`, `Guess`. `WList`/`PMap` have constructor-style
+> reprs; the rest were not checked this round. **Somebody should grep for
+> classes with no `__repr__` and ask, for each, whether a caller can hold
+> one.**
+
+Rounds 477 through 481 carried it. This section is what happened when it
+was run — and the interesting part is that the proposed method, the grep
+plus a judgement call per class, would have found neither the largest
+violation nor the subtlest one.
+
+### What the caller actually holds
+
+`Interpreter.run(source)` returns an `Env`; the value pulled out by name is
+a `Prov`, whose repr was already compliant; and the object one attribute
+further down — `env.get("x").payload` — is the payload class. That is the
+step the `#476` author took after decision 58's fix would have oriented
+them, and every payload class there printed a module path and a heap
+address:
+
+```
+>>> env.get("r").payload
+<whence.values.Record object at 0x76a3daf0f7c0>
+>>> env.get("f").payload
+<whence.values.Closure object at 0x76a3da145960>
+```
+
+**The renderer was never missing.** `show_payload` is total over every
+payload kind, bounded, and deterministic; it is what produces `<fn f>`,
+`@{a: 1}`, `guess 0.5 (sensor): 7` and `miss` inside every diagnostic this
+language emits. The Python object protocol was simply never wired to it.
+Measured before any change: no Whence program can get an address into a
+Whence-level rendering — `print(f)`, `print(map)`, `print(why r)`, a miss
+naming a closure operand, a list of closures, all clean. `test_v12.py` and
+`test_contract_message_differential.py` have asserted `"object at 0x" not
+in reason` for rounds. The rule was enforced on one surface and unstated on
+the other, and the two are one attribute apart.
+
+### The rule, as four properties a test can check
+
+R1 **host-free** — no `object at 0x`, no `whence.` module path.
+R2 **bounded** — `len(repr(v)) <= values.REPR_CAP` (240), checked against
+deliberately huge values, not against the ones somebody happened to print.
+R3 **deterministic** — the same string under three `PYTHONHASHSEED`s.
+R4 **honest** — a repr in the host's constructor shape, `Name(...)`, names
+its own class.
+
+Deliberately *not* part of the rule: a house style for the body. `Prov`'s
+`Prov('let', 'n', line=2, 1 inputs, value=42)` is a constructor call rather
+than the `<whence …>` frame the payload classes use, and it passes all
+four. Decision 48's "Whence literal or prose" dichotomy is about
+DIAGNOSTICS, read by a Whence author; a `repr` is read in the host, where
+the constructor call *is* the convention. A rule that outlawed it would be
+an aesthetic preference wearing a checker.
+
+### 11 of 19, against a remembered 8
+
+| class | on round 476's list? | what was wrong |
+| --- | --- | --- |
+| `Record`, `Closure`, `Builtin`, `Explanation`, `Miss`, `Guess` | yes | R1 — no repr at all |
+| `WList` | yes, as ALREADY FINE | R2 — 156,787 chars for `range(0, 3000)` |
+| `PMap` | yes, as ALREADY FINE | R2 — 22,986 chars at 400 keys |
+| `Interpreter` | no | R1 — and no list of *value* classes can hold it |
+| `MergedProv` | no | R4 — passed R1-R3 while calling itself `Prov` |
+| `Block`, `ExprStmt`, `If` (+4 more AST classes) | no | R2 — recursed over the whole subtree |
+
+Both halves of round 476's list were wrong. The two classes it waved
+through as "constructor-style, fine" were the two largest R2 failures in
+the tree, and nine violators were on no list at all. `Interpreter` is the
+one a list *could not* have contained: it is not a value, it is the object
+a caller constructs first, and it is reachable as `run().parent.interp`
+because `Env` carries a public back-reference. `MergedProv` is the one a
+grep could not have contained: `grep` for classes with no `__repr__` skips
+it, because it has one — inherited, correct for its base and a lie for it.
+
+### The AST was reachable and nothing was consuming its repr
+
+`Closure.body` is public, so `env.get("f").payload.body` hands a caller a
+parse tree whose repr recursed over every node below it: 15,471 characters
+for a 400-statement function body, and no bound in principle. The cut is
+DEPTH and BREADTH (`ast_nodes.REPR_NEST`, `REPR_BREADTH`), not a character
+truncation, because that is what `values.SHOW_NEST` already does to a value
+one layer up and because the only reason to print an AST node is to see its
+shape — a character cut ends it mid-identifier. `REPR_CAP` is applied last
+as the backstop that makes "bounded" checkable rather than argued.
+
+This was safe only because nothing consumed the unbounded form.
+`test_parser_differential.py` is the one suite that reprs a parse tree and
+it reprs `canon_host(...)`'s *tuples*; that was checked before the change
+and is pinned in `test_v47.py`, because a differential test comparing
+silently truncated serializations would be worse than the defect.
+
+### Two defects in the instrument, both of which reported a clean sweep
+
+`reprsweep.py`'s first draft returned 18 classes and no `MergedProv`. Its
+`seen` set holds `id()`s — and an id names an object only while that object
+is alive. `Prov.inputs` returns a *fresh* tuple whenever `_ins` is not
+already one, so the crawl allocated a tuple, recorded its id, dropped it,
+and then skipped a live object CPython had handed the freed address to.
+Retaining every visited object fixed it, and immediately exposed the
+second: with nothing pruning the walk, a crawl that descends any public
+attribute leaves the whence graph through `Interpreter`'s attributes into
+module `__dict__`s and does not terminate — it ran to its 60,000-step
+budget and reported 13 of 19. The crawl now descends whence classes and
+plain host containers only.
+
+Neither was found by reasoning about the crawl. Both were found by a number
+that looked wrong — 18 where 19 was expected, then 13 where 19 was. *An
+audit is two claims and one of them is the auditor's*, and a sweep that has
+lost the object it is auditing reports exactly what a clean tree reports.
+
+### What a caller sees now
+
+```
+>>> env.get("r").payload
+<whence record @{a: 1, b: @{c: 2}}>
+>>> env.get("f").payload
+<whence fn loop(i, acc) at line 13>
+>>> env.get("m").payload
+<whence miss: unbound name 'nosuch' (line 9)>
+>>> env.get("looped").inputs[0]
+MergedProv('call', 'loop', line=14, x51, 2 inputs, value=1275)
+```
+
+`Miss.__repr__` is the one class that deliberately does *not* show what
+`show_payload` shows. Decision 52 settled that a bounded snapshot of a miss
+is the bare word `miss` and only the full rendering names the reason, and
+that split is right for the surfaces it was written for — a miss message
+quoting its operand's reasons would nest without end. But a repr is read by
+somebody holding the object and asking what went wrong, and `<whence miss>`
+answers a question they did not ask. The reasons are already deduped
+strings on the object, so a bounded head of them costs one join and no
+recursion. The snapshot contract is unchanged, and `test_v47.py` pins that
+it is unchanged, because the divergence is only legitimate while the thing
+it diverges from stays put.

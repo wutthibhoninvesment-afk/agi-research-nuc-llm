@@ -441,10 +441,15 @@ def test_the_exclusions_are_counted_and_reconcile_with_the_old_call_count(
     # new function in `tests/test_folding.py`. Same shape as round 476's
     # entry above and for the same reason: the total moved, both exclusions
     # held, so the walk was widened by a corpus addition and not renarrowed.
-    assert stats["module_calls"] == 45
+    #
+    # ROUND 482: 1031 -> 1041 and module_calls 45 -> 46, from
+    # `tests/test_v47.py` (decision 60). `stmt_node_args` holds at 22.
+    # Same shape as the two entries above: the total moved, one exclusion
+    # moved with the corpus addition that caused it, the other held.
+    assert stats["module_calls"] == 46
     assert stats["stmt_node_args"] == 22
     assert stats["calls"] + stats["module_calls"] + \
-        stats["stmt_node_args"] == 1031
+        stats["stmt_node_args"] == 1041
 
 
 def test_the_exclusions_removed_no_programs_from_the_corpus(harvest):
@@ -516,7 +521,17 @@ def test_the_residual_fell_by_more_than_a_third_and_did_not_reach_zero(
     # literals, which put two programs INTO the corpus that would otherwise
     # have been residual. That is the instrument doing the job it was built
     # for, on the round that was reading it.
-    assert residual <= 107, residual
+    #
+    # ROUND 482: 107 -> 109. `tests/test_v47.py` contributes two, both
+    # `binop:Mod`, and unlike round 476's pair these were NOT rewritten as
+    # whole-program literals -- they compose a 400-statement and a
+    # 50-statement program to prove `ast_nodes`' repr is bounded at scale,
+    # and the literal form of a 400-statement program is not a test
+    # anybody can read. The distinction this test exists to draw is
+    # between a program that HAPPENS to be composed and one that must be;
+    # both new rows are the second kind, both are `building`, and `rest`
+    # is unchanged at eight.
+    assert residual <= 109, residual
     assert residual < 258 * 2 // 3
     assert stats["unresolved_args"] > 0
     assert stats["nonconstant_programs"] > 0
@@ -1206,10 +1221,11 @@ def test_the_corpus_grew_and_exactly_one_zip_row_survives(harvest,
     _progs, stats = harvest
     assert stats["programs"] >= 829, stats["programs"]
     residual = stats["unresolved_args"] + stats["nonconstant_programs"]
-    # 101 r474 -> 106 r476 -> 107 r480; the new rows are itemised in
+    # 101 r474 -> 106 r476 -> 107 r480 -> 109 r482; the new rows are
+    # itemised in
     # `test_the_residual_fell_by_more_than_a_third_and_did_not_reach_zero`.
     # The zip row's identity, which is what THIS test is about, is untouched.
-    assert residual <= 107, residual
+    assert residual <= 109, residual
     zips = [r for r in harvest_rows
             if r["kind"] == "residual" and r["cls"].startswith("zip")]
     assert len(zips) == 1, [(r["file"], r["line"], r["cls"]) for r in zips]
@@ -1238,7 +1254,11 @@ def test_the_widening_did_not_move_the_other_residual_half(harvest):
     became whole-program literals instead. The eight-row set is untouched
     again."""
     _progs, stats = harvest
-    assert stats["nonconstant_programs"] == 63, stats["nonconstant_programs"]
+    #
+    # ROUND 482: 63 -> 65, both from `tests/test_v47.py` and both
+    # `binop:Mod` (the scale programs decision 60's R2 check needs built at
+    # 400 and 50 statements). The eight-row `rest` set is untouched again.
+    assert stats["nonconstant_programs"] == 65, stats["nonconstant_programs"]
 
 
 # --- 7.6 a class that outlived its own fix ---------------------------------
@@ -1333,8 +1353,15 @@ def test_the_residual_that_is_not_string_building_is_seven_rows_in_three_shapes(
     # ROUND 480: 106 -> 107 rows and 98 -> 99 building, the single row being
     # `test_folding.py:320`, string-building, no new class. `rest` is again
     # the same eight rows at the same eight locations.
-    assert len(rows) == 107, len(rows)
-    assert len(building) == 99, len(building)
+    #
+    # ROUND 482: 107 -> 109 rows and 99 -> 101 building, the two rows being
+    # `test_v47.py:186` and `:204`, both `binop:Mod`, no new class -- so
+    # `rest` is the SAME eight rows at the same eight locations for a third
+    # consecutive round. That invariance is the assertion doing the work
+    # here: the count below moves whenever the corpus grows, and the list
+    # below it moves only when something genuinely unreadable arrives.
+    assert len(rows) == 109, len(rows)
+    assert len(building) == 101, len(building)
     assert sorted(r["cls"] for r in rest) == [
         "bound_nonconstant:call:build_cases",
         "bound_nonconstant:call:build_cases",

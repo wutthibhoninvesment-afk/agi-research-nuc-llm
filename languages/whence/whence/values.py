@@ -14,6 +14,56 @@ import inspect as _inspect
 
 SHOW_LIMIT = 40
 
+#: v0.47 (round 482), decision 60 — the cap every `__repr__` in this
+#: implementation obeys. Decision 58 gave `Env` a repr that is bounded,
+#: deterministic and address-free, and said so in prose; it did not say it
+#: anywhere a second class could inherit it. This is that sentence as a
+#: constant. 240 is chosen from the two reprs that already complied:
+#: `Env`'s is 186 characters at 31 names (its own `_ENV_REPR_NAMES` cut
+#: does the bounding) and `Prov`'s is 64 at a 5,000-element list and 85 at
+#: a 3,000-character string. A cap is not a target — every repr here is
+#: expected to come in far under it — it is the thing that makes
+#: "bounded" a property a TEST can check on an arbitrarily large value,
+#: which is what `WList.__repr__` lacked when it rendered a 3,000-element
+#: list into 156,787 characters.
+REPR_CAP = 240
+
+#: How many field names `PMap.__repr__` lists, and how many reasons
+#: `Miss.__repr__` does, before it says "...N more". Both are the
+#: `_ENV_REPR_NAMES` idea decision 58 introduced: a repr lists a HEAD and
+#: counts the tail, so the bound holds structurally and not by the cut in
+#: `_frame`, which is the backstop and not the design.
+_PMAP_REPR_KEYS = 4
+_MISS_REPR_REASONS = 2
+
+
+def _frame(body):
+    """A repr in this implementation's house shape: `<whence BODY>`, cut to
+    `REPR_CAP`.
+
+    The frame is the contract and the body is per class. Three properties
+    hold for every caller (decision 60, and `reprsweep.py` audits all three
+    against live values):
+
+      1. no host leakage — no `object at 0x`, no `whence.` module path, no
+         heap address anywhere in the string;
+      2. bounded — `len(...) <= REPR_CAP` however large the value is;
+      3. deterministic — same string in two processes with different
+         `PYTHONHASHSEED`.
+
+    `Prov.__repr__` is the one repr here that does NOT go through this
+    helper, and it is compliant anyway: it is the provenance NODE rather
+    than a value payload, its constructor-call shape is the host
+    convention for exactly that, and all four of its fields are already
+    bounded (`show` is a `show_payload` snapshot). Decision 60's rule is
+    the three properties above, not a house style — a rule that outlawed
+    `Prov(...)` would be an aesthetic preference wearing a checker.
+    """
+    out = "<whence " + body + ">"
+    if len(out) > REPR_CAP:
+        out = out[:REPR_CAP - 2] + "…>"
+    return out
+
 
 class WList(object):
     """An immutable Whence list: a length-bounded view over a shared,
@@ -88,8 +138,16 @@ class WList(object):
 
     __hash__ = None
 
+    # v0.47 (round 482), decision 60. Was `"WList(%r)" % self.to_list()`,
+    # which reprs every element's `Prov` in full and so grows without any
+    # bound at all: 156,787 characters for `range(0, 3000)`. The elements
+    # are `Prov`s, so that repr also answered a question nobody asked (the
+    # provenance of each element) at the cost of the one they did (what is
+    # in this list). `show_payload` is the language's own bounded snapshot
+    # and spells a list as the Whence literal that produces it.
     def __repr__(self):
-        return "WList(%r)" % self.to_list()
+        return _frame("list %s: %s"
+                      % (len(self), show_payload(self, SHOW_LIMIT * 2)))
 
 
 def wlist(items=()):
@@ -192,6 +250,18 @@ class MergedProv(Prov):
         self.value = value
         self.count = count
 
+    # v0.47 (round 482), decision 60. Before this, `MergedProv` inherited
+    # `Prov.__repr__` and so introduced itself as `Prov('call f', ...)` —
+    # the wrong class name — while dropping `count`, the ONLY slot that
+    # distinguishes it and the entire reason the class exists. A repr that
+    # names the wrong type is worse than the default one: the default is
+    # useless and obviously so, this was useful-looking and wrong. It is
+    # reachable: `run().vars['looped']._ins` holds one after any tail loop.
+    def __repr__(self):
+        return "MergedProv(%r, %r, line=%r, x%d, %d inputs, value=%s)" % (
+            self.op, self.detail, self.line, self.count, len(self.inputs),
+            self.show)
+
 
 class Miss(object):
     """A failed computation. Carries deduped, ordered reason strings."""
@@ -205,6 +275,24 @@ class Miss(object):
                 seen.add(r)
                 out.append(r)
         self.reasons = tuple(out)
+
+    # v0.47 (round 482), decision 60. This is the one payload whose repr
+    # deliberately does NOT show what `show_payload(self)` shows.
+    # Decision 52 settled that the bounded SNAPSHOT of a miss is the bare
+    # word `miss` and only the FULL rendering names the reason, and that
+    # split is right for the surfaces it was written for — a miss message
+    # that quoted its operand's reasons would nest without end. But a repr
+    # is read by somebody holding the object in a debugger and asking what
+    # went wrong, and `<whence miss>` answers a question they did not ask.
+    # The reasons are already deduped strings on the object, so naming a
+    # bounded head of them costs one join and no recursion at all.
+    def __repr__(self):
+        shown = list(self.reasons[:_MISS_REPR_REASONS])
+        extra = len(self.reasons) - len(shown)
+        body = "; ".join(shown) if shown else "(no reason)"
+        if extra > 0:
+            body += " (...%d more)" % extra
+        return _frame("miss: " + body)
 
 
 class Guess(object):
@@ -227,6 +315,12 @@ class Guess(object):
         self.node = node
         self.confidence = confidence
         self.sources = tuple(out)
+
+    # v0.47 (round 482), decision 60. `show_payload` already renders a
+    # Guess completely and boundedly ("guess 0.5 (sensor): 7"), so unlike
+    # `Miss` this one delegates and adds nothing.
+    def __repr__(self):
+        return _frame(show_payload(self, SHOW_LIMIT * 2))
 
 
 _PMAP_MISSING = object()
@@ -411,8 +505,23 @@ class PMap(object):
 
     __hash__ = None
 
+    # v0.47 (round 482), decision 60. Was `"PMap(%r)" % self.to_dict()`:
+    # 22,986 characters at 400 keys, and a host dict literal rather than
+    # anything a Whence author has ever typed. A PMap is not itself a
+    # Whence value — it is the field map INSIDE a `Record` — so its repr
+    # names the structure and the keys, in the AVL tree's own sorted
+    # order, and leaves rendering the values to the `Record` that holds it.
     def __repr__(self):
-        return "PMap(%r)" % (self.to_dict(),)
+        keys = [k for k, _ in self.items()]
+        shown = keys[:_PMAP_REPR_KEYS]
+        extra = len(keys) - len(shown)
+        listing = ", ".join(shown)
+        if extra > 0:
+            listing += ", ...%d more" % extra
+        return _frame("field map: %d key%s%s — the map inside a Record, "
+                      "not a value; Record.fields returns this"
+                      % (len(keys), "" if len(keys) == 1 else "s",
+                         " (%s)" % listing if keys else ""))
 
 
 class Record(object):
@@ -429,6 +538,13 @@ class Record(object):
     @property
     def fields(self):
         return self._map
+
+    # v0.47 (round 482), decision 60. A record IS a Whence value with a
+    # literal an author can type back, and `show_payload` spells it that
+    # way (`@{a: 1, b: 2}`), so the body is the literal and the frame says
+    # whose literal it is.
+    def __repr__(self):
+        return _frame("record " + show_payload(self, SHOW_LIMIT * 2))
 
 
 class Closure(object):
@@ -459,6 +575,23 @@ class Closure(object):
         # with one name. See SPEC decision 29.
         self.param_specs = param_specs
 
+    # v0.47 (round 482), decision 60. `show_payload` renders a closure as
+    # `<fn f>` / `<fn>`, which is right for a snapshot embedded in a miss
+    # message and thin for somebody holding the object: the two questions
+    # they have are what it takes and where it was written. Both are on
+    # the closure already. The captured `env` is deliberately NOT named —
+    # decision 58 gave `Env` a repr, but a closure's env chain is
+    # unbounded in DEPTH, and a repr that walked it would be the one
+    # unbounded renderer in this file all over again. `c.env` is one
+    # attribute away for a reader who wants it, and it now reprs honestly.
+    def __repr__(self):
+        params = ", ".join(self.params)
+        where = getattr(self.body, "line", None)
+        ret = " -> %s" % self.ret_label if self.ret_label else ""
+        return _frame("fn %s(%s)%s%s"
+                      % (self.name or "", params, ret,
+                         "" if where is None else " at line %d" % where))
+
 
 class Builtin(object):
     __slots__ = ("name", "arity", "fn", "is_gen")
@@ -472,6 +605,20 @@ class Builtin(object):
         # frame at all (v0.6)
         self.is_gen = _inspect.isgeneratorfunction(fn)
 
+    # v0.47 (round 482), decision 60. `arity` is an int, a (min, max)
+    # pair, or None for "any", and all three spellings appear in
+    # `_install_builtins`, so the repr renders each rather than printing
+    # the raw host tuple.
+    def __repr__(self):
+        a = self.arity
+        if a is None:
+            n = "any arity"
+        elif isinstance(a, tuple):
+            n = "%d-%d args" % (a[0], a[1])
+        else:
+            n = "%d arg%s" % (a, "" if a == 1 else "s")
+        return _frame("builtin %s (%s)" % (self.name, n))
+
 
 class Explanation(object):
     """Payload of `why x`: holds the provenance root of x."""
@@ -479,6 +626,16 @@ class Explanation(object):
 
     def __init__(self, root):
         self.root = root
+
+    # v0.47 (round 482), decision 60. `show_payload` renders this as the
+    # bare token `<why>`, which says the kind and nothing about the value
+    # — and the value is the whole point of the object. The body names
+    # the explained value's snapshot and the escape hatch to the tree,
+    # because `why x` printed at the Whence level IS the tree and a
+    # reader who has an `Explanation` in Python has lost that rendering.
+    def __repr__(self):
+        return _frame("why %s — full_show(x.root) prints the tree"
+                      % show_payload(self.root.payload, SHOW_LIMIT))
 
 
 #: The characters the LEXER treats specially inside a string literal, in the

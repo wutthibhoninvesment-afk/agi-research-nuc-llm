@@ -772,6 +772,22 @@ class Interpreter(object):
         _install_builtins(self.globals)
 
     # --- entry points ---------------------------------------------------
+    # v0.47 (round 482), decision 60. The engine is the object a caller
+    # constructs FIRST — `Interpreter()` is line one of every embedding —
+    # and it was the only class on the public path from `run()` with no
+    # repr at all. `reprsweep.py` found it, not round 476's list, which
+    # named payload classes only: the crawl reaches it as
+    # `run().parent.interp` because `Env.__slots__` carries a public
+    # `interp` back-reference. Decision 58's `Env` repr ends by telling
+    # the reader where the values are; this one ends by telling them where
+    # the Env is, which is the same sentence taken one step upstream.
+    def __repr__(self):
+        n = len(self.globals.vars)
+        return ("<whence interpreter: %d builtin%s, max_depth %s — the "
+                "ENGINE, not a value or a scope; run(source) executes a "
+                "program and returns its top-level Env>"
+                % (n, "" if n == 1 else "s", self.max_depth))
+
     def run(self, source):
         """Parse and execute a program. Returns the top-level Env."""
         program = parse(source)

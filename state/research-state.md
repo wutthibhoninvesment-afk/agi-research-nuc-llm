@@ -26113,6 +26113,90 @@ does NOT score round 473's predictions, which remain unscored.
   the exact failure this program keeps finding in other rounds' carried
   claims.
 
+### Round 482 — language(C) — 2026-09-03 — the list that was wrong in both directions
+
+- **Landed round 481's stranded diff first (`0b9e1dc`).** Its outer timeout
+  killed it mid-mutation-run with mutant `W1 "imports lose their line
+  again"` still applied to `harness/wiring_audit.py` and its own pristine
+  copy left as `wiring_audit.py.bak` — one line, `(a.name, 0)` for
+  `(a.name, node.lineno)`, verbatim what `mutants.json` describes. That,
+  and not any defect in round 481's work, is why its health check reported
+  5 failures. Restored, `.bak` removed, `89 passed in 130.32s`.
+- **Round 476's next-step 2 — decision 58's generalisation sweep, carried
+  un-run by rounds 477-481 — is CLOSED, and the list it carried was wrong
+  in BOTH directions.** `languages/whence/reprsweep.py` crawls the public
+  object graph from `Interpreter.run`'s return value instead of taking the
+  list: **19 classes reachable, 11 in violation at `0b9e1dc`, 0 after**,
+  against the eight round 476 remembered. The two it waved through as
+  already fine (`WList`, `PMap`) were the two largest violations in the
+  tree — 156,787 chars for `range(0, 3000)` and 22,986 at 400 keys, no
+  bound of any kind — and **nine violators were on no list at all**.
+- **Two of the nine are structurally un-listable by the method round 476
+  proposed.** `Interpreter` is not a value, so no list of value classes can
+  hold it, and it is reachable at `run().parent.interp`. `MergedProv` is
+  invisible to "grep for classes with no `__repr__`" *because it has one* —
+  inherited from `Prov`, correct for its base and a lie for it: it
+  introduced itself under the wrong class name and dropped `count`, its
+  only slot. The other seven are the AST node classes, reachable through
+  the public `Closure.body`, whose generated repr recursed over the entire
+  subtree (15,471 chars for a 400-statement body, bounded only by the size
+  of the program).
+- **The renderer was never missing.** `show_payload` is total over every
+  payload kind, bounded and deterministic — it is what `Prov.__repr__`
+  interpolates, which is why a `Prov` holding a `Record` rendered correctly
+  while the `Record` itself printed a heap address. The Python object
+  protocol was simply never wired to it. Measured BEFORE any change and
+  pinned: the **Whence-level surface was already clean** — no program can
+  get an address into a Whence rendering, and `test_v12.py` /
+  `test_contract_message_differential.py` have asserted exactly that for
+  rounds. Two surfaces one attribute apart, opposite hygiene, and the
+  enforced one read like coverage for both.
+- **Decision 60 states the rule as four checkable properties**, not a house
+  style: R1 no host leak, R2 bounded by `values.REPR_CAP` (240) against
+  deliberately huge values, R3 identical under three `PYTHONHASHSEED`s, R4
+  a constructor-shaped repr names its own class. **R4 is the rule the sweep
+  found rather than inherited** — `MergedProv` passes R1, R2 and R3. A rule
+  set derived from one known failure finds that failure again. `Prov` keeps
+  its constructor-shaped repr and passes all four; outlawing it would be an
+  aesthetic preference wearing a checker.
+- **The instrument had two defects, both of which reported a CLEAN sweep.**
+  Its `seen` set holds `id()`s and `Prov.inputs` returns a fresh tuple per
+  access, so the crawl recorded ids of objects it then dropped and skipped
+  a live object handed the freed address — 18 classes, no `MergedProv`.
+  Fixing that un-pruned a walk out of the whence graph into host module
+  `__dict__`s: 60,000 steps, exhausted, **13 of 19 and no violations for
+  the six it never reached**. Neither was found by reasoning about the
+  crawl; both were found by a count that looked wrong.
+- **`Miss.__repr__` deliberately diverges from `show_payload`** and decision
+  52's snapshot contract is UNCHANGED and pinned as unchanged — a repr is
+  read by somebody holding the object and asking what went wrong, and
+  `<whence miss>` answers a question they did not ask. A later round
+  "making it consistent" would be reversing a decision, which is why that
+  test sits in `TestWhatWasDeliberatelyNotChanged`.
+- **Tests: 23 new** (`tests/test_v47.py`, 22 fast + 1 `whence_slow`), plus
+  five pinned counts updated in `test_testcorpus_census.py` with
+  attribution — the round's own new file added two `binop:Mod` rows
+  (107 -> 109, `building` 99 -> 101, `rest` the SAME eight rows for a third
+  round). Fast tier **2683 passed, 3 skipped, 116 deselected** against a pristine baseline of 2661 / 3 / 115 taken at `0b9e1dc` before the first edit — the delta is exactly this round's own tests, no pre-existing test changed outcome. `reprsweep.py`: 19 classes, 0 violations, R3 OK
+  across three seeds.
+- **Predictions 7 HIT / 1 REFUTED / 1 MISS / 1 HIT-on-the-bound of 10**,
+  banked at `593eee2` before any measurement. P4 is the useful refutation:
+  an unrendered payload does NOT leak an address through `WList`'s or
+  `Prov`'s repr, because those interpolate `show_payload`, which is total —
+  the holes were isolated by the very renderer whose existence made them an
+  oversight. P5 banked "at least 8 violating classes", measured 11, and
+  taught nothing: the COMPOSITION was wrong in both directions. **A count
+  prediction with no membership claim cannot be wrong in the way that
+  matters** — bank the SET.
+- **Skill: `skills/derived-subject-set/SKILL.md` UPGRADED**, not duplicated
+  — it already owned "derive the subject set from the artefact". Two new
+  shapes it did not cover: the list living in PROSE (a carried next-step, a
+  design doc) where nothing treats it as an anti-rot check and the next
+  change runs it as a work order; and the DERIVATION silently returning a
+  subset (`id()` reuse, a budget cap reported as completeness). Three new
+  trigger cases, 423 -> 426. `skill_lint --house --strict`: 0 errors.
+- **Knowledge:** `knowledge/round-482-the-list-that-was-wrong-in-both-directions.md`.
+
 ### Round 481 — harness(A) — 2026-09-03 — the line the graph threw away
 
 - **`wiring_audit`'s reference graph knew WHICH file referenced which and,
@@ -26214,6 +26298,70 @@ does NOT score round 473's predictions, which remain unscored.
   with skills(B) owning the live probe. No priced call of any kind was made
   this round. `skill_lint --house --strict`: 0 errors, 0 warnings.
 - **Knowledge:** `knowledge/round-481-the-line-the-graph-threw-away.md`.
+
+## Next steps (as of round 482)
+
+1. **A mutation harness that edits its subject in place must restore it in
+   a `finally`.** Round 481 left mutant W1 applied to
+   `harness/wiring_audit.py` when the outer timeout killed it; the cost was
+   a health check reporting 5 failures against work that was green, and a
+   whole round's diff left looking broken until round 482 read
+   `mutants.json` and the `.bak` sitting next to it. Round 481's loop is
+   not the only in-place mutation runner in `harness/`. harness(A).
+2. **The code claims v0.47 and SPEC's authoritative version list stops at
+   v0.44.** `## v0.45`, `## v0.46` and `## v0.47` do not exist; decisions
+   58, 59 and 60 each name a version with no section. `test_v22.py::
+   test_spec_level_header_matches_the_highest_version_section` is GREEN
+   because it compares the header to the SECTIONS, and the drift is between
+   the sections and the CODE — the exact rot class that test was built for,
+   in the one dimension it cannot see. Round 482 added the fourth instance
+   rather than fix it, because bumping the header without the three missing
+   sections trades one lie for another. Write all three sections or delete
+   the version claims from the code comments, and say which.
+   `grep -c "v0\.4[567]" languages/whence/whence/*.py; grep -n "^## v0\.4"
+   languages/whence/SPEC.md`. language(C).
+3. **`reprsweep.py`'s `PROBE` is a hand-written program — the one list left
+   in this design.** A value kind no line of it constructs is not audited;
+   the crawl is exhaustive over what the probe BUILDS, not over what the
+   language can build. `test_v47.py` pins the reached SET so a silent
+   shrink fails, which bounds the damage without closing it. The closing
+   move is to derive the probe from the builtin table. language(C).
+4. **R3 is now checked for reprs and for nothing else in this tree.** Round
+   481's next-step 5 asked for cross-process stability on `slowtier.plan()`,
+   `whenceslow` unit ordering, `redattrib`'s attribution and
+   `case_coverage`'s ranking. `reprsweep.seed_check()` is a ~0.3 s pattern
+   for it — three subprocesses, one JSON compare — and none of those four
+   has been run through anything like it. any track.
+5. **Round 480's items 1, 3, 5 and 7 stand, untouched** — widening
+   `orderhint.WITNESSES` (saying FIRST whether the goal is to find rows or
+   raise a number); the `b_note`/`b_at` `OWN_MISS` asymmetry, where a
+   builtin swallows its argument's miss reason and substitutes `got miss`;
+   and the un-benchmarked hoist rejection. **Its item 2 is CLOSED by this
+   round** and its item 4 (a pristine baseline before the first edit) was
+   discharged — 2661 / 3 / 115 at `0b9e1dc`, banked as P8 and HIT on all
+   three numbers. language(C).
+6. **Round 434's items 2-5 and round 428's item 4 are open for an ELEVENTH
+   rotation** — the atom table's precondition-with-no-decider risk; the 7
+   `append_only`/`refusal` `unknown` residuals; CP03p as the one pin that
+   moves the contingency table; `classify` 161 vs `checkpin run` 162.
+   Re-derive before quoting. language(C).
+7. **`_PNode` is excluded by the public-path rule, and that rule is a
+   judgement this round made.** The delta between the strict and loose
+   crawls is measured rather than argued
+   (`test_the_public_path_rule_excludes_exactly_the_avl_node`), so a future
+   private slot exposing something real turns it red — but nobody has asked
+   whether a caller in practice respects the underscore. language(C).
+8. **Standing, untouched by this round:** the NUC `retention --strict`
+   deadline and the `%vmeff` residual; `case_coverage`'s disagreeing
+   verdicts; `claim_check` executing 0 of its commands; the
+   operator-blocked `--cap 196`; and CLAUDE.md's TWO `CRITICAL MISSION`
+   blocks, both making a claim now refuted a fourth time — decision 60's §1
+   re-measures the `fold` claim's real mechanism from a new angle — and both
+   still a one-line deletion for the operator. Do NOT reword them; the
+   pinning suites expire cleanly only if the blocks go.
+   `languages/whence/SECURITY.md` is still uncommitted, still not this
+   program's, still the operator's decision — **do not copy a carry count
+   for it from this file**; the checker's own line is the only source.
 
 ## Next steps (as of round 481)
 

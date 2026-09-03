@@ -28,6 +28,49 @@ class Node(object):
         self.entry = None
 
 
+#: v0.47 (round 482), decision 60. A node's repr descends this many
+#: levels and lists this many children per level before it says `...`.
+#: An AST node is reachable from a caller by a PUBLIC path —
+#: `run().vars["f"].payload.body` — so it is a surface under decision 58's
+#: rule, and until this version its repr recursed over the WHOLE subtree
+#: with no cut of any kind: `reprsweep.py` measured 500 characters for the
+#: five-line `loop` in its own probe, and the bound is the program's size.
+#:
+#: The caps are DEPTH and BREADTH rather than a character cut because that
+#: is what this implementation already does to a value one layer up —
+#: `values.SHOW_NEST` renders a too-deep list as `[…]` and `_show` takes
+#: `head(6)` of a long one. A structural cut keeps the SHAPE readable,
+#: which is the whole reason to print an AST node; a character cut would
+#: leave a node's repr ending mid-identifier. `values.REPR_CAP` is still
+#: applied last, as the backstop that makes "bounded" a property a test
+#: can check rather than an argument about the caps being enough.
+#:
+#: Nothing in the tree consumed the unbounded form. `test_parser_
+#: differential.py` is the one suite that reprs a parse tree, and it reprs
+#: `canon_host(...)`'s TUPLES, not these nodes — checked before changing
+#: this, because a repr that a differential test uses as a canonical
+#: serialization must not be silently truncated.
+REPR_NEST = 3
+REPR_BREADTH = 6
+
+
+def _node_field(v, depth):
+    """One field of a node's repr, cut by depth and breadth."""
+    if isinstance(v, Node):
+        if depth >= REPR_NEST:
+            return type(v).__name__ + "(…)"
+        return v._repr_at(depth + 1)
+    if isinstance(v, list):
+        if depth >= REPR_NEST:
+            return "[…]" if v else "[]"
+        head = v[:REPR_BREADTH]
+        return "[" + ", ".join(_node_field(e, depth + 1) for e in head) + \
+            (", …" if len(head) < len(v) else "") + "]"
+    if isinstance(v, tuple):
+        return "(" + ", ".join(_node_field(e, depth + 1) for e in v) + ")"
+    return repr(v)
+
+
 def _simple(name, fields):
     slots = tuple(fields)
 
@@ -38,12 +81,19 @@ def _simple(name, fields):
         for f, a in zip(slots, args):
             setattr(self, f, a)
 
-    def __repr__(self):
-        parts = ", ".join("%s=%r" % (f, getattr(self, f)) for f in slots)
+    def _repr_at(self, depth):
+        parts = ", ".join("%s=%s" % (f, _node_field(getattr(self, f), depth))
+                          for f in slots)
         return "%s(%s)" % (name, parts)
 
+    def __repr__(self):
+        from whence.values import REPR_CAP
+        out = self._repr_at(0)
+        return out if len(out) <= REPR_CAP else out[:REPR_CAP - 1] + "…"
+
     return type(name, (Node,), {
-        "__slots__": slots, "__init__": __init__, "__repr__": __repr__})
+        "__slots__": slots, "__init__": __init__, "__repr__": __repr__,
+        "_repr_at": _repr_at})
 
 
 Num = _simple("Num", ["value"])
