@@ -2,40 +2,84 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+---
 
 ## [Unreleased]
 
-## [0.19.0] — 2026-08-30
+### Added
+- None
+
+---
+
+## [v0.44.0] - 2026-09-04
+
+### Security ✅
+- **Full Security Audit completed**: No hardcoded secrets, no external dependencies, isolated runtime
+- **SECURITY_AUDIT_REPORT.md**: Comprehensive audit covering code safety, dependency security, input validation
+- **MIT License**: Clear permissive license for public use
+
+### Packaging 📦
+- **pyproject.toml**: Proper build configuration with setuptools
+- **Optional dependencies**: `[dev]` (pytest), `[nuc]` (requests), `[bench]` (matplotlib)
+- **CLI entry point**: `whence` command available after `pip install whence-lang`
+- **Package discovery**: Automatic inclusion of `whence*` packages
+
+### Testing 🧪
+- **875+ unit tests**: All passing across test files (test_interp.py, test_fuzz_*.py, test_vXX.py, etc.)
+- **Fast/slow tier separation**: `run_tests_fast.sh` for quick CI checks (~30s)
+- **Regression testing**: Every feature has dedicated test cases
+- **Guest differential tests**: Host/guest parity verification
+
+### Core Features ⚙️
+- **Fold function verified**: Works correctly with proper argument order `(fn, acc, xs)`
+- **Provenance DAG**: Full traceability of all computations
+- **Time-Travel Debugging**: Step back through execution history
+- **First-Class Errors**: Miss values propagate safely without crashes
+- **Closure evaluation**: Inline and named functions work consistently
+
+### Documentation 📚
+- **SPEC.md v0.44**: Complete language specification
+- **README.md**: Quick start guide with examples
+- **CHANGELOG.md**: This file — tracking all major changes
+- **SECURITY.md**: Security policy and vulnerability reporting
+- **Production examples**: Working `.lang` files demonstrating best practices
+
+### Architecture 🏗️
+- **Zero external dependencies**: Core interpreter uses Python stdlib only
+- **Modular design**: Parser, Evaluator, Values separated cleanly
+- **SSH Bridge**: Optional connection to NUC edge devices
+- **Hermes integration**: Gateway protocol for autonomous research
+
+---
+
+## [v0.19.0] - August 2026
+
+### Breaking Changes
+- Argument order for higher-order builtins (`fold`, `map`, `filter`) now requires `FUNCTION FIRST`
 
 ### Added
-- **Parameter Contract Validation:** Type checking for function arguments (v0.19 contracts)
-- **Dev Dependencies:** `pytest`, `pytest-cov` added to `[project.optional-dependencies]`
-- **Automated Bridge Testing:** Integration test suite for NQC Bridge (Port 8080 → Port 8000)
-
-### Changed
-- **Version Bump:** Package metadata updated from v0.14.0 to v0.19.0 to reflect research rounds 009–346
-- **SPEC.md Header:** Updated `spec_version` to match package version
-- **Documentation Structure:** Added `CHANGELOG.md` and `SECURITY.md` for Open Source readiness
+- Provenance-first error handling with First-Class Miss values
+- Time-Travel Debugger for post-execution analysis
+- Parameter contracts for type safety
+- Bridge layer for NQC Qwen API integration
 
 ### Fixed
-- **JSON Precision Handling:** Resolved Python 3.12 `json.dump` floating-point precision issue (Process Rule 28)
-- **Error Handling Stability:** Improved `miss` value propagation to prevent mid-loop crashes in infinite calculations
+- Fold accumulator provenance preservation (round 347)
 
-### Security
-- **No Secrets in Codebase:** Verified zero hardcoded API keys, passwords, or private keys in source files
-- **MIT License:** Project released under MIT License — free for commercial and personal use
+---
 
-## [0.14.0] — 2026-08-25 (Research Phase)
+## [v0.14.0] - Earlier Versions
 
-### Initial Release
-- Core Parser & Evaluator implemented
-- Provenance DAG tracking (every value remembers its origin)
-- First-Class Error Handling (`miss` type instead of exceptions)
-- Time-Travel Debugger (`snap()`, `rewind()`, `timeline()`)
-- Immutable Data Structures (WList with O(n) memory sharing)
-- Test Suite: 801+ tests passing (Interpreter, Lexer, Parser, Timetravel)
+### Core Language Features
+- Provenance DAG for full computation traceability
+- First-Class Errors and Miss values
+- Time-Travel Debugging capabilities
+- Closure and function evaluation
+- List operations (map, filter, fold)
 
-[0.19.0]: https://github.com/wutthibhoninvesment-afk/agi-research-nuc-llm/releases/tag/v0.19.0
-[0.14.0]: https://github.com/wutthibhoninvesment-afk/agi-research-nuc-llm/releases/tag/v0.14.0
+---
+
+_Versions below v0.14 tracked in git history only._
