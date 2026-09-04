@@ -1,0 +1,1434 @@
+{
+  "_what": "test nodes in languages/whence/tests/ where a magnitude assert precedes a shape assert in the same execution path -- round 494's next-step #1, measured by round 498.",
+  "_regenerate": "cd languages/whence && python3 assertshadow.py --history --json <this file>",
+  "_headline_predicate": "is_magnitude (widened) x is_shape (non-empty display), branch-compatible, magnitude strictly first",
+  "totals": {
+    "files": 71,
+    "test_functions": 1902,
+    "asserts": 3862,
+    "assert_kinds": {
+      "other": 2523,
+      "shape": 496,
+      "shape_empty": 148,
+      "magnitude": 695
+    },
+    "functions_with_magnitude": 471,
+    "functions_with_shape": 383,
+    "candidates": 37,
+    "pairs": 57,
+    "pairs_strict": 57,
+    "pairs_widened_only": 0,
+    "pairs_conditional": 11,
+    "pairs_count_implied": 4,
+    "remedies": {
+      "reorder": 42,
+      "delete_count": 4,
+      "split": 11
+    },
+    "pairs_costly": 7,
+    "candidates_costly": 2,
+    "pairs_independent": 28,
+    "candidates_independent": 15,
+    "shadowed_shape_asserts": 44,
+    "pairs_with_history": 57,
+    "literal_edits": 3,
+    "repins": 0,
+    "pairs_with_a_repin": 0
+  },
+  "by_file": [
+    {
+      "file": "test_testcorpus_census.py",
+      "candidates": 7
+    },
+    {
+      "file": "test_polarity.py",
+      "candidates": 3
+    },
+    {
+      "file": "test_v43.py",
+      "candidates": 3
+    },
+    {
+      "file": "test_checkpin.py",
+      "candidates": 2
+    },
+    {
+      "file": "test_v04.py",
+      "candidates": 2
+    },
+    {
+      "file": "test_v15.py",
+      "candidates": 2
+    },
+    {
+      "file": "test_depthcensus.py",
+      "candidates": 1
+    },
+    {
+      "file": "test_folding.py",
+      "candidates": 1
+    },
+    {
+      "file": "test_fuzz_regressions.py",
+      "candidates": 1
+    },
+    {
+      "file": "test_interp.py",
+      "candidates": 1
+    },
+    {
+      "file": "test_lexer_guest_parity.py",
+      "candidates": 1
+    },
+    {
+      "file": "test_self_eval.py",
+      "candidates": 1
+    },
+    {
+      "file": "test_testcorpus_contributions.py",
+      "candidates": 1
+    },
+    {
+      "file": "test_timetravel.py",
+      "candidates": 1
+    },
+    {
+      "file": "test_v08.py",
+      "candidates": 1
+    },
+    {
+      "file": "test_v09.py",
+      "candidates": 1
+    },
+    {
+      "file": "test_v10.py",
+      "candidates": 1
+    },
+    {
+      "file": "test_v16.py",
+      "candidates": 1
+    },
+    {
+      "file": "test_v30.py",
+      "candidates": 1
+    },
+    {
+      "file": "test_v32.py",
+      "candidates": 1
+    },
+    {
+      "file": "test_v35.py",
+      "candidates": 1
+    },
+    {
+      "file": "test_v42.py",
+      "candidates": 1
+    },
+    {
+      "file": "test_v44.py",
+      "candidates": 1
+    },
+    {
+      "file": "test_v49.py",
+      "candidates": 1
+    }
+  ],
+  "costly_nodes": [
+    "test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage",
+    "test_v30.py::test_the_guest_never_merges_a_tail_loop"
+  ],
+  "nodes": {
+    "test_checkpin.py::test_a_named_guardian_that_goes_red_is_guarded": {
+      "lineno": 191,
+      "pairs": [
+        {
+          "magnitude_line": 196,
+          "magnitude": "r['n_red'] == 2",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 197,
+          "shape": "r['co_red'] == ['boxed carries the doubling']",
+          "count_implied": false,
+          "independent": false,
+          "shared_subjects": [
+            "r"
+          ],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_checkpin.py::test_redundant_with_demotes_inert_and_is_scored_out": {
+      "lineno": 432,
+      "pairs": [
+        {
+          "magnitude_line": 449,
+          "magnitude": "out['findings'] == 0",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 450,
+          "shape": "out['redundant'] == [{'id': 'R1', 'wider': 'R2'}]",
+          "count_implied": false,
+          "independent": false,
+          "shared_subjects": [
+            "out"
+          ],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_depthcensus.py::test_records_and_lists_alternate_without_special_casing": {
+      "lineno": 73,
+      "pairs": [
+        {
+          "magnitude_line": 75,
+          "magnitude": "DC.depth_of(v) == 3",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 76,
+          "shape": "DC.spine_of(v) == ['Record', 'WList', 'Record', 'int']",
+          "count_implied": false,
+          "independent": false,
+          "shared_subjects": [
+            "DC",
+            "v"
+          ],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_folding.py::test_fold_is_arity_3_with_the_signature_the_hint_names": {
+      "lineno": 231,
+      "pairs": [
+        {
+          "magnitude_line": 233,
+          "magnitude": "len(sig) == 3",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 234,
+          "shape": "[n for n, _ in sig] == ['fn', 'acc', 'xs']",
+          "count_implied": true,
+          "independent": false,
+          "shared_subjects": [
+            "sig"
+          ],
+          "reorder_safe": true,
+          "remedy": "delete_count",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_fuzz_regressions.py::test_fold_type_error_keeps_the_accumulator_in_its_provenance": {
+      "lineno": 215,
+      "pairs": [
+        {
+          "magnitude_line": 240,
+          "magnitude": "len(kids) == 3",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 242,
+          "shape": "ops == ['fn', 'let', 'literal']",
+          "count_implied": false,
+          "independent": true,
+          "shared_subjects": [],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        },
+        {
+          "magnitude_line": 240,
+          "magnitude": "len(kids) == 3",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 247,
+          "shape": "[k.op for k in acc_node.inputs] == ['str']",
+          "count_implied": false,
+          "independent": true,
+          "shared_subjects": [],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_interp.py::test_push_is_functional": {
+      "lineno": 287,
+      "pairs": [
+        {
+          "magnitude_line": 289,
+          "magnitude": "val(src) == 1",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 290,
+          "shape": "[e.payload for e in val('let result = push([1], 2)')] == [1, 2]",
+          "count_implied": false,
+          "independent": false,
+          "shared_subjects": [
+            "val"
+          ],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_lexer_guest_parity.py::test_guest_tokens_carry_a_column_and_it_is_the_hosts": {
+      "lineno": 558,
+      "pairs": [
+        {
+          "magnitude_line": 574,
+          "magnitude": "len(guest[0]) == 4",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 577,
+          "shape": "guest[1] == ('name', 'x', 1, 5)",
+          "count_implied": false,
+          "independent": false,
+          "shared_subjects": [
+            "guest"
+          ],
+          "reorder_safe": false,
+          "remedy": "split",
+          "tree_derived": false,
+          "literal_edits": 1,
+          "commits_touching": 2,
+          "repins": 0,
+          "moves": [
+            {
+              "sha": "5969dede",
+              "kind": "rewrite",
+              "before": "assert set(guest[0]) and len(guest[0]) == 3",
+              "after": "assert len(guest[0]) == 4"
+            }
+          ]
+        }
+      ]
+    },
+    "test_polarity.py::test_cored_polarity_counts_the_evidence_the_filter_drops": {
+      "lineno": 693,
+      "pairs": [
+        {
+          "magnitude_line": 706,
+          "magnitude": "out['co_red_total'] == 3",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 708,
+          "shape": "out['false_gaps'] == ['Q']",
+          "count_implied": false,
+          "independent": false,
+          "shared_subjects": [
+            "out"
+          ],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        },
+        {
+          "magnitude_line": 707,
+          "magnitude": "out['co_red_blind'] == 2",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 708,
+          "shape": "out['false_gaps'] == ['Q']",
+          "count_implied": false,
+          "independent": false,
+          "shared_subjects": [
+            "out"
+          ],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_polarity.py::test_the_sightedness_filter_drops_measured_red_evidence": {
+      "lineno": 1010,
+      "pairs": [
+        {
+          "magnitude_line": 1023,
+          "magnitude": "out['co_red_unmatched'] == 0",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 1026,
+          "shape": "out['false_gaps'] == ['CP03p']",
+          "count_implied": false,
+          "independent": false,
+          "shared_subjects": [
+            "out"
+          ],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": true,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        },
+        {
+          "magnitude_line": 1024,
+          "magnitude": "out['co_red_total'] == 93",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 1026,
+          "shape": "out['false_gaps'] == ['CP03p']",
+          "count_implied": false,
+          "independent": false,
+          "shared_subjects": [
+            "out"
+          ],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": true,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        },
+        {
+          "magnitude_line": 1025,
+          "magnitude": "out['co_red_blind'] == 16",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 1026,
+          "shape": "out['false_gaps'] == ['CP03p']",
+          "count_implied": false,
+          "independent": false,
+          "shared_subjects": [
+            "out"
+          ],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": true,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_polarity.py::test_no_violation_in_the_recorded_corpus_is_undecided_any_more": {
+      "lineno": 2079,
+      "pairs": [
+        {
+          "magnitude_line": 2092,
+          "magnitude": "len(out['violations']) == 2",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 2095,
+          "shape": "sorted((r['id'] for r in out['excused'])) == ['EP10m', 'EP11p']",
+          "count_implied": false,
+          "independent": false,
+          "shared_subjects": [
+            "out"
+          ],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": true,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_self_eval.py::test_boxes_are_well_formed_and_stripped_output_has_none": {
+      "lineno": 582,
+      "pairs": [
+        {
+          "magnitude_line": 593,
+          "magnitude": "n >= 8",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 604,
+          "shape": "set(p.fields) != {'v', 'op', 'ins'}",
+          "count_implied": false,
+          "independent": true,
+          "shared_subjects": [],
+          "reorder_safe": false,
+          "remedy": "split",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_testcorpus_census.py::test_string_repetition_folds_and_the_repeat_is_capped": {
+      "lineno": 795,
+      "pairs": [
+        {
+          "magnitude_line": 802,
+          "magnitude": "fold('2 * 3') == 6",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 808,
+          "shape": "dc._const_strs(node, {}, lits) == ['let a = 111']",
+          "count_implied": false,
+          "independent": true,
+          "shared_subjects": [],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_testcorpus_census.py::test_a_zip_over_a_runtime_column_is_refused_and_says_so": {
+      "lineno": 811,
+      "pairs": [
+        {
+          "magnitude_line": 825,
+          "magnitude": "stats['unresolved_args'] == 1",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 826,
+          "shape": "[r['cls'] for r in stats['rows'] if r['kind'] == 'residual'] == ['zip_nonliteral_column']",
+          "count_implied": false,
+          "independent": false,
+          "shared_subjects": [
+            "stats"
+          ],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        },
+        {
+          "magnitude_line": 825,
+          "magnitude": "stats['unresolved_args'] == 1",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 831,
+          "shape": "sorted((p['src'] for p in progs)) == ['let a = 1', 'let b = 2']",
+          "count_implied": false,
+          "independent": true,
+          "shared_subjects": [],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_testcorpus_census.py::test_the_corpus_grew_and_exactly_one_zip_row_survives": {
+      "lineno": 1273,
+      "pairs": [
+        {
+          "magnitude_line": 1307,
+          "magnitude": "len(zips) == 1",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 1308,
+          "shape": "(zips[0]['file'], zips[0]['cls']) == ('test_v30.py', 'zip_no_literal_column/zip_nonliteral_column')",
+          "count_implied": false,
+          "independent": false,
+          "shared_subjects": [
+            "zips"
+          ],
+          "reorder_safe": false,
+          "remedy": "split",
+          "tree_derived": true,
+          "literal_edits": 1,
+          "commits_touching": 2,
+          "repins": 0,
+          "moves": [
+            {
+              "sha": "dbaf51ba",
+              "kind": "rewrite",
+              "before": "assert residual <= 100, residual     assert not [r for r in harvest_rows                 if r[\"kind\"] == \"residual\" and r[\"cls\"].startswith(\"zip\")]",
+              "after": "if r[\"kind\"] == \"residual\" and r[\"cls\"].startswith(\"zip\")]"
+            }
+          ]
+        }
+      ]
+    },
+    "test_testcorpus_census.py::test_two_loops_one_name_and_the_second_loops_row_disappears_with_it": {
+      "lineno": 1576,
+      "pairs": [
+        {
+          "magnitude_line": 1634,
+          "magnitude": "len(progs) == 3",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 1642,
+          "shape": "lines == [11, 11, 11]",
+          "count_implied": false,
+          "independent": true,
+          "shared_subjects": [],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 2,
+          "repins": 0,
+          "moves": []
+        },
+        {
+          "magnitude_line": 1635,
+          "magnitude": "len(set(lines)) == 1",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 1642,
+          "shape": "lines == [11, 11, 11]",
+          "count_implied": false,
+          "independent": false,
+          "shared_subjects": [
+            "lines"
+          ],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 1,
+          "commits_touching": 2,
+          "repins": 0,
+          "moves": [
+            {
+              "sha": "dbaf51ba",
+              "kind": "rewrite",
+              "before": "# and NEITHER site is in the residual, though only one loop was read     assert _residual_classes(stats[\"rows\"]) == [], \\         \"the unread loop still has a row -- the hazard may have been fixed\"",
+              "after": "assert lines == [11, 11, 11], lines"
+            }
+          ]
+        }
+      ]
+    },
+    "test_testcorpus_census.py::test_the_same_string_bound_by_two_loops_is_two_bindings": {
+      "lineno": 1830,
+      "pairs": [
+        {
+          "magnitude_line": 1849,
+          "magnitude": "len(progs) == 6",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 1850,
+          "shape": "lines == [11, 11, 11, 13, 13, 13]",
+          "count_implied": false,
+          "independent": true,
+          "shared_subjects": [],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 2,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_testcorpus_census.py::test_a_multi_line_comprehension_scopes_its_own_element_expression": {
+      "lineno": 1854,
+      "pairs": [
+        {
+          "magnitude_line": 1870,
+          "magnitude": "len(progs) == 3",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 1871,
+          "shape": "sorted((p['line'] for p in progs)) == [11, 11, 11]",
+          "count_implied": true,
+          "independent": false,
+          "shared_subjects": [
+            "progs"
+          ],
+          "reorder_safe": true,
+          "remedy": "delete_count",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 2,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_testcorpus_census.py::test_the_second_of_two_loops_is_the_one_that_answers_when_it_is_the_one_that_resolves": {
+      "lineno": 1876,
+      "pairs": [
+        {
+          "magnitude_line": 1893,
+          "magnitude": "len(progs) == 3",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 1894,
+          "shape": "sorted((p['line'] for p in progs)) == [13, 13, 13]",
+          "count_implied": true,
+          "independent": false,
+          "shared_subjects": [
+            "progs"
+          ],
+          "reorder_safe": true,
+          "remedy": "delete_count",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 2,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_testcorpus_contributions.py::test_a_compensating_move_is_invisible_to_a_total_and_visible_to_the_ledger": {
+      "lineno": 203,
+      "pairs": [
+        {
+          "magnitude_line": 233,
+          "magnitude": "sa['nonconstant_programs'] == 1",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 250,
+          "shape": "sorted(set((f for f, _k, _d, _l in bad))) == ['test_aa.py', 'test_bb.py']",
+          "count_implied": false,
+          "independent": true,
+          "shared_subjects": [],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        },
+        {
+          "magnitude_line": 233,
+          "magnitude": "sa['nonconstant_programs'] == 1",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 252,
+          "shape": "('test_aa.py', 'nonconstant_programs', 1, 0) in bad",
+          "count_implied": false,
+          "independent": true,
+          "shared_subjects": [],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        },
+        {
+          "magnitude_line": 233,
+          "magnitude": "sa['nonconstant_programs'] == 1",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 253,
+          "shape": "('test_bb.py', 'nonconstant_programs', 0, 1) in bad",
+          "count_implied": false,
+          "independent": true,
+          "shared_subjects": [],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        },
+        {
+          "magnitude_line": 234,
+          "magnitude": "sa['programs'] >= 1",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 250,
+          "shape": "sorted(set((f for f, _k, _d, _l in bad))) == ['test_aa.py', 'test_bb.py']",
+          "count_implied": false,
+          "independent": true,
+          "shared_subjects": [],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        },
+        {
+          "magnitude_line": 234,
+          "magnitude": "sa['programs'] >= 1",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 252,
+          "shape": "('test_aa.py', 'nonconstant_programs', 1, 0) in bad",
+          "count_implied": false,
+          "independent": true,
+          "shared_subjects": [],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        },
+        {
+          "magnitude_line": 234,
+          "magnitude": "sa['programs'] >= 1",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 253,
+          "shape": "('test_bb.py', 'nonconstant_programs', 0, 1) in bad",
+          "count_implied": false,
+          "independent": true,
+          "shared_subjects": [],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_timetravel.py::test_ttd_multiple_checkpoints": {
+      "lineno": 39,
+      "pairs": [
+        {
+          "magnitude_line": 70,
+          "magnitude": "len(ttd.checkpoints) == 3",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 75,
+          "shape": "ttd.checkpoints[first_key]['vars'] == {'x': 10}",
+          "count_implied": false,
+          "independent": false,
+          "shared_subjects": [
+            "ttd"
+          ],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        },
+        {
+          "magnitude_line": 71,
+          "magnitude": "len(ttd.creation_order) == 3",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 75,
+          "shape": "ttd.checkpoints[first_key]['vars'] == {'x': 10}",
+          "count_implied": false,
+          "independent": false,
+          "shared_subjects": [
+            "ttd"
+          ],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_v04.py::test_tail_loop_if_decisions_are_run_length_merged": {
+      "lineno": 78,
+      "pairs": [
+        {
+          "magnitude_line": 85,
+          "magnitude": "len(call.inputs) == 2",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 93,
+          "shape": "[c.inputs[0].value for c in else_run.inputs] == [5, 4, 3, 2, 1]",
+          "count_implied": false,
+          "independent": true,
+          "shared_subjects": [],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_v04.py::test_fast_path_checks_inside_blocks_are_recorded": {
+      "lineno": 217,
+      "pairs": [
+        {
+          "magnitude_line": 219,
+          "magnitude": "interp.fast_hits > 0",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 220,
+          "shape": "[c['label'] for c in interp.failed_checks()] == ['inner']",
+          "count_implied": false,
+          "independent": false,
+          "shared_subjects": [
+            "interp"
+          ],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_v08.py::test_block_check_and_fndef_inline": {
+      "lineno": 177,
+      "pairs": [
+        {
+          "magnitude_line": 188,
+          "magnitude": "env.get('result').payload == 15",
+          "magnitude_strict": true,
+          "magnitude_conditional": true,
+          "shape_line": 189,
+          "shape": "[c['ok'] for c in interp.checks] == [True]",
+          "count_implied": false,
+          "independent": true,
+          "shared_subjects": [],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_v09.py::test_shared_ast_two_interpreters_keep_their_own_state": {
+      "lineno": 342,
+      "pairs": [
+        {
+          "magnitude_line": 353,
+          "magnitude": "env.get('result').payload == 8",
+          "magnitude_strict": true,
+          "magnitude_conditional": true,
+          "shape_line": 355,
+          "shape": "[len(i.checks) for i in interps] == [1, 1]",
+          "count_implied": false,
+          "independent": true,
+          "shared_subjects": [],
+          "reorder_safe": false,
+          "remedy": "split",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        },
+        {
+          "magnitude_line": 353,
+          "magnitude": "env.get('result').payload == 8",
+          "magnitude_strict": true,
+          "magnitude_conditional": true,
+          "shape_line": 356,
+          "shape": "[i.peak_depth for i in interps] == [7, 7]",
+          "count_implied": false,
+          "independent": true,
+          "shared_subjects": [],
+          "reorder_safe": false,
+          "remedy": "split",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        },
+        {
+          "magnitude_line": 353,
+          "magnitude": "env.get('result').payload == 8",
+          "magnitude_strict": true,
+          "magnitude_conditional": true,
+          "shape_line": 359,
+          "shape": "out == ['n=6']",
+          "count_implied": false,
+          "independent": true,
+          "shared_subjects": [],
+          "reorder_safe": false,
+          "remedy": "split",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage": {
+      "lineno": 459,
+      "pairs": [
+        {
+          "magnitude_line": 464,
+          "magnitude": "r.returncode == 0",
+          "magnitude_strict": true,
+          "magnitude_conditional": true,
+          "shape_line": 476,
+          "shape": "[l[:4] for l in lines if 'hello' in l] == ['DIFF', 'DIFF']",
+          "count_implied": false,
+          "independent": true,
+          "shared_subjects": [],
+          "reorder_safe": false,
+          "remedy": "split",
+          "tree_derived": true,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        },
+        {
+          "magnitude_line": 464,
+          "magnitude": "r.returncode == 0",
+          "magnitude_strict": true,
+          "magnitude_conditional": true,
+          "shape_line": 478,
+          "shape": "[l[:4] for l in lines if 'blame' in l] == ['SAME', 'SAME']",
+          "count_implied": false,
+          "independent": true,
+          "shared_subjects": [],
+          "reorder_safe": false,
+          "remedy": "split",
+          "tree_derived": true,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        },
+        {
+          "magnitude_line": 470,
+          "magnitude": "s.count(old) > 1",
+          "magnitude_strict": true,
+          "magnitude_conditional": true,
+          "shape_line": 476,
+          "shape": "[l[:4] for l in lines if 'hello' in l] == ['DIFF', 'DIFF']",
+          "count_implied": false,
+          "independent": true,
+          "shared_subjects": [],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": true,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        },
+        {
+          "magnitude_line": 470,
+          "magnitude": "s.count(old) > 1",
+          "magnitude_strict": true,
+          "magnitude_conditional": true,
+          "shape_line": 478,
+          "shape": "[l[:4] for l in lines if 'blame' in l] == ['SAME', 'SAME']",
+          "count_implied": false,
+          "independent": true,
+          "shared_subjects": [],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": true,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        },
+        {
+          "magnitude_line": 473,
+          "magnitude": "r.returncode == 1",
+          "magnitude_strict": true,
+          "magnitude_conditional": true,
+          "shape_line": 476,
+          "shape": "[l[:4] for l in lines if 'hello' in l] == ['DIFF', 'DIFF']",
+          "count_implied": false,
+          "independent": true,
+          "shared_subjects": [],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": true,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        },
+        {
+          "magnitude_line": 473,
+          "magnitude": "r.returncode == 1",
+          "magnitude_strict": true,
+          "magnitude_conditional": true,
+          "shape_line": 478,
+          "shape": "[l[:4] for l in lines if 'blame' in l] == ['SAME', 'SAME']",
+          "count_implied": false,
+          "independent": true,
+          "shared_subjects": [],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": true,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_v15.py::test_nested_guess_flattens": {
+      "lineno": 111,
+      "pairs": [
+        {
+          "magnitude_line": 115,
+          "magnitude": "v.value.node.value == 7",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 117,
+          "shape": "v.value.sources == ('a', 'b')",
+          "count_implied": false,
+          "independent": false,
+          "shared_subjects": [
+            "v"
+          ],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_v15.py::test_combining_two_guesses_takes_the_minimum_confidence": {
+      "lineno": 129,
+      "pairs": [
+        {
+          "magnitude_line": 132,
+          "magnitude": "v.value.node.value == 14",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 133,
+          "shape": "v.value.sources == ('a', 'b')",
+          "count_implied": false,
+          "independent": false,
+          "shared_subjects": [
+            "v"
+          ],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_v16.py::test_record_from_plain_dict_unchanged_api": {
+      "lineno": 203,
+      "pairs": [
+        {
+          "magnitude_line": 207,
+          "magnitude": "len(r.fields) == 2",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 208,
+          "shape": "sorted(r.fields.items()) == [('a', 1), ('b', 2)]",
+          "count_implied": true,
+          "independent": false,
+          "shared_subjects": [
+            "r"
+          ],
+          "reorder_safe": true,
+          "remedy": "delete_count",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_v30.py::test_the_guest_never_merges_a_tail_loop": {
+      "lineno": 325,
+      "pairs": [
+        {
+          "magnitude_line": 335,
+          "magnitude": "max(h) > 1",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 336,
+          "shape": "set(g) == {1}",
+          "count_implied": false,
+          "independent": true,
+          "shared_subjects": [],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": true,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_v32.py::test_a_top_level_expression_statement_that_misses_is_a_drop": {
+      "lineno": 67,
+      "pairs": [
+        {
+          "magnitude_line": 69,
+          "magnitude": "i.dropped_total == 1",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 71,
+          "shape": "e['reasons'] == (\"unbound name 'nosuch' (line 1)\",)",
+          "count_implied": false,
+          "independent": true,
+          "shared_subjects": [],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_v35.py::test_the_five_rendering_classes_are_still_the_five": {
+      "lineno": 136,
+      "pairs": [
+        {
+          "magnitude_line": 143,
+          "magnitude": "sum(c.values()) == 28",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 144,
+          "shape": "c == {'bare-punct': 15, 'bare-prose': 7, 'bare-category': 3, 'quoted-token': 2, 'bare-keyword': 1}",
+          "count_implied": false,
+          "independent": false,
+          "shared_subjects": [
+            "c"
+          ],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_v42.py::test_a_miss_inside_a_discarded_list_is_a_drop": {
+      "lineno": 62,
+      "pairs": [
+        {
+          "magnitude_line": 64,
+          "magnitude": "i.dropped_total == 1",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 66,
+          "shape": "e['reasons'] == (\"unbound name 'nosuch' (line 1)\",)",
+          "count_implied": false,
+          "independent": true,
+          "shared_subjects": [],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_v43.py::test_the_depth_boundary_is_a_constant_and_is_measured_not_assumed": {
+      "lineno": 335,
+      "pairs": [
+        {
+          "magnitude_line": 353,
+          "magnitude": "len(named_misses(value_of(expr + '\\n'))) == 1",
+          "magnitude_strict": true,
+          "magnitude_conditional": true,
+          "shape_line": 358,
+          "shape": "printed('print(%s)\\n' % expr) == ['[' * shown + '\u2026' + ']' * shown]",
+          "count_implied": false,
+          "independent": false,
+          "shared_subjects": [
+            "expr"
+          ],
+          "reorder_safe": false,
+          "remedy": "split",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_v43.py::test_a_miss_past_the_render_depth_is_reported_as_a_drop": {
+      "lineno": 373,
+      "pairs": [
+        {
+          "magnitude_line": 376,
+          "magnitude": "i.dropped_total == 1",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 377,
+          "shape": "i.dropped[0]['reasons'] == (\"unbound name 'nosuch' (line 1)\",)",
+          "count_implied": false,
+          "independent": false,
+          "shared_subjects": [
+            "i"
+          ],
+          "reorder_safe": false,
+          "remedy": "split",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_v43.py::test_the_program_v042_cites_for_the_guess_decision_never_builds_a_guess": {
+      "lineno": 424,
+      "pairs": [
+        {
+          "magnitude_line": 438,
+          "magnitude": "i.dropped_total == 1",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 440,
+          "shape": "i.dropped[0]['reasons'] == (\"unbound name 'nosuch' (line 1)\",)",
+          "count_implied": false,
+          "independent": false,
+          "shared_subjects": [
+            "i"
+          ],
+          "reorder_safe": false,
+          "remedy": "split",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_v44.py::test_the_deepest_value_in_the_corpus_is_a_self_hosted_ast_14_deep": {
+      "lineno": 189,
+      "pairs": [
+        {
+          "magnitude_line": 191,
+          "magnitude": "d == 14",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 193,
+          "shape": "depthcensus.spine_of(best)[:3] == ['Record', 'WList', 'Record']",
+          "count_implied": false,
+          "independent": true,
+          "shared_subjects": [],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_v49.py::test_the_counts": {
+      "lineno": 87,
+      "pairs": [
+        {
+          "magnitude_line": 90,
+          "magnitude": "manifest['sources'] == 19",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 92,
+          "shape": "manifest['by_family'] == {'text': 15, 'structure': 23, 'constant': 13, 'internal': 36, 'embedding': 2}",
+          "count_implied": false,
+          "independent": false,
+          "shared_subjects": [
+            "manifest"
+          ],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": true,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        },
+        {
+          "magnitude_line": 91,
+          "magnitude": "manifest['inputs'] == 89",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 92,
+          "shape": "manifest['by_family'] == {'text': 15, 'structure': 23, 'constant': 13, 'internal': 36, 'embedding': 2}",
+          "count_implied": false,
+          "independent": false,
+          "shared_subjects": [
+            "manifest"
+          ],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": true,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    }
+  },
+  "_history": "literal_edits = commits in which the integer literal on the magnitude line CHANGED, per `git log -L`. A realised shadow, not a possible one."
+}

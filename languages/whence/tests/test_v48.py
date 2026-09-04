@@ -336,16 +336,22 @@ class TestTheInstrument(object):
                             if c["violations"])
             assert killed == ["derived/Env", "derived/MergedProv",
                               "derived/Prov"], killed
+            broken = {c["class"] for c in
+                      rep["rows"] + rep["scale"] + rep["axes"]
+                      if c["violations"]}
+            assert broken == {"Prov", "MergedProv", "Env"}, broken
             # v0.49 (round 492): 3 -> 46. The `scale` pass still kills
             # exactly the three rows above; the rest are the decision-63
             # AXIS pass and the row pass seeing the SAME three classes
             # through more witnesses. The invariant, which does not churn
             # when a witness is added, is that no OTHER class breaks.
+            #
+            # ROUND 498: so it is now asserted BELOW the invariant it used
+            # to shadow. The comment already said the count churns and the
+            # `broken` set does not; the order said the opposite. `git log
+            # -L` records the 3 -> 46 re-pin at `ad7ff7f1` (round 492), and
+            # on that round `broken` did not run.
             assert rep["violations"] == 46, rep["violations"]
-            broken = {c["class"] for c in
-                      rep["rows"] + rep["scale"] + rep["axes"]
-                      if c["violations"]}
-            assert broken == {"Prov", "MergedProv", "Env"}, broken
         finally:
             V.Prov.__repr__, V.MergedProv.__repr__, Env.__repr__ = keep
         assert reprsweep.audit()["violations"] == 0

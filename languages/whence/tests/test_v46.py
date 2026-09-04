@@ -313,13 +313,19 @@ def test_the_silent_wrong_answer_class_is_the_bigger_hazard():
     round tightening a builtin should be able to shrink this set without
     editing an assertion, but must not be able to grow it silently."""
     rep = orderhint.census()
-    assert rep["totals"]["accepted_diff"] == 7, rep["totals"]
     got = sorted({(r["builtin"], r["witness"]) for r in rep["rows"]
                   if r["accepted_diff"]})
     assert got == [("contains", "both-str"), ("contrast", "num-num"),
                    ("diverge", "num-num"), ("guess", "any-num-str"),
                    ("matches", "num-tag"), ("note", "both-str"),
                    ("range", "num-num")], got
+    # ROUND 498: the count moved below the membership it used to shadow.
+    # NOT changed, and worth a reader's eye: the docstring above says
+    # "Pinned as `>=` on the count and `==` on the membership", and the
+    # count is `==`. Prose and code disagree about the operator. Changing an
+    # assertion on the strength of a docstring would be guessing, so this
+    # round records the disagreement instead of resolving it.
+    assert rep["totals"]["accepted_diff"] == 7, rep["totals"]
 
 
 def test_the_five_builtins_with_no_hint_site_are_named():

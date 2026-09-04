@@ -27711,6 +27711,214 @@ the entry is round 493's.
   diff — caught before committing.
 - **Knowledge:** `knowledge/round-497-the-sandbox-that-was-a-copy.md`.
 
+### Round 498 — language(C) — 2026-09-04 — the count that outranked the list
+
+- **TOOK ROUND 494's NEXT-STEP #1 VERBATIM AND ANSWERED IT.** "How many test
+  nodes in this tree put a magnitude-vs-literal assert above a
+  list-equality assert": **43 functions, 68 pairs, 52 shape assertions
+  conditionally unreachable**, over 70 files / 1883 test functions / 3837
+  asserts, under round 494's own `_count_asserts` predicate. The sweep costs
+  **0.641 s**. The question had been open one round; the measurement is
+  cheaper than reading this bullet.
+- **THE NUMBER THAT WAS ASKED FOR IS NOT THE NUMBER THAT MEANS ANYTHING, and
+  most of the round is the two axes that separate them.** Every ordered
+  (magnitude, shape) pair is a shadow MECHANICALLY. It costs something only
+  when the two assertions have no subject in common (`independent`, a pure
+  AST fact — **38 pairs / 22 nodes**) AND the count is derived from data the
+  test does not own (`tree_derived`, a stated heuristic — **17 pairs / 9
+  nodes**). Three nested populations, all three published; neither axis
+  filters the census.
+- **ROUND 494 BUILT THE GATE AND SHIPPED THE DEFECT IN THE SAME COMMIT —
+  and it is NOT a defect, which is the finding.**
+  `test_testcorpus_contributions.py::test_a_compensating_move_is_invisible_
+  to_a_total_and_visible_to_the_ledger` has SIX independent shadow pairs, and
+  its `assert sa["nonconstant_programs"] == 1` is over a `tmp_path` the test
+  WRITES three lines earlier. It cannot drift. A magnitude assert placed
+  first as a PRECONDITION is legitimate and is statically indistinguishable
+  from round 494's instance by round 494's own predicate. That is what forced
+  `tree_derived` into existence; its pytest-builtin short-circuit exists for
+  this node.
+- **GIT SAYS THE SHADOW HAS FIRED THREE TIMES IN 638 COMMITS**, in two nodes:
+  `test_parse_error_differential.py::test_the_want_half...` (10 -> 20 at
+  `7f626a9e`, 20 -> 24 at `d71d7cd3`) and `test_v48.py::test_reverting_the_
+  three_reprs...` (3 -> 46 at `ad7ff7f1`, round 492). 61 of 68 magnitude
+  lines have never been touched since the commit that wrote them. **So round
+  494's six-firing node is an OUTLIER, not the typical case** — a
+  low-frequency high-cost class, which is why the round built a gate rather
+  than ran a repair campaign. The first version counted 7 firings; **four
+  were block REWRITES**, not re-pins (`git log -L` follows a moving range,
+  and `dbaf51ba`'s recorded `before` is a different assertion entirely).
+  Comparing digit-stripped SKELETONS separates them. The measure UNDER-counts
+  too: a re-pin done by deleting and re-adding a function reads as a
+  creation, so round 494's own node scores 0. It is a floor, never a ceiling.
+- **THE REMEDY HAD TO BE COMPUTED, AND WAS WRONG THREE WAYS BEFORE IT WAS
+  MEASURED.** (1) REBINDING — `test_v10.py` runs a subprocess into `r`,
+  asserts, then runs a SECOND subprocess into the same `r`; the "obvious"
+  reorder would silently re-point the assertion and the test would still
+  PASS. (2) A GUARD is not a shadow: `len(zips) == 1` must stay above
+  `zips[0][...]` or an empty list raises `IndexError`, but `stats["programs"]
+  >= 829` above the SAME line is not a guard — asking WHOSE subscript is what
+  made the answer useful. (3) NESTING, not conditionality: both of
+  `test_v48.py`'s asserts are in one `try:` body and a coarse flag refused
+  that reorder for nothing. `reorder 45 -> 53, split 19 -> 11` after the
+  corrections.
+- **SEVEN NODES REPAIRED, all by moving the count BELOW what it shadowed** —
+  no new node ids, no duplicated setup, no episode history lost. The two
+  realised ones, plus `test_checkpin.py` and `test_polarity.py` (both count
+  the pin registry), `test_testcorpus_census.py` (the corpus floor),
+  `test_v42.py` (**another system's** field corpus) and `test_v46.py`.
+  **THREE of the seven already carried a comment saying the count churns and
+  the assertion below it is the invariant** — including, eight lines above
+  the one this round moved, round 494's own "inherited noise that reddened
+  the node on every corpus addition while the identity below stayed true
+  throughout". The prose said it in all three; the order said the opposite in
+  all three. Round 494's finding, recurring at tree scale.
+- **Before -> after, same command:** candidates 43 -> 37, pairs 68 -> 57,
+  shadowed shape asserts 52 -> 44, independent 38/22n -> 28/15n, **COSTLY
+  17/9n -> 7/2n**, realised re-pins 3 -> 0. The 2 costly survivors are
+  exactly the 2 nodes declared FALSE POSITIVES of the `tree_derived`
+  heuristic (`test_v10.py`'s subprocess preconditions and `test_v30.py`'s
+  deliberate `max(host) > 1 and set(guest) == {1}` conjunction), named in the
+  ledger rather than exempted inside the checker — an exemption list inside a
+  checker is a place for a real defect to hide.
+- **`is_magnitude` is NOT a pure widening of round 494's predicate**, found by
+  tabulating rather than asserting: `assert 1 == 1` satisfies `_count_asserts`
+  and not `is_magnitude`, so it also NARROWS. Over `tests/` the two disagree
+  on exactly TWO asserts (`r.returncode != 0` at `test_v10.py:684` and
+  `test_v40.py:131`), neither forming a pair, so `pairs_strict == pairs == 57`
+  and the tree-wide number is comparable with round 494's node-level one
+  either way. Module docstring corrected.
+- **THIS ROUND'S COMMIT REDDENED FIVE NODES IN ANOTHER SUITE, AND ROUND 494's
+  FIX IS WHY I SAW IT.** Three `test_testcorpus_contributions.py` nodes plus
+  one census node, from my own new file being in the corpus — regenerating
+  round 494's ledger took **6.1 s** and the diff is ONE row
+  (`NEW test_assertshadow.py {'module_calls': 2}`; nothing else moved, no
+  residual, so `module_calls` 47 -> 49 and the call sum 1061 -> 1063). And the
+  fifth: **`('test_v48.py', 379) != ('test_v48.py', 373)`** — my reorder
+  shifted a residual row, and round 494's WIDENED location pin caught it.
+  **This is that pin's first live firing**, and it fired only because round
+  494 moved `assert len(rows) == 114` out of that node: under round 492's
+  ordering the count would have failed first (the corpus grew this round) and
+  the moved row would have gone unreported for a FIFTH round. The fix round
+  494 made is the reason round 498 could see its own damage.
+- **Every gate seen RED before being trusted, against a real perturbation.** A
+  probe file dropped into `tests/` reddened all three of
+  `test_no_new_COSTLY_shadow_has_entered_the_tree`,
+  `test_the_full_census_matches_the_ledger_on_disk` and
+  `test_the_cli_check_exits_zero_on_this_tree`, each naming the node AND the
+  regeneration command; green again on removal. The self-footprint gate was
+  reddened by appending a shadow to the gate file itself. The DEMONSTRATION
+  is a live pytest subprocess over two files with BOTH assertions false and
+  only their order different — the census rests on a claim about a tool, so
+  the tool is run rather than cited.
+
+- **THE TWO RED-DEBT NODES ARE CLOSED, and the briefing's attribution was
+  wrong.** `harness/tests/test_redattrib.py::TestThisTree::test_the_cli_audit_
+  exits_zero_on_this_tree` and `::test_the_registry_is_fail_closed_over_the_
+  live_logs`, red four rounds. **Reproduced SOLO before touching anything:
+  both red, 1.07 s.** They are NOT the runner — unlike round 496's `nuc`
+  node these are `assertEqual`s over parsed registry data with no timeout and
+  no subprocess budget, so concurrency cannot flip them and the `RECURRENT`
+  reading does not apply. One deterministic finding, R001 on
+  `skills/skill-authoring/scripts/corpus_check.py::selfdesc_check`: 50 nodes
+  ever red, 49 declared. **Two harness instruments disagree about the
+  opener**: `reddebt note` says language(C) (round 494's log is where it first
+  SHOWED red), while `redattrib audit`'s own R001 message says the first red
+  is round 493's log and "the round reading this failure is not the round that
+  caused it" — which round 494 proved by hand and wrote down, and which the
+  briefing that reached round 498 does not carry. Closed with ONE entry
+  (`whole-tree` / `subject`, following the four sibling `corpus_check.py`
+  nodes and justified by what `selfdesc_check --repo-root` READS, not by who
+  opened it): **`test_redattrib.py` 60 passed in 6.71 s**, five lines added,
+  no reformat (`indent=2, ensure_ascii=True` matched). A language(C) round
+  wrote into harness(A)'s registry, stated rather than buried; the underlying
+  CAUSE — the dangling path in `state/prediction-bank-ledger.json[banks.493.
+  note]` — is untouched and is still skills(B)'s acknowledgement job, and the
+  registry entry says so.
+
+## Next steps (as of round 498)
+
+1. **Round 494's next-step #1 is CLOSED — measured, acted on, and gated.** 43
+   candidates found, 7 nodes repaired, `state/whence/assert-shadow-census.json`
+   is the standing ledger and `tests/test_assertshadow.py` is the ratchet. The
+   part that is NOT closed is the generalisation: `assertshadow.py` sweeps
+   `languages/whence/tests/` only, and `harness/tests/`, `nuc/tests/` and
+   `skills/` have never been swept for the same shape. The sweep takes a
+   directory argument (`--tests <dir>`) and costs under a second. harness(A),
+   NUC(E) or skills(B) — whoever runs one of those trees.
+2. **The `tree_derived` axis is the weakest thing in the instrument and it is
+   the one that decides what gets fixed.** It is a heuristic over fixture
+   parameters plus a name list, and it produced 2 false positives out of 9 on
+   its first outing — both declared, neither exempted in code. A round that
+   wants to sharpen it should NOT extend the name list; the honest version is
+   dataflow (does the magnitude's subject trace to a value the function
+   constructs, or to one it is handed) and nobody has costed that.
+   language(C).
+3. **`test_v46.py`'s docstring says the count is pinned `>=` and the code says
+   `==`.** Recorded in a comment beside the assertion, deliberately not
+   resolved: the docstring is self-inconsistent about which direction it wants
+   to allow ("a later round should be able to SHRINK this set without editing
+   an assertion" argues `<=`, not `>=`), and changing an operator on the
+   strength of prose would be guessing. Whoever owns `orderhint` should say
+   which is right rather than making them agree. language(C).
+4. **Nothing was SPLIT this round, so P17 is still pre-registered and
+   unobserved.** A split node mints a new id with no episode history in
+   `harness/redattrib.py`, and its first red would read `NEW` when the
+   assertion behind it is years old. That is round 494's next-step #2 arriving
+   from the other direction and it is still a harness(A) question about what
+   `reddebt`/`redattrib` should do with a renamed or split node. The 11
+   `remedy: split` pairs in the ledger are where it would first be paid.
+   harness(A).
+5. **The four `remedy: delete_count` pairs are the cheapest thing left in this
+   file and were deliberately not taken.** Each is a count whose shape
+   assertion already pins the length, the membership and the order. Deleting
+   one needs a human to confirm the transform between the two preserves
+   length; `count_implied` is named a remedy and not a verdict for that
+   reason. language(C).
+6. **The realised-shadow measure has a known floor and nobody has raised it.**
+   `git log -L` reads a re-pin done by deleting and re-adding a function as a
+   CREATION, so round 494's own six-firing node scores 0 and the tree's total
+   of 3 is a floor. Raising it means matching an assertion across a rewrite by
+   skeleton rather than by line range, which is a different tool. Say whether
+   it is worth building before quoting 3 as though it were the count.
+   language(C).
+7. **`nproc` on this box is 1 and this round obeyed it, at a cost.** The
+   census suite was run SOLO and took **651.33 s** for 157 tests; a foreground
+   re-run hit the 600 s tool ceiling and was killed at `exit 143`, and the
+   round paid roughly twenty minutes across two runs of the same four files.
+   Anything touching `tests/` should budget one 11-minute census run, and
+   should launch it in the background from the start rather than discovering
+   the ceiling.
+8. **This round is a second data point for round 493's `reddebt` instrument
+   and it is the interesting case round 494 asked for.** Round 494's
+   next-step #9 wanted "a note whose owner is NOT next" — the two
+   `test_redattrib.py` nodes in this round's briefing are exactly that
+   (opener language(C), owner harness(A), four rounds old, carried by round
+   497 and untouched). See the round file for what reproducing them solo
+   showed. harness(A).
+9. **Round 494's next-steps #2, #4, #5, #6, #7 and #8 stand.** #1 is CLOSED by
+   this round. #4 (the `test_v49.py:522` module-attribute residual, and
+   whether the class gets a `derived_program` classification that says
+   "correctly unreadable") is untouched and is still language(C)'s — this
+   round added a 71st file to the corpus and confirmed it adds NO residual
+   row, which is one more observation about the class and not a decision
+   about it. #5's `--by-file --diff <old.json>` mode would have printed this
+   round's one-row ledger diff in one line; the round did it by hand in
+   python instead, which is the third time that has happened. language(C).
+10. **Round 497's next-steps stand, untouched by this round** — the 55 stale
+   ledger rows, the full-file by-test coverage map, the 11 survivors on
+   `power_floor`'s `why` string, `nodeguard` never firing, the `logs/`
+   exclusion lever, and #8's wiring-audit-in-the-health-checks proposal,
+   which `harness/wiring-registry.json` has now proposed five times in prose.
+   SWE-loop(D) and harness(A).
+11. **Standing and untouched:** the operator-blocked `--cap 196`;
+   `case_coverage`'s 49-of-103 disagreeing verdicts; `claim_check` executing
+   0 of its commands; the NUC `retention --strict` deadline; and CLAUDE.md's
+   `CRITICAL MISSION` block plus the `MASTER MISSION` block — re-escalated
+   and still a deletion for the operator. `languages/whence/SECURITY.md`
+   remains the operator's decision; the checker's own line is the only source
+   for its carry count.
+
 ## Next steps (as of round 497)
 
 1. **The 55 stale ledger rows are now a NAMED, budgeted job.** All of them

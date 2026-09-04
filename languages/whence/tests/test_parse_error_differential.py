@@ -802,9 +802,6 @@ def test_the_want_half_of_every_shared_message_now_agrees(hosts, guest):
         # every want half is a quoted literal or prose on BOTH sides
         assert not mh.group(1).isupper(), (name, h)
         assert not mg.group(1).isupper(), (name, g)
-    # round 408: 20 -> 24 (the four v0.39 programs all match
-    # `_EXPECTED_SHAPE`, i.e. all four are `expected X, got Y` messages).
-    assert len(shared) == 24, sorted(shared)
     assert sorted(want_agree) == sorted(shared), (
         "want halves that still differ: %s"
         % sorted(set(shared) - set(want_agree)))
@@ -818,6 +815,15 @@ def test_the_want_half_of_every_shared_message_now_agrees(hosts, guest):
     assert still == ["fn-no-body", "named-fn-expr-in-arg",
                      "named-fn-expr-recursive", "named-fn-expression",
                      "unbraced-if"], still
+    # round 408: 20 -> 24 (the four v0.39 programs all match
+    # `_EXPECTED_SHAPE`, i.e. all four are `expected X, got Y` messages).
+    #
+    # ROUND 498: this count is LAST now. `git log -L` says its literal has
+    # been re-pinned twice (10 -> 20 at `7f626a9e`, 20 -> 24 at `d71d7cd3`),
+    # and on both of those rounds it stood above the five-name list, so the
+    # list did not run. Two realised firings is the highest in the tree; the
+    # census is `state/whence/assert-shadow-census.json`.
+    assert len(shared) == 24, sorted(shared)
 
 
 def test_the_got_half_reaches_more_than_four_token_kinds(hosts, guest):

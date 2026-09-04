@@ -718,9 +718,14 @@ def test_the_dir_registry_is_round_414s_registry_plus_one_authored_column():
         for field in a:
             assert a[field] == b[field], (a["id"], field)
     directional = [p for p in dirreg if "dir" in p]
-    assert len(directional) == 22
     assert [p["id"] for p in dirreg if "dir" not in p] == ["NC01"]
     assert {p["dir"] for p in directional} == {"-", "~"}
+    # ROUND 498: `len(directional) == 22` used to stand above the two
+    # assertions above, which are the ones that say WHICH pin is undirected
+    # and WHICH directions exist. The count moves whenever a pin is added to
+    # `check-pins-dir.json`; the two below it move only when the registry's
+    # SHAPE changes. See `assertshadow.py` and round 494's next-step #1.
+    assert len(directional) == 22
 
 
 def test_deleting_a_CHECK_is_itself_an_unobservable_edit():

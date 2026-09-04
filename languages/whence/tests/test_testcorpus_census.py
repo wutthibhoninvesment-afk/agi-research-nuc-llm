@@ -1292,7 +1292,6 @@ def test_the_corpus_grew_and_exactly_one_zip_row_survives(harvest,
     pinned by identity rather than by count: a second one appearing means
     the zip analysis lost something."""
     _progs, stats = harvest
-    assert stats["programs"] >= 829, stats["programs"]
     residual = stats["unresolved_args"] + stats["nonconstant_programs"]
     # 101 r474 -> 106 r476 -> 107 r480 -> 109 r482 -> 114 r488 -> 115 r492;
     # the new rows are itemised in
@@ -1308,6 +1307,14 @@ def test_the_corpus_grew_and_exactly_one_zip_row_survives(harvest,
     assert len(zips) == 1, [(r["file"], r["line"], r["cls"]) for r in zips]
     assert (zips[0]["file"], zips[0]["cls"]) == \
         ("test_v30.py", "zip_no_literal_column/zip_nonliteral_column"), zips[0]
+    # ROUND 498: the corpus floor moved down here from above everything. It
+    # is a whole-tree magnitude and the identity above is the node's point --
+    # the same shape, in the same file, that round 494's comment eight lines
+    # up already calls "inherited noise that reddened the node on every
+    # corpus addition while the identity below stayed true throughout".
+    # `len(zips) == 1` stays where it is: it GUARDS the `zips[0]` subscript,
+    # and `assertshadow.reorder_safe` refuses to move it for that reason.
+    assert stats["programs"] >= 829, stats["programs"]
 
 
 def test_the_widening_did_not_move_the_other_residual_half(harvest, ledger):
@@ -1559,7 +1566,16 @@ def test_the_residual_that_is_not_string_building_is_seven_rows_in_three_shapes(
         ("test_v29.py", 505),
         ("test_v30.py", 307),
         ("test_v48.py", 138),
-        ("test_v48.py", 373),
+        # ROUND 498: 373 -> 379. This round moved `assert rep["violations"]
+        # == 46` below the `broken` set it shadowed (six lines up in
+        # test_v48.py), and the residual row after it shifted. That is the
+        # ordinary edit round 494 said this pin exists to catch -- "the
+        # location pin goes stale whenever anybody edits a file above line
+        # 129, which is ordinary" -- and this is its first live firing.
+        # It fired because round 494 moved `assert len(rows) == 114` OUT of
+        # this node; under round 492's ordering the count would have failed
+        # first and the move would have gone unreported for a fifth round.
+        ("test_v48.py", 379),
         ("test_v49.py", 522),
     ], sorted((r["file"], r["line"]) for r in rest)
 

@@ -2513,9 +2513,6 @@ def test_the_repointed_registrys_criterion_is_restated_and_still_not_met():
          for s in PO.AUDIT_BLIND_STATUSES}
     assert (n["mispointed"], n["precondition_broken"], n["undecided"],
             n["strict_violation"]) == (0, 1, 4, 0)
-    assert len([r for r in rows if r["dir"] in (PO.PLUS, PO.MINUS)]) == 22
-    # the criterion, evaluated: NOT met, on the `undecided` clause alone
-    assert n["undecided"] > 0
     assert ("`22 directional pin(s), 0 MISPOINTED, 0 unlocatable, 1"
             " precondition-broken, 4 undecided, 0 strict-violation`") in hdr
     # ...and part (2) of why the OLD criterion was the wrong quantity: the
@@ -2529,3 +2526,10 @@ def test_the_repointed_registrys_criterion_is_restated_and_still_not_met():
     assert (runs["run-repointed.json"]["guarded"],
             runs["run-repointed.json"]["n_pins"]) == (20, 20)
     assert "1/20 = 5%" in hdr and "20/20 = 100%" in hdr
+    # ROUND 498: the directional COUNT and the `undecided > 0` clause moved
+    # down here from above the two `runs[...]` tuples. Both move when a pin
+    # is added to the registry; the two tuples above are the campaign scores
+    # the repoint moved, and they are what this node is named for.
+    assert len([r for r in rows if r["dir"] in (PO.PLUS, PO.MINUS)]) == 22
+    # the criterion, evaluated: NOT met, on the `undecided` clause alone
+    assert n["undecided"] > 0

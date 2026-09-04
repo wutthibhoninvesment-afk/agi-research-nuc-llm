@@ -396,10 +396,16 @@ def test_the_field_corpus_survey_records_what_the_run_printed():
         pytest.skip(reason)
     rows = C.survey(C.field_programs())
     ran = [r for r in rows if r.get("rc") == 0]
-    assert len(ran) == 5, [r["file"] for r in ran]
     dirty = sorted(r["file"] for r in ran if r["dropped"])
     assert dirty == ["expense_tracker.lang", "mini_agi_guardian.lang",
                      "prod_showcase_final.lang"], dirty
+    # ROUND 498: `len(ran) == 5` moved below the membership. This node's own
+    # docstring says the field corpus "belongs to a separate system and a
+    # corpus-derived number moving is new information, not a regression" --
+    # and the number that moves is exactly this count, which stood above the
+    # list naming WHICH programs are dirty. When the gateway adds a program
+    # the count fires and the membership never runs.
+    assert len(ran) == 5, [r["file"] for r in ran]
     assert sum(r["dropped"] for r in ran) == 12
     # rc and strict_rc are DIFFERENT facts about the same run, which is the
     # whole finding: every one of the three exits 0 and fails --strict-miss.
