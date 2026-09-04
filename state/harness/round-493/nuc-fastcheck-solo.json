@@ -1,0 +1,36 @@
+{
+  "_comment": "Round 493 (harness A). The cost of `nuc/run_checks_fast.sh`, which nuc/tests/test_constant_audit.py::test_the_fast_check_runs_green_on_this_tree runs as a subprocess under a TYPED `timeout=600`. That node has been red since round 487 -- six rounds, past a full rotation -- and it does not fail an assertion: it raises subprocess.TimeoutExpired with returncode -9. This file is the receipt for round 493's next-step 1, so whoever derives the budget does not have to re-measure. Same shape and same purpose as state/harness/round-487/unit-tests-solo.json.",
+  "measured_round": 493,
+  "node": "nuc/tests/test_constant_audit.py::test_the_fast_check_runs_green_on_this_tree",
+  "typed_timeout_s": 600,
+  "typed_timeout_source": "nuc/tests/test_constant_audit.py:293, `subprocess.run(..., timeout=600)`",
+  "observations": [
+    {
+      "what": "python3 -m pytest tests/test_constant_audit.py -q (23 tests, of which this node runs the whole script)",
+      "wall_s": 187.65,
+      "result": "23 passed",
+      "alone": "NEAR-solo: no other pytest in this repo; this session was doing file edits only. Treat as a FLOOR, not an idle-box number.",
+      "use": "the number quoted in the knowledge file and in the projection below"
+    },
+    {
+      "what": "NUC_FAST_CHECK_NESTED=1 bash nuc/run_checks_fast.sh, timed directly",
+      "wall_s": 215.47,
+      "result": "nuc-checks PASS (pytest rc=0, audit rc=0)",
+      "alone": "NO -- harness/tests/test_wiring_audit.py was running for part of it; loadavg before the run was 3.45. This is a CONTAMINATED run, recorded because deleting an inconvenient measurement is worse than labelling it. Round 434's mistake and this round's own standing note about baselines, committed again.",
+      "use": "corroborates the order of magnitude only"
+    }
+  ],
+  "nproc": 1,
+  "driver_concurrent_suites": 4,
+  "driver_concurrent_suites_source": "run_driver.sh backgrounds HEALTH_PID/WHENCE_PID/SKILLS_PID/NUC_PID; counted the same way skills/skill-authoring/scripts/corpus_check.py:DRIVER_CONCURRENT_SUITES is counted (`_PID=$!`)",
+  "projection": "187.65 x 4 = 750.6 s expected contended runtime, ABOVE the 600 s timeout with no growth in the workload at all. The budget was already negative before anything changed.",
+  "contention_floor_reference": "round 487 measured >= 3.27x directly (601 / 183.92) on the skills unit_tests checker, on this box, and called it a floor because all three contended observations were the kill rather than a completion.",
+  "budget_by_round_487s_rule": 1126,
+  "budget_derivation": "ceil(solo_wall_s * DRIVER_CONCURRENT_SUITES * BUDGET_MARGIN) = ceil(187.65 * 4 * 1.5) = 1126",
+  "not_done_and_why": "Round 493 did NOT edit the constant. `nuc/tests/` is NUC-integration(E)'s tree, the derivation deserves the same treatment round 487 gave its own (a TestDerivedBudget that recomputes every factor from its source, so a fifth concurrent suite expires the constant by itself), and typing a bigger number at the end of a harness round is exactly the move round 487's skill argues against. The arithmetic is done here so the owning round does not have to re-measure.",
+  "red_since": 487,
+  "red_rounds_observed": [487, 488, 489, 490, 491, 492],
+  "opened_by_track": "harness(A)",
+  "owned_by_track": "NUC-integration(E)",
+  "misattribution_to_correct": "round 490's knowledge file says 'The constant_audit fast-check red was downstream of it' (an n_captures_unusable pin it fixed that round). It was not: the failure is a 600 s TimeoutExpired and has been since round 487."
+}

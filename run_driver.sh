@@ -334,6 +334,42 @@ $RECORD_CHECK_OUT"
     fi
   fi
 
+  # Round 493 (harness A): the SECOND pre-round diagnostic, and the reason
+  # there needed to be one. Until this round `$ROUND_GAP_NOTE` was the only
+  # thing the driver told a round before it started, so a round learned about
+  # record gaps because it was told and learned about RED TESTS only if it
+  # went looking. The four health checks below run AFTER the agent process
+  # exits and write to `logs/`, which is not in git — so a check your own
+  # commit reddens is structurally invisible to you.
+  #
+  # Measured cost of that: `harness/wiring-registry.json` carries four
+  # entries whose prose diagnoses the same recurrence (a round builds a new
+  # `nuc/*.py`, does not declare it, W001 reddens three
+  # `test_wiring_audit.py` nodes) and rounds 473, 479 and 485 each closed
+  # their instance at a latency of ONE round. Round 490 opened the fifth;
+  # rounds 491 and 492 both ran on it and neither saw it; round 493 found it
+  # at a latency of THREE. Nothing was ever built from a diagnosis written
+  # down four times.
+  #
+  # DIAGNOSTIC ONLY and fail-open by construction: `note` exits 0 always,
+  # prints nothing when the tree is clean (so a healthy round pays zero
+  # prompt bytes), and `|| true` plus the `-f` guard keep a broken or absent
+  # instrument from stopping a round. It is deliberately NOT a gate — a red
+  # test must never be able to prevent the round that would fix it.
+  RED_DEBT_SCRIPT="$WS/harness/reddebt.py"
+  RED_DEBT_NOTE=""
+  if [ -f "$RED_DEBT_SCRIPT" ]; then
+    RED_DEBT_OUT=$(python3 "$RED_DEBT_SCRIPT" note 2>/dev/null || true)
+    if [ -n "$RED_DEBT_OUT" ]; then
+      RED_DEBT_NOTE="
+
+$RED_DEBT_OUT"
+      log "round $ROUND: red-debt ($(python3 "$RED_DEBT_SCRIPT" debt 2>/dev/null | tail -n 1 | tr -d '\r'))"
+    else
+      log "round $ROUND: red-debt (no currently-red node at the latest reading of any check)"
+    fi
+  fi
+
   log "round $ROUND track=$TRACK start (driver_version=$DRIVER_VERSION) pid=$$"
 
   PROMPT="You are running research round $ROUND of the AGI software-engineering program.
@@ -342,7 +378,7 @@ Round number for file naming: $(printf '%03d' "$ROUND").
 First: read state/research-state.md. Then do the work, test it, write the knowledge file,
 update research-state.md. Be relentless and thorough — this is deep research, spend the tokens.
 
-TURN BUDGET (added round 391, harness A — measured, not advice). This session runs under \`--max-turns $MAX_TURNS\`. The CLI charges ONE turn per assistant MESSAGE, not per tool call: N independent tool calls issued in a SINGLE message cost one turn, not N. Batching is therefore free work. Measured over all 238 round logs on this box: 32 sessions have died at this cap, discarding a whole round of uncommitted diff each time, while 14 rounds finished ONLY because they happened to batch (their serial tool-call count exceeded the cap). The mean batch ratio is 1.08 against a demonstrated 1.39, and 81 rounds never issued a single parallel call. Batch every group of tool calls that do not depend on each other.$ROUND_GAP_NOTE"
+TURN BUDGET (added round 391, harness A — measured, not advice). This session runs under \`--max-turns $MAX_TURNS\`. The CLI charges ONE turn per assistant MESSAGE, not per tool call: N independent tool calls issued in a SINGLE message cost one turn, not N. Batching is therefore free work. Measured over all 238 round logs on this box: 32 sessions have died at this cap, discarding a whole round of uncommitted diff each time, while 14 rounds finished ONLY because they happened to batch (their serial tool-call count exceeded the cap). The mean batch ratio is 1.08 against a demonstrated 1.39, and 81 rounds never issued a single parallel call. Batch every group of tool calls that do not depend on each other.$ROUND_GAP_NOTE$RED_DEBT_NOTE"
 
   # Run with sonnet-5 (fable-5 hit weekly limit; resets ~Sunday 2026-08-30).
   # stream-json (needs --verbose) instead of json: (1) the final `result`

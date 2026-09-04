@@ -2951,5 +2951,37 @@
   "expect": [],
   "prompt": "I need to add a fourth payment provider to our billing service. The provider interface is a protocol and the concrete classes are picked up by an entry-point group, so nothing enumerates them. What is the checklist for adding one?",
   "note": "round 492: DISCRIMINATING NEGATIVE. There is no hand-written subject set and no completeness claim to audit -- the registry is already derived and the question is about implementing a member. If this fires, the description is matching the words 'enumerate'/'registry' rather than the situation."
+ },
+ {
+  "id": "fmra-scheduled-and-red",
+  "expect": [
+   "finding-must-reach-an-actor"
+  ],
+  "prompt": "Our nightly integration job has been failing on the same two tests for about six weeks. It runs fine, the logs are all there, nobody has said the failures are acceptable. What should I actually do about this?",
+  "note": "round 493: the check runs and is correct; what is missing is a ROUTE from the finding to somebody who can act. Measure per-FINDING age (not per-run red/green), compare the oldest to one full rotation of whoever is on call, and put the finding into the input that person already reads."
+ },
+ {
+  "id": "fmra-diagnosis-written-four-times",
+  "expect": [
+   "finding-must-reach-an-actor"
+  ],
+  "prompt": "I was adding a comment explaining why our service registry keeps going stale and found three older comments right above mine explaining the same thing, each written by a different person, each a bit more sure of itself. Should I merge them into one good explanation?",
+  "note": "round 493: no -- a diagnosis rewritten by successive authors is the signature of a system that understands its problem and has no mechanism for it. The restatement COUNT is the finding. Build the instrument the third author should have built, and check whether the earlier wording made a prediction that has since failed."
+ },
+ {
+  "id": "fmra-owner-never-runs-it",
+  "expect": [
+   "finding-must-reach-an-actor"
+  ],
+  "prompt": "Every time the platform team adds a module, three of OUR tests go red, and we only notice weeks later when someone happens to run the full suite. They never see it because they don't run our suite. Should we make the check a blocking gate on their CI?",
+  "note": "round 493: opener != owner is the mechanism, and a blocking gate is escalating severity before establishing that the output reaches anyone. Route the finding into the platform team's own starting input first, fail-open, and only argue about gating once somebody is reading it."
+ },
+ {
+  "id": "fmra-neg-nothing-runs-it",
+  "expect": [
+   "unrun-checker-latency"
+  ],
+  "prompt": "We have a schema-consistency script in the repo that I just ran by hand and it reports eleven violations. As far as I can tell nothing has ever run it automatically -- it's not in CI and there's no cron for it. Where do I start?",
+  "note": "round 493: DISCRIMINATING NEGATIVE for finding-must-reach-an-actor. Here the RUN is missing, not the route; that is unrun-checker-latency, whose own 'When NOT to use' points back the other way. finding-must-reach-an-actor explicitly defers to it and says to build the runner first."
  }
 ]

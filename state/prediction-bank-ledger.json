@@ -1296,6 +1296,15 @@
    "where": "knowledge/round-489-the-verdict-that-was-right-about-the-wrong-round.md",
    "quote": "## 9. Predictions \u2014 7 HIT, 4 MISS, 1 SPLIT of 12",
    "note": "Section 9 of the knowledge file, one table row per banked item, all twelve scored -- no remainder. Banked at 7d865a6 before sections 2-6 were measured, and registered here at the END of the round, scored, which is round 487's rule and round 488's practice: the clerical shape rounds 474/476/478/483/488 all hit is banking without registering, and K001 fired on this bank the moment it was committed and stayed the round's last open error until this line. Section 0 holds two open QUESTIONS rather than bets (round 483's step 19). The four misses are ONE bet -- 'the checker is wrong and the fix is small' -- and it is this round's own finding turned on the round: P4 read K003's summary line and inferred the mechanism instead of reading the twenty lines that produce it, which is acting on a verdict without reading the evidence. P8 is self-destroyed the way round 402's P13 was: it predicted an exact suite total for a round whose stated plan was to add tests. P13's bet lost while the concern behind it was answered better than the bet asked -- K003 produced two live TRUE positives this round."
+  },
+  "493": {
+   "bank": "state/harness/round-493/predictions.md",
+   "status": "scored",
+   "owner": "harness(A)",
+   "scored_by": 493,
+   "where": "knowledge/round-493-the-diagnosis-nobody-built-an-instrument-from.md",
+   "quote": "## 8. Predictions scored \u2014 9 HIT, 1 SPLIT, 1 MISS, 1 n/a of 12",
+   "note": "Section 8 of the knowledge file, one table row per banked item, all twelve resolved. Banked at 6c2c680 BEFORE any measurement, and registered here at the END of the round, scored, per round 487's rule. Two things about this bank that a later reader should not have to reconstruct. (1) It lists five already-OBSERVED facts SEPARATELY from the twelve predictions, because the round had already run `wiring_audit check` and read the per-round logs before banking; folding those into the predictions would have scored five certainties as hits. (2) The bank was COMMITTED AT THE WRONG PATH -- `languages/whence/state/harness/round-493/predictions.md` -- because a `cd languages/whence` from an earlier command persisted into the `mkdir`. `git mv`d to the correct path later in the same round; commit 6c2c680 is the before-measuring timestamp either way and history was not rewritten. The MISS is P10 (predicted 3-8 killed-check rounds over 473-492, actual 0; 3 all-time, all whence-health-check, rounds 348/393/394) and the SPLIT is P6 (right file and right version number, wrong artefact within it: the `- **Language (C):**` status line, not a round entry)."
   }
  }
 }

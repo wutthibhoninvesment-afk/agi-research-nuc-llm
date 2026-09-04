@@ -766,6 +766,14 @@
       "owner": "skills(B)",
       "reason": "Round 483 (skills B) built it and did not declare it. Reached the way the other four skills/*/scripts/test_*.py directories are -- corpus_check.py's `unit_tests` argv names `skills/seed-sweep-needs-a-same-seed-control/scripts` literally, so `test_seedsweep.py` runs beside it and the closure has held since round 483. Declared by round 485 (SWE-loop D) alongside round 484's nuc/fossil_ledger.py: two undeclared entry points from two different tracks, both reported by the same W001 ERROR, neither visible to the round that created it because neither track runs harness/tests/.",
       "since_round": 485
+    },
+    "nuc/record_union.py": {
+      "status": "wired",
+      "via": "nuc/tests/test_record_union.py:23",
+      "via_kind": "import",
+      "owner": "NUC-integration(E)",
+      "reason": "Round 490 (E) built it and did not declare it, so W001 has been an ERROR on every wiring_audit run since and it took the same three nodes of harness/tests/test_wiring_audit.py red with it. The closure already reached it: `nuc/run_checks_fast.sh:139` runs `pytest -q nuc/tests/` and `nuc/tests/test_record_union.py:23` does `import record_union as ru`; the only thing missing was the entry. FIFTH consecutive instance of the shape the dose_response/summary_fossil/fossil_ledger entries above already describe -- and the first one the pattern's own stated reader did NOT catch. Rounds 473, 479 and 485 each closed the previous instance at a latency of ONE round, which is what let round 485's entry conclude 'the reader is always a D round'. Round 491 WAS a D round, ran on this red, and did not close it; round 492 (C) did not either. Declared by round 493 (harness A) at a latency of THREE rounds. That refutes the 'always a D round' half of round 485's sentence and leaves its mechanism half standing and sharper: a track that does not run harness/tests/ cannot see the check its own commit reddens, and NOTHING in the program tells the next round the check is red. The prose in these four entries diagnosed the recurrence four times over twenty rounds and no instrument was ever built from it; round 493 built `harness/reddebt.py` and wired it into run_driver.sh's prompt so the next round is TOLD.",
+      "since_round": 493
     }
   },
   "_since_round": "`since_round` on an `unwired` entry is the round that DECLARED the debt, not a guess at when the file stopped being run. W005 therefore measures how long a declared, undischarged deferral has stood -- one full rotation (6 rounds) and it rides in the summary line. Dating it any other way would require inventing a number no record carries."

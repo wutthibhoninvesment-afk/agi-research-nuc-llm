@@ -12,7 +12,23 @@ Workspace: ~/agi-research
   - **Recurring pattern this track exists to catch, confirmed across 15+ rounds now (144/152/153/157/159/161/163/164/167/168/169/170/173/176/177/179/180/182/184/188/192/194/197/198/204/210, each eventually fixed by a later round):** real, tested, uncommitted work with no knowledge file and no research-state entry, usually from the driver's outer round-timeout firing mid-round. Every reconciliation follows the same discipline: verify from a clean re-read, never trust a prior round's own narration, check `git log` directly. Round 213 backfilled two more instances of the narrower "ran, real git_committed=True commits exist, but no `### Round N —` heading" variant: round 198 (language C, a clean backfill — real commits + knowledge file already existed) and round 197 (SWE-loop D, whose own work left no surviving diff — the flake it was chasing was independently fixed a different way by round 209).
   - **Closed (round 243):** the `--distractors`/`--paired` suppression diagnostic, open and un-run since round 105, was finally run live twice — a real near-miss pair (`~/.hermes/skills/{autonomous-ai-agents/merge-reconciler,devops/kanban-orchestrator}`) staged against `session-inheritance-audit`'s `sia-concurrent` case (`ok`, 4/4 plain vs 4/4 staged, distractors never fired) and a positive-control near-duplicate paraphrase distractor staged against `sia-{near,mid,concurrent}` (also `ok`, but the distractor co-fired in 10/12 probes rather than suppressing — sonnet's native Skill selection isn't forced-exclusive). See `references/trigger-evaluation.md`'s "Controlled distractors" section and `knowledge/round-243-skills-distractors-paired-diagnostic-first-live-run.md`. Cross-track file-ownership convention (rounds 165/174/183/188/196/207/212) — flag other tracks' uncommitted/unattributed work, don't fix or delete it outside skills(B)'s own files; this includes the non-driver Hermes-gateway files in `languages/whence/` (round 172/198/201/207/212/213, unchanged since round 212).
   - Full round-by-round detail for rounds 3-195 lives in this file's own round log above and each round's `knowledge/round-{...}-skills-*.md`; rounds 1-174's round-log entries are further archived to `state/research-state-archive.md`. Trust those over re-deriving from this summary.
-- **Language (C):** **v0.48** (round 488 — decision 62: the subject set of
+- **Language (C):** **v0.49** (round 492 — decision 63: an audit derived
+  from the LANGUAGE is silent about every input the language cannot reach.
+  Decision 62's probe varied the three tokens a Whence PROGRAM can make
+  arbitrarily long, and every probe this implementation has ever run IS a
+  program — so `repr(Interpreter(max_depth=10 ** 500))` was 645 characters
+  against a `REPR_CAP` of 240, on a public constructor argument of the
+  EMBEDDING API that no source text can move. The subject of decision 63 is
+  the 89 expressions each repr interpolates, derived with `ast` and assigned
+  an axis whose family says WHO sizes it: `text` and `structure` the author,
+  `embedding` the host-code embedder, `constant`/`internal` neither.
+  `Interpreter.__repr__` now routes through `values._cap`, the last repr in
+  the tree that did not. `tests/test_v49.py` 48 passed.
+  Landed by round 493, which also wrote this line — round 492 died at
+  `--max-turns` before ground-rule step 4, and this line is the one
+  `tests/test_v22.py::test_research_state_track_c_names_the_same_version_as_spec_md`
+  pins against SPEC.md's header.)
+  Its predecessor: v0.48 (round 488 — decision 62: the subject set of
   an audit must be DERIVED from the artefact, and a scale case must vary
   the NAME as well as the value. `reprsweep.PROBE` was the last
   hand-written list in decision 60's design: it constructed 7 of the
@@ -27094,6 +27110,197 @@ for round 479. Whoever adjudicates it should either register it in
   replaces its subject; the instrument re-pointed, and nothing in its
   output says its coverage figure belongs to the last round to write.
 - **Knowledge:** `knowledge/round-489-the-verdict-that-was-right-about-the-wrong-round.md`.
+
+### Round 492 — language(C) — 2026-09-04 — the axis that was not in the program
+
+**Entry written by round 493 (harness A), not by round 492.** Round 492 died
+at `--max-turns` after 135 turns with its ENTIRE diff uncommitted — ground-rule
+step 4 was never reached — and the driver's record-gap check reported 13
+unattributed paths at round 493's start. Round 493 verified the work
+(`tests/test_v49.py` **48 passed in 34.74 s**) and landed it as `ad7ff7f`,
+12 files / 2 380 insertions, with attribution in the commit message. What
+follows is round 492's own knowledge file summarised; the findings are its,
+the entry is round 493's.
+
+- **v0.49, decision 63: an audit derived from the LANGUAGE is silent about
+  every input the language cannot reach.** Decision 62 derived its probe from
+  three live tables and varied the three tokens a Whence PROGRAM can make
+  arbitrarily long. Every probe this implementation has ever run IS a program
+  — so `repr(Interpreter(max_depth=10 ** 500))` was **645 characters against
+  a `REPR_CAP` of 240**, on a public constructor argument of the EMBEDDING
+  API that no source text can move.
+- **The new subject is the 89 expressions each repr interpolates**, derived
+  from source with `ast` over 19 repr sources, each assigned an axis whose
+  FAMILY says who sizes it: `text` 15 and `structure` 23 (the author),
+  `embedding` **2** (the host-code embedder — new this round), `constant` 13
+  and `internal` 36 (neither). Gated in both directions: an unclassified
+  expression is an ERROR, a row naming an expression no repr interpolates is
+  STALE, and `INPUT_AXIS`'s keys are the unparsed expression text, so editing
+  a repr expires its own classification.
+- **`Interpreter.__repr__` now routes through `values._cap`** — the last repr
+  in the tree that did not — and through `_clip` as well, because `_cap`
+  alone left 240 characters of a 500-digit integer and cut away the sentence
+  the repr exists to say.
+- **A comment corrected by measurement:** `Builtin.__repr__`'s v0.47 note
+  claimed all three arity spellings appear in `_install_builtins`. Measured
+  over the live global scope they do not — 33 int, 4 pair, **ZERO None**.
+- **`reprsweep.py` v0.49**: `--inputs` (89/19 sources, 0 unclassified, 0
+  stale), `--routing` (35 reprs, 0 unrouted), `--caps` (64 subjects, 11
+  vacuous, 0 failing), `--manifest` (universe 48, reached 34, gaps 0).
+- **Knowledge:** `knowledge/round-492-the-axis-that-was-not-in-the-program.md`.
+- **Cost of the death, recorded because it is the recurring one:** the round
+  hit `max_turns` at a batch ratio of **1.1407**, and six of its own tests
+  went red in the whence tier for the two rounds it took anyone to notice —
+  five `test_testcorpus_census.py` counts moved by its own new file entering
+  the corpus, and `test_v22.py::test_research_state_track_c_names_the_same_
+  version_as_spec_md`, which is precisely the gate that fires when SPEC.md is
+  bumped and step 4 never happens. Round 493 closed the last one by moving
+  the `- **Language (C):**` line to v0.49. The five census counts are
+  language(C)'s and remain open.
+
+### Round 493 — harness(A) — 2026-09-04 — the diagnosis nobody built an instrument from
+
+- **THE FINDING: `harness/wiring-registry.json` diagnosed the same recurrence
+  four times in prose, in the file the check itself reads, and nothing was
+  ever built from it.** Rounds 473, 479 and 485 each closed an instance of
+  "a round builds a new `nuc/*.py`, does not declare it, W001 reddens three
+  `test_wiring_audit.py` nodes" at a latency of ONE round, and round 485's
+  entry concluded "a track that does not run `harness/tests/` cannot see the
+  check its own commit reddens, **and the reader is always a D round**".
+  Round 490 (E) opened the fifth instance. Round 491 WAS a D round, ran on
+  the red, and did not close it; round 492 (C) did not either. Round 493
+  closed it at a latency of **three**. The prediction is refuted; the
+  mechanism is sharper than it was written.
+- **The real mechanism: the driver told a round about record gaps and about
+  nothing else.** `run_driver.sh` computed exactly ONE pre-round diagnostic
+  into `$PROMPT` (`$ROUND_GAP_NOTE`). The four health checks run AFTER the
+  agent process exits and write to `logs/`, which is not in git, so a check
+  your own commit reddens reached you by no route at all.
+- **New `harness/reddebt.py`** — what is red NOW, since when, and who opened
+  it, wired into the round prompt as `$RED_DEBT_NOTE`. It CONSUMES
+  `redattrib`'s parser (`read_logs`, `could_not_run`, `episodes_for`,
+  `round_tracks`, `node_suite`, `SUITE_OWNER`, `evidence_base`) rather than
+  re-deriving it, and adds **no new `FAILED` regex**; an agreement test holds
+  the two histories from forking. Live: **14 node(s) red, 6 new, 8 recurrent,
+  8 INVISIBLE-OPEN, 1 past a full rotation.**
+- **DIAGNOSTIC ONLY and fail-open**: `note` always exits 0, prints NOTHING on
+  a clean tree (a healthy round pays zero prompt bytes), and is guarded by
+  `-f` plus `|| true`. A red-test reporter that can stop a round is a
+  reporter that can stop the round which would fix the red. Pinned by four
+  driver tests (note reaches the prompt / silent adds nothing / BROKEN does
+  not stop the round / ABSENT does not either) and a fifth that greps for
+  `RED_DEBT_NOTE=""` preceding its interpolation, because `set -u` is on and
+  `bash -n` does not catch an undefined expansion.
+- **The classifier shipped is its SECOND one, and the first was found wrong
+  by running it.** "Flapping = any green round in a trailing window" returned
+  **`0 standing, 14 flapping`** on the live logs — every node younger than
+  the window scores greens from before its own episode started, so the rule
+  was a restatement of "the episode is recent". The rule that survives counts
+  EPISODES: `new` (no prior episode) vs `recurrent` (closed before,
+  re-opened). And the limit is written into the module rather than guessed
+  past: **a recurrent defect and a recurrent flake are identical in these
+  logs**, so it prints the count and says REPRODUCE FIRST.
+- **THE OTHER FINDING: three currently-red nodes in three different suites
+  are the RUNNER, not the code.**
+  `test_swe_mutation.py::test_the_grandchild_pid_survives_...` passes solo
+  (2 passed in **4.15 s**), under three CPU hogs (4.50 s), under a fork storm,
+  and in whole-file order (33 passed) — and is red in 490, 491, 492. Round
+  449's own docstring named the residual 44 rounds before it fired: it
+  removed the GRANDCHILD's startup from the race, "not the parent's", and the
+  parent is a whole pytest process that must start, collect and import inside
+  a **2.0 s** cap. Measured solo over 7 samples: median **0.348 s**, worst
+  **0.985 s** — median margin 5.74x, **worst-case margin 2.03x against round
+  487's ≥3.27x contention floor.**
+- **And the six-round-old one is ARITHMETIC.**
+  `nuc/tests/test_constant_audit.py::test_the_fast_check_runs_green_on_this_tree`
+  does not fail an assertion — it raises `TimeoutExpired`, returncode **-9**,
+  `orig_timeout = 600`, on a script that takes **187.65 s solo**.
+  `187.65 x 4 concurrent suites = 750.6 s > 600 s`: **the budget was already
+  negative before any workload grew.** Round 487's finding ("a budget is a
+  property of the runner as much as of the work") recurring in another suite,
+  opened by a harness(A) round, owned by a track that has not run since.
+  Round 490 reported it "downstream" of an unrelated pin and treated it as
+  closed; it was never an assertion failure. Correct budget by round 487's
+  own rule: `ceil(187.65 x 4 x 1.5) = 1126 s`. Diagnosed with the arithmetic
+  done, NOT edited into another track's test at the end of a round.
+- **Repairs landed:** `nuc/record_union.py` declared (`wiring-audit ... 0
+  error(s), 0 warning(s)`, was 1; `test_wiring_audit.py` **68 passed**);
+  round 492's whole diff (`ad7ff7f`); the operator's `MASTER MISSION` block
+  in CLAUDE.md verbatim and attributed (`7aab36a`); research-state.md's
+  Language (C) line v0.48 -> v0.49.
+- **Tests: `harness/tests/test_reddebt.py` 24 passed in 9.44 s**, every gate
+  falsified, with negative controls. Four defects caught on the first run —
+  including that the CLI had no `--root`, so `debt --strict` in any other
+  tree silently answered about THIS one, which is the same class of defect
+  the module was built to report, committed by the module itself.
+- **Predictions 9 HIT / 1 SPLIT / 1 MISS / 1 n-a of 12**
+  (`state/harness/round-493/predictions.md`, banked `6c2c680`, with the five
+  already-OBSERVED facts listed separately so the scoring could not claim
+  them). P9 was exact to the node count AND its per-check split (14 = 4/6/1/3).
+  The MISS is P10: I predicted 3-8 killed-check rounds over 473-492 and the
+  answer is **0** (3 all-time, all `whence-health-check`, rounds 348/393/394).
+  The handling is still right — round 349 has a knowledge file named after
+  that shape — but I predicted a RATE from a MECHANISM I had just read in a
+  comment. Round 490 item 6's rule applies to reading code, not just data.
+- **Honest failure:** the contention hypothesis is a projection, not a
+  reproduction — the node that is actually red was never made to fail. And I
+  contaminated my own clean re-timing run by launching it while another
+  pytest was still going, on a box whose `nproc` is 1: round 434's mistake
+  and my own standing note about baselines, committed again.
+- **Knowledge:** `knowledge/round-493-the-diagnosis-nobody-built-an-instrument-from.md`.
+
+## Next steps (as of round 493)
+
+1. **`nuc/tests/test_constant_audit.py:293`'s `timeout=600` is negative and
+   the arithmetic is done.** Solo 187.65 s x 4 concurrent suites = 750.6 s,
+   already over; round 487's rule gives `ceil(187.65 x 4 x 1.5) = 1126`. Do
+   it the way round 487 did — a receipt JSON plus a `TestDerivedBudget` that
+   recomputes every factor from its source — not a bigger typed number. This
+   is the ONLY red past a full rotation. NUC(E) or harness(A).
+2. **The grandchild test's 2.0 s cap has a worst-case solo margin of 2.03x
+   against a ≥3.27x contention floor.** It is red for the runner's reasons
+   and was never reproduced. Either derive that cap the same way (round 449's
+   docstring already names the parent-side residual) or record that the node
+   is environment-bound. Do NOT patch the assertion. harness(A).
+3. **8 of 14 currently-red nodes are INVISIBLE OPENS.** With `reddebt` in the
+   prompt, the next round is told. The thing to watch is whether being told
+   changes the latency — rounds 473/479/485 closed at 1, 491/492 did not
+   close at all, and 493 closed at 3. Whoever reads the note next should say
+   in their round file whether it is what made them look. any track.
+4. **`reddebt debt --strict` exits 1 on this tree** and is deliberately NOT
+   wired into the driver. If a later round wants a gate, the argument to
+   settle first is what a gate should do about a red that is the runner's —
+   because on today's data that is 3 of 14. harness(A).
+5. **The five `test_testcorpus_census.py` reds are round 492's own artefacts
+   in the corpus the census measures** (`115 <= 114`, `68 == 67`,
+   `(992+47)+22 == 1057` — counts off by one). They are `new` (first red
+   ever) and language(C)'s. Round 492's own next-steps were never written;
+   its knowledge file is the only source. language(C).
+6. **`corpus_check.py::carryforward` and `::unit_tests` have been red since
+   round 490 and `::xref_check` since 492**, all invisible opens against
+   skills(B). Round 487 reported five of these as skills(B)'s and did not fix
+   them; they are still here six rounds later. skills(B).
+7. **Round 491's items 1-6 stand untouched by this round** — the 4.87 s
+   `_copy_project` per mutant, `test_perturbation.py` at 96.9 % un-mutation-
+   tested with 6.2 h at the current rate, the 7 open survivors, `nodeguard`'s
+   0-of-12, `nodecampaign.py`'s missing CLI, and P2's call-graph-distance
+   follow-up. SWE-loop(D).
+8. **Round 490's NUC items stand** — the union-first rule, capture-on-first-up,
+   `block_shift_null_lead_lag`'s 62.6 %, the `%vmeff`/`pgsteal_kswapd`
+   residual, and the two negative controls under p 0.05 with no multiplicity
+   correction. NUC(E).
+9. **`nproc` on this box is 1 and this round broke its own rule once.** The
+   nuc re-timing was launched while `test_wiring_audit.py` was still running;
+   the 236.78 s that file reports is therefore a 2-way contended number, not
+   a solo one, and the 187.65 s solo figure comes from the earlier run. Plan
+   every suite as serialised and check `ps` before launching, not after.
+10. **Standing and untouched:** the operator-blocked `--cap 196`;
+   `case_coverage`'s 49-of-103 disagreeing verdicts; `claim_check` executing
+   0 of its commands; and CLAUDE.md's `CRITICAL MISSION` block, now joined by
+   a second operator block (`MASTER MISSION`, landed verbatim this round as
+   `7aab36a`) — re-escalated for the TWENTY-SECOND time and still a deletion
+   for the operator. `languages/whence/SECURITY.md` remains the operator's
+   decision; the checker's own line is the only source for its carry count.
 
 ### Round 491 — SWE-loop(D) — 2026-09-04 — the suite that was one file
 
