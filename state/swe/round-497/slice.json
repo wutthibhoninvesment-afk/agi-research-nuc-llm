@@ -1,0 +1,173 @@
+{
+ "argv": [
+  "--root",
+  "/home/pgain/agi-research-nuc-llm",
+  "--python",
+  "/home/pgain/agi-research-nuc-llm/.venv/bin/python3",
+  "--budget",
+  "420",
+  "--out",
+  "state/swe/round-497/slice.json"
+ ],
+ "by_status": {
+  "killed": 15,
+  "survived": 17
+ },
+ "kill_rate": 46.9,
+ "linked": true,
+ "master": {
+  "drift_events": [],
+  "link_seconds": 6.6,
+  "n_drift_events": 0,
+  "n_fallback": 0,
+  "n_sandboxes": 32,
+  "n_stagings": 1,
+  "seconds_per_sandbox": 0.206,
+  "stage_seconds": 1.71,
+  "witness_seconds": 7.94
+ },
+ "median_units_selected": 37.0,
+ "mutants_scored_against_a_drifted_master": [],
+ "n_already_scored": 55,
+ "n_ledger_rows_scored_under_another_suite": 55,
+ "n_left_unrun_by_budget": 2,
+ "n_run_this_slice": 32,
+ "n_sites_in_scope": 89,
+ "oracle": {
+  "full": 2,
+  "subset": 30
+ },
+ "seconds": 465.0,
+ "seconds_per_mutant": 14.53,
+ "subset_baseline": {
+  "n_clean": 5,
+  "n_distinct_subsets": 5,
+  "n_poisoned": 0,
+  "n_probes_run": 5,
+  "poisoned": [],
+  "probe_seconds": 82.7
+ },
+ "suite_digest": "2cd94b15530a0c79adb1603a126a82d4babc6c9a0f80b4b0c5fcaf05fe3519a4",
+ "survivors": [
+  {
+   "description": "LtE -> Lt",
+   "id": "perturbation.py:2250:cmp#665",
+   "line": 2250,
+   "op": "cmp"
+  },
+  {
+   "description": "GtE -> Gt",
+   "id": "perturbation.py:2251:cmp#666",
+   "line": 2251,
+   "op": "cmp"
+  },
+  {
+   "description": "drop 'not'",
+   "id": "perturbation.py:2296:not#668",
+   "line": 2296,
+   "op": "not"
+  },
+  {
+   "description": "1 -> 2",
+   "id": "perturbation.py:1638:const#969",
+   "line": 1638,
+   "op": "const"
+  },
+  {
+   "description": "Add -> Sub",
+   "id": "perturbation.py:1638:arith#970",
+   "line": 1638,
+   "op": "arith"
+  },
+  {
+   "description": "Eq -> NotEq",
+   "id": "perturbation.py:1655:cmp#972",
+   "line": 1655,
+   "op": "cmp"
+  },
+  {
+   "description": "Add -> Sub",
+   "id": "perturbation.py:1655:arith#1216",
+   "line": 1655,
+   "op": "arith"
+  },
+  {
+   "description": "Sub -> Add",
+   "id": "perturbation.py:1655:arith#1396",
+   "line": 1655,
+   "op": "arith"
+  },
+  {
+   "description": "1 -> 2",
+   "id": "perturbation.py:1655:const#1397",
+   "line": 1655,
+   "op": "const"
+  },
+  {
+   "description": "0 -> 1",
+   "id": "perturbation.py:1654:const#1507",
+   "line": 1654,
+   "op": "const"
+  },
+  {
+   "description": "0 -> 1",
+   "id": "perturbation.py:1656:const#1508",
+   "line": 1656,
+   "op": "const"
+  },
+  {
+   "description": "0 -> 1",
+   "id": "perturbation.py:1655:const#1557",
+   "line": 1655,
+   "op": "const"
+  },
+  {
+   "description": "1 -> 2",
+   "id": "perturbation.py:1654:const#1558",
+   "line": 1654,
+   "op": "const"
+  },
+  {
+   "description": "1 -> 2",
+   "id": "perturbation.py:1657:const#1559",
+   "line": 1657,
+   "op": "const"
+  },
+  {
+   "description": "1 -> 2",
+   "id": "perturbation.py:1655:const#1587",
+   "line": 1655,
+   "op": "const"
+  },
+  {
+   "description": "10.0 -> 11.0",
+   "id": "perturbation.py:558:fconst#1739",
+   "line": 558,
+   "op": "fconst"
+  },
+  {
+   "description": "50.0 -> 51.0",
+   "id": "perturbation.py:560:fconst#1740",
+   "line": 560,
+   "op": "fconst"
+  }
+ ],
+ "survivors_scored_under_another_suite": [
+  "perturbation.py:1580:cmp#373",
+  "perturbation.py:1580:cmp#377",
+  "perturbation.py:1580:const#627",
+  "perturbation.py:1582:cmp#161",
+  "perturbation.py:1631:const#379",
+  "perturbation.py:1638:cmp#631",
+  "perturbation.py:1661:const#382",
+  "perturbation.py:2246:cmp#662",
+  "perturbation.py:559:const#126",
+  "perturbation.py:581:const#329",
+  "perturbation.py:585:cmp#331",
+  "perturbation.py:586:cmp#332",
+  "perturbation.py:587:cmp#130",
+  "perturbation.py:594:const#333",
+  "perturbation.py:633:const#334"
+ ],
+ "wall_seconds": 472.4
+}

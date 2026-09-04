@@ -1,0 +1,89 @@
+{
+ "deep_drift_at_end": [],
+ "killed": [
+  "perturbation.py:1631:const#379",
+  "perturbation.py:1638:cmp#631",
+  "perturbation.py:1661:const#382",
+  "perturbation.py:2246:cmp#662",
+  "perturbation.py:559:const#126",
+  "perturbation.py:633:const#334"
+ ],
+ "master": {
+  "drift_events": [],
+  "link_seconds": 1.08,
+  "n_drift_events": 0,
+  "n_fallback": 0,
+  "n_sandboxes": 6,
+  "n_stagings": 1,
+  "seconds_per_sandbox": 0.179,
+  "stage_seconds": 4.09,
+  "witness_seconds": 3.86
+ },
+ "missing_ids": [],
+ "n_asked": 6,
+ "n_run": 6,
+ "rows": [
+  {
+   "description": "0 -> 1",
+   "detail": "FAILED nuc/tests/test_perturbation.py::test_power_floor_accepts_the_smallest_legal_record\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 3 passed, 239 deselected in 0.90s",
+   "drift": [],
+   "id": "perturbation.py:1631:const#379",
+   "line": 1631,
+   "op": "const",
+   "seconds": 1.63,
+   "status": "killed"
+  },
+  {
+   "description": "LtE -> Lt",
+   "detail": "FAILED nuc/tests/test_perturbation.py::test_an_occupancy_that_exactly_attains_the_bar_is_testable\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 4 passed, 239 deselected in 1.00s",
+   "drift": [],
+   "id": "perturbation.py:1638:cmp#631",
+   "line": 1638,
+   "op": "cmp",
+   "seconds": 1.87,
+   "status": "killed"
+  },
+  {
+   "description": "True -> False",
+   "detail": "FAILED nuc/tests/test_perturbation.py::test_attribution_evidence_is_immutable\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 1 passed, 239 deselected in 1.60s",
+   "drift": [],
+   "id": "perturbation.py:1661:const#382",
+   "line": 1661,
+   "op": "const",
+   "seconds": 3.02,
+   "status": "killed"
+  },
+  {
+   "description": "GtE -> Gt",
+   "detail": "FAILED nuc/tests/test_perturbation.py::test_the_replication_gate_is_inclusive_at_min_fires\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 5 passed, 239 deselected in 0.91s",
+   "drift": [],
+   "id": "perturbation.py:2246:cmp#662",
+   "line": 2246,
+   "op": "cmp",
+   "seconds": 1.69,
+   "status": "killed"
+  },
+  {
+   "description": "50000 -> 50001",
+   "detail": "FAILED nuc/tests/test_perturbation.py::test_the_commitment_step_is_inclusive_at_its_DEFAULT_floor\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 2 passed, 239 deselected in 0.92s",
+   "drift": [],
+   "id": "perturbation.py:559:const#126",
+   "line": 559,
+   "op": "const",
+   "seconds": 1.84,
+   "status": "killed"
+  },
+  {
+   "description": "True -> False",
+   "detail": "FAILED nuc/tests/test_perturbation.py::test_a_reclaim_event_is_immutable - Fa...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 239 deselected in 0.91s",
+   "drift": [],
+   "id": "perturbation.py:633:const#334",
+   "line": 633,
+   "op": "const",
+   "seconds": 1.7,
+   "status": "killed"
+  }
+ ],
+ "subject_digest": "8082749f713ee07f05e1f9187324280156c547673e35fa39017ef67200173ea1",
+ "survived": []
+}

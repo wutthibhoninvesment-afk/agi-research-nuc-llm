@@ -80,6 +80,29 @@ def select_mutants(root, rel, line_ranges=None, ops=None):
     return ms, CV._file_hash(os.path.join(root, rel)) if hasattr(CV, "_file_hash") else None
 
 
+def suite_digest(root, base_cmd):
+    """Digest of the suite target `base_cmd` ends with, or None.
+
+    ROUND 497 -- the resume key is `(mutant_id, subject_digest)` and the SUITE
+    is not in it. That is not an oversight this round can fix by changing the
+    key (that would re-run all 55 scored mutants), but it IS a real staleness:
+    round 491 added six tests to `test_perturbation.py` AFTER its slice, and
+    round 497 added six more, so every `survived` record in the ledger was
+    graded by a suite that no longer exists. A survivor is exactly the verdict
+    a stronger suite can overturn. So the digest is RECORDED per row and the
+    report counts the rows scored under a different one, which makes the
+    staleness visible instead of silent.
+    """
+    target = base_cmd[-1] if base_cmd else None
+    if not target:
+        return None
+    path = target.split("::")[0]
+    full = path if os.path.isabs(path) else os.path.join(root, path)
+    if not os.path.isfile(full):
+        return None
+    return CV._file_hash(full)
+
+
 def run_slice(root, rel, cov_path, base_cmd, line_ranges=None, budget_s=600.0,
               timeout_s=180.0, ledger=LEDGER, full_cmd=None, on_result=None,
               linked=True, workdir=None):
@@ -113,8 +136,13 @@ def run_slice(root, rel, cov_path, base_cmd, line_ranges=None, budget_s=600.0,
     guard = NG.SubsetBaseline(root, base_cmd, timeout_s=timeout_s)
 
     mutants, digest = select_mutants(root, rel, line_ranges)
+    suite = suite_digest(root, base_cmd)
     done = load_ledger(ledger)
     todo = [m for m in mutants if (m.id, digest) not in done]
+    stale = [r for r in done.values()
+             if r.get("suite_digest") not in (suite, None)
+             or "suite_digest" not in r]
+    stale_survivors = sorted(r["id"] for r in stale if r.get("status") == "survived")
 
     master, tmp_dir, own_wd = None, None, None
     if linked:
@@ -142,7 +170,7 @@ def run_slice(root, rel, cov_path, base_cmd, line_ranges=None, budget_s=600.0,
                    "description": m.description, "status": m.status,
                    "seconds": round(time.time() - t1, 2), "oracle": oracle,
                    "n_units": len(units), "subject_digest": digest,
-                   "detail": m.detail[:400]}
+                   "suite_digest": suite, "detail": m.detail[:400]}
             if master is not None and master.check(label=m.id):
                 # The suite wrote through a link. This mutant's own verdict
                 # was produced against a tree that is no longer the project,
@@ -164,6 +192,9 @@ def run_slice(root, rel, cov_path, base_cmd, line_ranges=None, budget_s=600.0,
     rep = report(ran, mutants, todo, out_of_budget, guard, prio,
                  time.time() - t0)
     rep["linked"] = bool(linked)
+    rep["suite_digest"] = suite
+    rep["n_ledger_rows_scored_under_another_suite"] = len(stale)
+    rep["survivors_scored_under_another_suite"] = stale_survivors
     rep["master"] = master.as_dict() if master is not None else None
     rep["mutants_scored_against_a_drifted_master"] = suspect
     return rep

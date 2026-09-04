@@ -36,6 +36,11 @@ def main(argv):
         i = argv.index("--out")
         out_path = argv[i + 1]
         argv = argv[:i] + argv[i + 2:]
+    kexpr = None
+    if "--k" in argv:
+        i = argv.index("--k")
+        kexpr = argv[i + 1]
+        argv = argv[:i] + argv[i + 2:]
     ids = set(argv)
     if not ids:
         print(__doc__)
@@ -45,6 +50,12 @@ def main(argv):
     by_id = {m.id: m for m in mutants}
     missing = sorted(i for i in ids if i not in by_id)
     cmd = [PY, "-m", "pytest", "-x", "-q", TESTS]
+    if kexpr:
+        # Restricting to the new tests is SOUND for a kill check: a mutant
+        # killed by a subset is killed by the suite that contains it. It is
+        # not sound for a SURVIVED verdict, so a survivor here is re-run
+        # against the whole file before it is believed.
+        cmd += ["-k", kexpr]
 
     rows = []
     master = LC.MasterTree(ROOT, deep_witness=True)

@@ -27603,6 +27603,151 @@ the entry is round 493's.
   by growth.
 - **Knowledge:** `knowledge/round-496-the-check-that-ran-its-own-suite-twice.md`.
 
+### Round 497 — SWE-loop(D) — 2026-09-04 — the sandbox that was a copy
+
+- **Took round 491's next-step #1, the one it named as the next lever:**
+  `_copy_project` was 4.87 s of every 12.78 s mutant, a 563 MB
+  `shutil.copytree` per mutant, invariant to every test-selection
+  improvement. Re-derived at HEAD, solo: **4089 files, 563.0 MB, of which
+  `logs/` is 456.4 MB = 81.1 %** — this program's own gitignored diagnostic
+  scratch, which no mutant run has ever read. The copy itself is **1.98 /
+  2.90 / 3.01 s** solo, not 4.87 s; round 491's number is the same operation
+  read inside a running campaign, and neither is "the" number.
+- **`swe/linkcopy.py`: one byte copy per CAMPAIGN, a hardlink tree per
+  mutant.** `link_tree` **0.188 s** (4091 links, 0 fallbacks) against a
+  2.36 s byte copy = **12.6x**; `rmtree` 0.062 s against 0.648 s. Whole
+  sandbox term **3.01 s -> 0.35 s, 8.6x**. `--linked` is default ON in
+  `nodecampaign` and `linked=False` restores round 491's byte copy exactly.
+- **A hardlink is not a copy, and the safety half is the real work.**
+  (1) `run_mutant`'s own `open(dst/m.path, "w")` TRUNCATES THE SHARED INODE —
+  the naive version would have written every mutant into the tree the next
+  sandbox is made from. `mutation._write_mutant` unlinks first, unconditional
+  because a byte copy sees no difference. Pinned by a CONTROL test that
+  DEMONSTRATES the write-through rather than arguing it; if that test ever
+  fails, the safety half is unnecessary and should be deleted.
+  (2) Sandboxes link from a staged MASTER, never from the checkout, so a
+  suite that writes into its own tree can only reach a throwaway — which
+  matters exactly because 81 % of the copy scope is unrecoverable by
+  `git checkout`. (3) `TreeWitness` reports drift instead of assuming it
+  away: shallow (0.1 s) after every mutant, content-digest (1.9 s) at the
+  slice boundary, and the mutant whose run produced drift is NAMED in the
+  report.
+- **A test failed and the failure was a filesystem fact.** `unlink` +
+  recreate REUSES the inode immediately on this box and two writes
+  microseconds apart share `st_mtime_ns`, so a same-size rewrite inside one
+  clock tick moves none of the four stat fields. Measured, not reasoned:
+  `ino ... same`, `mtime_ns delta 0`, `after 20ms: delta 20000226`. The
+  shallow witness's blind spot is now pinned in BOTH directions and closed
+  where it is worth closing (`digest=True`).
+- **Soundness before cost.** 12 already-scored mutants replayed from round
+  491's ledger through the linked sandbox: **12/12 verdicts agree**,
+  `units_match_all: true`, zero drift. 241.66 s -> 168.45 s. **The saving is
+  a CONSTANT ~3.5 s/mutant, not a proportion** — a fast killed mutant gets
+  3x faster, a survivor running a 233-test subset gets 1.24x.
+- **Found: the ledger's resume key does not include the SUITE.** The key is
+  `(mutant_id, subject_digest)`, yet round 491 added six tests after its
+  slice and this round adds six more, so **all 55 pre-existing rows were
+  graded by a suite that no longer exists** — and `survived` is precisely the
+  verdict a stronger suite overturns. Six of them provably flip: this round
+  killed them. Not re-keyed (that re-runs 55 mutants); `suite_digest` is now
+  recorded per row and the report carries
+  `n_ledger_rows_scored_under_another_suite` (55) and
+  `survivors_scored_under_another_suite`, so the staleness is visible rather
+  than silent.
+- **Round 491's next-step #3 CLOSED IN FULL — all seven.** Six new tests,
+  **6 of 6 killed on the first pass** (`state/swe/round-497/survivor-kills.json`,
+  produced by a script that RUNS each named mutant); the seventh
+  (`1582:cmp#161`) needs no work, proved equivalent by round 491. Round 491
+  called its fifteen survivors "one gap: every one is a threshold". **Two of
+  these six are not thresholds at all** — `@dataclass(frozen=True)` on
+  `ReclaimEvent` and on `AttributionEvidence`, a `True` no test in 233 ever
+  read, so both classes could have silently become mutable.
+- **The slice: 32 mutants in 465 s, 2 left by budget, ledger 55 -> 87 of
+  1794.** 15 killed / 17 survived, kill rate 46.9 %, 5 distinct subsets all
+  clean, master 1 staging / 32 sandboxes / 0 drift / 0 fallbacks.
+  **`seconds_per_mutant` went UP (12.78 -> 14.53) and that is the round's
+  best finding about its own instrument:** a slice's per-mutant average is
+  not comparable across slices because the mutants are not the same mutants.
+  Round 491 scored the cheap prefix; these are its tail, four of them 65-67 s
+  because a `<collect>` hit selects all 233 tests. The comparable numbers
+  hold the mutant fixed: the 12-mutant replay, and the ledger's per-row
+  **median 5.41 s -> 3.695 s** while the means go 10.5 -> 11.74.
+- **Tests:** `harness/tests/test_swe_linkcopy.py` **23 new**;
+  `test_swe_linkcopy.py + test_swe_nodeid_selection.py` **41 passed
+  (23.10 s)**; `nuc/tests/test_perturbation.py` **245 passed in 74.99 s** (+6 this round; 239 before).
+- **Predictions: 7 HIT / 1 SPLIT / 6 MISS of 15, plus 1 pre-registered**
+  (`state/swe/predictions-d-round497.md`, `606ffa0`). **Five of the six
+  misses are one shape:** a MAGNITUDE banked off a single prior observation
+  with the direction right — P1 (4.87 s quoted as a constant), P10, P11, P12,
+  and P15, which was not even a prediction (89 - 55 = 34; I guessed 40).
+  That is round 490's item #6 rule failing for a fourth consecutive round,
+  in the round that carried it forward.
+- **Knowledge:** `knowledge/round-497-the-sandbox-that-was-a-copy.md`.
+
+## Next steps (as of round 497)
+
+1. **The 55 stale ledger rows are now a NAMED, budgeted job.** All of them
+   were graded under a suite that has since gained twelve tests; the 15
+   survivors among them are the ones that can flip, and six provably do.
+   Re-scoring costs 15 mutants, not 55, if the job is scoped to survivors —
+   which is the honest scope, since a `killed` verdict cannot be overturned
+   by ADDING tests. SWE-loop(D).
+2. **The full-file by-test coverage map is STILL unmeasured** (round 491's
+   next-step #5, second half). The existing map is targeted at 59 lines, so
+   any mutant outside them falls back to the 96 s full suite — 2 did this
+   slice. This is the single thing standing between the ledger's 87 rows and
+   the other 1707, and its cost is one `collect` run nobody has timed. The
+   targeted map cost 194.0 s. SWE-loop(D).
+3. **11 of this slice's 17 survivors sit on lines 1654-1657** — the `why`
+   string built inside `power_floor`, where `+ 1` and `1 -> 2` change prose
+   no assertion reads. One test that asserts the message would kill most of
+   them. It is a real gap, cheap, and deliberately left open here.
+   SWE-loop(D) or NUC(E).
+4. **`nodeguard` has still never fired** — 2 slices, 17 distinct subsets, 17
+   clean, and 82.7 s of this slice's 465 s spent proving it. Round 491's
+   next-step #4 asked whether the probes buy anything on this suite; there is
+   now a second data point and the answer is still "no evidence either way".
+   Do NOT delete it on that basis — the failure it guards is silent and
+   inflates the reported score — but a round that wants the 82.7 s back
+   should measure how a poisoned subset would be introduced first.
+   SWE-loop(D).
+5. **`logs/` is 456 MB of every master staging** and the link copy made that
+   irrelevant PER MUTANT, not per campaign. The exclusion lever (P16) was
+   pre-registered and deliberately not built. Whoever builds it must check
+   what reads `logs/` from inside a copy first — `harness/redattrib.py`'s
+   live-log tests do. harness(A) or SWE-loop(D).
+6. **A slice's `seconds_per_mutant` must not be compared across slices** and
+   both round 491's 6.2 h projection and this round's are ambiguous for the
+   same reason: at the ledger median the remaining 1707 sites are 1.75 h, at
+   this slice's mean 6.9 h. Quote the median, the mean, and which mutants
+   each is over — or quote neither. SWE-loop(D).
+7. **Round 491's next-steps #2, #6, #7, #8, #9 and #10 stand.** #1 (the copy)
+   and #3 (the seven survivors) are CLOSED by this round; #5 is half closed
+   (the CLI exists, the full-file map does not); #4 has a second data point
+   and is not closed. #6's `<collect>` mechanism is now confirmed as the
+   cause of this slice's four 66 s mutants. SWE-loop(D).
+8. **The two harness reds from this round's briefing were NOT touched** —
+   `test_redattrib.py::TestThisTree::test_the_cli_audit_exits_zero_on_this_tree`
+   and `::test_the_registry_is_fail_closed_over_the_live_logs`, red since
+   round 494, opened by language(C), owner harness(A). This round ran no
+   `harness/tests/test_redattrib.py`. They are a different tree and the
+   briefing's own instruction is to REPRODUCE before fixing. harness(A).
+9. **`nproc` on this box is 1 and this round obeyed it.** The replay
+   (168.5 s), the slice (465.0 s), the kill checks and every verification run
+   were serialised. Every number here is a solo number and only comparable to
+   other solo numbers. One cost was paid for it: the first slice launch died
+   instantly on a relative `--python ../.venv/bin/python3` resolved against
+   the SANDBOX cwd, and eight minutes of the round went with it. The CLI's
+   `--python` and `--root` want absolute paths.
+10. **Standing and untouched:** the operator-blocked `--cap 196`; the E3 A/B;
+   `case_coverage`'s disagreeing verdicts; `claim_check` executing 0 of its
+   commands; the NUC `retention --strict` deadline; and CLAUDE.md's
+   `CRITICAL MISSION` / `MASTER MISSION` blocks, re-escalated for the
+   TWENTY-SECOND time — this round was again told to prioritise a `b_fold()`
+   bug in `whence/interp.py` while its assigned track was D. Still a small
+   deletion for the operator. `languages/whence/SECURITY.md` remains the
+   operator's decision; do not copy a carry count for it from this file.
+
 ## Next steps (as of round 496)
 
 1. **P6 IS A PRE-REGISTERED EXPERIMENT AND THIS ROUND CANNOT SCORE IT.**

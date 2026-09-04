@@ -2973,3 +2973,150 @@ def test_a_zero_hit_requirement_is_certain_and_a_negative_one_is_rejected():
     assert pt._hypergeom_atleast(5, 2, 3, 0) == 1.0
     with pytest.raises(pt.PerturbationError):
         pt._hypergeom_atleast(5, 2, 3, -1)
+
+
+# --------------------------------------------------------------- round 497 --
+# The six survivors round 491 left open (its next-step #3), closed the same
+# way: a test per mutant, then the mutant RUN against it, because "kills X" in
+# a comment is a claim and round 491's own first pass was 5 of 9. Receipts:
+# `state/swe/round-497/survivor-kills.json`, produced by
+# `state/swe/round-497/kill_check.py`.
+#
+# Round 491 called its fifteen survivors "one gap" -- every one a threshold.
+# These six are two gaps, and the second one is not a threshold at all: two
+# `@dataclass(frozen=True)` decorators whose `True` no test ever read. An
+# immutable record that quietly became mutable is not a boundary case; it is
+# the guarantee the type exists to make.
+
+_DATACLASS_ZERO = {"str": "", "int": 0, "float": 0.0, "bool": False}
+
+
+def _blank(cls):
+    """An instance of a dataclass with every field at its type's zero.
+
+    These two tests are about the DECORATOR, not the values, and both classes
+    carry ~20 required fields whose real construction belongs to the functions
+    that produce them (`reclaim_events`, `attribution_evidence`) and is tested
+    there. Handles both annotation styles: `f.type` is a class normally and a
+    string under `from __future__ import annotations`."""
+    import dataclasses
+    out = {}
+    for f in dataclasses.fields(cls):
+        name = f.type if isinstance(f.type, str) else getattr(f.type, "__name__", "")
+        out[f.name] = _DATACLASS_ZERO.get(name)
+    return cls(**out)
+
+
+def test_a_reclaim_event_is_immutable():
+    """kills perturbation.py:633:const#334 (`frozen=True` -> `frozen=False`).
+
+    `ReclaimEvent` is one `sar -B` bucket as read off the box. Every %vmeff
+    number this track has published is computed from a collection of these,
+    and round 430's whole `vmeff_pct`-vs-`corrected_vmeff_pct` distinction
+    depends on a caller being unable to quietly repair one in place. Nothing
+    in 233 tests read the `True`."""
+    import dataclasses
+    ev = _blank(pt.ReclaimEvent)
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        ev.steal_s = 99.0
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        ev.kind = "direct"
+
+
+def test_attribution_evidence_is_immutable():
+    """kills perturbation.py:1661:const#382 (`frozen=True` -> `frozen=False`).
+
+    Same gap one class over. `AttributionEvidence` carries the verdict and the
+    p-values a claim of the form "unit X cost this" rests on; a caller able to
+    set `verdict` after the fact is the one failure mode the whole
+    `attribution_evidence` -> `verdict_floor` pipeline is built to prevent."""
+    import dataclasses
+    ev = _blank(pt.AttributionEvidence)
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        ev.verdict = "supported"
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        ev.p_family = 0.0
+
+
+def test_the_commitment_step_is_inclusive_at_its_DEFAULT_floor():
+    """kills perturbation.py:559:const#126 (`min_step_kb: float = 50_000` ->
+    50_001).
+
+    The three `classify_bucket` boundary tests round 491 added all pass
+    `min_step_kb` explicitly, so the DEFAULT was never on any threshold and a
+    mutant that moved it by one kilobyte survived. This call takes the
+    default and sits exactly on it."""
+    assert pt.classify_bucket(pgpgin_s=0.0, pgpgin_baseline_s=0.0,
+                              commit_delta_kb=50_000.0,
+                              swapped_bytes=0) == "commitment"
+    # one kilobyte under the default is not a step -- pins the direction
+    assert pt.classify_bucket(pgpgin_s=0.0, pgpgin_baseline_s=0.0,
+                              commit_delta_kb=49_999.0,
+                              swapped_bytes=0) == "quiet"
+
+
+def test_power_floor_accepts_the_smallest_legal_record():
+    """kills perturbation.py:1631:const#379 (`if N <= 0` -> `if N <= 1`).
+
+    A one-bucket record is a legal shape and the function must answer about
+    it rather than raise -- the answer being that it has no power at all,
+    which is exactly the statement round 412 built this function to make.
+    `test_power_floor_rejects_an_impossible_record_shape` covers N == 0 and
+    below; nothing covered N == 1."""
+    pf = pt.power_floor(1, 1, 1)
+    assert pf["n_buckets"] == 1
+    assert pf["any_testable"] is False
+    assert pf["n_testable_occupancies"] == 0
+    assert pf["best_p_at_occupancy_1"] == 1.0
+    with pytest.raises(pt.PerturbationError):
+        pt.power_floor(0, 0, 1)
+
+
+def test_an_occupancy_that_exactly_attains_the_bar_is_testable():
+    """kills perturbation.py:1638:cmp#631 (`best_case_p(...) <= bar` -> `<`).
+
+    The Bonferroni bar is a threshold like any other and the suite only ever
+    put occupancies comfortably on one side of it. With `n_units_tested == 1`
+    the bar IS `max_family_p` (an exact float division by one), so passing
+    `best_case_p(4, 2, 2)` as the family bar puts occupancy 2 exactly ON it.
+
+    Inclusive is the right reading: a unit whose best case exactly attains
+    the bar can be supported, and calling it untestable would silently narrow
+    every published `testable_fraction_of_N`."""
+    bar = pt.best_case_p(4, 2, 2)
+    assert bar == 1.0 / 6.0
+    pf = pt.power_floor(4, 2, 1, max_family_p=bar)
+    assert pf["per_unit_bar"] == bar
+    assert pf["any_testable"] is True
+    assert pf["min_testable_occupancy"] == 2
+    assert pf["max_testable_occupancy"] == 2
+    assert pf["n_testable_occupancies"] == 1
+    # every other occupancy is strictly worse than the bar, so the exact hit
+    # is the ONLY thing keeping this record testable
+    assert pt.best_case_p(4, 2, 1) > bar
+    assert pt.best_case_p(4, 2, 3) > bar
+
+
+def test_the_replication_gate_is_inclusive_at_min_fires():
+    """kills perturbation.py:2246:cmp#662 (`n_fires >= min_fires` -> `>`).
+
+    `ATTRIBUTION_MIN_FIRES` is 2 -- "below this there is no replication" --
+    so a unit with exactly 2 fires is the first one that HAS replication and
+    must clear the gate. The existing `verdict_floor` test uses 4 fires
+    against a floor of 2 and cannot see the difference."""
+    out = pt.verdict_floor({
+        "max_family_p": 0.05, "min_consistency": 0.5, "min_fires": 2,
+        "units": [{"unit": "u", "n_fires": 2, "n_costly": 2, "n_clean": 1,
+                   "testable": True, "p_family": 0.001, "consistency": 1.0,
+                   "verdict": "supported"}]})
+    assert out["pass_counts"]["min_fires"] == 1
+    assert out["all_gates_passed"] == ["u"]
+    assert out["per_unit"][0]["gates_failed"] == []
+    # one fire under the floor and the gate is the FIRST thing that blocks
+    under = pt.verdict_floor({
+        "max_family_p": 0.05, "min_consistency": 0.5, "min_fires": 2,
+        "units": [{"unit": "u", "n_fires": 1, "n_costly": 1, "n_clean": 1,
+                   "testable": True, "p_family": 0.001, "consistency": 1.0,
+                   "verdict": "unsupported"}]})
+    assert under["pass_counts"]["min_fires"] == 0
+    assert under["per_unit"][0]["first_gate_failed"] == "min_fires"
