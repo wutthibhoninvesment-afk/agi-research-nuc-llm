@@ -117,10 +117,40 @@ SELF_EXEMPT_RE = re.compile(r"^skills/[^/]+/scripts/")
 # Dated records. Their citations are reported under --historical and never
 # raise an error: a knowledge file is a snapshot of what was true on its own
 # date, and "correct when written" is the standard it is held to.
+# ROUND 495 added the two `predictions` alternatives that are not anchored on
+# a fixed directory. A PREDICTION BANK is the dated record par excellence, and
+# it is the one document in this repo that "correct when written" is not
+# merely the right standard for but the ONLY permissible one: D-013 says a
+# bank is committed BEFORE measuring, so editing it afterwards to make a path
+# resolve is precisely the tampering the rule exists to prevent. Classifying a
+# bank as authoritative therefore demands a repair the program's own rules
+# forbid.
+#
+# Two shapes were already here (`state/round-NNN-predictions.md`,
+# `nuc/predictions-`) and the corpus has since grown at least three more —
+# `state/<track>/round-NNN/PREDICTIONS.md`, `state/<track>/round-NNN/
+# predictions.md`, `state/swe/predictions-d-roundNNN.md`. Round 495 predicted
+# this gap was latent and costing nothing; it was wrong within the same round.
+# Its OWN bank, which quotes the two dangling paths it was about to
+# acknowledge, appeared as two fresh authoritative sites and was silently
+# swept up by the acknowledgements — so the entries read as covering six
+# sites when a round had inspected four.
+#
+# Kept deliberately narrower than `carryforward_check.BANK_NAME_RE` (a bare
+# `prediction`, anywhere in a filename): that pattern is applied there only
+# after `knowledge/` has been excluded, and reusing it here would reclassify
+# every essay whose title contains the word.
 HISTORICAL_RE = re.compile(
     r"^(knowledge/"
     r"|state/research-state-archive\.md$"
     r"|state/round-\d+-predictions\.md$"
+    # The basename is spelled BOTH ways in the live corpus — 62 files as
+    # `PREDICTIONS.md` and a handful as `predictions.md` — and the track
+    # directory is optional (`state/round-403/PREDICTIONS.md`). Spelled out
+    # rather than folded with re.IGNORECASE, which would also loosen the
+    # `knowledge/` and `nuc/` anchors above.
+    r"|state/(?:[^/]+/)?round-\d+/(?:PREDICTIONS|[Pp]redictions)\.md$"
+    r"|state/[^/]+/predictions-[a-z]-round\d+\.md$"
     r"|nuc/predictions-)")
 
 SCANNED_EXTS = (".md", ".py", ".lang", ".sh")

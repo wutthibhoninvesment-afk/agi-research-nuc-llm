@@ -27431,6 +27431,139 @@ the entry is round 493's.
   paid twice.
 - **Knowledge:** `knowledge/round-494-the-assertion-on-the-line-after.md`.
 
+### Round 495 — skills(B) — 2026-09-04 — a pointer to a scoring is not a scoring
+
+- **Closed all four skills-check red nodes.** Reproduced SOLO at `nproc`=1
+  first (`4 failed in 67.78 s`), so none is an artefact of the driver's four
+  concurrent suites — the three marked RECURRENT are real. Four nodes, THREE
+  root causes: `unit_tests`' four failing nodes are the `TestLiveCorpus`
+  mirrors of `carryforward` / `selfdesc_check` / `xref_check` and close when
+  those do. The health log's node list reads as four independent failures.
+- **THE FINDING — a promise read as a deed.** Round 492 banked 14 predictions,
+  wrote `Scored in §10.` in its knowledge file, and ended that file at
+  `## 9.`. No §10, no `HIT` and no `MISS` anywhere in it; rounds 493 and 494
+  checked by hand, neither scored it. `carryforward_check.py --suggest`
+  proposed `"status": "scored"` **quoting the sentence that promises the
+  section that was never written.** The cause is an asymmetric vocabulary:
+  `SCORE_PATTERNS` has four patterns for "was scored" and `NEGATION_RE` ten
+  alternatives for "was NOT scored", and nothing for "was scored OVER THERE".
+  That asymmetry generalises — misreading a negation is loud, misreading a
+  promise is silent, and the loud one is the one that gets fixed. Had a round
+  accepted the proposal, K001 would have closed while D-013's second half
+  stayed undone: the ledger laundering the debt it exists to expose.
+- **Fixed** with `unkept_pointer()` — a scoring-shaped line citing a location
+  and carrying no verdict of its own is evidence only if the location
+  resolves. The verdict-on-the-line guard came first and is load-bearing:
+  round 490's real tally also points at a section.
+- **A SECOND false positive was hiding under the first.** With the pointer
+  rule in, `--suggest` still said `scored` for 492 — now quoting
+  `knowledge/round-493-…md:230`, which is **round 493's own §8 row scoring
+  round 493's own P7** and merely mentions round 492 in a description cell.
+  `credited_rounds` misses it (round 489 widened that regex to
+  `round N's <qualifiers> P<n>/predictions/bank`; the noun here is
+  `artefacts`). Fixed with `row_subject_is_a_pid`, cross-round path ONLY.
+  All 6 rows this vetoes corpus-wide (23, 125, 137, 340, 401, 492) were read
+  by hand and are the same shape. Same lesson as round 489: repairing a
+  filter MOVES the wrong evidence — re-run and read what got promoted.
+- **Ledger, hand-adjudicated not accepted from `--suggest`:** 490 `scored`
+  (own §9, 15 rows), 491 `scored` (own §8, 7 rows), 492 **`unscored`**, owner
+  language(C), with the unkept promise recorded as the reason. `carryforward`
+  4 errors -> 0.
+- **Two acknowledgements, because the prose is RIGHT.** Round 493's note about
+  its own `git mv` must keep naming the path it moved away from; entered in
+  `state/known-selfdesc-drift.json` (its first entry since round 437) and in
+  `state/known-dangling-citations.json`. **One mistake needed two registries:**
+  `xref_check` does not scan `.json`, `selfdesc_check` does not scan `.md`,
+  and neither can see the other's copy of the same sentence. Nothing enforces
+  that; it is only written down.
+- **The acknowledgement recursed.** Naming the dangling path in the `why`
+  field raised a fresh J004 — the registry that records a broken path could
+  not name it. `xref_check` solves this for itself with a declared blind spot
+  over `skills/*/scripts/` ("the checkers themselves quote the rot they
+  detect"); the acknowledgement registries have none. Round 495 named the path
+  by coordinate rather than mint a blind spot for its own prose.
+- **`knowledge/v1_roadmap_mission.txt` escalated to the OPERATOR, not fixed.**
+  CLAUDE.md's MASTER MISSION block tells every round to read a file that has
+  never existed in this repo's history; the block was landed by `7aab36a`,
+  "not authored by a round". A round can only invent the operator's roadmap
+  and cite it as authority, or edit the operator's block. Filed with
+  `owner: operator`; deliberately NOT in `state/known-absent-paths.json`,
+  which is for prose whose naming of an absent path is correct.
+- **62 of 171 prediction banks were in the AUTHORITATIVE scope**, a standard
+  D-013 forbids them from meeting — a bank is committed before measuring, so
+  editing it to make a citation resolve is the tampering the rule prevents.
+  `HISTORICAL_RE` knew 2 bank shapes and the corpus had grown 3 more. Widened;
+  all 171 now `historical` or `frozen`, with `research-state.md`, `CLAUDE.md`
+  and `nuc-missions.md` checked to confirm none was swept in.
+- **The round's own artefacts hit the round, three times.** Its bank quoted
+  the two paths it was about to acknowledge and produced two NEW authoritative
+  danglings that its own acknowledgements then swallowed (the scope fix
+  removed them); its knowledge file quoted round 490's tally verbatim and
+  broke the K006 uniqueness of the anchor it had just written, re-anchored on
+  round 490's P5 MISS row; and its `why` field dangled on its own subject.
+- **Skill:** `skills/pointer-is-not-the-evidence/` — lints clean, 3 positive
+  trigger cases (P001) plus a NEGATIVE control expecting
+  `matching-is-not-locating`, and a Verification section run in-round (C001).
+  Registered unprobed with an owner; only the priced P004 probe is outstanding.
+- **Predictions: 6 HIT / 2 SPLIT / 2 MISS of 11**, one pre-registered. Both
+  misses were over-confidence about work already in the tree: P9 predicted
+  400-700 s for the `unit_tests` tier from the CONTENDED 805 s figure and a
+  remembered contention factor, while `corpus_check.py`'s own source carries
+  round 487's direct SOLO measurement of 183.92 s. Measured: **187.38 s**.
+- **Knowledge:** `knowledge/round-495-a-pointer-to-a-scoring-is-not-a-scoring.md`.
+
+## Next steps (as of round 495)
+
+1. **P8 is a PRE-REGISTERED EXPERIMENT and round 495 cannot score it.** It
+   predicts K001 goes red again by round 498 without an instrument that
+   reaches the round doing the banking. The detector runs in `skills-check`,
+   which only skills(B) runs; the three rounds that incurred the debt were E,
+   D and C. Rounds 493, 494 and 495 all registered their own banks, so the
+   rule has partial adoption and the test is 496/497. **Do not "fix" this by
+   patching the checker** — whoever finds K001 red should say WHICH round
+   banked without registering and whether that round had any way to know.
+   harness(A) owns the delivery channel if one is wanted; skills(B) owns K001.
+2. **One mistake needed two acknowledgement registries and nothing enforces
+   the pairing.** `xref_check` scans `.md`/`.py`/`.lang`/`.sh`; `selfdesc_check`
+   scans prose fields in `.json`. A path quoted in both a markdown file and a
+   JSON field needs an entry in each, and fixing one leaves the other suite
+   red for a track that does not run it. The cheap version is a cross-check
+   that reads both registries and reports paths acknowledged in one and
+   dangling in the other. Nobody has measured how many such pairs exist.
+   skills(B).
+3. **The acknowledgement registries have no blind spot for their own subject.**
+   Round 495 dodged it by naming a path by coordinate; the next round that
+   acknowledges a dangling path will hit it again and may reach for a
+   suppression instead. Either give the registries the declared, COUNTED blind
+   spot `xref_check` gives itself, or write the coordinate-not-spelling rule
+   down where an author will see it. Re-derived at round 495 and stated so a
+   later round can falsify it in one command: `selfdesc_check.py` has no
+   `SELF_EXEMPT_RE` (0 occurrences; `xref_check.py` has 2). skills(B).
+4. **`--suggest` is a hypothesis generator and two of its three proposals this
+   round needed correcting** (490's anchor was replaceable, 492's was false).
+   It is now tested in both directions, but nothing stops a future round
+   pasting its JSON. A `--suggest` that printed "RE-DERIVE EVERY FIELD" in its
+   own output would cost one line. skills(B).
+5. **The `v1_roadmap_mission.txt` dangle is the operator's and is now
+   ESCALATED rather than merely reported** — rounds 493 and 494 each reported
+   it and neither could act. One line: add the file or drop the sentence
+   naming it. Alongside CLAUDE.md's `CRITICAL MISSION` block, re-escalated for
+   the NINETEENTH time. operator.
+6. **Round 494's next steps are UNTOUCHED by this round** — the AST shadow
+   gate being one node deep, and everything below it in that block. Round 495
+   ran no language(C) work. language(C).
+7. **Standing, and not touched by this round:** the NUC `retention --strict`
+   deadline; the `%vmeff` residual; `case_coverage`'s 47-of-99 disagreeing
+   cross-report verdicts (re-derived this round, was 49-of-103); `claim_check`
+   executing 0 of 533 commands (re-derived, was 311); and
+   `languages/whence/SECURITY.md`, still uncommitted, still not this program's
+   — do not copy a carry count for it from this file.
+8. **Four reds remain, all owned by other tracks and none touched here:**
+   `nuc/tests/test_constant_audit.py::test_the_fast_check_runs_green_on_this_tree`
+   (E, red since 487); `harness/tests/test_swe_mutation.py::test_the_grandchild_pid_survives_a_grandchild_slower_than_the_cap`
+   (A, since 490); and both `harness/tests/test_redattrib.py::TestThisTree`
+   nodes (A, since 494). harness(A) and NUC-integration(E).
+
 ## Next steps (as of round 494)
 
 1. **The AST shadow gate is ONE NODE DEEP.** `_count_asserts` is applied to

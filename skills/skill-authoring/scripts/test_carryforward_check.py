@@ -841,5 +841,119 @@ class TestEvidenceAuditOnTheLiveLedger(unittest.TestCase):
         self.assertGreaterEqual(row["rejected_foreign"], 2)
 
 
+class TestAPointerToAScoringIsNotAScoring(unittest.TestCase):
+    """Round 495. `NEGATION_RE` gave the scanner a vocabulary for "was NOT
+    scored" and none for "is scored OVER THERE", so a forward reference to a
+    section that was never written read as a completed scoring."""
+
+    # Verbatim from knowledge/round-492-the-axis-that-was-not-in-the-program.md
+    # line 11. That file ends at `## 9. Tests and gates` and contains no HIT
+    # and no MISS anywhere.
+    R492 = ("**Predictions banked at `154d1ef` BEFORE any measurement**\n"
+            "(`state/whence/round-492/predictions.md`). Scored in \u00a710.\n"
+            "\n## 9. Tests and gates\n\nsome prose\n")
+
+    def test_the_promise_alone_is_not_evidence(self):
+        self.assertIsNone(cf.score_evidence(self.R492, 492))
+
+    def test_the_same_promise_counts_once_the_section_exists(self):
+        # The rule is about RESOLUTION, not about the word "Scored". Give the
+        # document the section it promised and the pointer becomes usable.
+        self.assertIsNotNone(
+            cf.score_evidence(self.R492 + "\n## 10. Predictions scored\n",
+                              492))
+
+    def test_a_line_carrying_its_own_verdict_is_never_a_pointer(self):
+        # Round 490's real tally line points at a section AND scores 15
+        # predictions. Vetoing it would throw away a scoring for saying
+        # where the rest of it lives.
+        line = "**13 HIT / 1 MISS / 2 OPEN-KEPT of 15** (P14 in \u00a710)."
+        self.assertIsNone(cf.unkept_pointer(line, "no headings here"))
+
+    def test_the_veto_names_the_section_it_could_not_find(self):
+        self.assertEqual(
+            cf.unkept_pointer("Scored in \u00a710.", "## 9. Tests and gates"),
+            "10")
+
+    def test_a_resolving_pointer_returns_none(self):
+        self.assertIsNone(
+            cf.unkept_pointer("Scored in \u00a710.", "## 10. Suite"))
+
+
+class TestATableRowScoresItsOwnTablesRound(unittest.TestCase):
+    """Round 495's second finding: repairing the pointer rule UNCOVERED a
+    second false positive underneath it, exactly as round 489's repair had
+    moved rather than fixed round 479's evidence."""
+
+    # knowledge/round-493-the-diagnosis-nobody-built-an-instrument-from.md:230
+    ROW = ("| P7 | the five census reds are round 492's own artefacts in the "
+           "corpus | **HIT** \u2014 every assertion is a count off by one |")
+
+    def test_the_row_is_recognised_as_having_a_pid_subject(self):
+        self.assertTrue(cf.row_subject_is_a_pid(self.ROW))
+
+    def test_credited_rounds_does_not_catch_it(self):
+        # Why the existing filter was not enough: round 489 widened
+        # FOREIGN_ATTRIB_RE to `round N's <qualifiers> P<n>/predictions/bank`
+        # and the noun in this row is `artefacts`.
+        self.assertEqual(cf.credited_rounds(self.ROW), set())
+        self.assertTrue(cf._attributable(self.ROW, 492))
+
+    def test_it_is_not_cross_round_evidence_for_the_round_it_mentions(self):
+        self.assertIsNone(
+            cf.score_evidence(self.ROW, 492,
+                              require_named=["state/whence/round-492/"
+                                             "predictions.md"]))
+
+    def test_but_it_is_still_evidence_in_its_own_scope(self):
+        # The veto must never reach `own_scope`: a round's own table row IS
+        # its own scoring.
+        self.assertIsNotNone(cf.score_evidence(self.ROW, 493))
+
+    def test_a_prose_cross_round_scoring_still_counts(self):
+        line = ("- **Round 422's prediction bank is SCORED** \u2014 P1 HIT, "
+                "P2 MISS, in `state/whence/round-422/PREDICTIONS.md`.")
+        self.assertIsNotNone(
+            cf.score_evidence(line, 422,
+                              require_named=["state/whence/round-422/"
+                                             "PREDICTIONS.md"]))
+
+
+class TestSuggestIsHonestAboutAnUnkeptPromise(unittest.TestCase):
+    """`--suggest` had NO test at all before round 495 (checked by grep over
+    this file). It is the mode a round runs to discharge D-013's second half,
+    and on round 492 it proposed `"status": "scored"` quoting the sentence
+    that promises the section that was never written. Accepting that would
+    have closed K001 while the bank stayed unscored."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
+
+    def _corpus(self, knowledge_body):
+        write(os.path.join(self.tmp, "state/whence/round-492/predictions.md"),
+              "# bank\nP1. something\n")
+        write(os.path.join(self.tmp, "knowledge/round-492-x.md"),
+              knowledge_body)
+        write(os.path.join(self.tmp, "state/research-state.md"), "# state\n")
+        write(os.path.join(self.tmp, "state/prediction-bank-ledger.json"),
+              json.dumps({"banks": {}}))
+        banks, _ = cf.find_banks(self.tmp)
+        return cf.Corpus(self.tmp), banks
+
+    def test_an_unkept_promise_is_proposed_unscored(self):
+        corpus, banks = self._corpus(
+            "# Round 492\n\n(`state/whence/round-492/predictions.md`). "
+            "Scored in \u00a710.\n\n## 9. Tests and gates\n")
+        self.assertIsNone(cf.scan(corpus, 492, banks[492]))
+
+    def test_a_kept_promise_is_proposed_scored(self):
+        corpus, banks = self._corpus(
+            "# Round 492\n\n(`state/whence/round-492/predictions.md`). "
+            "Scored in \u00a710.\n\n## 10. Predictions scored\n\n"
+            "P1 HIT.\n")
+        self.assertIsNotNone(cf.scan(corpus, 492, banks[492]))
+
+
 if __name__ == "__main__":
     unittest.main()

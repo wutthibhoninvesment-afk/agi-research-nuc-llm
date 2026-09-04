@@ -314,6 +314,64 @@ NEGATION_RE = re.compile(
     r"died\s+before[^\n]{0,30}scor|nobody\s+scored|left\s+unscored)\b",
     re.IGNORECASE)
 
+# A POINTER to a scoring is not a scoring. `NEGATION_RE` gives this scanner a
+# vocabulary for "was NOT scored"; it had none for "is scored OVER THERE",
+# and the two fail in opposite directions. Round 492's knowledge file opens
+# with
+#
+#     (`state/whence/round-492/predictions.md`). Scored in §10.
+#
+# and then ends at `## 9. Tests and gates`. There is no §10, no HIT and no
+# MISS anywhere in the file, and no later round scored the bank. The
+# `scored_phrase` pattern matched the promise, `_names_round` was satisfied
+# by the bank path on the same line, and `--suggest` duly proposed a
+# `"status": "scored"` ledger entry quoting the sentence that promises the
+# section that was never written (round 495). Accepting that proposal would
+# have closed K001 for round 492 while D-013's second half stayed undone —
+# the ledger laundering the debt it exists to expose.
+#
+# So: a scoring-shaped line that cites a LOCATION and carries no verdict of
+# its own is evidence only if the location resolves.
+POINTER_RE = re.compile(
+    r"\b(?:scored|scoring|see|below|above)\b[^\n]{0,30}?"
+    r"(?:§\s*(\d{1,3})\b|\bsection\s+(\d{1,3})\b)",
+    re.IGNORECASE)
+
+# A verdict ON the line settles it: whatever else the line says, a line that
+# reports an outcome IS a scoring. Round 490's tally line is
+# `**13 HIT / 1 MISS / 2 OPEN-KEPT of 15** (P14 in §10).` — a real scoring
+# that also happens to point at a section. Without this guard the pointer
+# rule would throw away a scoring for mentioning where the rest of it is.
+VERDICT_ON_LINE_RE = re.compile(
+    r"\b(HIT|MISS(?:ES)?|PARTIAL|HALF|KEPT|VOID|KEPT\+HIT)\b")
+
+
+def unkept_pointer(line, text):
+    """The section number `line` points at, when `text` has no such heading.
+
+    None — meaning "do not veto this candidate" — if the line carries its own
+    verdict, is not a pointer at all, or points somewhere that resolves.
+
+    Resolution is against the TEXT the candidate came from, not against a
+    named file, because that is all `score_evidence` is given. The bias is
+    deliberate and it is the safe one: a heading that resolves by accident
+    (a `## 10.` belonging to some other document inside a wide
+    `cross_round_scope` paragraph join) merely restores the pre-495
+    behaviour of accepting the pointer, whereas resolving too strictly would
+    discard real scorings. A false ACCEPT costs nothing that was not already
+    being paid; a false REJECT would lose evidence.
+    """
+    if VERDICT_ON_LINE_RE.search(line):
+        return None
+    m = POINTER_RE.search(line)
+    if not m:
+        return None
+    num = m.group(1) or m.group(2)
+    if re.search(r"^#{1,6}\s+%s[.)\s]" % re.escape(num), text, re.MULTILINE):
+        return None
+    return num
+
+
 # The negation window is a CHARACTER span around the match, not the whole
 # line. Round 139's discharge line scores four predictions HIT and calls a
 # fifth "still unscorable" 250 characters later; a whole-line veto threw away
@@ -371,6 +429,42 @@ def _attributable(line, n):
     return not named or n in named
 
 
+# In a markdown scoring table the FIRST cell is the subject and the verdict
+# is the object: `| P7 | <what was predicted> | **HIT** |`. The subject is a
+# prediction id, and a prediction id belongs to whoever owns the TABLE — a
+# fact the row itself never states. So a round number appearing in a
+# DESCRIPTION cell is being talked about, not scored.
+#
+# `cross_round_scope` joins paragraphs from every prose file and throws the
+# document coordinate away, so by the time a line reaches `_names_round` there
+# is nothing left that could say which round's table it came out of. Round
+# 495 hit this the moment the pointer rule above stopped masking it:
+# round 493's own §8 row
+#
+#     | P7 | the five census reds are round 492's own artefacts in the corpus | **HIT** … |
+#
+# is round 493 scoring round 493's P7, and `scan` offered it as proof that
+# round 492's bank had been scored. `credited_rounds` does not catch it —
+# round 489 widened that regex to `round N's <up to 3 qualifiers> P<n>/
+# predictions/bank` and the noun here is `artefacts`.
+#
+# Every one of the six rows this vetoes corpus-wide (rounds 23, 125, 137,
+# 340, 401, 492 — checked by hand at round 495, the whole population whose
+# ONLY evidence is the cross-round path AND a table row) is that same shape.
+#
+# The veto's direction is the fail-safe one for a DEBT tracker: vetoing can
+# only make `scan` find LESS evidence, so an `unscored` entry stays
+# `unscored` and the debt stays visible. The error it prevents — K003
+# declaring a debt already discharged on a row about somebody else — deletes
+# the debt silently.
+_TABLE_ROW_PID_RE = re.compile(r"^\s*\|\s*\*{0,2}(P\d{1,2}[a-z]?)\*{0,2}\s*\|")
+
+
+def row_subject_is_a_pid(line):
+    """True if `line` is a table row whose FIRST cell is a prediction id."""
+    return bool(_TABLE_ROW_PID_RE.match(line))
+
+
 def _names_round(line, n, bank_paths):
     """True if `line` itself names round `n` (or one of its banks).
 
@@ -407,11 +501,17 @@ def score_evidence(text, n=None, require_named=None):
     for kind, line, negated in raw_candidates(text):
         if negated:
             continue
+        if unkept_pointer(line, text):
+            continue
         if n is not None and not _attributable(line, n):
             continue
-        if require_named is not None and not _names_round(line, n,
-                                                          require_named):
-            continue
+        if require_named is not None:
+            # CROSS-ROUND path only. A round's own table row IS its own
+            # scoring, so this veto must never reach `own_scope`.
+            if row_subject_is_a_pid(line):
+                continue
+            if not _names_round(line, n, require_named):
+                continue
         return kind, line.strip()[:200]
     return None
 
@@ -852,12 +952,23 @@ def evidence_audit(corpus, banks):
     rows = []
     for n in sorted(banks):
         text = corpus.own_scope(n)
-        negated = foreign = 0
+        negated = foreign = promised = 0
+        promises = []
         verdict = None
         for kind, line, is_neg in raw_candidates(text):
             line = line.strip()[:200]
             if is_neg:
                 negated += 1
+                continue
+            # Counted and PUBLISHED, not silently dropped. The whole reason
+            # this audit exists (round 489) is that a filter nobody can see
+            # is a filter nobody can check — and round 495's pointer rule is
+            # the first filter here that can veto a line a human would read
+            # as a scoring, so it owes the reader its rejects by name.
+            sec = unkept_pointer(line, text)
+            if sec:
+                promised += 1
+                promises.append({"section": sec, "line": line})
                 continue
             if not _attributable(line, n):
                 foreign += 1
@@ -869,6 +980,8 @@ def evidence_audit(corpus, banks):
             "round": n,
             "negated": negated,
             "rejected_foreign": foreign,
+            "rejected_unkept_pointer": promised,
+            "unkept_pointers": promises,
             "verdict_kind": verdict[0] if verdict else None,
             "verdict_line": verdict[1] if verdict else None,
             "mentions_other_rounds": mentions,
@@ -884,8 +997,12 @@ def evidence_summary(rows):
     """The three numbers `--audit-evidence` exists to publish."""
     withev = [r for r in rows if r["verdict_line"]]
     suspect = [r for r in withev if r["suspect"]]
+    promised = [r for r in rows if r.get("rejected_unkept_pointer")]
     return {"banks": len(rows), "with_evidence": len(withev),
             "rejected_foreign": sum(r["rejected_foreign"] for r in rows),
+            "rejected_unkept_pointer": sum(r.get("rejected_unkept_pointer", 0)
+                                           for r in rows),
+            "unkept_pointer_rounds": [r["round"] for r in promised],
             "suspect": len(suspect),
             "suspect_rounds": [r["round"] for r in suspect]}
 

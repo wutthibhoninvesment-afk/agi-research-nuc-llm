@@ -3015,5 +3015,37 @@
   ],
   "prompt": "We have `assert warnings <= 3` in CI. It's been lowered from 12 to 8 to 3 over a year and never raised. It's the only assertion in that test. How much is it actually protecting?",
   "note": "round 494: DISCRIMINATING NEGATIVE for shadowed-assertion-never-runs. There is only ONE assertion in the node, so nothing is being shadowed; the problem is that a one-way bound cannot tell a fix from a suppression. That is ratchet-needs-a-conservation-invariant."
+ },
+ {
+  "id": "pine-scored-in-a-section-that-does-not-exist",
+  "expect": [
+   "pointer-is-not-the-evidence"
+  ],
+  "prompt": "Our prediction-bank checker says round 492's bank was scored, and the only evidence it can show me is the line \"Scored in \u00a710.\" from that round's write-up. I opened the file and it ends at section 9. There is no HIT or MISS anywhere in it. The checker is green on this. What is wrong with it?",
+  "note": "round 495: SCORE_PATTERNS had a negation list for 'was NOT scored' and nothing for 'is scored over there'. A pointer is evidence only if it resolves; add a verdict-on-the-line escape hatch first so real tallies that cite a section are not thrown away."
+ },
+ {
+  "id": "pine-suggest-mode-proposes-marking-it-done",
+  "expect": [
+   "pointer-is-not-the-evidence"
+  ],
+  "prompt": "I ran our compliance tool's --suggest mode to fill in the three missing ledger rows. For two of them the quote it proposes is a real outcome table. For the third the quote is a sentence saying the write-up is in the appendix. Can I just accept all three? The tool is usually right.",
+  "note": "round 495: no. --suggest is a hypothesis generator; re-derive every field. Accepting the third would have closed the error while the obligation stayed undone -- the ledger laundering the debt it exists to expose."
+ },
+ {
+  "id": "pine-negation-list-but-no-pointer-list",
+  "expect": [
+   "pointer-is-not-the-evidence"
+  ],
+  "prompt": "Reviewing a scanner that decides whether an incident got a post-mortem by grepping our docs. It has a careful list of phrases meaning 'no RCA was written' that someone clearly grew over time after bad misreads. I can't find anything handling 'RCA lives in the incident doc'. Is that a real gap or am I inventing work?",
+  "note": "round 495: real, and the asymmetry is the diagnostic. The negation branch gets built because misreading it is loud; the pointer branch does not, because misreading a promise silently marks the item complete and it stops being reported."
+ },
+ {
+  "id": "pine-neg-quote-is-in-the-file-but-fifty-times",
+  "expect": [
+   "matching-is-not-locating"
+  ],
+  "prompt": "Our audit rows cite evidence with a file path and a quoted sentence, and the checker re-derives by substring search. The quote resolves fine, but I noticed one sentence appears in four different files. Does the check actually prove the row named the right file?",
+  "note": "round 495 negative control: the target EXISTS here, so this is not a pointer problem. The defect is that a substring match locates nothing -- matching-is-not-locating, not pointer-is-not-the-evidence."
  }
 ]

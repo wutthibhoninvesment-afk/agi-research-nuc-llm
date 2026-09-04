@@ -1062,3 +1062,66 @@ class TestFencedCodeIsNotAHeading(unittest.TestCase):
         heads = [m.group(2).strip()
                  for m in xref_check._headings_outside_fences(doc)]
         self.assertEqual(heads, ["A", "B"])
+
+
+class TestAPredictionBankIsADatedRecord(unittest.TestCase):
+    """Round 495. `HISTORICAL_RE` knew two prediction-bank shapes and the
+    corpus had grown three more, so 62 of 171 banks were being held to the
+    authoritative standard — a standard D-013 forbids them from meeting,
+    because a bank is committed BEFORE measuring and editing it afterwards
+    to make a citation resolve is the tampering D-013 exists to prevent.
+
+    Found live: round 495's own bank quoted the two dangling paths it was
+    about to acknowledge, and those quotes surfaced as two fresh
+    authoritative sites that the new acknowledgements then swallowed."""
+
+    def test_the_two_shapes_that_already_worked_still_do(self):
+        for rel in ("state/round-345-predictions.md", "nuc/predictions-e1.md"):
+            self.assertEqual(xref_check.scope_of(rel), "historical", rel)
+
+    def test_the_track_scoped_bank_shapes_are_historical(self):
+        for rel in ("state/skills/round-495/PREDICTIONS.md",
+                    "state/harness/round-493/predictions.md",
+                    "state/whence/round-492/predictions.md",
+                    "state/round-403/PREDICTIONS.md"):
+            self.assertEqual(xref_check.scope_of(rel), "historical", rel)
+
+    def test_the_swe_banks_are_frozen_rather_than_historical(self):
+        """`state/swe` is a FROZEN prefix and frozen wins over historical, so
+        SWE-loop(D)'s banks reach the same outcome by a different door. Pinned
+        because it is easy to read the widened regex as covering them and
+        then delete the frozen prefix believing this test still guards them."""
+        for rel in ("state/swe/round-485/PREDICTIONS.md",
+                    "state/swe/predictions-d-round491.md"):
+            self.assertEqual(xref_check.scope_of(rel), "frozen", rel)
+
+    def test_every_bank_the_ledger_checker_finds_is_dated_scope(self):
+        """The population, not a sample. `carryforward_check.find_banks` is
+        the definition of "a bank" in this repo; no file it returns may be
+        held to the authoritative standard."""
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import carryforward_check
+        banks, unnumbered = carryforward_check.find_banks(REPO_ROOT)
+        rels = [p for paths in banks.values() for p in paths] + unnumbered
+        self.assertGreater(len(rels), 100)
+        bad = [r for r in rels
+               if xref_check.scope_of(r) not in ("historical", "frozen")]
+        self.assertEqual(bad, [])
+
+    def test_the_widening_did_not_reach_the_live_prose(self):
+        """The files whose citations this check exists to police must NOT
+        have been swept into the dated scope by the widening."""
+        for rel in ("state/research-state.md", "CLAUDE.md",
+                    "state/nuc-missions.md", "state/known-absent-paths.json"):
+            self.assertEqual(xref_check.scope_of(rel), "authoritative", rel)
+
+    def test_a_state_file_that_merely_says_prediction_is_not_dated(self):
+        # Narrower than carryforward's bare `prediction` filename match on
+        # purpose: that pattern is only safe there because `knowledge/` is
+        # excluded first.
+        self.assertEqual(
+            xref_check.scope_of("state/prediction-bank-ledger.json"),
+            "authoritative")
+        self.assertEqual(
+            xref_check.scope_of("state/skills/round-495/notes.md"),
+            "authoritative")

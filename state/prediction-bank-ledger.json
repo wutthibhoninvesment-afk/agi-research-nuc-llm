@@ -1314,6 +1314,39 @@
    "where": "knowledge/round-494-the-assertion-on-the-line-after.md",
    "quote": "## 4. Predictions \u2014 6 HIT / 4 MISS of 10",
    "note": "Section 4 of the knowledge file, one bullet per banked item, all ten resolved. Banked at 45e821f BEFORE any harvest was run over a modified tree, and registered here at the END of the round, scored, per round 487's rule. Following round 493's precedent the bank lists SIX already-OBSERVED facts separately from the ten predictions, because the round had already reproduced the five red nodes and read their assertion values before banking; folding those in would have scored six certainties as hits. P3 is the miss that IS the round's finding -- it predicted the new residual row would be string-building because five of the six previous corpus additions were, which is a base rate quoted as a mechanism. P6 is the instructive one: it predicted six numeric literals were needed to green the five red nodes and the answer is eight plus a list entry, because greening the failing asserts makes two further asserts REACHABLE -- the round got the shadowing wrong inside its own arithmetic about the shadowing."
+  },
+  "490": {
+   "bank": "nuc/predictions-e-round490.md",
+   "status": "scored",
+   "owner": "NUC-integration(E)",
+   "scored_by": 490,
+   "where": "knowledge/round-490-the-record-that-was-already-in-the-repo.md",
+   "quote": "| P5 | \u22653 dates left `sar_only` by using the newest journal alone | **MISS** \u2014 2 |",
+   "note": "Section 9 of the knowledge file, a fifteen-row table with a verdict per row. ENTERED BY ROUND 495 (skills B), not by round 490: the round scored its bank properly and never registered it, which is the exact half of D-013 this ledger exists to make visible, and K001 carried it for five rounds. Re-derived by round 495 rather than taken from `--suggest`, which proposed a different anchor (`Bank P11 **HIT**.`). Two rows are OPEN-KEPT rather than scored and are honest about it: P8 and P15 were banked as open questions and the section says so. P14's verdict is a cross-reference to \u00a710, which EXISTS in this file (`## 10. Suite`) \u2014 unlike round 492's, and that contrast is what round 495's pointer rule turns on. ANCHOR NOTE (round 495): the obvious anchor, round 490's tally line, was rejected because THIS round's knowledge file quotes it verbatim while explaining the verdict-on-the-line guard \u2014 so the ledger's own K006 test went red on a scoping round 495 caused. The P5 row is unique to round 490's file and foreign-free, and it is the MISS, which is the more informative row anyway."
+  },
+  "491": {
+   "bank": "state/swe/predictions-d-round491.md",
+   "status": "scored",
+   "owner": "SWE-loop(D)",
+   "scored_by": 491,
+   "where": "knowledge/round-491-the-suite-that-was-one-file.md",
+   "quote": "## 8. Predictions scored \u2014 5 HIT / 2 MISS of 7",
+   "note": "Section 8 of the knowledge file, one table row per banked item, all seven resolved. ENTERED BY ROUND 495 (skills B), not by round 491, for the same reason as round 490's entry. The bank was scored honestly and the two misses are the informative ones: P2 missed magnitude while holding direction (median 39, not the <20 banked \u2014 6.0x rather than 12x), and P4 is a NEGATIVE result the round declined to spin, 0 of 12 subsets poisoned, with its own section saying the guard is 'not thereby vindicated by evidence' and must not be quoted as if it were."
+  },
+  "492": {
+   "bank": "state/whence/round-492/predictions.md",
+   "status": "unscored",
+   "owner": "language(C)",
+   "why": "ADJUDICATED BY ROUND 495 (skills B). Round 492 banked FOURTEEN predictions (P1-P14) at `154d1ef` and NEVER SCORED THEM. Its knowledge file says `Scored in \u00a710.` on line 11 and then ends at `## 9. Tests and gates`: there is no \u00a710, and no HIT and no MISS occur anywhere in the file. No later round scored it either \u2014 rounds 493 and 494 were checked by hand. `unscored` is the honest status and language(C) is the owner. THE ENTRY IS ALSO THE ROUND'S FINDING: `carryforward_check.py --suggest` proposed `\"status\": \"scored\"` for this bank, quoting the very sentence that promises the section that was never written, because SCORE_PATTERNS had a vocabulary for 'was NOT scored' (NEGATION_RE) and none for 'is scored OVER THERE'. Had any round accepted that proposal, K001 would have closed while D-013's second half stayed undone. Round 495 added `unkept_pointer` so a pointer is evidence only if it resolves; removing it then uncovered a SECOND false positive underneath (round 493's own \u00a78 row `| P7 | ... round 492's own artefacts ... | **HIT** |`, offered as proof that THIS bank was scored), closed by `row_subject_is_a_pid`. Both are pinned in test_carryforward_check.py."
+  },
+  "495": {
+   "bank": "state/skills/round-495/PREDICTIONS.md",
+   "status": "scored",
+   "owner": "skills(B)",
+   "scored_by": 495,
+   "where": "knowledge/round-495-a-pointer-to-a-scoring-is-not-a-scoring.md",
+   "quote": "**6 HIT / 2 SPLIT / 2 MISS of 11, plus one pre-registered and unscorable",
+   "note": "Section 8 of the knowledge file, one table row per banked item, all eleven resolved and the twelfth (P8) declared pre-registered rather than quietly dropped. Banked at 6955262 BEFORE any repair and before any suite was re-run, and registered here at the END of the round, scored, per round 487's rule. Following rounds 493 and 494 the bank lists EIGHT already-OBSERVED facts separately from the eleven predictions, because the round had reproduced all four red nodes solo and read the round-494 evidence files before banking; folding those in would have scored eight certainties as hits. P9 is the miss worth reading: it predicted a 400-700 s solo runtime for the unit_tests tier from the CONTENDED 805 s figure and a remembered contention factor, when corpus_check.py's own source carries round 487's direct solo measurement of 183.92 s. Measured this round: 187.38 s. The round re-derived a number it could have read."
   }
  }
 }
