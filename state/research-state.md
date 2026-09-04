@@ -12,12 +12,23 @@ Workspace: ~/agi-research
   - **Recurring pattern this track exists to catch, confirmed across 15+ rounds now (144/152/153/157/159/161/163/164/167/168/169/170/173/176/177/179/180/182/184/188/192/194/197/198/204/210, each eventually fixed by a later round):** real, tested, uncommitted work with no knowledge file and no research-state entry, usually from the driver's outer round-timeout firing mid-round. Every reconciliation follows the same discipline: verify from a clean re-read, never trust a prior round's own narration, check `git log` directly. Round 213 backfilled two more instances of the narrower "ran, real git_committed=True commits exist, but no `### Round N —` heading" variant: round 198 (language C, a clean backfill — real commits + knowledge file already existed) and round 197 (SWE-loop D, whose own work left no surviving diff — the flake it was chasing was independently fixed a different way by round 209).
   - **Closed (round 243):** the `--distractors`/`--paired` suppression diagnostic, open and un-run since round 105, was finally run live twice — a real near-miss pair (`~/.hermes/skills/{autonomous-ai-agents/merge-reconciler,devops/kanban-orchestrator}`) staged against `session-inheritance-audit`'s `sia-concurrent` case (`ok`, 4/4 plain vs 4/4 staged, distractors never fired) and a positive-control near-duplicate paraphrase distractor staged against `sia-{near,mid,concurrent}` (also `ok`, but the distractor co-fired in 10/12 probes rather than suppressing — sonnet's native Skill selection isn't forced-exclusive). See `references/trigger-evaluation.md`'s "Controlled distractors" section and `knowledge/round-243-skills-distractors-paired-diagnostic-first-live-run.md`. Cross-track file-ownership convention (rounds 165/174/183/188/196/207/212) — flag other tracks' uncommitted/unattributed work, don't fix or delete it outside skills(B)'s own files; this includes the non-driver Hermes-gateway files in `languages/whence/` (round 172/198/201/207/212/213, unchanged since round 212).
   - Full round-by-round detail for rounds 3-195 lives in this file's own round log above and each round's `knowledge/round-{...}-skills-*.md`; rounds 1-174's round-log entries are further archived to `state/research-state-archive.md`. Trust those over re-deriving from this summary.
-- **Language (C):** **v0.47** (round 482 — decision 60; the `## v0.45`,
+- **Language (C):** **v0.48** (round 488 — decision 62: the subject set of
+  an audit must be DERIVED from the artefact, and a scale case must vary
+  the NAME as well as the value. `reprsweep.PROBE` was the last
+  hand-written list in decision 60's design: it constructed 7 of the
+  language's 23 concrete AST node classes and reached 19 of 42 classes,
+  and `test_v47.py`'s pinned-set gate was green on all nineteen — a pin
+  measures the probe, not the language. The probe is now generated from
+  three live tables and reaches 34 of 42, with the other 8 declared
+  unreachable with reasons and checked in both directions. It found two
+  live R2 violations, in `Env` (559 characters at ONE 400-character name)
+  and `Prov` (442), the two classes decisions 58 and 60 were written FOR:
+  `scale_cases()` made every VALUE huge and every NAME short. R2 now lives
+  in exactly one function, `values._cap`.)
+  Its predecessor: v0.47 (round 482 — decision 60; the `## v0.45`,
   `## v0.46` and `## v0.47` SPEC sections were written retroactively by
   round 486, which also minted decision 61 and the `S007`-`S010` version
-  families that found the gap. The three levels below v0.47 are
-  summarised in their own sections; the chain below is unchanged, kept
-  because nothing has replaced the detail in it.)
+  families that found the gap.)
   Its predecessor: v0.44 (round 452 — decision 53: `SHOW_NEST` was two
   promises reading one number. Decision 37 had already written both down —
   "`str` is `full_show`, unbounded" and "every MISS MESSAGE is built from
@@ -26860,6 +26871,195 @@ for round 479. Whoever adjudicates it should either register it in
 - **Round 486's leftover diff verified and landed** (`b8dff22`):
   `tests/test_specreg.py` 70 passed, `specreg.py audit` 0 errors / 4 warnings,
   63 version levels, highest v0.47, header agrees.
+
+### Round 488 — language(C) — 2026-09-04 — the axis nobody varied
+
+- **Round 482's next-step 3 is CLOSED, and the defect was not where the
+  coverage gap was.** `reprsweep.py` crawls for its CLASSES and took its
+  PROGRAM from fifteen hand-written lines: **7 of the language's 23
+  concrete AST node classes, 19 of 42 classes overall**, with
+  `test_v47.py::test_the_reached_set_is_exactly_the_pinned_one` green on
+  all nineteen. *A pin catches a shrink; it cannot report that the thing
+  it pins was never the whole subject.*
+- **`PROBE` is now `derive_probe()`, from three live tables**, each with a
+  totality gate: every concrete `ast_nodes.Node` subclass; every row of
+  `_make_builtin_table()` (the call text derived from `_BUILTIN_SIGS`'s
+  argument KINDS, so **28 of 37 need no per-name entry**); every class
+  defined in `values`/`interp`. Reaches **34 of 42**; the other 8 are
+  declared in `UNREACHABLE` with a reason each and checked in BOTH
+  directions (`gaps` / `stale_exceptions`, both 0, both on the CLI as
+  `reprsweep.py --manifest`).
+- **THE FINDING: R2 was checked against big VALUES and never against big
+  NAMES, and the two violations are in the two classes decisions 58 and 60
+  were written FOR.** `Env` reprs to **559** characters for a scope holding
+  ONE 400-character name (1,783 at sixty) and `Prov` to **442** for the
+  value bound to it, against `REPR_CAP` 240. `scale_cases()` is eleven
+  hand-written cases and every one makes the value large — a 3,000-element
+  list, a 400-key record, a 5,000-character string, a 60-parameter closure
+  — and none makes a name large. An identifier is part of a rendering and
+  is exactly as large as the author types it.
+- **Both classes carried a written sentence asserting their compliance,
+  and both sentences were round 482's.** `values.REPR_CAP`'s own comment:
+  "`Env`'s is 186 characters at 31 names *(its own `_ENV_REPR_NAMES` cut
+  does the bounding)*" — that cut bounds how many names are LISTED.
+  `values._frame`'s docstring: "`Prov.__repr__` … is compliant anyway: …
+  *all four of its fields are already bounded*" — `detail` is a raw
+  identifier. Written in the two files that round changed, a few lines
+  from the constant they describe. Neither was careless; each was true of
+  every value anybody had built.
+- **Fix: R2 lives in exactly one function.** `values._cap` is now the only
+  place `REPR_CAP` is compared against a length (`_frame`, `Prov`,
+  `MergedProv`, `Env`, `ast_nodes._simple.__repr__` all route through it,
+  pinned by `test_cap_is_the_only_place_repr_cap_is_compared`); `_clip`
+  bounds the one variable-length token so `Prov(...)`'s `value=` tail
+  survives the cut; `Env` gains `_ENV_REPR_LISTING` beside
+  `_ENV_REPR_NAMES` because *how many* and *how long* are two bounds. A
+  short-name `Env` repr is byte-identical to v0.45's.
+- **The instrument had two more defects that each reported a CLEAN
+  sweep** — the same shape as round 482's two. `instances()` kept the
+  FIRST object of each class, so **the fix reverted in-process still gave
+  0 violations** (the first `Prov` on the scale probe is `v_list`, 58
+  characters); `worst_instances()` keeps the longest. And `Env.__repr__`
+  lists 4 names in DECLARATION order while the value rows were emitted
+  LAST, so the 400-character name sat at position 74 and was never listed
+  — the pass that exists to exercise the name axis ran with that axis off.
+  A third: `sorted()` over `VALUE_SOURCE` ran two rows before their own
+  dependency existed and both bound a MISS, invisible because both classes
+  had a second door. A fourth: `def reachable(source=PROBE, ...)` binds
+  the module string at def time, so rebinding `reprsweep.PROBE` audits the
+  old program — it cost one wrong measurement in this round.
+- **The negative result is the point of enumerating.** The AST family — 22
+  reachable classes, 16 never audited before, all sharing ONE generated
+  `__repr__` — is clean at 5,000-character literals, 400-character
+  identifiers and 3,000-digit numerals. Decision 60's fix was general even
+  though its evidence was not.
+- **Predictions 9 HIT / 1 MISS / 2 REFUTED of 12**, banked at
+  `d23cb04` before any measurement. The two refutations are the same miss:
+  I predicted the violation would be in the sixteen NEWLY REACHED node
+  classes (P5) and that the fix would be confined to
+  `ast_nodes._node_field` (P11). It was in two classes that had been
+  audited nineteen times, along an axis nobody had varied, and
+  `ast_nodes` needed no correctness fix at all. *Widening a subject set
+  and widening a stress case are different jobs.*
+- **SPEC:** decision 62 and `## v0.48 (round 488, language C) — the axis
+  nobody varied`. `specreg.py audit` 0 errors / 4 warnings, 64 version
+  levels, highest v0.48, header agrees.
+- **Skill:** `skills/derived-subject-set/SKILL.md` UPGRADED (not
+  duplicated — it already owns "derive the subject set from the
+  artefact") with the half it did not cover: *you derived the MEMBERS,
+  did you derive the WITNESS?* Four sub-shapes, three trigger cases, two
+  pitfalls, plus "a stress case varies ONE axis: the one the known failure
+  was on". Body split at the 500-line cap into
+  `references/prose-lists-and-lying-derivations.md`. `skill_lint --house`
+  0 errors.
+- **The corpus census caught this round and was RIGHT to.** Its `rest` set
+  — residual rows that are NOT string-building — had been the same eight
+  rows at the same eight locations for three rounds and this round took it
+  to ten: `test_v48.py:129` runs `reprsweep.PROBE` (`attribute`) and
+  `:355` runs `reprsweep.SCALE_PROBE` (`bound_nonconstant:attribute`).
+  Rounds 476 and 480 answered that signal by rewriting their composed sites
+  as whole-program literals; **that is not available here and the reason is
+  decision 62 itself** — a probe generated from live tables has no literal
+  form, and writing one would pin the derivation's output in a second place.
+  All five counters updated with attribution (residual 109 -> 114, building
+  101 -> 104, `nonconstant_programs` 65 -> 67, `module_calls` 46 -> 47,
+  calls 1041 -> 1057; `stmt_node_args` holds at 22 for a fourth round).
+  `test_specreg.py::test_decision_61_is_minted_at_both_sites` also went red
+  on `next_free(text) == 62` — a claim about the TOP of the range inside a
+  test named for decision 61 — and is now derived from
+  `max(registry_ids) + 1`, with a sibling for decision 62.
+- **Tests: `run_tests_fast.sh` 2 780 passed, 3 skipped, 116 deselected in
+  386.22 s, green.** Against the pristine HEAD baseline 2 714 / 3 / 116
+  (round 487's own `whence-health-check` over an identical
+  `languages/whence` tree, adopted rather than re-measured) the delta is
+  **+66 = exactly this round's new tests** (65 in `tests/test_v48.py`, 1 in
+  `test_specreg.py`); no pre-existing test changed OUTCOME, ten changed
+  EXPECTATION. The FIRST run took **393.78 s solo** against round 487's
+  **1 403.23 s** for the same script under four-way contention — **3.56x**,
+  independently confirming round 487's measured 3.27x floor.
+  `reprsweep.py --manifest` universe 42 / reached 34 / declared 8 / gaps 0 /
+  stale 0; `--seeds` R3 OK across three seeds.
+- **Knowledge:** `knowledge/round-488-the-axis-nobody-varied.md`.
+
+## Next steps (as of round 488)
+
+1. **`scale_cases()` is still eleven hand-written cases and the name axis
+   is the only one this round derived.** The derived scale pass varies
+   three tokens — a string literal, an identifier, a digit run — because
+   those are the three a Whence program can make arbitrarily long. Nobody
+   has asked what the OTHER axes are: arity, nesting depth, the number of
+   enclosing scopes (`Env`'s `depth` walk is unbounded in principle),
+   `Miss.reasons` length. List the inputs each repr interpolates and say
+   which of them an author sizes. language(C).
+2. **`ast_nodes.Program` is the one declared-unreachable class whose
+   reason is a claim about the whole interpreter**, not about one walk:
+   "stored on no public attribute of the Env, the Interpreter or any
+   value". `probe_manifest()["stale_exceptions"]` expires it the day that
+   stops being true, which is the right shape — but nobody has checked
+   whether `Interpreter` SHOULD expose the program, which is a design
+   question this round did not open. language(C).
+3. **The 9 `ARG_OVERRIDE` entries are each a fact the signature table
+   cannot carry** — `fn` without arity or return type, `list` without an
+   element type, `v`/"any" defaulting to a number, a name argument that
+   must exist. That is a gap in `_BUILTIN_SIGS`, not in the probe, and
+   `_order_hint` (v0.22, the table's first reader) is re-checking
+   out-of-order calls against the same under-specified kinds. Whether
+   `_order_hint` is weaker than it should be for the same reason has NOT
+   been measured. language(C).
+4. **`test_cap_is_the_only_place_repr_cap_is_compared` matches on a regex
+   over source lines** (`\s*if len\(.*REPR_CAP`). It is a real gate — it
+   fails if a fourth copy of the cut appears in the shape the three
+   existing ones had — and it is blind to a copy spelled any other way
+   (`min(len(x), REPR_CAP)`, a slice with no `if`). Say whether that is
+   acceptable or replace it with a behavioural check over every class the
+   sweep reaches. language(C).
+5. **Round 482's items 4, 5 and 7 stand, untouched by this round** — R3
+   (`seed_check`'s three-subprocess pattern) still checked for reprs and
+   nothing else, with `slowtier.plan()`, `whenceslow` unit ordering,
+   `redattrib`'s attribution and `case_coverage`'s ranking still never run
+   through anything like it; round 480's `orderhint.WITNESSES`, the
+   `b_note`/`b_at` `OWN_MISS` asymmetry and the un-benchmarked hoist
+   rejection; and `_PNode`'s public-path exclusion never checked against
+   what a caller does in practice. language(C).
+6. **Round 434's items 2-6 and round 428's item 4 are open for a TWELFTH
+   rotation** — the atom table's precondition-with-no-decider risk; the 7
+   `append_only`/`refusal` `unknown` residuals; CP03p as the one pin that
+   moves the contingency table; `classify` 161 vs `checkpin run` 162.
+   Round 488 did not touch them and did not re-derive them; do NOT quote
+   these numbers without re-deriving. language(C).
+7. **Round 458's items 1, 2, 3 and 5 stand** — `depthcensus.py` unwired
+   into any tier, the harvester's 257-program residual, `FULL_SHOW_NODES`
+   vs `DEFAULT_MAX_DEPTH` being the same number with nothing asserting it,
+   and `self_eval.lang`'s `reify` depth bound. language(C).
+8. **Round 487's items 1-8 stand because nothing here touched them**, in
+   particular the five skills(B) failures its §5 reported open and the
+   `run_driver.sh` four-concurrent-suites question. Its item 3 (P9,
+   "raising the `unit_tests` budget costs < 30 s of round wall clock") is
+   scorable by whichever round next sees a completed `unit_tests` under
+   the 1 104 s budget. harness(A) / skills(B).
+9. **A round 487 leftover ran INSIDE this round's window and nothing owns
+   it.** A coverage-instrumented `pytest` in `/tmp/camp-o6cng33a/whence`,
+   started 07:34:58 during round 487's `slowtier-slice`, was still alive
+   at 08:17:29 with `%CPU 68.6`, `%MEM 12.5` and `TIME 00:29:18`, PPID 1,
+   on a box where `nproc` is 1 — 8 minutes after the slice that spawned it
+   reported OK and committed. It exited on its own at ~08:18 and was NOT
+   killed by this round; evidence in
+   `state/whence/round-488/orphan-before.txt`. There are 44 `/tmp/camp-*`
+   directories on this box. This is the live form of round 487's own
+   next-step 6 (`test_the_grandchild_pid_survives_a_grandchild_slower_
+   than_the_cap`) and it means a round's measured wall clock can be
+   contended by the PREVIOUS round. SWE-loop(D) or harness(A).
+10. **Standing, untouched by this round:** the NUC `retention --strict`
+   deadline and the `%vmeff` residual; `case_coverage`'s disagreeing
+   verdicts; `claim_check` executing 0 of ~500 commands; the
+   operator-blocked `--cap 196`; and CLAUDE.md's TWO `CRITICAL MISSION`
+   blocks — the `b_fold` one now refuted a FIFTH time, since decision 62
+   re-measures the very repr whose heap address was that block's evidence
+   — still a one-line deletion for the operator, and do NOT reword them:
+   the pinning suites expire cleanly only if the blocks go.
+   `languages/whence/SECURITY.md` and `SECURITY_AUDIT_REPORT.md` remain
+   the operator's decision — do NOT copy a carry count for either from
+   this file; the checker's own line is the only source.
 
 ## Next steps (as of round 487)
 

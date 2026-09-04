@@ -44,6 +44,17 @@ is green *because* the thing it guards grew and it did not.
 - **You are about to replace such a list with a glob** and something else in
   the tree reads that list statically. Stop and read the section on the
   bounded exception below before you do.
+- **The set of members is derived and the FIXTURE that instantiates them is
+  not** — a crawler rooted at one hand-written input, a fuzzer over a fixed
+  corpus, a conformance suite whose cases are typed out. The roster is
+  live; the witness is a list wearing a program.
+- **You reverted the fix and the check still passed.** The check keeps one
+  arbitrary witness per member, and the violating one is a different member
+  of the same class. See the round-488 section.
+- **Every stress/scale case in the suite varies the same axis** — all of
+  them make the value big, none makes the NAME big; all deepen the tree,
+  none widens it. A "however large X is" claim checked on one axis is a
+  claim about that axis.
 
 **When NOT to use:** the check does not exist (write it); the check exists
 and nothing runs it (`unrun-checker-latency`); the rule is documented and
@@ -139,154 +150,97 @@ pytest tests/test_antirot.py -q      # green with the new member present = stale
 grep -rnE '^[A-Z][A-Z0-9_]+ = [([]' --include='*.py' . | head -40
 ```
 
-## A derived set can go EMPTY, and that is worse than stale (round 395)
+## A derived set can go EMPTY, and that is worse than stale
 
-Deriving the set is necessary and not sufficient. The derivation reads an
-**artefact**, and it is really reading a *proxy for a fact*; when the proxy's
-meaning changes without the fact changing, the set does not go stale, it goes
-**empty**.
+A derivation that returns nothing makes every `for x in derived: assert ...`
+loop pass vacuously. A stale literal at least still asserts something. Every
+derived subject set needs a floor — `assert len(derived) >= N` with `N`
+justified, or an explicit "this family is empty and here is why".
 
-Worked example. `curecheck.field_programs()` selected "the programs a separate
-system leaves in `examples/`" with
+Worked instance and the shape of the floor:
+`references/prose-lists-and-lying-derivations.md`.
 
-```python
-subprocess.run(["git", "ls-files", "--others", "--exclude-standard", "examples"])
-```
+## The list is often in PROSE, and prose is where it is least checkable
 
-— untracked status, derived from git, with an explicit argument in its own
-docstring for why a hand-written list would be worse. Three rounds later a
-`git add -A` sweep tracked all fourteen files. Not one byte of any file
-changed. The selector returned `[]`.
+A carried next-step, an ADR, the "candidates" paragraph of the write-up that
+found the defect: nobody treats those as anti-rot checks because they are not
+checks, and the next change runs them as the work order. Round 482 measured
+one — an eight-item remembered list against a derived crawl — and it was
+wrong in BOTH directions: two members it waved through as already fine were
+the two largest violations, and nine violators were on no list at all.
 
-What that costs, and why it is worse than a stale list:
+Two further ways a derivation lies, both from that round: the derivation
+silently returns a SUBSET (an `id()`-keyed walk that drops its own objects; a
+crawl budget reported as completeness), and a rule set derived from one known
+failure finds that failure again.
 
-| | stale set | empty set |
-|---|---|---|
-| `assert all(P(x) for x in S)` | fails on the item it missed | **vacuously true** |
-| `assert len(S) == N` | fails, naming the extra item | fails, naming `0 == N` |
-| `S["known_member"]` | works | `KeyError`, naming the member not the cause |
+Worked instances, code and the counts:
+`references/prose-lists-and-lying-derivations.md`.
 
-Two of the four tests that broke here were the vacuous kind's siblings and
-two were the loud kind, and **none of the four failure messages contained the
-word "empty" or the name of the selector.**
+## You derived the MEMBERS. Did you derive the WITNESS? (round 488)
 
-The moves:
+Deriving the subject set is half the job. The other half is the thing you
+instantiate each member WITH, and it is usually still hand-written, because
+it does not look like a list.
 
-1. **Name the fact, then ask whether the artefact is the fact or a proxy for
-   it.** "Written by another system" is the fact; "untracked" is a proxy, and
-   proxies are what other people's commits change.
-2. **Prefer a declaration the repo already has over a fresh proxy.** Here a
-   frozen census (`state/whence/round-384/field-names.json`) had listed the
-   fourteen names for eleven rounds and a *different* guard already trusted
-   it. Reading it is not "a hand-written list": it is the existing
-   declaration, read instead of re-derived from something weaker.
-3. **Keep the live derivation as a REPORT, not as the source.** The original
-   argument — "if the gateway adds a program tomorrow this picks it up" — is
-   real and worth keeping. It became `field_corpus_drift()`, which returns
-   `(undeclared, missing)`. The property survives; the failure mode does not.
-4. **Assert non-emptiness at the derivation, not at the assertion sites.** A
-   selector that can legitimately return zero should say so; one that cannot
-   should raise there, where the message can name the selector.
+Whence's `reprsweep.py` audits every class it can REACH by crawling a live
+object graph — no list of classes anywhere. It crawled that graph from
+`PROBE`, fifteen hand-written lines. **7 of the language's 23 AST node
+classes appeared in those lines**, so the crawl was exhaustive over one
+program and read as exhaustive over the language, and the pinned-set test
+guarding it was green on all nineteen classes it did reach. Four distinct
+defects, all of which reported a CLEAN result:
 
-## The list is often in PROSE, and prose is where it is least checkable (round 482)
+1. **The fixture is the list.** Derive the generator, not just the roster:
+   for each derived member, emit the input that constructs it, and assert
+   the member is actually produced. "There is a line for it" is not the
+   property — *the line constructs it* is. In this instance the emitted
+   calls came from an argument-KIND table the tree already kept for another
+   purpose, so 28 of 37 needed no hand-written entry.
+2. **One arbitrary WITNESS per member.** The walk kept the FIRST object of
+   each class it hit. For a property that varies *within* a member — a repr
+   whose length depends on the identifier in it — the first witness you
+   reach is not the one that violates. Symptom, and it is unmistakable:
+   **you revert the fix and the check still passes.** Keep the extremum
+   (longest, deepest, oldest), not the first.
+3. **A derived witness row that constructs nothing.** Two rows of the value
+   table ran before the row they depended on and bound a MISS; both classes
+   were reached anyway by a second path and the sweep reported clean. Gate
+   it: assert no generated binding is an error value. If one half of your
+   generator has that gate (the builtin half did) and the other does not,
+   that asymmetry is the bug report.
+4. **A module-level fixture captured as a default argument.**
+   `def reachable(source=PROBE, ...)` binds the string once at def time, so
+   a caller who rebinds `module.PROBE` silently audits the old fixture and
+   gets a plausible answer. `source=None` plus `source or PROBE`.
 
-Every worked example above has the literal in *code*, where at least a
-future reader is looking at an assertion. The most consequential ones are
-not in code at all.
+### A stress case varies ONE axis: the one the known failure was on
 
-Round 476 of this program fixed one class's `__repr__`, wrote the general
-rule into its spec registry, and closed with a next-step naming the
-candidates for the sweep:
+Same round, and it is where the live defects actually were. The rule under
+audit read *"bounded, however large the VALUE is"*. Eleven hand-written
+scale cases made the value large in every way anyone could think of — a
+3,000-element list, a 400-key record, a 5,000-character string, a
+60-parameter closure. Not one made a NAME large. Three renderings
+interpolate an identifier, and all three were unbounded: **559 characters
+for a scope holding one 400-character name, 442 for the value bound to it,
+against a 240 cap.**
 
-> The unrendered candidates a caller can reach: `Explanation`, `Closure`,
-> `Builtin`, `WList`, `PMap`, `Record`, `Miss`, `Guess`. `WList`/`PMap`
-> have constructor-style reprs; the rest were not checked this round.
-> **Somebody should grep for classes with no `__repr__` and ask, for each,
-> whether a caller can hold one.**
+Both classes were the ones the rule had been written FOR, both had been
+audited on every previous run, and both carried a written sentence asserting
+their compliance — one in the constant's own comment, one in the shared
+helper's docstring, both written by the round that introduced the rule.
+Neither sentence was careless. Each was true of every input anybody had
+built.
 
-Best conditions a list ever gets: written by the round that found the
-defect, one round after touching the code. Five rounds carried it. Run at
-last by CRAWLING the object graph — 19 classes reachable, **11 in
-violation against the remembered 8** — it was wrong in *both* directions:
+> **Widening the subject set and widening the stress case are different
+> jobs. A rule set derived from one known failure varies the axis that
+> failure was on; the coverage gap and the defect are usually not in the
+> same place.**
 
-- the two members it waved through as already fine (`WList`, `PMap`) were
-  the two largest violations in the tree, at 156,787 and 22,986 characters;
-- nine violators were on no list at all, two of them structurally
-  un-listable by the proposed method: the engine class (a list of *value*
-  classes cannot contain the object the caller constructs first) and a
-  subclass that INHERITED a wrong repr (a grep for "classes with no
-  `__repr__`" skips it, because it has one).
-
-**A prose list is a measurement nobody took, and it is read as one.** The
-tells: it lives in a document a future change uses as its work order; it
-was written by the person who had just finished looking, which is exactly
-when a list feels complete; it carries a judgement per member ("these two
-are fine"), so acting on it inherits someone's verdict without their
-evidence; and the METHOD named beside it is itself a filter — "grep for
-classes with no `__repr__`" cannot see an inherited one. **When a
-next-step names a method, audit that method's blind spots first**, because
-everything it cannot see will be reported as absent.
-
-The move is step 3 with a wider notion of artefact: crawl the live object
-graph, walk the AST, query the schema — derive from the thing the claim is
-about, and pin the derived SET (not its count) so a silent shrink fails.
-
-### The derivation can silently return a SUBSET
-
-Step 5's cross-check exists for this, and here are two concrete ways a
-crawl shrinks with no error at all. Both were live in the same instrument
-on the same day, and both made it report a clean sweep.
-
-1. **`id()` is a key only for objects you are holding.** A `seen = set()`
-   of `id()`s is correct only while every visited object stays alive. A
-   lazily-built property —
-
-   ```python
-   @property
-   def inputs(self):
-       ins = self._ins
-       return ins if type(ins) is tuple else (ins,)     # a FRESH tuple
-   ```
-
-   — makes the walk allocate, record the id, drop the object, and then skip
-   a live object CPython hands the freed address to. Cost: one class,
-   silently. Fix: retain every visited object (`keep.append(obj)`), which
-   is not bookkeeping, it is correctness.
-
-2. **A budget cap turns "did not finish" into "found nothing more".** Once
-   the retention bug was fixed, the same crawl walked out of the subject
-   graph through a public attribute into the host's module `__dict__`s and
-   ran to its 60,000-step limit — reporting **13 of 19** classes and no
-   violations for the six it never reached. Bound the walk by TYPE (descend
-   the subject's own classes and plain containers, nothing else), and
-   report the budget state as data:
-
-   ```python
-   return found, {"steps": steps, "exhausted": bool(queue), "limit": limit}
-   ```
-
-   then assert `not exhausted` in the test. A crawl that ran out is a
-   different answer from a crawl that finished, and only one of them is a
-   result.
-
-Neither was found by reasoning about the crawl; both were found by a count
-that looked wrong — 18 where 19 was expected, then 13 where 19 was. That
-is the argument for pinning the derived SET rather than only asserting the
-property over it: the property held, vacuously, over whatever survived.
-
-### A rule set derived from one known failure finds that failure again
-
-A related trap, same round. The sweep's rules were written from the defect
-that prompted it (a heap address in a repr), giving R1 no-host-leak, R2
-bounded, R3 deterministic. They found nine instances of R1 — and passed a
-class whose inherited repr introduced it under the WRONG CLASS NAME and
-dropped its only distinguishing field. That became R4, and R4 exists only
-because the sweep ran.
-
-Budget for the rule the sweep adds after it first runs, and treat the
-first run's surprises as rule candidates rather than one-off fixes. A rule
-set that gains nothing on first contact with the full population is
-evidence the population was not enumerated.
+Before you trust a "however large X is" claim, list the inputs that reach
+the renderer and ask which of them the author sizes. Value, name, count,
+depth, arity, path — each is an axis, and the cheap tell is that your
+fixtures all vary the same one.
 
 ## The bounded exception: when a static reader needs your literal (round 477)
 
@@ -382,6 +336,13 @@ test rather than in a checker slot.
 
 ## Pitfalls
 
+- **Deriving the roster and hand-writing the witness.** The members come
+  off a live table and the inputs that instantiate them are still typed out,
+  so the audit is exhaustive over the fixture and reads as exhaustive over
+  the family. Ask what the derived set is instantiated WITH.
+- **Keeping the first witness instead of the worst.** Fine when every member
+  of a class behaves identically; wrong the moment a property varies with a
+  field. The tell is a fix you cannot falsify.
 - **Fixing the list instead of the mechanism.** Adding the eight missing
   members to the literal makes the suite green and leaves the ninth to the
   same fate. If the family can grow, derive it.
@@ -448,6 +409,20 @@ python3 -m pytest tests/test_v33.py -k "owned_by_a_cure_rule" -q
 
 # 4. the sweep — every other hand-written subject set in the tree
 grep -rnE '^[A-Z][A-Z0-9_]+ = [([]' --include='*.py' . | head -40
+
+# 5. round 488: the WITNESS half. The manifest reports coverage of each
+#    derived axis and exits 1 on a gap or a stale exception, so "how much
+#    of the family does this audit actually instantiate" is a CLI line
+#    rather than something you have to import the module to learn.
+cd languages/whence && python3 reprsweep.py --manifest
+       # derived probe: 23 node class(es) / 37 builtin(s) / 19 runtime class(es)
+       # universe 42, reached 34, declared unreachable 8, gaps 0, stale
+       #   exception(s) 0
+python3 -m pytest -c pytest.ini -q tests/test_v48.py     # 65 passed
+#    the falsifier: revert the fix in-process and the audit must name the
+#    exact members it kills, or the witness selection is wrong
+python3 -m pytest -c pytest.ini -q tests/test_v48.py \
+    -k "reverting_the_three_reprs or worst_instance"      # 2 passed
 
 # 5. round 482: the derived set is pinned as a SET, and the crawl that
 #    produces it reports whether it FINISHED
