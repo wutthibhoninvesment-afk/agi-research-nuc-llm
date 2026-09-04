@@ -26414,6 +26414,171 @@ does NOT score round 473's predictions, which remain unscored.
   probe. **No priced call of any kind was made this round.**
 - **Knowledge:** `knowledge/round-483-the-sweep-that-could-not-name-its-own-cause.md`.
 
+### Round 484 — NUC-integration(E) — 2026-09-04 — the receipt that outlived its day file by 3.7 seconds
+
+- **Box UP** on the SAME boot as round 478 (`0d0e3188da124a4b9f78b26dd95d3ea2`,
+  `uptime -s 2026-09-03 09:37:09Z`, 16h02m in). Second consecutive up round.
+  Capture `state/nuc-capture-r484` taken FIRST, before any analysis: **12
+  seconds, 2.3 MB**, `capture_manifest audit --strict` exit 0.
+- **THE FIRST SWEEP THIS PROGRAM HAS EVER OBSERVED SPLIT A `sa`/`sar`
+  PAIR.** The 2026-09-04T00:07:**18** fire deleted seven of the eight files
+  round 478 forecast — and spared **`sar26`**, mtime
+  2026-08-27T00:07:**21.677**, i.e. 8 days *less 3.7 seconds*, which
+  `-mtime +7` floors to 7. Round 478's retention theorem ("the two files
+  always share a verdict") is **FALSE**. Three facts, each read not assumed:
+  `/usr/lib/sysstat/sa2` renders the receipt and THEN sweeps, in one script;
+  `sysstat-summary.timer` has **no `AccuracySec=` override**, and the six
+  captured fire instants span **17 seconds**; `find -mtime +7` bites at age
+  >= 8 days exactly. So `saNN`'s age at the sweep is (whole days + 17m14s)
+  and `sarNN`'s is (whole days) +/- the jitter — **the day file is never near
+  the boundary and the receipt is always exactly on it**, once per file, on
+  one day of its life.
+- **The split has ONE direction and it is the one carrying evidence.** The
+  receipt is 17 minutes younger, so it outlives its day file by exactly one
+  sweep, never predeceases it. That one-day window is an ORPHAN RECEIPT — and
+  it is always the OLDEST decidable day, the one about to exist nowhere but
+  in a capture. Round 478 named orphans and scored none. **A receipt is
+  self-sufficient: `sa2` writes it only when it runs.** Now scored
+  (`evidence: "receipt_only"`); the live capture goes **7 -> 8** decidable
+  fires, recovering 2026-08-27T00:07.
+- **`summary_fossil.py margins` (new) makes the edge predictive**, from data
+  every capture already banks: `margin = (S - W) - 8 days` over journal fire
+  instants. It returns exactly one `orphaned` row, **-3.0 s**, for the
+  receipt written 2026-08-27T00:07:21Z. **Two disjoint sources agree** — the
+  filesystem listing finds `sar26`, the journal timestamps name the same
+  receipt, and neither input mentions the other.
+- **`nuc/fossil_ledger.py` + `state/nuc-fossil-ledger.jsonl` (new) close
+  round 478's next-steps 4 and 5**, both of which stopped being hypothetical
+  overnight: the fossil read off the live box went **10 decidable fires ->
+  8**, and 2026-08-24/-25/-26 are no longer derivable there at all. The union
+  is **4 captures read, 5 NAMED unusable, 11 fire instants, 0
+  disagreements**, vs 10 for the best single capture and 8 for the newest.
+  Agreement is the null hypothesis and a conflict is reported, never
+  reconciled; a refusal (`fire_pending`) is not a vote; `now` comes from the
+  capture's own boot table and **never a file mtime**, because git does not
+  preserve mtimes and a fresh clone would date every capture to its checkout.
+- **A defect this round's own test found in this round's own module.**
+  `n_decidable` summed verdict WORDS, but with no receipt anywhere in a
+  listing there is no schedule to derive, so every row carries a verdict and
+  `fire_utc: None`. A capture taken deep in an outage would have reported
+  `n_decidable: 2` and contributed **nothing** — a number that reads as
+  coverage and unions to zero, which is the exact failure this module exists
+  to prevent.
+- **`coverage --strict` was RED at round start**, because round 478
+  connected, took a capture, wrote a 90-line addendum and **never appended
+  its own reachability row**. The structural cause: **`coverage` excludes the
+  in-flight round**, so a round that omits its own row always passes its own
+  gate and reddens the NEXT one. Backfilled as `backfill-prose-r478` /
+  `precision: coarse` (the addendum quotes no LastSeen and this round will
+  not invent digits). Gates then **0 / 0 / 1**, as rounds 460-478 left them.
+- **Closing that coverage gap RAISED the published ignorance.**
+  `unobserved_total_s` 396378.0 -> **426906.0**. Attributed rather than
+  re-baselined: removing EITHER new row restores 396378.0 exactly. **One
+  observation of an up box has no interior and creates no measurable
+  interval; two create the 30528 s between them.** The two tests now separate
+  their INVARIANTS (`unearned_claims == []` — a rule holds it, breaking it is
+  a finding) from their CORPUS-DERIVED census figures (re-derive; do not
+  preserve).
+- **Four inherited record gaps discharged.** (1) Round 483's leftover diff,
+  verified as entirely round 483's and committed as `7b05209`. (2)
+  `knowledge/mission-fold-fix-v1.md` was deleted **by the Hermes gateway**,
+  not by any round (`3658e02`/`88d5165`, author HIVE, 00:04-00:44Z), left
+  unstaged; `CLAUDE.md` cites it **twice**, so committing the deletion would
+  have dangled two citations in the repo's own instruction file —
+  **restored**. (3) The `languages/whence/SECURITY.md` escalation entry was
+  dead (`escalationguard audit` -> fate REVERTED); deleted per the checker,
+  with its substance moved to a `_resolved` key that
+  `load_escalated_diffs` does not read, so round 475's warning that the
+  remedy destroys the trace is honoured without suppressing anything.
+  (4) Round 479 still has no state entry, but its work IS in git
+  (`aedad26`), so nothing is at risk.
+- **THE ESCALATED SUBSTANCE GOT COMMITTED.** The same gateway commit that
+  reverted `SECURITY.md` **added `languages/whence/SECURITY_AUDIT_REPORT.md`**
+  and committed it, so round 349's mitigation ("nothing has been published
+  while it sits in the working tree") no longer holds. Round 349's four
+  claims re-checked at HEAD: **still four for four false** (no
+  `.pre-commit-config.yaml`, and the only pre-commit hook is round 475's
+  `escalationguard.py`, which scans no secrets; no `.github/workflows`;
+  **0** git tags; no `.env`/`*.key` patterns in any `.gitignore`). ONE
+  reappears, as a green tick §6 `Vulnerability scanning | OK` that §7 then
+  contradicts by recommending it be built. A NEW false claim rides along:
+  `Verified test count: 875/875` against **2802 collected** at HEAD. Its §3
+  "No file system access" was checked and **HOLDS**. **Not rewritten**, for
+  round 349's reason — outward-facing, operator's authorship, operator's
+  call. **Escalated, not resolved.**
+- **Tests: `nuc/tests` 1037 -> 1076, all green, 415 s** (run alone; `nproc`
+  is 1). Round 483's health check left one failing
+  (`test_constant_audit.py::test_the_fast_check_runs_green_on_this_tree`);
+  green here, cause at 483 not re-derived. **23 mutations; first pass 21
+  killed / 2 SURVIVED**, both real gaps — the `margin >= 0` boundary was
+  unreachable behind the resolution guard, and `REFUSALS = ()` survived
+  because my fixture produced no fire instant so the wrong clause was doing
+  the work. Both closed; **second pass 23/23, 0 survived.**
+- **Predictions: 9 HIT, 3 MISS, 2 SPLIT of 14**
+  (`nuc/predictions-e-round484.md`, banked at `bb98f0c` before any predicted
+  quantity was measured, with an explicit list of what was ALREADY known at
+  banking time so no row could be scored a hit on it). **The three misses are
+  ONE shape: each extrapolated how bad a known-bad thing had got from a
+  SINGLE prior observation, and each over-predicted.** Round 483 banked that
+  same lesson from the other direction; this round repeated it three times in
+  one bank without noticing. The two SPLITs are the round's two best
+  findings — in both, the world did most of what was predicted and **the
+  residual was the discovery**.
+- **Writes to the box:** exactly one — `/work/logs/nuc-sweep-edge.md`,
+  md5-verified both ends. **No unit restarted, port 8001 NEVER contacted, no
+  engine request of any kind.**
+- **Knowledge:** `knowledge/round-484-the-receipt-that-outlived-its-day-file.md`.
+
+## Next steps (as of round 484)
+
+1. **`sar26` is dead by now** — age 9 days at the 2026-09-05T00:07 sweep, and
+   no timer jitter reaches 86400 s. Do not go looking for it on the box; its
+   record is in `state/nuc-fossil-ledger.jsonl` and
+   `state/nuc-capture-r484/sysstat-binary.tar.xz`. NUC(E).
+2. **Run `summary_fossil.py margins --strict` on every capture from now on.**
+   It names the next orphan in advance. An `undecidable` margin is the
+   sub-second gap between a journal line and a real mtime and needs `stat`,
+   not a guess. NUC(E).
+3. **Take a capture on every up round even if nothing else uses it.** Round
+   478 asked for this and round 484 is the evidence: 12 s, 2.3 MB, and it
+   bought three fire-days that no longer exist on the box. NUC(E).
+4. **`fossil_ledger.py append` every round, and never analyse from the newest
+   capture alone** — it currently sees 8 of the union's 11 fire instants.
+   Five of nine captures are unusable to it (no sysstat listing: r406, r430,
+   r460, r466, r472 — all down rounds) and r400 needs a `DECLARED_NOW` entry
+   because it predates the boot table. Both facts are reported rather than
+   silent; no future up-round capture should join that list. NUC(E).
+5. **The `coverage`-excludes-the-in-flight-round hole is still open.** Round
+   484 backfilled round 478 but did not change the gate: the next round to
+   forget its own row will pass its own check and redden the one after. The
+   honest fix is for the driver to append the row, or for `coverage` to warn
+   on an in-flight round with no row by the time it exits. harness(A) or
+   NUC(E).
+6. **Round 472's items 2, 3 and 4 are UNTOUCHED for a second round:**
+   deconfound the lead-lag shoulder with a per-round-window resampling;
+   `lead_lag_profile` still has no null; **`test_perturbation.py` has still
+   never been mutation-tested while carrying every published number in this
+   track.** Rounds 478 and 484 both mutation-tested only their own new code.
+   NUC(E).
+7. **Round 436's items 4, 5 and 9 stand, untouched for a seventh round** —
+   the `commit` channel vs the 9.25 GB weights load, `Consumed` coverage at
+   4 of 26 units, the separability route. NUC(E).
+8. **Round 483's items 1-N stand because nothing touched them, not because
+   anything checked them.** Re-derive FIRST — that rule has now changed the
+   answer in four consecutive rounds that tried it.
+9. **Blocked on the operator, and one item is NEW and worse than the others:**
+   `languages/whence/SECURITY_AUDIT_REPORT.md` is **committed** and
+   outward-facing and asserts controls this repo does not have (§8b of round
+   484's knowledge file has the four re-checks and the 875/875 test-count
+   falsification). Alongside it: `--cap 196` (band [129, 204],
+   `bounded_by: engine_lru`, 1.096 GB margin — **twenty-eighth** round
+   unchanged), the E3 A/B with its six-gate table, and CLAUDE.md's
+   `CRITICAL MISSION` block, still a one-line deletion. Do NOT copy a carry
+   count for the SECURITY files from this file; the checker's own line is the
+   only source.
+10. **`nproc` on this box is 1.** Plan every suite as serialised; `nuc/tests`
+   is 415 s alone.
+
 ## Next steps (as of round 483)
 
 1. **The two live seed sweeps still have no control arm, and that is a

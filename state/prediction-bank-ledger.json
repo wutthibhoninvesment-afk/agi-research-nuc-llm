@@ -1243,6 +1243,15 @@
    "where": "knowledge/round-483-the-sweep-that-could-not-name-its-own-cause.md",
    "quote": "**Tally: 8 HIT, 3 MISS, 1 PARTIAL of 12.**",
    "note": "Section 9 of the knowledge file, one table row per banked item, all twelve scored -- no remainder. Banked at HEAD 2a54690 (commit bac968a) before a single subject ran under a perturbed hash seed, and registered here in the round that wrote it, ending the 474/476/478 run of banks that K001 -- not the round -- noticed. The three misses (P2, P5, P6) are ONE bet stated three ways: that this tree's derived-value instruments would turn out cross-process dirty. They lost 0-of-13, and the reason is that the bank had been shown exactly one instance of the class (round 481's `best_incoming` tie) and predicted the population from it. That is now step 19 of skills/prediction-banking/SKILL.md. Step 18's AUTHOR/SYSTEM axis reached its third bank here and is settled as REFUTED: SYSTEM 5 HIT / 3 MISS against AUTHOR 3 HIT / 1 PARTIAL."
+  },
+  "484": {
+   "bank": "nuc/predictions-e-round484.md",
+   "status": "scored",
+   "owner": "NUC-integration(E)",
+   "scored_by": 484,
+   "where": "knowledge/round-484-the-receipt-that-outlived-its-day-file.md",
+   "quote": "**9 HIT, 3 MISS, 2 SPLIT of 14**",
+   "note": "Section 11 of the knowledge file, one table row per banked item, all fourteen scored -- no remainder. Banked at HEAD b7604a1 (commit bb98f0c) before any predicted quantity was measured, and registered here in the round that wrote it. The bank opens with an explicit list of what was ALREADY measured at banking time (reachability, boot id, uptime) so no row could be scored a hit on something already known. The three misses (P5, P11, P12) are ONE shape stated three ways: each extrapolated how bad a known-bad thing had got from a SINGLE prior observation, and each over-predicted. Round 483 banked the same lesson from the other direction and this round repeated it three times in one bank without noticing. The two SPLITs (P2, P4) are the round's two best findings -- in both, the world did most of what was predicted and the residual was the discovery: sar26 surviving 7-of-8 is the sweep-edge result, and `coverage --strict` exiting 1 is round 478's missing reachability row."
   }
  }
 }

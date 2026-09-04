@@ -3251,3 +3251,122 @@ engine request of any kind, nothing read or written outside the allowed paths.
 8. **Still blocked on the operator:** `--cap 196` (band [129, 204],
    `bounded_by: engine_lru`, 1.096 GB margin — **twenty-seventh** round
    unchanged) and the E3 A/B with its full six-gate table.
+
+## Round 484 (NUC-integration E) — 2026-09-04, box **UP** on the SAME boot as round 478 (`0d0e3188da124a4b9f78b26dd95d3ea2`, `uptime -s 2026-09-03 09:37:09Z`, 16h02m in). Second consecutive up round; the 436/442/448/454/460/466/472 outage is still the last one
+
+**Reachability.** tailnet `ssh -i ~/.ssh/id_ed25519 jab@100.78.44.111` at
+2026-09-04T01:23:10Z -> **SSH_OK** on the first try. `tailscale status`:
+`active; direct [2001:fb1:9e:823e:42a3:ccff:fe1f:469f]:41641`. The LAN path
+was not attempted (the key still does not exist on this host and the tailnet
+path worked).
+
+**THE FIRST SWEEP THIS PROGRAM HAS EVER OBSERVED, AND IT SPLIT A PAIR.**
+Round 478 forecast that the 2026-09-04T00:07 fire would delete eight files.
+It fired at **00:07:18** and deleted **seven**: `sa23 sa24 sa25 sa26 sar23
+sar24 sar25`. **`sar26` survived**, mtime 2026-08-27T00:07:21.677 — 8 days
+*less 3.7 seconds*, which `-mtime +7` floors to 7, and `7 > 7` is false.
+
+**Why, all three facts READ rather than assumed.** `/usr/lib/sysstat/sa2`
+renders the receipt and THEN sweeps, in one script.
+`sysstat-summary.timer` is `OnCalendar=00:07:00` with **no `AccuracySec=`
+override**, and the six fire instants in this round's captured journal are
+`00:07:21, 00:07:21, 00:07:04, 00:07:04, 00:07:05, 00:07:18` — a **17-second
+spread**. `find -mtime +7` bites at age >= 8 days exactly. So `saNN`'s age at
+the sweep is (whole days + 17m14s) and `sarNN`'s is (whole days) +/- that
+jitter: **the day file is never near the boundary and the receipt is always
+exactly on it.** Round 478's retention theorem ("the two files always share a
+verdict"; "the receipt is younger and dies no earlier") is FALSE, in the one
+direction that carries positive evidence.
+
+**The split has one direction and lasts one day.** The receipt is 17 minutes
+younger, so it outlives its day file by exactly one sweep and then dies. The
+observable is an ORPHAN RECEIPT — and it is always the OLDEST decidable day,
+the one about to exist nowhere but in a capture. Round 478 named orphans and
+scored none. Round 484 scores them (`evidence: "receipt_only"`); the live
+capture goes **7 -> 8 decidable fires**, recovering 2026-08-27T00:07.
+
+**NEW — `summary_fossil.py margins`.** Computes, from journal timestamps
+ALONE, which receipt orphans next: `margin = (S - W) - 8 days`. On
+`nuc-capture-r484` it returns exactly one `orphaned` row, **-3.0 s**, for the
+receipt written 2026-08-27T00:07:21Z. **Two disjoint sources agree** — the
+filesystem listing finds `sar26`, the journal timestamps name the same
+receipt, and neither input mentions the other.
+
+**NEW — `nuc/fossil_ledger.py` + `state/nuc-fossil-ledger.jsonl`** (round
+478's next-steps 4 and 5, both of which stopped being hypothetical overnight:
+the fossil read off the live box went **10 decidable fires -> 8**). Unions
+every capture, append-only, keyed by fire instant: **4 captures read, 5 named
+unusable, 11 fire instants, 0 disagreements** vs 10 for the best single
+capture and **8 for the newest**. `now` comes from the capture's own boot
+table, never a file mtime (git does not preserve mtimes).
+
+**`coverage --strict` was RED at round start.** Round 478 connected, took a
+capture, wrote a 90-line addendum — and never appended its own reachability
+row. Structural cause: **`coverage` excludes the in-flight round**, so a
+round that omits its own row always passes its own gate and reddens the next
+one. Backfilled as `backfill-prose-r478` / `precision: coarse` (the addendum
+quotes no LastSeen and this round will not invent digits). Gates then
+**0 / 0 / 1**, as rounds 460-478 left them.
+
+**Closing that gap RAISED published ignorance.** `unobserved_total_s`
+396378.0 -> **426906.0**. Attributed, not re-baselined: removing EITHER new
+row restores 396378.0 exactly. One observation of an up box has no interior;
+two create the 30528 s between 17:10:54Z and 01:39:41Z. The program can now
+name a stretch it previously could not see at all.
+
+**Journal decay continued, in a shape round 484 did not predict.** The boot
+table still lists the same 5 boots — but boot -4's FIRST ENTRY moved
+`2026-08-25 12:57:42` -> **`18:28:02`**: journald ate **5h30m of the oldest
+boot's interior** without dropping the boot.
+
+**Tests: `nuc/tests` 995 -> 1037 (r478) -> 1076, all green, 415 s** (run
+alone; `nproc` is 1). **23 mutations; first pass 21 killed / 2 SURVIVED**
+(the `margin >= 0` boundary, unreachable behind the resolution guard; and
+`REFUSALS = ()`, whose fixture produced no fire instant so the wrong clause
+was doing the work). Both gaps closed; **second pass 23/23, 0 survived.**
+
+**Predictions 9 HIT / 3 MISS / 2 SPLIT of 14** (`nuc/predictions-e-round484.md`,
+banked `bb98f0c` before any predicted quantity was measured). The three
+misses are one shape: each extrapolated how bad a known-bad thing had got
+from a SINGLE prior observation, and each over-predicted. The two SPLITs are
+the round's two best findings.
+
+**Box state.** uptime 16h02m, load 0.00/0.00/0.00; Mem **5406 / 31984 MB
+(16.9%)**, **swap 0 of 4095 MB**, `Committed_AS` 5.48 GB. `qwen36-colibri`
+and `qwen36-toolproxy` (USER units) both active/running since
+2026-09-03T09:37:19Z, **`NRestarts=0`**.
+
+**Writes to the box:** exactly one — `/work/logs/nuc-sweep-edge.md`,
+md5-verified `9291e9c73a0cf230939513b1486ba504` both ends. **No unit
+restarted, port 8001 NEVER contacted, no engine request of any kind.**
+Capture taken FIRST, before any analysis: 12 seconds, 2.3 MB compressed,
+`capture_manifest audit --strict` exit **0**.
+
+**E-mission status: E1-E5 all still DONE; nothing new unchecked.**
+
+**Next E round, in order:**
+1. **`sar26` is dead by now** (age 9 days at the 2026-09-05T00:07 sweep; no
+   jitter reaches 86400 s). Do not go looking for it — its record is in
+   `state/nuc-fossil-ledger.jsonl` and `state/nuc-capture-r484`.
+2. **`summary_fossil.py margins --strict` on every capture**, and treat an
+   `undecidable` margin as a call for `stat`, not a guess.
+3. **Take a capture even if the round does nothing else with it.** This round
+   is the evidence: 12 s, 2.3 MB, and it bought three days that no longer
+   exist on the box.
+4. **`fossil_ledger.py append` every round**; never analyse from the newest
+   capture alone (it sees 8 of 11 fire instants).
+5. **Five of nine captures are unusable to the ledger** (no sysstat listing:
+   r406/r430/r460/r466/r472 — all down rounds); r400 needs a `DECLARED_NOW`
+   entry because it predates the boot table. Both are reported, neither is a
+   defect — but no up-round capture should ever join that list.
+6. **Round 472's items 2, 3 and 4 are UNTOUCHED for a second round:**
+   deconfound the lead-lag shoulder with per-round-window resampling;
+   `lead_lag_profile` still has no null; `test_perturbation.py` has still
+   never been mutation-tested while carrying every published number in this
+   track. This round again mutation-tested only its own new code.
+7. **Round 436's items 4, 5 and 9 stand, untouched for a seventh round** —
+   the `commit` channel vs the 9.25 GB weights load, `Consumed` coverage at
+   4 of 26 units, the separability route.
+8. **Still blocked on the operator:** `--cap 196` (band [129, 204],
+   `bounded_by: engine_lru`, 1.096 GB margin — **twenty-eighth** round
+   unchanged); the E3 A/B with its full six-gate table.
