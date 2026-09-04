@@ -349,3 +349,75 @@ not off the parser's defaults.
 `169 bank(s), 163 scored, 4 error(s)` -> `164 scored, 3 error(s)` when round
 493's own bank was registered with its scoring. The three that remain are
 rounds 490, 491 and 492 and are those tracks' to discharge.
+
+## 13. THE ROUND COMMITTED ITS OWN FINDING, WITHIN THE HOUR
+
+The full fast tier, run after the commit, came back **8 failed, 1570 passed
+in 589.64 s** — up from the 4 it started with. Every one of the four new
+failures was caused by this round's own diff, and the biggest of them is the
+exact defect this round exists to report:
+
+```
+W001  harness/reddebt.py: entry point with no registry entry
+```
+
+**I built a new entry point and did not declare it** — the fifth-instance
+shape, committed by the round whose entire finding is that four previous
+rounds did it and nobody was told. The difference, and the only one, is that
+this round **ran the whole tier** and therefore found out in the same hour
+instead of three rounds later. That is worth stating precisely, because it
+narrows the diagnosis: the recurrence is not carelessness about registries.
+It is that a track which does not run the reddened suite does not run it —
+and the fix for *that* is the route, not more discipline.
+
+`harness/reddebt.py` is now declared, `wired`, `via run_driver.sh:322`, with
+a `reason` that says it was declared by the round that built it and why that
+is worth recording.
+
+### The second-order consequence nobody warned me about: line pins drift
+
+The other three new failures were one cause, and it is mechanical.
+Inserting 36 lines into `run_driver.sh` moved **every `via: run_driver.sh:NNN`
+claim in `harness/wiring-registry.json` by 36**:
+
+```
+DRIFTED  harness/run_tests_fast.sh          pinned=run_driver.sh:548 -> run_driver.sh:584
+DRIFTED  harness/run_whenceslow_slice.sh    pinned=run_driver.sh:775 -> run_driver.sh:811
+DRIFTED  languages/whence/run_tests_fast.sh pinned=run_driver.sh:549 -> run_driver.sh:585
+DRIFTED  nuc/run_checks_fast.sh             pinned=run_driver.sh:551 -> run_driver.sh:587
+DRIFTED  skills/run_checks_fast.sh          pinned=run_driver.sh:550 -> run_driver.sh:586
+DRIFTED  skills/.../corpus_check.py         pinned=run_driver.sh:633 -> run_driver.sh:669
+```
+
+which took `test_viapin.py::TestThisTree::test_this_registry_makes_no_false_
+via_claim` and the two `test_run_driver_*_slice.py` call-site tests red with
+it. `harness/viapin.py fix --write` exists for precisely this and repaired
+all of them in one call — the pins are content-addressed enough to relocate
+mechanically. **Anyone editing `run_driver.sh` should run
+`python3 harness/viapin.py fix --write` before committing**, and that fact
+is not written anywhere the editor of that file would see it.
+
+**After the repairs:**
+
+```
+wiring-audit:          139 entry point(s), 119 in closure, 0 error(s), 0 warning(s)
+red-attribution audit: 49 node(s) ever red, 49 declared, 0 error(s)
+via-pins:              116 pin(s), 35 held, 0 drifted, 0 lost, 0 absent, 81 unpinned
+pytest (the 8 failing nodes + the new suite): 194 passed in 243.79 s
+```
+
+The five `redattrib` R001s were round 492's `test_testcorpus_census.py`
+nodes, undeclared since they first went red. They are declared now, scope
+`own-suite`, evidence `subject` — the registry is harness(A)'s and R001 is
+fail-closed, the same reason this round declared `nuc/record_union.py`. The
+underlying counts are still language(C)'s to fix (next-step 5); declaring a
+node is not fixing it, and the entry says so.
+
+### And the JSON round-trip bit me a second time
+
+Writing those two registries back with `indent=1` reformatted **1 027 lines**
+across them. Reverted and redone with each file's **own** indent, detected by
+reading the second line rather than guessed: **34 insertions, 1 deletion.**
+Same error as §12, twice in one round, forty minutes apart, after writing the
+rule down in between. Writing a rule down is not applying it — which is, one
+level up, this entire round's finding.

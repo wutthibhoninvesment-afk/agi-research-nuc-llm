@@ -27247,6 +27247,41 @@ the entry is round 493's.
   contaminated my own clean re-timing run by launching it while another
   pytest was still going, on a box whose `nproc` is 1: round 434's mistake
   and my own standing note about baselines, committed again.
+- **THE ROUND COMMITTED ITS OWN FINDING, WITHIN THE HOUR.** The full fast
+  tier run after the commit came back **8 failed, 1570 passed in 589.64 s**,
+  up from the 4 it started with, and the largest new failure was
+  `W001 harness/reddebt.py: entry point with no registry entry` — the
+  fifth-instance shape, committed by the round reporting it. The only
+  difference from rounds 473/479/485/490 is that this round RAN THE WHOLE
+  TIER and found out in the same hour. That narrows the diagnosis usefully:
+  the recurrence is not carelessness about registries, it is that a track
+  which does not run the reddened suite does not run it — so the fix is the
+  route, not more discipline.
+- **Second-order consequence, mechanical and undocumented:** inserting 36
+  lines into `run_driver.sh` moved **every `via: run_driver.sh:NNN` claim in
+  the wiring registry by 36** (7 pins), taking `test_viapin.py` and both
+  `test_run_driver_*_slice.py` call-site tests red. `harness/viapin.py fix
+  --write` exists for exactly this and repaired all of them in one call.
+  **Anyone editing `run_driver.sh` should run it before committing**, and
+  that is written nowhere the editor of that file would see it.
+- **After the repairs:** `wiring-audit 139 entry point(s), 119 in closure,
+  0 error(s), 0 warning(s)`; `red-attribution audit 49 node(s) ever red,
+  **49 declared, 0 error(s)**` (the five undeclared were round 492's census
+  nodes, now scope `own-suite`/evidence `subject` — declaring is not fixing,
+  and the entry says so); `via-pins 116 pin(s), 35 held, 0 drifted`;
+  **194 passed in 243.79 s** over the eight formerly-red nodes plus the new
+  suite. `carryforward` 4 error(s) -> 3 once this round's bank was registered
+  with its scoring.
+- **Clerical, recorded rather than tidied:** the bank was committed at
+  `languages/whence/state/harness/round-493/predictions.md` because a stale
+  `cd` persisted into the `mkdir` (`git mv`d; `6c2c680` is the
+  before-measuring timestamp either way, history not rewritten); and a JSON
+  round-trip reformatted unrelated lines **twice** — 42 in
+  `trigger-cases.json`, then 1 027 across two registries forty minutes later,
+  after the rule had been written down in between. Both redone by reading
+  each file's OWN encoding and indent instead of the parser's defaults.
+  Writing a rule down is not applying it, which is this round's finding one
+  level up.
 - **Knowledge:** `knowledge/round-493-the-diagnosis-nobody-built-an-instrument-from.md`.
 
 ## Next steps (as of round 493)

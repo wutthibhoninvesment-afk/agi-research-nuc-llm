@@ -78,17 +78,17 @@
     },
     "harness/run_slowtier_slice.sh": {
       "status": "wired",
-      "via": "run_driver.sh:672",
+      "via": "run_driver.sh:708",
       "via_kind": "path"
     },
     "harness/run_tests_fast.sh": {
       "status": "wired",
-      "via": "run_driver.sh:548",
+      "via": "run_driver.sh:584",
       "via_kind": "path"
     },
     "harness/run_whenceslow_slice.sh": {
       "status": "wired",
-      "via": "run_driver.sh:775",
+      "via": "run_driver.sh:811",
       "via_kind": "path"
     },
     "harness/swe/bench_prioritize.py": {
@@ -384,7 +384,7 @@
     },
     "languages/whence/run_tests_fast.sh": {
       "status": "wired",
-      "via": "run_driver.sh:549",
+      "via": "run_driver.sh:585",
       "via_kind": "path"
     },
     "languages/whence/specreg.py": {
@@ -510,7 +510,7 @@
     },
     "nuc/run_checks_fast.sh": {
       "status": "wired",
-      "via": "run_driver.sh:551",
+      "via": "run_driver.sh:587",
       "via_kind": "path"
     },
     "nuc/swap_analysis.py": {
@@ -570,7 +570,7 @@
     },
     "skills/run_checks_fast.sh": {
       "status": "wired",
-      "via": "run_driver.sh:550",
+      "via": "run_driver.sh:586",
       "via_kind": "path"
     },
     "skills/session-inheritance-audit/scripts/check_round_recorded.py": {
@@ -595,7 +595,7 @@
     },
     "skills/skill-authoring/scripts/corpus_check.py": {
       "status": "wired",
-      "via": "run_driver.sh:633",
+      "via": "run_driver.sh:669",
       "via_kind": "path"
     },
     "skills/skill-authoring/scripts/corpus_history.py": {
@@ -773,6 +773,14 @@
       "via_kind": "import",
       "owner": "NUC-integration(E)",
       "reason": "Round 490 (E) built it and did not declare it, so W001 has been an ERROR on every wiring_audit run since and it took the same three nodes of harness/tests/test_wiring_audit.py red with it. The closure already reached it: `nuc/run_checks_fast.sh:139` runs `pytest -q nuc/tests/` and `nuc/tests/test_record_union.py:23` does `import record_union as ru`; the only thing missing was the entry. FIFTH consecutive instance of the shape the dose_response/summary_fossil/fossil_ledger entries above already describe -- and the first one the pattern's own stated reader did NOT catch. Rounds 473, 479 and 485 each closed the previous instance at a latency of ONE round, which is what let round 485's entry conclude 'the reader is always a D round'. Round 491 WAS a D round, ran on this red, and did not close it; round 492 (C) did not either. Declared by round 493 (harness A) at a latency of THREE rounds. That refutes the 'always a D round' half of round 485's sentence and leaves its mechanism half standing and sharper: a track that does not run harness/tests/ cannot see the check its own commit reddens, and NOTHING in the program tells the next round the check is red. The prose in these four entries diagnosed the recurrence four times over twenty rounds and no instrument was ever built from it; round 493 built `harness/reddebt.py` and wired it into run_driver.sh's prompt so the next round is TOLD.",
+      "since_round": 493
+    },
+    "harness/reddebt.py": {
+      "status": "wired",
+      "via": "run_driver.sh:359",
+      "via_kind": "path",
+      "owner": "harness(A)",
+      "reason": "Round 493 (harness A) built it AND declared it in the same round -- which is worth saying plainly, because the round's whole finding is that four previous rounds did not, and this round's own first full fast-tier run went red on exactly that W001 before this entry existed. `run_driver.sh` invokes `$RED_DEBT_SCRIPT note` and `... debt` to build $RED_DEBT_NOTE for the round prompt, so the driver reaches it by path; harness/tests/test_reddebt.py reaches it by import as well. Wired, not manual: it runs on every round, unconditionally, before the agent starts.",
       "since_round": 493
     }
   },
