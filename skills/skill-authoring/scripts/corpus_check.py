@@ -75,6 +75,7 @@ a different log format rather than borrowed from one.
 import argparse
 import glob
 import json
+import math
 import os
 import re
 import signal
@@ -583,7 +584,140 @@ def budget_clause(results):
     return "; budget: " + ", ".join(over) if over else ""
 
 
-def run_one(name, argv, root, timeout=600, evidence_dir=None):
+# --------------------------------------------------------------------------
+# Round 487 (harness A). TWO REPAIRS TO ONE CASCADE, AND THE SECOND IS THE
+# INTERESTING ONE.
+#
+# `unit_tests` reported COULD NOT RUN in rounds 483, 485 and 486. That red
+# `skills-check` line is read by `harness/driver_health.py:
+# unacknowledged_broken_checker_rounds`, so it also reddened
+# `test_driver_health.py::TestBrokenCheckerLiveRecord::
+# test_the_live_log_has_no_unacknowledged_broken_checker`, and THAT node had
+# no `harness/crosstrack-registry.json` entry, so `redattrib` R001 reddened
+# two more. Three failing tests in the harness fast tier, one cause.
+#
+# THE FIRST REPAIR: THE BUDGET WAS NEVER A BUDGET FOR THIS CHECKER.
+# Round 487 timed the exact `unit_tests` argv ALONE on this idle 1-core box:
+# **183.92 s**, 1 074 tests, `state/harness/round-487/unit-tests-solo.json`.
+# A checker doing 184 s of work was killed at a 600 s budget. Round 451
+# derived a contention factor of ~3.7 from the crossing and said so out loud
+# ("DERIVED, not measured directly"); this is the direct measurement, and it
+# says the factor is at least 601/183.92 = 3.27 -- a floor, because the run
+# was killed rather than finished. The driver starts FOUR pytest suites as
+# background jobs (`run_driver.sh` HEALTH_PID/WHENCE_PID/SKILLS_PID/NUC_PID)
+# on a box where `nproc` is 1, so a fair share is a quarter of a core and
+# 4 x 183.92 = 735.7 s is the expected contended runtime -- ABOVE the budget
+# it was given, in the absence of any growth at all.
+#
+# So the budget is now DERIVED, per `skills/measured-budget-sizing`: the
+# measured solo cost, times the concurrency that is a property of the RUNNER
+# and not of the checker, times a margin. Not a hand-picked round number --
+# `test_corpus_check.py::TestDerivedBudget` recomputes all three factors from
+# their sources (the measurement file, and a count of `_PID=$!` suites in
+# `run_driver.sh`), so a fifth concurrent suite expires this constant by
+# itself instead of buying another three rounds of COULD NOT RUN.
+#
+# Raising it costs no round wall-clock: the three sibling suites take
+# 1 114-1 516 s under the same contention, so `skills-check` at ~736 s still
+# finishes inside a window bounded by its slowest sibling.
+DEFAULT_TIMEOUT_S = 600
+
+#: Measured round 487 (harness A), solo, `nproc` 1, HEAD 21027a2+486's diff.
+#: `state/harness/round-487/unit-tests-solo.json` is the receipt.
+UNIT_TESTS_SOLO_S = 183.92
+#: `run_driver.sh` backgrounds this many pytest suites at once. Counted, not
+#: assumed -- see `TestDerivedBudget.test_the_concurrency_is_read_off_the_driver`.
+DRIVER_CONCURRENT_SUITES = 4
+#: `skills/measured-budget-sizing` step 3 wants a margin over the PROJECTION,
+#: not over the sample. The projection here already carries the contention.
+BUDGET_MARGIN = 1.5
+
+#: Per-checker overrides; everything absent gets `DEFAULT_TIMEOUT_S`.
+CHECK_TIMEOUT_S = {
+    "unit_tests": int(math.ceil(UNIT_TESTS_SOLO_S * DRIVER_CONCURRENT_SUITES
+                                * BUDGET_MARGIN)),
+}
+
+
+# THE SECOND REPAIR: ROUND 451'S SALVAGE COULD NOT SALVAGE `unit_tests`.
+#
+# Round 451 rewrote the timeout branch so a killed checker still reports what
+# it managed to say, and wrote that repair BECAUSE `unit_tests` had timed out
+# five times. It parses the partial output with `_findings_in`, i.e. with
+# `FINDING_RE` -- `(ERROR|WARN|STALE|CARRIED|error|warning)\s+([A-Z]\d{3})`.
+# Nine of the ten checkers speak that alphabet. `unit_tests` is a `pytest -q`
+# run and speaks a bar of `.` and `F`, so the salvage returns `errors=[],
+# warnings=[]` for the one checker it was written for. Measured over the
+# whole of `logs/driver.log`: of EIGHT `COULD NOT RUN: unit_tests` lines,
+# **zero** carry a single parsed code. Every one reads `unit_tests TIMEOUT`.
+#
+# The cost is not hypothetical and it is in this repo's own evidence
+# directory. `logs/corpus-evidence/round-486/unit_tests.out` is 15 progress
+# lines containing 1 096 characters and FIVE `F`s -- five failing tests,
+# already observed, already on disk, in a round whose `driver.log` line says
+# only that a checker could not run. When the same suite is NOT killed the
+# driver line quotes pytest's summary and says "5 failed" in plain words; 33
+# `skills-check` lines in this log do exactly that. The information was never
+# missing. It was written in a font the reader did not have.
+PYTEST_PROGRESS_RE = re.compile(r"^([.FEsxXuUpP]{8,})(?:\s+\[\s*\d{1,3}%\])?$")
+PROGRESS_PCT_RE = re.compile(r"\[\s*(\d{1,3})%\]")
+
+
+def pytest_partial(lines):
+    """Read a killed `pytest -q` run's progress bar as a verdict, or `None`.
+
+    `None` means "these lines contain no progress bar", which is the honest
+    answer for the nine checkers that are not pytest runs and for a pytest
+    run killed before it drew one. It is deliberately NOT `{"seen": 0, ...}`:
+    a caller that cannot tell "not a pytest run" from "a pytest run that saw
+    nothing" has the bug this module keeps re-finding.
+
+    The `{8,}` bound is what keeps an ordinary line of prose ellipsis out.
+    Progress lines under `-q` are 72 characters wide plus an optional
+    `[ NN%]`; only the LAST one, the one the kill interrupts, is short, and
+    round 486's was 16 characters.
+    """
+    bars, pct = [], None
+    for line in lines:
+        m = PYTEST_PROGRESS_RE.match(line.strip())
+        if not m:
+            continue
+        bars.append(m.group(1))
+        p = PROGRESS_PCT_RE.search(line)
+        if p:
+            pct = int(p.group(1))
+    if not bars:
+        return None
+    joined = "".join(bars)
+    return {"seen": len(joined), "passed": joined.count("."),
+            "failed": joined.count("F"), "errored": joined.count("E"),
+            "skipped": joined.count("s"), "pct": pct}
+
+
+def partial_phrase(t):
+    """"1074 test(s) seen through 93%, 5 failed, 0 errored"."""
+    return "%d test(s) seen %s, %d failed, %d errored" % (
+        t["seen"],
+        ("through %d%%" % t["pct"]) if t["pct"] is not None
+        else "with no % marker",
+        t["failed"], t["errored"])
+
+
+def partial_clause(results):
+    """"; partial: unit_tests 1074 seen/5 failed" for each salvaged bar.
+
+    This rides on the LAST line of the corpus check, which is the line
+    `run_driver.sh` copies into `driver.log`. Putting it anywhere else would
+    repeat rounds 483/485/486: the finding existed, in a file, and the record
+    that gets read did not carry it.
+    """
+    got = ["%s %d seen/%d failed" % (r["check"], r["partial_tests"]["seen"],
+                                     r["partial_tests"]["failed"])
+           for r in results if r.get("partial_tests")]
+    return "; partial: " + ", ".join(got) if got else ""
+
+
+def run_one(name, argv, root, timeout=None, evidence_dir=None):
     """Run one checker. The result ALWAYS carries what the checker managed
     to say, including when it was killed for running long.
 
@@ -634,6 +768,8 @@ def run_one(name, argv, root, timeout=600, evidence_dir=None):
     retention writes a second, named file from the text already in memory,
     so no failure path can leave a `/tmp` file behind.
     """
+    if timeout is None:
+        timeout = CHECK_TIMEOUT_S.get(name, DEFAULT_TIMEOUT_S)
     if argv[0] != "-m" and not os.path.exists(argv[0]):
         return {"check": name, "status": "absent", "errors": [],
                 "warnings": [], "coverage": "", "elapsed_s": 0.0,
@@ -676,16 +812,23 @@ def run_one(name, argv, root, timeout=600, evidence_dir=None):
         # finding: it distinguishes a checker that is slow from one that
         # hung before it started.
         last = lines[-1][:120] if lines else ""
-        return _finish({"check": name, "status": "timeout", "errors": errors,
-                        "warnings": warnings, "coverage": coverage_of(out),
-                        "elapsed_s": elapsed, "timeout_s": timeout,
-                        "partial": True, "output_lines": len(lines),
-                        "summary": "timed out after %ds; %s" % (
-                            timeout,
-                            ("%d line(s) before the kill, last: %s"
-                             % (len(lines), last))
-                            if lines else "said nothing before the kill")},
-                       out, evidence_dir)
+        salvaged = (("%d line(s) before the kill, last: %s"
+                     % (len(lines), last))
+                    if lines else "said nothing before the kill")
+        # Round 487: the test counts go IN FRONT of the line count. "5
+        # failed" is the headline; "15 line(s), last: ..............." is
+        # what rounds 483, 485 and 486 got instead of it.
+        tests = pytest_partial(lines)
+        if tests:
+            salvaged = "%s; %s" % (partial_phrase(tests), salvaged)
+        res = {"check": name, "status": "timeout", "errors": errors,
+               "warnings": warnings, "coverage": coverage_of(out),
+               "elapsed_s": elapsed, "timeout_s": timeout,
+               "partial": True, "output_lines": len(lines),
+               "summary": "timed out after %ds; %s" % (timeout, salvaged)}
+        if tests:
+            res["partial_tests"] = tests
+        return _finish(res, out, evidence_dir)
     if rc == 2 or (rc not in (0, 1)):
         return _finish({"check": name, "status": "error", "rc": rc,
                         "errors": [], "warnings": [],
@@ -870,7 +1013,7 @@ def main(argv=None):
              ("; coverage: " + "; ".join("%s %s" % (r["check"], r["coverage"])
                                          for r in cov)) if cov else
              "; coverage: none published",
-             budget_clause(results)))
+             partial_clause(results) + budget_clause(results)))
     if broken:
         return COULD_NOT_RUN
     return ERRORS_FOUND if n_err else PASS

@@ -15,7 +15,9 @@ would print false prose in two of its four branches. A round that later
 import contextlib
 import io
 import json
+import math
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -241,6 +243,175 @@ class TestTimeoutReapsTheWholeTree(unittest.TestCase):
                              "grandchild survived the timeout kill")
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
+
+
+class TestProgressBarIsAVerdict(unittest.TestCase):
+    """Round 487 (harness A). Round 451's salvage was blind to `unit_tests`.
+
+    `_findings_in` reads `FINDING_RE`, an `ERROR H001` alphabet. A `pytest -q`
+    run answers in a bar of `.` and `F`. So the timeout branch -- written
+    because `unit_tests` had timed out five times -- returned empty findings
+    for `unit_tests` and only for `unit_tests`, and rounds 483, 485 and 486
+    each logged ten minutes of computation and five already-observed test
+    failures as `unit_tests TIMEOUT`.
+
+    The real round-486 output is the fixture, on purpose: a synthetic bar
+    would pin the parser against the shape this round happened to imagine.
+    """
+
+    EVIDENCE = os.path.join(ROOT, "logs", "corpus-evidence", "round-486",
+                            "unit_tests.out")
+
+    def test_a_real_killed_run_reports_its_failures(self):
+        if not os.path.exists(self.EVIDENCE):
+            self.skipTest("round-486 evidence has been rotated away")
+        lines = [l for l in io.open(self.EVIDENCE, encoding="utf-8",
+                                   errors="replace").read().splitlines()
+                 if l.strip()]
+        t = corpus_check.pytest_partial(lines)
+        self.assertIsNotNone(t)
+        self.assertEqual(t["failed"], 5)
+        self.assertGreater(t["seen"], 1000)
+        self.assertEqual(t["pct"], 93)
+        self.assertEqual(t["seen"], t["passed"] + t["failed"] + t["errored"]
+                         + t["skipped"])
+
+    def test_not_a_pytest_run_is_None_and_not_a_zero(self):
+        # THE DISTINCTION THE WHOLE MODULE KEEPS RE-LOSING. `{"seen": 0}`
+        # would read as "a pytest run that saw nothing", which is a
+        # different fact about the world from "not a pytest run".
+        self.assertIsNone(corpus_check.pytest_partial(
+            ["/a/SKILL.md: ERROR H001 no trigger", "coverage 3/9 checkers"]))
+        self.assertIsNone(corpus_check.pytest_partial([]))
+
+    def test_short_ellipsis_prose_is_not_a_progress_bar(self):
+        self.assertIsNone(corpus_check.pytest_partial(["...", "....."]))
+
+    def test_the_counts_are_read_off_the_bar_not_off_a_summary(self):
+        t = corpus_check.pytest_partial(
+            ["..F..s..E..............................................." + "." * 20,
+             "....F... [ 47%]"])
+        self.assertEqual(t["failed"], 2)
+        self.assertEqual(t["errored"], 1)
+        self.assertEqual(t["skipped"], 1)
+        self.assertEqual(t["pct"], 47)
+
+    def test_the_phrase_names_seen_failed_and_the_progress(self):
+        phrase = corpus_check.partial_phrase(
+            {"seen": 1020, "passed": 1015, "failed": 5, "errored": 0,
+             "skipped": 0, "pct": 93})
+        self.assertIn("1020 test(s) seen", phrase)
+        self.assertIn("through 93%", phrase)
+        self.assertIn("5 failed", phrase)
+
+    def test_a_bar_with_no_percent_marker_says_so(self):
+        phrase = corpus_check.partial_phrase(
+            {"seen": 16, "passed": 16, "failed": 0, "errored": 0,
+             "skipped": 0, "pct": None})
+        self.assertIn("no % marker", phrase)
+
+    def test_the_clause_rides_on_the_line_the_driver_logs(self):
+        # An empty clause when nothing was salvaged -- the aggregate line is
+        # already long and a `partial:` saying nothing is noise.
+        self.assertEqual(corpus_check.partial_clause(
+            [{"check": "skill_lint", "errors": []}]), "")
+        self.assertEqual(
+            corpus_check.partial_clause(
+                [{"check": "unit_tests",
+                  "partial_tests": {"seen": 1020, "failed": 5}}]),
+            "; partial: unit_tests 1020 seen/5 failed")
+
+
+class TestAKilledPytestCheckerReportsWhatItSaw(unittest.TestCase):
+    """The end-to-end of the above, through `run_one`'s timeout branch."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp()
+        bar = os.path.join(cls.tmp, "bar.py")
+        write(bar,
+              "print('%s [ 50%%]' % ('.' * 30 + 'F' * 2 + '.' * 40), "
+              "flush=True)\n"
+              "import time\ntime.sleep(30)\n")
+        cls.killed = corpus_check.run_one("x", [bar], cls.tmp, timeout=2)
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def test_the_summary_leads_with_the_kill_then_names_the_failures(self):
+        self.assertIn("timed out after 2s", self.killed["summary"])
+        self.assertIn("72 test(s) seen through 50%, 2 failed",
+                      self.killed["summary"])
+
+    def test_the_line_count_survives_behind_the_test_count(self):
+        # Round 451's salvage is not replaced by round 487's, it is prefixed.
+        self.assertIn("1 line(s) before the kill", self.killed["summary"])
+
+    def test_salvaging_the_bar_does_not_soften_the_verdict(self):
+        # The same guard round 451 wrote for its own repair. A killed
+        # checker that now says something useful is still a killed checker.
+        self.assertEqual(self.killed["status"], "timeout")
+        self.assertTrue(self.killed["partial"])
+        self.assertEqual(self.killed["partial_tests"]["failed"], 2)
+
+
+class TestDerivedBudget(unittest.TestCase):
+    """Round 487. The 600 s budget was not a budget for THIS checker.
+
+    Measured solo on this box: 183.92 s for 1 074 tests. It was killed at
+    600 s. The gap is the driver's own four-way concurrency on `nproc` 1, so
+    the budget is now `solo x concurrency x margin`, and every one of those
+    three factors is re-derivable from something outside this file.
+    """
+
+    MEASUREMENT = os.path.join(ROOT, "state", "harness", "round-487",
+                               "unit-tests-solo.json")
+
+    def test_the_budget_is_the_product_and_not_a_typed_number(self):
+        self.assertEqual(
+            corpus_check.CHECK_TIMEOUT_S["unit_tests"],
+            int(math.ceil(corpus_check.UNIT_TESTS_SOLO_S
+                          * corpus_check.DRIVER_CONCURRENT_SUITES
+                          * corpus_check.BUDGET_MARGIN)))
+
+    def test_the_solo_cost_is_read_off_the_measurement_on_disk(self):
+        # The constant is a MEASUREMENT with a receipt, not a belief. Re-time
+        # the suite and rewrite the receipt; the constant follows or this
+        # goes red.
+        with io.open(self.MEASUREMENT, encoding="utf-8") as f:
+            m = json.load(f)
+        self.assertEqual(m["solo_wall_s"], corpus_check.UNIT_TESTS_SOLO_S)
+        self.assertEqual(m["nproc"], 1)
+
+    def test_the_concurrency_is_read_off_the_driver(self):
+        # THE EXPIRY. A fifth background suite in run_driver.sh makes the
+        # projection wrong, and this is what says so -- rather than three
+        # more rounds of COULD NOT RUN.
+        driver = os.path.join(ROOT, "run_driver.sh")
+        n = len(re.findall(r"^\s*\w+_PID=\$!\s*$",
+                           io.open(driver, encoding="utf-8").read(), re.M))
+        self.assertEqual(n, corpus_check.DRIVER_CONCURRENT_SUITES,
+                         "run_driver.sh backgrounds %d suites, the budget "
+                         "projection assumes %d" %
+                         (n, corpus_check.DRIVER_CONCURRENT_SUITES))
+
+    def test_every_other_checker_keeps_the_default(self):
+        for name, _argv in corpus_check.checks(ROOT):
+            if name != "unit_tests":
+                self.assertNotIn(name, corpus_check.CHECK_TIMEOUT_S)
+
+    def test_run_one_resolves_the_table_when_no_timeout_is_passed(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, True)
+        script = os.path.join(tmp, "s.py")
+        write(script, "print('ok')\n")
+        self.assertEqual(
+            corpus_check.run_one("unit_tests", [script], tmp)["timeout_s"],
+            corpus_check.CHECK_TIMEOUT_S["unit_tests"])
+        self.assertEqual(
+            corpus_check.run_one("skill_lint", [script], tmp)["timeout_s"],
+            corpus_check.DEFAULT_TIMEOUT_S)
 
 
 class TestBudgetClause(unittest.TestCase):

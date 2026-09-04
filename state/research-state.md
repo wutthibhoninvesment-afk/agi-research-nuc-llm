@@ -26753,6 +26753,132 @@ Knowledge file: `knowledge/round-479-the-sample-that-bought-an-absence.md`
   the narrowing knobs, not the flag), three new pitfalls, a Verification
   command that used to buy an absence with `--ops`.
 
+### Round 486 — language(C) — 2026-09-04 — NO ENTRY: killed by the outer timeout
+
+Round 486 ran, did real work, and was killed by the driver's 3300 s round
+timeout before it could commit or narrate. Its diff (SPEC.md `## v0.45`/
+`## v0.46`/`## v0.47` + decision 61, `specreg.py`'s `S007`-`S010` version
+registry, 357 lines of tests) was verified green and landed by round 487 as
+`b8dff22`. **Its knowledge file was never written and this heading is a
+placeholder, not a reconstruction** — round 487 declined to sign round 486's
+name to a narration inferred from its diff, the same call rounds 480-482 made
+for round 479. Whoever adjudicates it should either register it in
+`state/known-record-gaps.json` or write the file, and say which.
+
+### Round 487 — harness(A) — 2026-09-04 — the verdict written in an alphabet the reader did not have
+
+- **Three of the harness fast tier's four reds were ONE cause, and all three
+  are green.** `unit_tests` was killed at its 600 s budget in rounds 483, 485
+  and 486 → `COULD NOT RUN` in `driver.log` →
+  `test_driver_health.py::TestBrokenCheckerLiveRecord::test_the_live_log_has_
+  no_unacknowledged_broken_checker` red → that node had no
+  `harness/crosstrack-registry.json` entry → `redattrib` R001 → two more.
+- **The checker was never doing 600 s of work: it does 183.92 s.** Timed
+  alone on this box with `run_one`'s own env, 1 074 tests, receipt at
+  `state/harness/round-487/unit-tests-solo.json`. `run_driver.sh` backgrounds
+  FOUR pytest suites on a box where `nproc` is 1, so `4 x 183.92 = 735.7 s`
+  is the *expected* contended runtime — over budget with no workload growth
+  at all. Round 451 derived a ~3.7x contention factor from the crossing and
+  labelled it derived; `601/183.92 = 3.27x` is the direct measurement, and it
+  is a FLOOR because all three observations are the kill, not a completion.
+- **The budget is now derived, not typed.**
+  `CHECK_TIMEOUT_S["unit_tests"] = ceil(solo x DRIVER_CONCURRENT_SUITES x
+  BUDGET_MARGIN) = 1104`, and `test_corpus_check.py::TestDerivedBudget`
+  recomputes each factor from its source — the measurement JSON, and a count
+  of `_PID=$!` in `run_driver.sh`. **A fifth concurrent suite expires the
+  constant by itself** rather than buying three more rounds of COULD NOT RUN.
+- **THE FINDING: round 451's salvage was blind to the one checker it was
+  written for.** It parses partial output with `FINDING_RE`, an
+  `ERROR H001` alphabet; `unit_tests` is a `pytest -q` run and answers in a
+  bar of `.` and `F`. Over the whole of `driver.log`, EIGHT `COULD NOT RUN:
+  unit_tests` lines carry ZERO parsed codes between them. Meanwhile
+  `logs/corpus-evidence/round-486/unit_tests.out` is a bar of 1 020
+  characters containing FIVE `F`s, and on the 33 rounds the suite was not
+  killed the driver line says "5 failed" in plain words. *The information was
+  never missing; it was written in a font the reader did not have.*
+  `corpus_check.pytest_partial`/`partial_phrase`/`partial_clause` read the
+  bar and put `; partial: unit_tests 1020 seen/5 failed` on the line
+  `run_driver.sh` copies into the log; `driver_health.broken_checker_partials`
+  /`broken_checker_report` read it back. `pytest_partial` returns `None`, not
+  `{"seen": 0}`, when there is no bar — "not a pytest run" and "a pytest run
+  that saw nothing" are different facts. The VERDICT is unchanged: still
+  `timeout`, still COULD_NOT_RUN, with round 451's own guard test kept.
+- **Five real failures were hidden for three rounds**, all reproduced solo at
+  HEAD: `test_check_round_recorded.py::test_live_registry_is_well_formed_and_
+  every_entry_is_load_bearing`, three in `test_carryforward_check.py`, and
+  `test_corpus_check.py::TestLiveCorpus::test_live_corpus_is_clean`
+  (carryforward K001/K002/K003). They are skills(B)'s and are REPORTED, not
+  fixed. The checker that reports the corpus's health could not report it for
+  three rounds, and what it could not report was that the corpus was unhealthy.
+- **Bank scored: 8 HIT, 1 MISS, 1 SPLIT, 1 OPEN of 10.** The miss is P2 — I
+  predicted a dominant FILE (≥40 %) and `test_corpus_check.py` is 31.3 %; the
+  real concentration is a THEME, the five files that shell out to the live
+  corpus, 150 s of 183.92 s (82 %) while ~1 000 other tests share 17.7 s.
+  *A cost concentrated by what tests DO does not show up as a cost
+  concentrated in where they LIVE.*
+- **Round 486's leftover diff verified and landed** (`b8dff22`):
+  `tests/test_specreg.py` 70 passed, `specreg.py audit` 0 errors / 4 warnings,
+  63 version levels, highest v0.47, header agrees.
+
+## Next steps (as of round 487)
+
+1. **The five failures in round 487's knowledge file §5 are OPEN and are
+   skills(B)'s.** Three in `test_carryforward_check.py` (the live ledger, the
+   re-derivation of scored entries, and anchor uniqueness), one in
+   `test_check_round_recorded.py` (`test_live_registry_is_well_formed_and_
+   every_entry_is_load_bearing`), and `test_live_corpus_is_clean`'s
+   carryforward K001/K002/K003, which is their aggregate. They have been red
+   for at least three rounds and nothing could see them. skills(B).
+2. **The driver gains nothing from running four CPU-bound suites concurrently
+   on one core, and this round did not test that.** Round 486's four suites
+   self-reported 4 547 s of elapsed inside a 1 526 s window on `nproc` 1,
+   which says the core is saturated throughout — so serialising them should
+   cost ~0 wall clock and delete the whole contention class rather than
+   budgeting around it. It is a `run_driver.sh` change and needs a round
+   willing to spend one full health-check cycle measuring both arms.
+   harness(A).
+3. **P9 is banked and unscorable inside round 487.** "Raising the
+   `unit_tests` budget costs < 30 s of round wall clock." The first round
+   whose `skills-check` line shows a completed `unit_tests` under the new
+   1 104 s budget scores it; the number to compare is the round's
+   `skills-check` timestamp minus its `health-check` timestamp, not the
+   checker's own elapsed. any track.
+4. **Round 486 owes a knowledge file and a `### Round 486` heading**, and its
+   diff is already in git as `b8dff22`. Same shape as round 479, which was
+   carried four rounds before anyone decided it. Decide it — register it in
+   `state/known-record-gaps.json` or write the file — and say which.
+   skills(B) owns the checker.
+5. **`unit_tests` is 82 % five files, and none of that was made faster.**
+   `test_corpus_check` 57.5 s, `test_xref_check` 53.1 s,
+   `test_state_claim_check` 17.1 s, `test_selfdesc_check` 13.0 s,
+   `test_pattern_vs_enum` 9.3 s — every one of them a shell-out to the live
+   corpus. Round 451 removed 71 s from this suite by making four tests share
+   one sweep; the same move has not been tried on `test_xref_check`'s six
+   live-corpus tests. skills(B) or harness(A).
+6. **`test_swe_mutation.py::test_the_grandchild_pid_survives_a_grandchild_
+   slower_than_the_cap` was red in round 485's log and absent from round
+   486's.** That alternation on unchanged code is the `environmental`
+   signature and nothing has measured it. It is undeclared in
+   `harness/crosstrack-registry.json` only because it has not been red since.
+   harness(A) or SWE-loop(D).
+7. **Round 484's items 1-7 and round 483's items 1-6 stand because nothing
+   touched them, not because anything checked them.** Re-derive FIRST — that
+   rule has now changed the answer in five consecutive rounds that tried it.
+8. **`nproc` on this box is 1**, and round 487 is the first round to publish
+   the contention factor as a measurement rather than a derivation: 3.27x is
+   a floor and 4x is the fair-share expectation. Plan every suite as
+   serialised; a round that publishes a wall-clock number owes an
+   alone-check, and round 487's is in `unit-tests-solo.json`'s `alone` field.
+9. **Standing, untouched by this round:** the NUC `retention --strict`
+   deadline and the `%vmeff` residual; `case_coverage`'s disagreeing
+   verdicts; `claim_check` executing 0 of ~500 commands; the operator-blocked
+   `--cap 196`; and CLAUDE.md's TWO `CRITICAL MISSION` blocks, still a
+   one-line deletion for the operator and still asserting things this program
+   has refuted. `languages/whence/SECURITY.md` and
+   `SECURITY_AUDIT_REPORT.md` remain the operator's decision — do NOT copy a
+   carry count for either from this file; the checker's own line is the only
+   source.
+
 ## Next steps (as of round 484)
 
 1. **`sar26` is dead by now** — age 9 days at the 2026-09-05T00:07 sweep, and

@@ -1,0 +1,21 @@
+{
+ "_comment": "Round 487 (harness A). The SOLO cost of corpus_check.py's `unit_tests` checker, measured on the box that runs it, so that skills/skill-authoring/scripts/corpus_check.py:UNIT_TESTS_SOLO_S is a measurement with a receipt rather than a number somebody chose. Read by test_corpus_check.py::TestDerivedBudget::test_the_solo_cost_is_read_off_the_measurement_on_disk. Re-time the suite, rewrite this file, and the constant must follow or that test goes red.",
+ "measured_round": 487,
+ "measured_utc": "2026-09-04T06:26:22Z",
+ "command": "SKILLS_CORPUS_CHECK_RUNNING=1 PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q skills/derived-subject-set/scripts skills/prediction-banking/scripts skills/seed-sweep-needs-a-same-seed-control/scripts skills/session-inheritance-audit/scripts skills/skill-authoring/scripts --durations=25",
+ "argv_source": "corpus_check.checks()'s literal `unit_tests` argv, reproduced verbatim; SKILLS_CORPUS_CHECK_RUNNING mirrors run_one's env so the nested sweeps skip unit_tests exactly as they do in the real run",
+ "solo_wall_s": 183.92,
+ "collected": 1074,
+ "passed": 1069,
+ "failed": 5,
+ "subtests_passed": 4,
+ "nproc": 1,
+ "loadavg_before": "0.30 1.27 3.12",
+ "alone": "yes -- `ps -eo pcpu --sort=-pcpu` before the run showed no other python/pytest process in this repo; the only other CPU consumers were long-idle wine processes at 1-3%",
+ "contended_observations_s": {"483": 602, "485": 601, "486": 601},
+ "contention_floor": "601 / 183.92 = 3.27x, and it is a FLOOR rather than a factor: all three contended observations are the KILL, not a completion. Round 451 derived ~3.7x from the same crossing and labelled it derived; this is the direct half it was missing.",
+ "projection": "183.92 x 4 concurrent suites = 735.7 s expected contended runtime, i.e. above the 600 s budget with no growth in the workload at all",
+ "budget_s": 1104,
+ "budget_derivation": "ceil(solo_wall_s * DRIVER_CONCURRENT_SUITES * BUDGET_MARGIN) = ceil(183.92 * 4 * 1.5) = 1104",
+ "why_the_raise_is_free": "the driver's three sibling suites reported 1114.90 s (nuc), 1314.95 s (whence) and 1516.31 s (health) in round 486 under the same contention, so skills-check finishing at ~736 s stays well inside a window bounded by its slowest sibling"
+}

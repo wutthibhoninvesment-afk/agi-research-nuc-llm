@@ -1546,6 +1546,77 @@ def unacknowledged_broken_checker_rounds(path: str, registry: str) -> dict:
             if rnd not in known}
 
 
+# Round 487 (harness A). WHAT the broken checker saw, not just THAT it broke.
+#
+# `corpus_check.py`'s aggregate line now carries a `partial:` clause when a
+# killed pytest checker had already drawn a progress bar -- `; partial:
+# unit_tests 1020 seen/5 failed`. That clause is the whole point of round
+# 487's other half: rounds 483, 485 and 486 each logged five ALREADY-OBSERVED
+# test failures as `unit_tests TIMEOUT` and nothing else, while the same log
+# says "5 failed" in plain words on the 33 rounds where the suite was not
+# killed. The information existed and the record did not carry it.
+#
+# So the reader that turns a broken-checker line into a red test says what
+# was lost. Deliberately a SEPARATE function rather than a wider return type
+# on `unacknowledged_broken_checker_rounds`: that one's dict is what the
+# assertion compares against `{}`, and a checker that saw nothing before the
+# kill must still be unacknowledged.
+_PARTIAL_CLAUSE_RE = re.compile(r"partial:\s*([^;]+)")
+_PARTIAL_ITEM_RE = re.compile(r"([A-Za-z0-9_]+)\s+(\d+)\s*seen/(\d+)\s*failed")
+
+
+def broken_checker_partials(path: str) -> dict:
+    """`{round: {checker: {"seen": N, "failed": M}}}` from `driver.log`.
+
+    Empty for every round logged before round 487, by construction: the
+    clause did not exist, so there is nothing to read. That is a fact about
+    the RECORD and is reported as an absence rather than as a zero -- a
+    caller must not render "this round predates the clause" as "this round
+    saw no failures", which is the same confusion `pytest_partial`'s `None`
+    return exists to prevent one layer down.
+    """
+    out: dict = {}
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            text = f.read()
+    except OSError:
+        return {}
+    for line in text.splitlines():
+        m = _SKILLS_CHECK_RE.search(line)
+        if not m:
+            continue
+        clause = _PARTIAL_CLAUSE_RE.search(line)
+        if not clause:
+            continue
+        found = {name: {"seen": int(seen), "failed": int(failed)}
+                 for name, seen, failed
+                 in _PARTIAL_ITEM_RE.findall(clause.group(1))}
+        if found:
+            out[int(m.group(1))] = found
+    return out
+
+
+def broken_checker_report(path: str, registry: str) -> str:
+    """One human sentence per unacknowledged round, naming what it salvaged.
+
+    This is the string the red test prints. A test that says only
+    `{483: ['unit_tests']}` sends its reader to `driver.log`; this one tells
+    them whether there is a failure waiting for them there.
+    """
+    unack = unacknowledged_broken_checker_rounds(path, registry)
+    partials = broken_checker_partials(path)
+    out = []
+    for rnd in sorted(unack):
+        bits = []
+        for name in unack[rnd]:
+            p = partials.get(rnd, {}).get(name)
+            bits.append("%s (%d test(s) seen, %d failed)"
+                        % (name, p["seen"], p["failed"]) if p else
+                        "%s (no partial verdict in the record)" % name)
+        out.append("round %d: %s" % (rnd, ", ".join(bits)))
+    return "; ".join(out)
+
+
 def main(argv: List[str]) -> int:
     if argv[:1] == ["success"]:
         if len(argv) != 2:

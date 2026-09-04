@@ -7,6 +7,9 @@ import json
 import os
 import subprocess
 import sys
+import unittest
+import tempfile
+import shutil
 
 import pytest
 
@@ -2108,8 +2111,12 @@ class TestBrokenCheckerLiveRecord:
         found = driver_health.unacknowledged_broken_checker_rounds(
             DRIVER_LOG, BROKEN_REGISTRY)
         assert found == {}, (
-            "skills-check reported COULD NOT RUN in unacknowledged round(s): %s"
-            % found)
+            "skills-check reported COULD NOT RUN in unacknowledged round(s): "
+            "%s\n%s\nThe repair is to find out why -- round 487 measured the "
+            "first three: 183.92 s of work killed at a 600 s budget by the "
+            "driver's own four-way concurrency on nproc 1."
+            % (found, driver_health.broken_checker_report(
+                DRIVER_LOG, BROKEN_REGISTRY)))
 
     def test_the_acknowledgement_is_not_vacuous(self):
         """Guards the assertion above against passing because the parser
@@ -2125,3 +2132,75 @@ class TestBrokenCheckerLiveRecord:
             "registry acknowledges round(s) the log does not show as broken: "
             "%s — a stale acknowledgement is a silencer nobody is watching"
             % sorted(known - set(history["rounds"])))
+
+
+class TestBrokenCheckerPartialVerdict(unittest.TestCase):
+    """Round 487 (harness A). WHAT the killed checker saw, not just THAT it died.
+
+    Rounds 483, 485 and 486 each logged `unit_tests TIMEOUT` and nothing
+    else, while `logs/corpus-evidence/round-486/unit_tests.out` held a pytest
+    progress bar with five `F`s already in it. `corpus_check.partial_clause`
+    now writes those counts onto the aggregate line the driver copies into
+    `driver.log`; these read them back.
+    """
+
+    LINE = ("[t] round 490: skills-check ERROR — a checker could not run — "
+            "unit_tests TIMEOUT timed out after 1104s; 1020 test(s) seen "
+            "through 93%, 5 failed, 0 errored; 15 line(s) before the kill "
+            "corpus-check: 10 checker(s), 0 error(s), 8 warning(s); "
+            "COULD NOT RUN: unit_tests; coverage: none published; "
+            "partial: unit_tests 1020 seen/5 failed; budget: unit_tests "
+            "1105s/1104s (100%)")
+
+    def _log(self, *lines):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, True)
+        path = os.path.join(tmp, "driver.log")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+        return path, tmp
+
+    def test_the_counts_are_read_back_off_the_driver_line(self):
+        path, _ = self._log(self.LINE)
+        self.assertEqual(driver_health.broken_checker_partials(path),
+                         {490: {"unit_tests": {"seen": 1020, "failed": 5}}})
+
+    def test_a_round_with_no_clause_is_absent_not_zero(self):
+        # The distinction this whole round is about. A round logged before
+        # the clause existed said NOTHING about failures; rendering that as
+        # `failed: 0` would invent the reassuring half of the record.
+        path, _ = self._log(
+            "[t] round 486: skills-check ERROR — a checker could not run — "
+            "unit_tests TIMEOUT timed out after 600s; 15 line(s) before the "
+            "kill; COULD NOT RUN: unit_tests")
+        self.assertEqual(driver_health.broken_checker_partials(path), {})
+
+    def test_an_unreadable_log_is_empty_and_never_raises(self):
+        self.assertEqual(driver_health.broken_checker_partials(
+            os.path.join(tempfile.gettempdir(), "no-such-driver-487.log")), {})
+
+    def test_the_report_names_the_failures_when_the_record_has_them(self):
+        path, tmp = self._log(self.LINE)
+        reg = os.path.join(tmp, "known.json")
+        with open(reg, "w", encoding="utf-8") as f:
+            f.write('{"acknowledged_rounds": []}')
+        text = driver_health.broken_checker_report(path, reg)
+        self.assertIn("round 490", text)
+        self.assertIn("1020 test(s) seen, 5 failed", text)
+
+    def test_the_report_says_so_when_the_record_has_none(self):
+        path, tmp = self._log(
+            "[t] round 486: skills-check ERROR — unit_tests TIMEOUT timed out "
+            "after 600s; COULD NOT RUN: unit_tests")
+        reg = os.path.join(tmp, "known.json")
+        with open(reg, "w", encoding="utf-8") as f:
+            f.write('{"acknowledged_rounds": []}')
+        self.assertIn("no partial verdict in the record",
+                      driver_health.broken_checker_report(path, reg))
+
+    def test_an_acknowledged_round_is_not_reported(self):
+        path, tmp = self._log(self.LINE)
+        reg = os.path.join(tmp, "known.json")
+        with open(reg, "w", encoding="utf-8") as f:
+            f.write('{"acknowledged_rounds": [490]}')
+        self.assertEqual(driver_health.broken_checker_report(path, reg), "")
