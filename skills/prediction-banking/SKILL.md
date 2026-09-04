@@ -343,27 +343,22 @@ and only needs reporting; one-off numbers nobody will act on.
     author"*) is refuted. The residue is the two bullets above.
 
 19. **A rate extrapolated from ONE observed instance is an n=1 rate line —
-    put it in §0 as a question, not in §1 as a bet.** Round 483 banked three
-    predictions that were one bet in three costumes (P2 *some real subject is
-    volatile under a fixed seed*, P5 *1-3 of the four named instruments are
-    cross-seed unstable*, P6 *the control changes a real verdict*). All three
-    lost, 0 of 13, and the reason was in the artefact rather than in
-    hindsight: none prints a clock to stdout and `sorted(` is pervasive in
-    their derivations. The bank had been shown ONE instance of the class —
-    round 481's `best_incoming` tie — and predicted the population from it.
-    That is `cause-needs-a-denominator` reaching a prediction bank: **the
-    instance you were shown is the numerator and nothing was the
-    denominator.**
+    put it in §0 as a question, not in §1 as a bet.** Round 483 lost three
+    lines, 0 of 13, to one bet in three costumes. The tell is syntactic: a
+    justification reading *"one confirmed instance and nobody has ever run
+    the check"* is a rate whose numerator you were handed and whose
+    denominator nobody measured. Count the class in §0 first.
 
-    The tell is syntactic. If a line's written justification is *"this tree
-    has one confirmed instance and nobody has ever run the check"*, it is a
-    rate with n=1 — not banned, but a question, so it goes in §0 with the
-    command that would answer it. Round 483's §0 had six baselines and none
-    was "how many of these instruments iterate a set of strings at all",
-    which is one grep and would have moved all three lines before freezing.
+20. **A trend fitted to one prior observation is a guess with a slope on it —
+    and an enumerated prediction beats a directional one, because the
+    residual is where the finding is.** Step 19 does not cover this shape:
+    the prior reading is of the SAME quantity, so there is no class to count.
+    Bet on the mechanism instead of the direction, declare when one line
+    rests on another, and score partial outcomes SPLIT rather than rounding
+    them. Round 484 lost three of fourteen lines here and made both its best
+    findings out of lines that enumerated and were partly wrong.
 
-    Checkable outcome: no §1 line rests on a single prior observation of its
-    own class without a §0 row measuring how common the class is.
+### Steps 19 and 20 in full, with their evidence and checkable outcomes: [`references/n1-and-trend-extrapolation.md`](references/n1-and-trend-extrapolation.md)
 
 ## Pitfalls
 - **The amendment that anchors on the optimistic edge.** A smoke test
