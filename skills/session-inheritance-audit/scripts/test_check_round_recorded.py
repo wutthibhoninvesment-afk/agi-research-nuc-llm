@@ -1310,8 +1310,25 @@ def test_live_registry_is_well_formed_and_every_entry_is_load_bearing():
     reg_path = os.path.join(root, "state", "known-escalated-diffs.json")
     if not os.path.exists(reg_path):
         return                      # registry is optional by design
+    # ROUND 489. `assert registry` conflated two states the loader
+    # deliberately renders identically: a MALFORMED registry (which degrades
+    # to {} by design, so nothing is suppressed) and a registry with ZERO
+    # live escalations (which is the state the file SHOULD reach once every
+    # escalation is resolved — round 484 emptied `escalations` and moved the
+    # substance to `_resolved`). The old assertion made the correct end state
+    # a failure and had no way to see the malformed one, so it went red for
+    # five rounds for the registry being healthy. Parse it here instead: the
+    # loader's degradation is fail-safe, but this test is the ONLY thing that
+    # would notice the file had stopped being readable.
+    with open(reg_path) as fh:
+        raw = json.load(fh)          # a malformed registry fails HERE, loudly
+    assert isinstance(raw, dict), "registry is not a JSON object"
+    declared = raw.get("escalations", {})
+    assert isinstance(declared, dict), "`escalations` is not an object"
     registry = m.load_escalated_diffs(reg_path)
-    assert registry, "registry exists but parses to nothing"
+    assert registry == declared, (
+        "the loader and the file disagree about the live escalations — "
+        "%r vs %r" % (sorted(registry), sorted(declared)))
     for path, entry in registry.items():
         assert entry.get("reason"), "%s has no reason" % path
         assert isinstance(entry.get("escalated_round"), int), path

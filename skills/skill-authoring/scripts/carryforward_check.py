@@ -325,18 +325,49 @@ NEG_WINDOW = 150
 # …". Only an ATTRIBUTIVE reference (a possessive over a prediction, or a
 # bank path) actually credits the verdict to that round; a bare mention does
 # not, and rejecting on bare mentions threw away real table rows.
+# ROUND 489 widened the possessive alternative. It required the noun after
+# `round NNN's` to be `P<n>` or `prediction`, so
+#
+#     "author); round 473's 17-row bank, scored **10 HIT / 6 MISS / 1"
+#
+# — the FIRST scoring-shaped line in round 479's own scope — read as
+# UNATTRIBUTED, and `scan` handed it to K003 as evidence that round 479's
+# own bank had been scored. K003's verdict was right (round 485 did score
+# it, in a different file) and its evidence was about a different round
+# entirely. Two qualifier words and a synonym were the whole gap: this
+# corpus writes "round N's 17-row bank" as readily as "round N's
+# predictions". Up to three qualifier tokens are allowed before the noun,
+# and `bank` is a noun.
 FOREIGN_ATTRIB_RE = re.compile(
-    r"round[-\s]?0*(\d{1,4})(?:'|’)s\s+(?:\*\*)?(?:P\d|prediction)"
+    r"round[-\s]?0*(\d{1,4})(?:'|’)s\s+(?:\*\*)?"
+    r"(?:[\w.%-]+\s+){0,3}(?:P\d|predictions?\b|bank\b)"
     r"|round-0*(\d{1,4})-predictions"
     r"|round-0*(\d{1,4})/PREDICTIONS"
     r"|predictions-e-round0*(\d{1,4})",
     re.IGNORECASE)
 
+# Deliberately WIDER than FOREIGN_ATTRIB_RE: every round number a line
+# mentions, however it mentions it. The audit (`--audit-evidence`) uses this
+# and the attribution filter uses that, because an evidence auditor that
+# shares its detector's filter can only ever agree with it — round 489's
+# finding, and the same shape as `skills/suppressor-shares-the-detector-shape`.
+_ROUND_MENTION_RE = re.compile(r"round[-\s]?0*(\d{1,4})\b", re.IGNORECASE)
+
+
+def credited_rounds(line):
+    """Rounds `line` ATTRIBUTES its verdict to (possessive or bank path)."""
+    return {int(next(g for g in m.groups() if g))
+            for m in FOREIGN_ATTRIB_RE.finditer(line)}
+
+
+def mentioned_rounds(line):
+    """Every round `line` names at all. A superset of `credited_rounds`."""
+    return {int(m.group(1)) for m in _ROUND_MENTION_RE.finditer(line)}
+
 
 def _attributable(line, n):
     """False if `line` credits its verdict to a round other than `n`."""
-    named = {int(next(g for g in m.groups() if g))
-             for m in FOREIGN_ATTRIB_RE.finditer(line)}
+    named = credited_rounds(line)
     return not named or n in named
 
 
@@ -353,23 +384,35 @@ def _names_round(line, n, bank_paths):
     return re.search(r"round[-\s]?0*%d\b" % n, line, re.IGNORECASE) is not None
 
 
-def score_evidence(text, n=None, require_named=None):
-    """(kind, matched_line) for the strongest scoring signal, else None."""
+def raw_candidates(text):
+    """(kind, line, negated) for EVERY scoring-shaped match in `text`.
+
+    Split out of `score_evidence` (round 489) for one reason: a detector
+    that returns the first surviving match reports a verdict AND an
+    evidence line, and nothing could see the candidates it skipped or the
+    filter that skipped them. `--audit-evidence` reads this.
+    """
     for kind, pat in SCORE_PATTERNS:
         for m in pat.finditer(text):
             line_start = text.rfind("\n", 0, m.start()) + 1
             line_end = text.find("\n", m.end())
             end = line_end if line_end != -1 else len(text)
-            if NEGATION_RE.search(text[max(0, m.start() - NEG_WINDOW):
-                                       m.end() + NEG_WINDOW]):
-                continue
-            line = text[line_start:end]
-            if n is not None and not _attributable(line, n):
-                continue
-            if require_named is not None and not _names_round(line, n,
-                                                              require_named):
-                continue
-            return kind, line.strip()[:200]
+            negated = bool(NEGATION_RE.search(
+                text[max(0, m.start() - NEG_WINDOW):m.end() + NEG_WINDOW]))
+            yield kind, text[line_start:end], negated
+
+
+def score_evidence(text, n=None, require_named=None):
+    """(kind, matched_line) for the strongest scoring signal, else None."""
+    for kind, line, negated in raw_candidates(text):
+        if negated:
+            continue
+        if n is not None and not _attributable(line, n):
+            continue
+        if require_named is not None and not _names_round(line, n,
+                                                          require_named):
+            continue
+        return kind, line.strip()[:200]
     return None
 
 
@@ -620,9 +663,16 @@ def findings(root, corpus, banks, ledger, err, latest_round):
                             "round %d: `where` %s is missing or empty"
                             % (n, e["where"])))
             elif e["quote"] not in body:
+                # "no longer in" was an assertion about history this
+                # check cannot make from one read. Round 484's anchor was
+                # never in the file it cited — `git show` on both commits
+                # that ever touched it finds 0 occurrences — so the message
+                # named the wrong repair for four rounds (round 489).
                 out.append(("K002", LEDGER_FILE,
-                            "round %d: the cited sentence is no longer in %s "
-                            "— the scoring claim cannot be re-derived"
+                            "round %d: the cited sentence is not in %s — the "
+                            "scoring claim cannot be re-derived. Check "
+                            "whether it ever was (`git log -S`) before "
+                            "assuming the file drifted"
                             % (n, e["where"])))
             else:
                 # Present. Now the two questions presence does not answer:
@@ -670,11 +720,28 @@ def findings(root, corpus, banks, ledger, err, latest_round):
         else:
             hit = scan(corpus, n, banks[n])
             if hit:
+                # ROUND 489: publish the evidence's ATTRIBUTION beside the
+                # verdict. K003 carried round 479 for four rounds with a
+                # correct verdict and an evidence line about round 473's
+                # bank; the next reader's only safe move is to read the
+                # line, and nothing told them to. `mentioned_rounds` is
+                # wider than the `_attributable` filter on purpose — an
+                # evidence auditor that shares the detector's predicate can
+                # only ever agree with it.
+                named = mentioned_rounds(hit[1])
+                others = sorted(named - {n})
+                caveat = ""
+                if others and n not in named:
+                    caveat = (" — CAVEAT: that line names round(s) %s and "
+                              "never round %d, so it may be this round's "
+                              "scope discussing SOMEBODY ELSE's bank. Read "
+                              "it before flipping the status."
+                              % (", ".join(str(x) for x in others), n))
                 out.append(("K003", LEDGER_FILE,
                             "round %d: recorded `unscored`, but a scoring now "
                             "reads as present (%s/%s: %s) — an acknowledgement "
-                            "that outlives its debt is a mute button"
-                            % (n, hit[2], hit[0], hit[1][:90])))
+                            "that outlives its debt is a mute button%s"
+                            % (n, hit[2], hit[0], hit[1][:90], caveat)))
                 continue
             age = latest_round - n
             if age >= ROTATION:
@@ -761,6 +828,68 @@ def requote(root, corpus, ledger, n):
     return out
 
 
+def evidence_audit(corpus, banks):
+    """Per bank round: the evidence `scan` would report, and what it skipped.
+
+    ROUND 489. A detector that returns `(verdict, evidence)` is making two
+    claims, and in this repo only the verdict was ever tested. K003 fired on
+    round 479 for four rounds with a correct verdict — the bank HAD been
+    scored, by round 485, in round 485's own file — and an evidence line
+    that is a sentence about ROUND 473's bank. The wrong evidence was
+    invisible for exactly as long as the verdict happened to be right, and
+    it is the same wrong evidence that would have produced a clean FALSE
+    POSITIVE on any round whose scope opens with a sentence about someone
+    else's predictions.
+
+    So this audit does not re-run the detector's filter. `credited_rounds`
+    is the filter; `mentioned_rounds` is a deliberately WIDER net, and a row
+    is `suspect` when the line the detector would publish names some other
+    round and never names its own. A checker audited by its own predicate
+    can only agree with itself.
+
+    Returns one row per bank round; `--audit-evidence` prints them.
+    """
+    rows = []
+    for n in sorted(banks):
+        text = corpus.own_scope(n)
+        negated = foreign = 0
+        verdict = None
+        for kind, line, is_neg in raw_candidates(text):
+            line = line.strip()[:200]
+            if is_neg:
+                negated += 1
+                continue
+            if not _attributable(line, n):
+                foreign += 1
+                continue
+            if verdict is None:
+                verdict = (kind, line)
+        mentions = sorted(mentioned_rounds(verdict[1]) - {n}) if verdict else []
+        rows.append({
+            "round": n,
+            "negated": negated,
+            "rejected_foreign": foreign,
+            "verdict_kind": verdict[0] if verdict else None,
+            "verdict_line": verdict[1] if verdict else None,
+            "mentions_other_rounds": mentions,
+            "names_itself": bool(verdict
+                                 and n in mentioned_rounds(verdict[1])),
+            "suspect": bool(verdict and mentions
+                            and n not in mentioned_rounds(verdict[1])),
+        })
+    return rows
+
+
+def evidence_summary(rows):
+    """The three numbers `--audit-evidence` exists to publish."""
+    withev = [r for r in rows if r["verdict_line"]]
+    suspect = [r for r in withev if r["suspect"]]
+    return {"banks": len(rows), "with_evidence": len(withev),
+            "rejected_foreign": sum(r["rejected_foreign"] for r in rows),
+            "suspect": len(suspect),
+            "suspect_rounds": [r["round"] for r in suspect]}
+
+
 SEV = {"K001": "ERROR", "K002": "ERROR", "K003": "ERROR", "K004": "WARN",
        "K005": "ERROR", "K006": "ERROR"}
 
@@ -776,6 +905,10 @@ def main(argv=None):
                          "`where`, foreign scopes that also match")
     ap.add_argument("--requote", type=int, default=None, metavar="ROUND",
                     help="propose replacement anchors for ROUND's entry")
+    ap.add_argument("--audit-evidence", action="store_true",
+                    help="per bank round: the evidence `scan` would publish, "
+                         "the candidates it skipped, and whether that "
+                         "evidence names a DIFFERENT round (round 489)")
     ap.add_argument("--json", default=None)
     args = ap.parse_args(list(sys.argv[1:] if argv is None else argv))
     root = os.path.abspath(args.repo_root)
@@ -788,6 +921,29 @@ def main(argv=None):
     ledger, err = load_ledger(root)
     latest = max(list(banks) + list(corpus.sections) + [0])
     found = findings(root, corpus, banks, ledger, err, latest)
+
+    if args.audit_evidence:
+        rows = evidence_audit(corpus, banks)
+        for r in rows:
+            if not r["verdict_line"]:
+                continue
+            print("round %-4d %-14s neg=%-2d foreign=%-2d %s%s"
+                  % (r["round"], r["verdict_kind"], r["negated"],
+                     r["rejected_foreign"],
+                     "SUSPECT(names %s) " % ",".join(
+                         str(x) for x in r["mentions_other_rounds"])
+                     if r["suspect"] else "",
+                     r["verdict_line"][:90]))
+        summ = evidence_summary(rows)
+        print("evidence-audit: %d bank(s), %d with evidence, %d foreign "
+              "line(s) rejected, %d SUSPECT %s"
+              % (summ["banks"], summ["with_evidence"],
+                 summ["rejected_foreign"], summ["suspect"],
+                 summ["suspect_rounds"]))
+        if args.json:
+            with open(args.json, "w") as fh:
+                json.dump({"rows": rows, "summary": summ}, fh, indent=1)
+        return 0
 
     if args.list:
         for n in sorted(banks):

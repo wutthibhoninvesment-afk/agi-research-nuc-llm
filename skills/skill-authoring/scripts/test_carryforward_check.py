@@ -668,5 +668,178 @@ class TestSectionBoundary(unittest.TestCase):
                                  % (rel, n, foreign[:3]))
 
 
+# --------------------------------------------------------------------------
+# ROUND 489 (skills B): the verdict was right and the evidence was wrong.
+#
+# K003 reported round 479 for four rounds. Its VERDICT was correct — round
+# 479's bank had been scored, by round 485, in round 485's own file — and the
+# EVIDENCE it published was a sentence about ROUND 473's bank, accepted
+# because `FOREIGN_ATTRIB_RE` demanded `P<n>` or `prediction` after the
+# possessive and the corpus had written `bank`. Nothing compared the two,
+# because a detector's verdict is what tests pin and its evidence is not.
+# --------------------------------------------------------------------------
+
+R479_LINE = ("author); round 473's 17-row bank, scored "
+             "**10 HIT / 6 MISS / 1")
+
+
+class TestEvidenceAttribution(unittest.TestCase):
+    """Frozen regressions, live sentences, exactly like TestScannerRegressions."""
+
+    def test_a_bank_possessive_credits_the_round_that_owns_the_bank(self):
+        """THE round-479 sentence, verbatim out of its own scope."""
+        self.assertEqual(cf.credited_rounds(R479_LINE), {473})
+        self.assertFalse(cf._attributable(R479_LINE, 479))
+        self.assertTrue(cf._attributable(R479_LINE, 473))
+
+    def test_the_widening_still_reads_a_two_digit_prediction_id(self):
+        r"""Round 489 broke this while fixing the line above: a `\b` after
+        `P\d` makes `P14` fail, which silently re-accepts every foreign
+        possessive with a two-digit id. Caught by the round-352 fixture that
+        already existed; pinned here so the next widening cannot repeat it."""
+        line = "Round 352's P14 is heading for a MISS"
+        self.assertEqual(cf.credited_rounds(line), {352})
+        self.assertFalse(cf._attributable(line, 349))
+        self.assertTrue(cf._attributable(line, 352))
+
+    def test_mentioned_is_wider_than_credited_on_purpose(self):
+        """The auditor must not share the detector's predicate — otherwise
+        it can only ever agree with it (`suppressor-shares-the-detector-shape`)."""
+        line = "| P1 | 1 ambiguous anchor, band 1-3 | **HIT** — exactly 1, round 421 |"
+        self.assertEqual(cf.credited_rounds(line), set())
+        self.assertEqual(cf.mentioned_rounds(line), {421})
+        self.assertTrue(cf._attributable(line, 465))
+
+    def test_raw_candidates_yields_what_score_evidence_discards(self):
+        text = ("nothing\n" + R479_LINE + "\n"
+                "| P1 | a real row | **HIT** |\n")
+        allc = list(cf.raw_candidates(text))
+        self.assertGreater(len(allc), 1)
+        kept = cf.score_evidence(text, 479)
+        self.assertIsNotNone(kept)
+        self.assertNotIn("473", kept[1])
+
+
+class TestK003PublishesItsEvidenceAttribution(TestFindings):
+    """K003 must say when its own evidence names somebody else."""
+
+    def _unscored(self):
+        return {"500": {"bank": "state/round-500-predictions.md",
+                        "status": "unscored", "owner": "t", "why": "w"}}
+
+    def _msg(self, body):
+        write(os.path.join(self.tmp, "knowledge/round-500-x.md"), body)
+        corpus = cf.Corpus(self.tmp)
+        banks, _ = cf.find_banks(self.tmp)
+        write(os.path.join(self.tmp, cf.LEDGER_FILE),
+              json.dumps({"banks": self._unscored()}))
+        led, err = cf.load_ledger(self.tmp)
+        found = cf.findings(self.tmp, corpus, banks, led, err, 500)
+        hits = [f[2] for f in found if f[0] == "K003"]
+        self.assertEqual(len(hits), 1, found)
+        return hits[0]
+
+    def test_evidence_about_another_round_carries_a_caveat(self):
+        """A line with no POSSESSIVE credits nobody, so `_attributable`
+        passes it — and it can still be entirely about another round. That
+        residual is why the caveat exists and why widening the attribution
+        regex was not on its own a fix."""
+        msg = self._msg("scoring: the round 473 bank came out 10 HIT / 6 MISS\n")
+        self.assertIn("CAVEAT", msg)
+        self.assertIn("473", msg)
+
+    def test_a_possessive_about_another_round_is_rejected_outright(self):
+        """The widened filter: this line never reaches the caveat because it
+        never becomes evidence. THE round-479 sentence."""
+        write(os.path.join(self.tmp, "knowledge/round-500-x.md"),
+              R479_LINE + "\n")
+        corpus = cf.Corpus(self.tmp)
+        banks, _ = cf.find_banks(self.tmp)
+        write(os.path.join(self.tmp, cf.LEDGER_FILE),
+              json.dumps({"banks": self._unscored()}))
+        led, err = cf.load_ledger(self.tmp)
+        found = cf.findings(self.tmp, corpus, banks, led, err, 500)
+        self.assertEqual([f[0] for f in found if f[0] == "K003"], [])
+
+    def test_evidence_that_names_no_round_carries_no_caveat(self):
+        self.assertNotIn("CAVEAT",
+                         self._msg("| P1 | a real row | **HIT** |\n"))
+
+    def test_evidence_that_names_its_own_round_carries_no_caveat(self):
+        msg = self._msg("round 500's own P1 is a **HIT**, and round 473 agrees\n")
+        self.assertNotIn("CAVEAT", msg)
+
+
+class TestK002DoesNotAssertHistory(TestFindings):
+    def test_the_message_does_not_claim_the_anchor_was_ever_there(self):
+        """Round 484's anchor was never in the file it cited (0 occurrences
+        in both commits that ever touched it), so 'no longer in' named the
+        wrong repair."""
+        write(os.path.join(self.tmp, "knowledge/round-501-x.md"), "nothing")
+        corpus = cf.Corpus(self.tmp)
+        banks, _ = cf.find_banks(self.tmp)
+        write(os.path.join(self.tmp, cf.LEDGER_FILE), json.dumps({"banks": {
+            "500": {"bank": "state/round-500-predictions.md",
+                    "status": "scored", "scored_by": 501,
+                    "where": "knowledge/round-501-x.md", "quote": "P1 HIT"}}}))
+        led, err = cf.load_ledger(self.tmp)
+        msg = [f[2] for f in cf.findings(self.tmp, corpus, banks, led, err, 501)
+               if f[0] == "K002"][0]
+        self.assertNotIn("no longer", msg)
+        self.assertIn("git log -S", msg)
+
+
+class TestEvidenceAuditOnTheLiveLedger(unittest.TestCase):
+    """The audit is a REVIEW QUEUE, not a verdict — priced before shipping,
+    the way round 465 priced K005/K006. Over the live corpus at round 489 it
+    surfaced 9 of 143 banks-with-evidence and 3 of the 9 were genuinely wrong
+    evidence (105, 369, 371); the other 6 are the round's own scoring line
+    legitimately mentioning another round. 33 % precision is why it ships
+    with no severity code."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.corpus = cf.Corpus(ROOT)
+        cls.banks, _ = cf.find_banks(ROOT)
+        cls.rows = cf.evidence_audit(cls.corpus, cls.banks)
+        cls.led, _ = cf.load_ledger(ROOT)
+
+    def test_the_audit_covers_every_bank_on_disk(self):
+        self.assertEqual(sorted(r["round"] for r in self.rows),
+                         sorted(self.banks))
+
+    def test_a_row_with_no_evidence_is_never_suspect(self):
+        for r in self.rows:
+            if not r["verdict_line"]:
+                self.assertFalse(r["suspect"], r["round"])
+
+    def test_no_unscored_entry_publishes_evidence_about_another_round(self):
+        """THE live invariant, and the one with a consequence. A `suspect`
+        row on a `scored` entry costs nothing — K003 never runs on it. A
+        `suspect` row on an `unscored` entry is a K003 finding whose evidence
+        is about somebody else, which is exactly what round 479 was."""
+        bad = [r["round"] for r in self.rows
+               if r["suspect"]
+               and self.led.get(str(r["round"]), {}).get("status") == "unscored"]
+        self.assertEqual(bad, [], "unscored entr(ies) %s would publish K003 "
+                                  "evidence naming a different round" % bad)
+
+    def test_the_summary_adds_up(self):
+        summ = cf.evidence_summary(self.rows)
+        self.assertEqual(summ["banks"], len(self.rows))
+        self.assertEqual(summ["suspect"], len(summ["suspect_rounds"]))
+        self.assertLessEqual(summ["with_evidence"], summ["banks"])
+
+    def test_round_479_no_longer_publishes_round_473s_sentence(self):
+        """The fix, checked where it happened rather than in a fixture. The
+        replacement line is NOT a scoring either — it is round 479's
+        `| debt | outcome |` table — which is the round's second finding:
+        repairing the attribution filter MOVED the wrong evidence, it did
+        not make the evidence right."""
+        row = [r for r in self.rows if r["round"] == 479][0]
+        self.assertNotIn("473's 17-row bank", row["verdict_line"] or "")
+        self.assertGreaterEqual(row["rejected_foreign"], 2)
+
+
 if __name__ == "__main__":
     unittest.main()

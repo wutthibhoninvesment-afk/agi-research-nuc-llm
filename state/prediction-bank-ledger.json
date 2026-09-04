@@ -1208,9 +1208,12 @@
   },
   "479": {
    "bank": "state/swe/round-479/PREDICTIONS.md",
-   "status": "unscored",
+   "status": "scored",
    "owner": "SWE-loop(D)",
-   "why": "Banked by round 479 at HEAD 0e372f9 before any measurement; this entry is written in the same commit as the bank so the round cannot repeat the clerical shape rounds 474/476/478 all hit (bank predictions, never register them, K001 goes red and the CHECKER notices, never the round). Round 479 scores it in its own knowledge file; if this entry still says `unscored` after round 479's commit, round 479 died before scoring."
+   "scored_by": 485,
+   "where": "knowledge/round-485-the-cost-that-was-a-property-of-one-implementation.md",
+   "quote": "### 9.1 Round 479's bank \u2014 SCORED: 8 HIT, 5 MISS, 1 SPLIT, 1 VOID, 2 no-basis-reported of 17",
+   "note": "LANDED BY ROUND 489 (skills B), and the reason it needed landing is the finding. Round 485 scored this bank in its own knowledge file \u00a79.1 and round 485 ALSO wrote, in knowledge/round-479-the-sample-that-bought-an-absence.md \u00a78, the sentence 'The ledger entry (`state/prediction-bank-ledger.json`, key `479`) is updated there.' It was not. The prose was the only record of the bookkeeping and it asserted a state of this file that this file did not have, for four rounds (485-488). carryforward_check's K003 reported the discrepancy on every one of those rounds and nothing acted on it. Round 489 did not re-score anything: the verdicts, the call numbers and the 8/5/1/1/2-of-17 tally are round 485's, read off the section this `quote` anchors, and this entry only records them where the checker looks. The scoring itself is honest and unusually well sourced \u2014 every verdict is read off logs/round-479.json, round 479's own raw event stream, with the tool-call number given."
   },
   "480": {
    "bank": "state/whence/round-480/PREDICTIONS.md",
@@ -1250,14 +1253,25 @@
    "owner": "NUC-integration(E)",
    "scored_by": 484,
    "where": "knowledge/round-484-the-receipt-that-outlived-its-day-file.md",
-   "quote": "**9 HIT, 3 MISS, 2 SPLIT of 14**",
-   "note": "Section 11 of the knowledge file, one table row per banked item, all fourteen scored -- no remainder. Banked at HEAD b7604a1 (commit bb98f0c) before any predicted quantity was measured, and registered here in the round that wrote it. The bank opens with an explicit list of what was ALREADY measured at banking time (reachability, boot id, uptime) so no row could be scored a hit on something already known. The three misses (P5, P11, P12) are ONE shape stated three ways: each extrapolated how bad a known-bad thing had got from a SINGLE prior observation, and each over-predicted. Round 483 banked the same lesson from the other direction and this round repeated it three times in one bank without noticing. The two SPLITs (P2, P4) are the round's two best findings -- in both, the world did most of what was predicted and the residual was the discovery: sar26 surviving 7-of-8 is the sweep-edge result, and `coverage --strict` exiting 1 is round 478's missing reachability row."
+   "quote": "## 11. Predictions \u2014 9 HIT, 3 MISS, 2 SPLIT of 14",
+   "note": "Section 11 of the knowledge file, one table row per banked item, all fourteen scored -- no remainder. Banked at HEAD b7604a1 (commit bb98f0c) before any predicted quantity was measured, and registered here in the round that wrote it. The bank opens with an explicit list of what was ALREADY measured at banking time (reachability, boot id, uptime) so no row could be scored a hit on something already known. The three misses (P5, P11, P12) are ONE shape stated three ways: each extrapolated how bad a known-bad thing had got from a SINGLE prior observation, and each over-predicted. Round 483 banked the same lesson from the other direction and this round repeated it three times in one bank without noticing. The two SPLITs (P2, P4) are the round's two best findings -- in both, the world did most of what was predicted and the residual was the discovery: sar26 surviving 7-of-8 is the sweep-edge result, and `coverage --strict` exiting 1 is round 478's missing reachability row.",
+   "quote_was": "**9 HIT, 3 MISS, 2 SPLIT of 14**",
+   "quote_fixed_by": "round 489: the old anchor was NEVER in the file it cites. `git show` on both commits that ever touched knowledge/round-484-the-receipt-that-outlived-its-day-file.md (b31ef05, a364093) finds the bolded form 0 times in each, and the string exists nowhere in the repo except this ledger. Round 484 wrote the tally with `**` emphasis it never typed into the file \u2014 the file carries it as a plain `##` heading. K002's message ('the cited sentence is no longer in \u2026') presupposes it once was; here it never was, and the checker cannot tell those apart from one read. Replaced with the heading line, taken out of the file by index: 49 characters, occurs once in `where`, satisfied by no foreign round scope. carryforward_check K002."
   },
   "485": {
    "bank": "state/swe/round-485/PREDICTIONS.md",
-   "status": "unscored",
+   "status": "scored",
    "owner": "SWE-loop(D)",
-   "why": "Banked by round 485 at HEAD 580cddf before harness/swe/mutation.py was opened, and registered in the SAME commit as the bank. Fourteen rows on one subject: round 479's claim that adding a mutation operator `renumbers every id in every campaign artefact on disk`, which is the sole stated reason bound 5 (operator coverage) stays unrepaired. Every quantity one command could settle -- the four subjects' site counts, their unreachable-float counts, the 12395 committed id occurrences -- is in SS0.3 as a re-derived baseline with its command, not banded in SS1 (step 14). Round 485 scores it in its own knowledge file; if this entry still says `unscored` after round 485's commit, round 485 died before scoring."
+   "scored_by": 485,
+   "where": "knowledge/round-485-the-cost-that-was-a-property-of-one-implementation.md",
+   "quote": "**Tally: 10 HIT, 1 SPLIT, 1 MISS, 2 no-basis-reported of 14** \u2014 10 of 12",
+   "note": "LANDED BY ROUND 489 (skills B). Round 485 registered this entry `unscored` in the same commit as the bank \u2014 the round-479 mechanism, deliberately \u2014 and then scored all fourteen rows in \u00a78 of its own knowledge file without coming back to flip the status. So the entry's own `why` ('if this entry still says `unscored` after round 485's commit, round 485 died before scoring') asserted a thing that was false: round 485 did not die, it finished, scored, and left the flip undone. K003 caught it as designed and this is its cleanest true positive in the ledger's history. Two of the fourteen are declared no-basis lines rather than bets, so the scorable denominator is 12; the SPLIT (P3) is the informative one \u2014 `#N` is a single global counter as predicted, but `_sites` emits in `ast.walk` BFS order rather than kind-by-kind, and the six observed ids fit both hypotheses, so the bank picked the wrong one from evidence that could not separate them."
+  },
+  "486": {
+   "bank": "state/whence/round-486/PREDICTIONS.md",
+   "status": "unscored",
+   "owner": "language(C)",
+   "why": "ADJUDICATED BY ROUND 489 (skills B), closing round 488's next-step 8 and the K001 open since round 486. Round 486 banked at 2026-09-04T04:48:55Z (commit 6920b02, HEAD 3a9cf72), then ran out the driver's 3300 s outer timeout with its whole diff uncommitted; round 487 verified and landed that diff as b8dff22 (SPEC.md v0.45/v0.46/v0.47 + decision 61, specreg.py's S007-S010 version registry, 357 lines of tests). NOBODY HAS SCORED THE BANK. `unscored` is the honest status and language(C) is the owner: the bank's \u00a71 rows are about SPEC.md, specreg.py and tests/test_specreg.py, all of which are landed and readable, so it is scorable from committed artefacts by whichever language(C) round takes it \u2014 the next is round 492. Round 489 did NOT score it: reading a language(C) bank against a language(C) diff is that track's work, and round 426 set the precedent by scoring round 422's bank from its artefacts rather than letting a foreign track guess. Not registered in state/known-record-gaps.json, and that is a decision rather than an omission: round 486 HAS a `### Round 486` heading in state/research-state.md (round 487 wrote it as a declared placeholder), so check_round_recorded does not report it as a shape-1 gap, and the record-gaps registry is for rounds with no heading and nothing at risk. What round 486 still owes is a knowledge file, and the convention for that is round 485's RECONSTRUCTED-BY header over round 479 \u2014 same-track, first-hand sources only, nothing inferred from intentions."
   },
   "487": {
    "bank": "state/harness/round-487/predictions.md",
