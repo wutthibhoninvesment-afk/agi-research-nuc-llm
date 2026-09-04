@@ -2864,5 +2864,35 @@
   "expect": [],
   "prompt": "Our nightly diff runs each config twice at the same seed and three times across seeds, derives the volatile-field mask from the same-seed pair, and this morning it reported a genuine cross-seed difference in the shard assignment. The finding looks real. How should I go about fixing the shard assigner itself?",
   "note": "round 483: DISCRIMINATING NEGATIVE. The control arm exists, the mask is derived, and the verdict is already attributed -- the technique has been applied and the remaining question is a fix, not a measurement design. If this fires, the description is matching the vocabulary rather than the situation"
+ },
+ {
+  "id": "emns-near",
+  "expect": [
+   "evidence-must-name-its-subject"
+  ],
+  "prompt": "Our dependency scanner flags a package as vulnerable and prints the advisory text it matched. Ticket says the flag is correct \u2014 the package really is on the bad version \u2014 so I am going to close it. Skimming the printed advisory though, it names a completely different package. Fine to close?",
+  "note": "round 489: NEAR. Verdict correct, evidence about a different subject, and the correctness of the verdict is exactly what makes the evidence bug closable. The next subject is where it becomes a false positive."
+ },
+ {
+  "id": "emns-mid",
+  "expect": [
+   "evidence-must-name-its-subject"
+  ],
+  "prompt": "Writing a check that decides whether a changelog entry was already published. It walks the release notes, skips any line that says it belongs to a different release, and returns the first line left. Reviewer asked what happens to a line that does not mention any release at all. Is that a real concern?",
+  "note": "round 489: MID. A negative filter with no floor plus first-match-wins. An anonymous candidate passes by default and becomes the published evidence; nothing in the design surfaces the candidates it skipped."
+ },
+ {
+  "id": "emns-far",
+  "expect": [
+   "evidence-must-name-its-subject"
+  ],
+  "prompt": "This lint warning has been in our CI output for about two months. Four different people have looked at it and each time agreed the warning is right and moved on without touching it. I want to finally silence it. Anything I should do first?",
+  "note": "round 489: FAR. No vocabulary overlap with detectors or evidence. The tell is a long-carried finding where every reader agreed with the summary line, which is the condition under which broken evidence is undetectable."
+ },
+ {
+  "id": "emns-neg-no-evidence",
+  "expect": [],
+  "prompt": "Our nightly consistency job just prints PASS or FAIL per table and nothing else, so when it fails we re-run the whole comparison by hand to find out which rows disagreed. I want it to write the offending rows to a file. What is a sensible format for that?",
+  "note": "round 489: DISCRIMINATING NEGATIVE. The detector reports NO evidence at all, which the skill explicitly excludes -- the job here is to make it emit some, not to audit what it emits. If this fires, the description is matching the word 'evidence' rather than the situation."
  }
 ]
