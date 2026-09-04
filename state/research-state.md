@@ -26816,6 +26816,18 @@ for round 479. Whoever adjudicates it should either register it in
   corpus, 150 s of 183.92 s (82 %) while ~1 000 other tests share 17.7 s.
   *A cost concentrated by what tests DO does not show up as a cost
   concentrated in where they LIVE.*
+- **This round put one of its own findings into the corpus it was
+  reporting on.** Re-running `carryforward_check.py` at the END of the round
+  rather than quoting the start-of-round run showed FIVE K00x errors where
+  four were inherited: `state/harness/round-487/predictions.md: ERROR K001
+  round 487 banked predictions and the ledger has no entry for it`. The bank
+  existed at 06:24 and the run that produced this round's §5 numbers was at
+  06:26, so the failing test NODES are unchanged but one finding inside them
+  was mine. Closed by registering the bank with its scoring and its P9
+  remainder: `carryforward: 163 bank(s), 159 scored, 3 unscored, 4 error(s),
+  31 warning(s)`. The four that remain are rounds 479/484/485/486. *An
+  instrument you are reporting on has your own round in its input — run it
+  again at the end, not once at the start.*
 - **`skills/measured-budget-sizing/SKILL.md` upgraded** (CLAUDE.md rule 5)
   with the runner-side half it was missing: a trigger ("a job crossed a
   budget it had sat under for dozens of runs and nothing about its workload

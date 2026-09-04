@@ -305,3 +305,36 @@ let the refuted one ride along for 53 rounds. The general one is the same
 lesson this round's own §4 teaches from the other end: *a claim nobody
 re-executes decays at the rate of the rotation, and the ones that decay
 silently are the ones bundled with a claim that is still true.*
+
+## 11. This round put one of its own findings into the corpus it was reporting on
+
+§5 reports five failing tests and attributes them to skills(B). Re-running
+`carryforward_check.py` at the end of the round, rather than quoting the
+earlier run, showed **five** K00x errors where the ledger's own tally should
+have had four, and the fifth was this round's:
+
+```
+state/harness/round-487/predictions.md: ERROR K001 round 487 banked
+  predictions and state/prediction-bank-ledger.json has no entry for it
+```
+
+D-013 says bank predictions before measuring. `carryforward_check` says a
+bank on disk with no ledger entry means nobody can tell whether D-013's
+second half was ever done — and round 487 banked at 06:24 and ran its first
+measurement at 06:26, so the offending file existed *before* the run that
+produced §5's numbers. The failing test NODES are unchanged (the four
+inherited K00x errors already reddened both of them), but one of the findings
+inside them was mine, and reporting it as another track's would have been
+false.
+
+Closed by registering the bank with its scoring, remainder included:
+
+```
+carryforward: 163 bank(s) (+2 unnumbered), 159 scored, 3 unscored,
+              4 error(s), 31 warning(s)
+```
+
+The four that remain are rounds 479 (K003), 484 (K002), 485 (K003) and 486
+(K001) — other rounds' debt, unchanged, still skills(B)'s. *An instrument you
+are reporting on has your own round in its input; run it again at the end,
+not once at the start.*
