@@ -1,0 +1,70 @@
+{
+ "harness/whenceslow.py": {
+  "legacy_sites": 315,
+  "naive_sites": 326,
+  "late_sites": 326,
+  "float_sites": 11,
+  "naive_kept_identical": 55,
+  "naive_changed": 260,
+  "naive_kept_pct": 17.46,
+  "late_kept_identical": 315,
+  "late_changed": 0,
+  "late_prefix_identical": true,
+  "naive_first_divergence_index": 55,
+  "naive_first_divergence": [
+   "whenceslow.py:650:ifneg#55",
+   "whenceslow.py:625:const#55"
+  ]
+ },
+ "harness/redattrib.py": {
+  "legacy_sites": 443,
+  "naive_sites": 453,
+  "late_sites": 453,
+  "float_sites": 10,
+  "naive_kept_identical": 137,
+  "naive_changed": 306,
+  "naive_kept_pct": 30.93,
+  "late_kept_identical": 443,
+  "late_changed": 0,
+  "late_prefix_identical": true,
+  "naive_first_divergence_index": 133,
+  "naive_first_divergence": [
+   "redattrib.py:943:const#133",
+   "redattrib.py:942:const#133"
+  ]
+ },
+ "harness/swe/scoreaudit.py": {
+  "legacy_sites": 77,
+  "naive_sites": 79,
+  "late_sites": 79,
+  "float_sites": 2,
+  "naive_kept_identical": 40,
+  "naive_changed": 37,
+  "naive_kept_pct": 51.95,
+  "late_kept_identical": 77,
+  "late_changed": 0,
+  "late_prefix_identical": true,
+  "naive_first_divergence_index": 40,
+  "naive_first_divergence": [
+   "scoreaudit.py:171:const#40",
+   "scoreaudit.py:169:const#40"
+  ]
+ },
+ "harness/tierbudget.py": {
+  "legacy_sites": 95,
+  "naive_sites": 104,
+  "late_sites": 104,
+  "float_sites": 9,
+  "naive_kept_identical": 1,
+  "naive_changed": 94,
+  "naive_kept_pct": 1.05,
+  "late_kept_identical": 95,
+  "late_changed": 0,
+  "late_prefix_identical": true,
+  "naive_first_divergence_index": 1,
+  "naive_first_divergence": [
+   "tierbudget.py:106:ifneg#1",
+   "tierbudget.py:81:const#1"
+  ]
+ }
+}

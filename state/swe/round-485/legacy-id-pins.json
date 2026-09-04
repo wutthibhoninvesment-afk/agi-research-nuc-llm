@@ -1,0 +1,48 @@
+{
+ "_comment": "Round 485 (SWE-loop D). Content pins on the FROZEN part of the mutant-id scheme. `legacy_ids_sha256` is sha256 of the newline-joined ids of every site `mutation._sites` emits for the subject, in emission order -- the numbering 12395 mutant ids in 37 committed campaign artefacts under state/swe/ depend on. `source_sha256` is the pin's key: when the subject is edited the digest stops matching and the pin EXPIRES rather than going red, because an id list is allowed to change when the source changes and is not allowed to change when only the operator set does. harness/tests/test_swe_mutation.py reads this file; a subject whose source digest still matches and whose id digest does not is a renumbering, which is a FAILURE. See mutation.py's `THE ID SCHEME IS FROZEN` section.",
+ "pinned_round": 485,
+ "pins": {
+  "harness/whenceslow.py": {
+   "source_sha256": "db18c928e25723d7a6313cdd05d10b83ab4cc4c3e7a277135d2149aa7bd884f3",
+   "n_legacy_sites": 315,
+   "legacy_ids_sha256": "91532de3a4f58fa2949cb956ff3a4e182fea9f4613e406ce0fec13ba6be94066",
+   "first_legacy_id": "whenceslow.py:1006:ifneg#0",
+   "last_legacy_id": "whenceslow.py:904:const#314"
+  },
+  "harness/redattrib.py": {
+   "source_sha256": "8cf3b677324d3af5befd9da6f195c8aa457908bfe7c861be83515ccd68293ddb",
+   "n_legacy_sites": 443,
+   "legacy_ids_sha256": "35d47acc8db26486141f4d0a8c43f5f824828eba167327df5287b1edda02b744",
+   "first_legacy_id": "redattrib.py:1326:ifneg#0",
+   "last_legacy_id": "redattrib.py:653:not#442"
+  },
+  "harness/swe/scoreaudit.py": {
+   "source_sha256": "7b486c475a9f4beb3423cf2f8f841163d985ab8274cc1785a811889c08f10fe8",
+   "n_legacy_sites": 77,
+   "legacy_ids_sha256": "eadfc6139306abe7c621ec7249435d776cf127a62ebb7e48a8c944f8c475abc8",
+   "first_legacy_id": "scoreaudit.py:259:ifneg#0",
+   "last_legacy_id": "scoreaudit.py:173:const#76"
+  },
+  "harness/tierbudget.py": {
+   "source_sha256": "de1eee271f5fc1dfcfd424e457d1dc0a1806c12ad1ffcc8d9154b2dde0708b15",
+   "n_legacy_sites": 95,
+   "legacy_ids_sha256": "73f145a7d6df7488f0ce5818d7d50bee1c5db41ac2c7dd79264e535663509ab2",
+   "first_legacy_id": "tierbudget.py:381:ifneg#0",
+   "last_legacy_id": "tierbudget.py:318:arith#94"
+  },
+  "harness/swe/mutation.py": {
+   "source_sha256": "b2f931a32654083ce2db82f17af8cc7107022338a31912e7315d5572a1e9fbc5",
+   "n_legacy_sites": 174,
+   "legacy_ids_sha256": "4224da57322dedd1bf923969866ea2d744f0f6e1b043b4a3cc9cc48c1d89f0e9",
+   "first_legacy_id": "mutation.py:647:ifneg#0",
+   "last_legacy_id": "mutation.py:180:const#173"
+  },
+  "harness/swe/falsifiers.py": {
+   "source_sha256": "9ede33d4c1d86cec119667b02464676bd0154a7e4e9b024c77e9e14b60403270",
+   "n_legacy_sites": 225,
+   "legacy_ids_sha256": "cb8262a8ecbc55dc1289918b5dbf59cf8cb1f941b732df5e60eecac4abeefc08",
+   "first_legacy_id": "falsifiers.py:138:ifneg#0",
+   "last_legacy_id": "falsifiers.py:630:const#224"
+  }
+ }
+}

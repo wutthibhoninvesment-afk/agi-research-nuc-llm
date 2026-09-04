@@ -143,36 +143,36 @@ from harness.pristine_check import parse_junit  # noqa: E402
 #: junit statuses that mean "this node went red for this mutant".
 RED = frozenset({"failed", "error"})
 
-#: Constant kinds `mutation.generate` cannot mutate. `const` handles `bool`
-#: and `int`; everything else in a subject is invisible to every mutant, so a
-#: test that depends only on one of these can never be reached. Bound 5.
-UNMUTABLE_KINDS = ("float", "str", "bytes", "complex", "NoneType")
+#: Constant kinds no operator in `mutation.py` can rewrite -- DERIVED from
+#: the engine, never listed by hand. Round 479 wrote this as a literal
+#: `("float", "str", "bytes", "complex", "NoneType")`; round 485 added a
+#: float operator four files away and the literal became a false report of
+#: the very bound it exists to state. A bound about the operator set has to
+#: be computed from the operator set. Bound 5.
+UNMUTABLE_KINDS = tuple(k for k in ("float", "str", "bytes", "complex",
+                                    "NoneType")
+                        if k not in mutation.MUTABLE_CONSTANT_TYPES)
 
 
 def unreachable_constants(source):
     """`{type name: count}` for constants no mutation operator can change.
 
-    Docstrings are excluded the same way `mutation._sites` excludes them, so
-    the number counts constants a test could plausibly assert on rather than
-    every prose line in the file. `bool` is checked before `int` because
-    `isinstance(True, int)` is True -- the same order `_sites` uses.
+    Docstrings are excluded by `mutation._docstring_ids` -- the engine's own
+    walk, called rather than re-implemented (round 485: this function used to
+    carry a byte-identical copy of it, and two copies of a rule are two rules).
+    A constant counts as reachable iff its type name is in
+    `mutation.MUTABLE_CONSTANT_TYPES`; `bool` is tested before `int` there for
+    the same reason `_sites` tests it first, `isinstance(True, int)` being True.
     """
     tree = ast.parse(source)
-    docstrings = set()
-    for n in ast.walk(tree):
-        if isinstance(n, (ast.Module, ast.FunctionDef, ast.ClassDef)) and n.body \
-           and isinstance(n.body[0], ast.Expr) \
-           and isinstance(getattr(n.body[0], "value", None), ast.Constant) \
-           and isinstance(n.body[0].value.value, str):
-            docstrings.add(id(n.body[0].value))
+    docstrings = mutation._docstring_ids(tree)
     out = {}
     for n in ast.walk(tree):
         if not isinstance(n, ast.Constant) or id(n) in docstrings:
             continue
-        v = n.value
-        if isinstance(v, bool) or isinstance(v, int):
+        name = type(n.value).__name__
+        if name in mutation.MUTABLE_CONSTANT_TYPES:
             continue
-        name = type(v).__name__
         out[name] = out.get(name, 0) + 1
     return out
 
@@ -240,15 +240,27 @@ def main_guard_spans(source):
 
 
 def select_sites(mutants, funcs=None, ranges=None, sample=None, limit=None,
-                 guard_spans=None):
+                 guard_spans=None, ops=None):
     """Filter/subsample a mutant list; returns `(mutants, selection_dict)`.
 
-    Order of operations is deliberate: scope first (`funcs`), then stride
-    (`sample`), then head-cut (`limit`). `limit` last so that a caller who
-    passes both gets the documented head bias only over an already-uniform
-    sample rather than instead of it.
+    Order of operations is deliberate: operator scope (`ops`), then source
+    scope (`funcs`), then stride (`sample`), then head-cut (`limit`). `limit`
+    last so that a caller who passes both gets the documented head bias only
+    over an already-uniform sample rather than instead of it.
+
+    `ops` is round 485's, and it is here rather than in `mutation.generate`
+    for one reason. Round 479 made incompleteness part of `sound` (bound 4)
+    by folding `site_coverage` in -- and `site_coverage` is computed from
+    THIS dict, so a knob that narrows the campaign somewhere else is
+    invisible to it. `--ops` was that knob: `audit` passed it straight to
+    `mutation.generate`, so `generated` counted the post-filter list, coverage
+    came out 1.0, and an eleven-of-326-site campaign reported `sound: true`
+    with a `never_red` list. That is bound 4's exact failure through the one
+    door bound 4 did not cover. Every narrowing now happens in one function,
+    against one `generated`.
     """
-    sel = {"generated": len(mutants), "funcs": sorted(funcs) if funcs else None,
+    sel = {"generated": len(mutants), "ops": sorted(ops) if ops else None,
+           "funcs": sorted(funcs) if funcs else None,
            "sample": sample, "limit": limit, "head_biased": bool(limit),
            "main_guard_excluded": 0}
     if guard_spans:
@@ -258,6 +270,8 @@ def select_sites(mutants, funcs=None, ranges=None, sample=None, limit=None,
                            for lo, hi in by_path.get(m.path, ()))]
         sel["main_guard_excluded"] = len(mutants) - len(kept)
         mutants = kept
+    if ops:
+        mutants = [m for m in mutants if m.op in ops]
     if funcs:
         spans = [ranges[f] for f in funcs if f in ranges]
         missing = sorted(f for f in funcs if f not in (ranges or {}))
@@ -519,6 +533,8 @@ class FalsifierReport(object):
                        % len(self.node_loss))
         if not self.complete_selection:
             narrowing = []
+            if self.selection.get("ops"):
+                narrowing.append("ops=%s" % ",".join(self.selection["ops"]))
             if self.selection.get("funcs"):
                 narrowing.append("funcs=%s" % ",".join(self.selection["funcs"]))
             if self.selection.get("sample"):
@@ -562,6 +578,8 @@ class FalsifierReport(object):
         described itself as a whole-module one two lines above the verdict
         it was about."""
         parts = []
+        if self.selection.get("ops"):
+            parts.append("ops %s" % ",".join(self.selection["ops"]))
         if self.selection.get("funcs"):
             parts.append("funcs %s" % ",".join(self.selection["funcs"]))
         if self.selection.get("sample"):
@@ -665,7 +683,11 @@ def audit(project_root, subject_paths, test_paths, unit=None, ops=None,
     for rel in subject_paths:
         with open(os.path.join(project_root, rel), encoding="utf-8") as fh:
             src = fh.read()
-        mutants.extend(mutation.generate(src, rel, ops=ops))
+        # NOT `ops=ops`: the operator filter is a narrowing and belongs with
+        # the other three, where `site_coverage` can see it. See
+        # `select_sites`. The cost is unparsing the sites we then drop --
+        # ~1 ms each, against a mutant run measured in seconds.
+        mutants.extend(mutation.generate(src, rel))
         unreachable[rel] = unreachable_constants(src)
         if funcs:
             ranges.update(function_ranges(src))
@@ -673,7 +695,7 @@ def audit(project_root, subject_paths, test_paths, unit=None, ops=None,
             guards.append((rel, main_guard_spans(src)))
     mutants, selection = select_sites(mutants, funcs=funcs, ranges=ranges,
                                       sample=sample, limit=limit,
-                                      guard_spans=guards or None)
+                                      guard_spans=guards or None, ops=ops)
     t0 = time.time()
     attributions = []
     for m in mutants:

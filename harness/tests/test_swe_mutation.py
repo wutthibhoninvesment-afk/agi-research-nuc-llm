@@ -469,3 +469,189 @@ def test_copy_project_is_unchanged_for_a_tree_with_no_examples_dir(tmp_path):
     dst = str(tmp_path / "dst")
     _copy_project(src, dst)
     assert sorted(os.listdir(dst)) == ["keep.py"]
+
+
+# ---------------------------------------------------------------------------
+# Round 485 (SWE-loop D): the mutant id scheme is FROZEN.
+#
+# A mutant id is `basename:line:op#i` with `i` the index in `_sites`' emission
+# order over the whole file. Round 479 wanted a float operator to discharge
+# `falsifiers.py`'s bound 5 and declined it, writing that "inserting a site
+# kind RENUMBERS every id in every campaign artefact on disk". The premise is
+# right; the conclusion is not. These tests pin the difference between the two
+# implementations and pin the numbers round 485 measured, so a future author
+# who folds an operator into `_sites` finds out from a test rather than from a
+# reader six rounds later.
+# ---------------------------------------------------------------------------
+import ast
+import hashlib
+import json
+
+from swe import mutation as MUT
+
+#: A fixture with one of every constant type and one site of every legacy op.
+#: `1.5` sits EARLY on purpose: a naive float case in `_sites`' `elif` chain
+#: renumbers everything after it, and "after it" has to be most of the file
+#: for the counterfactual test below to say anything.
+CONSTMOD = textwrap.dedent('''
+    """docstring"""
+    RATE = 1.5
+    NAME = "n"
+    RAW = b"b"
+    NOTHING = None
+    FLAG = True
+    COUNT = 7
+    def f(x, scale=0.25):
+        if x < COUNT and not NAME:
+            return x * scale + 1.5
+        return None
+''')
+
+
+def _pre_485_ids(source, rel="mod.py"):
+    """The id list exactly as the engine produced it before round 485:
+    `enumerate` over `_sites` alone. `_sites` is frozen, so this stays a
+    faithful reproduction as long as nobody breaks the freeze -- which is
+    the point of the tests below."""
+    tree = ast.parse(source)
+    return ["%s:%d:%s#%d" % (os.path.basename(rel), n.lineno, op, i)
+            for i, (n, op, _d, _a, _u) in enumerate(MUT._sites(tree))]
+
+
+def _naive_float_ids(source, rel="mod.py"):
+    """The id list the OTHER implementation would produce: a float case folded
+    into `_sites`' `elif isinstance(n, ast.Constant)` branch, so float sites
+    interleave with the walk instead of being appended. Reproduced here rather
+    than kept in the engine, because the whole finding is that this version
+    must not exist."""
+    tree = ast.parse(source)
+    docstrings = MUT._docstring_ids(tree)
+    out = []
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Compare) and len(n.ops) == 1 and type(n.ops[0]) in MUT._CMP_SWAP:
+            out.append((n, "cmp"))
+        elif isinstance(n, ast.BoolOp):
+            out.append((n, "bool"))
+        elif isinstance(n, ast.UnaryOp) and isinstance(n.op, ast.Not):
+            out.append((n, "not"))
+        elif isinstance(n, ast.Constant) and id(n) not in docstrings:
+            v = n.value
+            if isinstance(v, bool) or isinstance(v, int) or isinstance(v, float):
+                out.append((n, "const"))
+        elif isinstance(n, ast.BinOp) and type(n.op) in MUT._ARITH_SWAP:
+            out.append((n, "arith"))
+        elif isinstance(n, ast.If):
+            out.append((n, "ifneg"))
+    return ["%s:%d:%s#%d" % (os.path.basename(rel), n.lineno, op, i)
+            for i, (n, op) in enumerate(out)]
+
+
+def test_the_fconst_operator_mutates_a_float_and_only_a_float():
+    ms = [m for m in generate(CONSTMOD, "mod.py") if m.op == "fconst"]
+    assert [m.description for m in ms] == ["1.5 -> 2.5", "0.25 -> 1.25", "1.5 -> 2.5"]
+    for m in ms:
+        compile(m.source, m.id, "exec")
+        # `ast.unparse` re-quotes, so assert the docstring SURVIVED, not how
+        # it is spelled -- the first version of this line asserted the triple
+        # quotes and was wrong on its first run.
+        assert "docstring" in m.source
+    # True is an int subclass and 7 is an int: both belong to `const`, not here.
+    assert not any(m.description.startswith(("True", "7")) for m in ms)
+
+
+def test_every_fconst_id_comes_after_every_legacy_id():
+    ms = generate(CONSTMOD, "mod.py")
+    idx = {m.id: i for i, m in enumerate(ms)}
+    late = [idx[m.id] for m in ms if m.op in MUT.LATE_OPS]
+    legacy = [idx[m.id] for m in ms if m.op in MUT.LEGACY_OPS]
+    assert late and legacy
+    assert min(late) > max(legacy)
+
+
+def test_adding_a_late_operator_renumbered_nothing():
+    """The claim round 479 declined the repair on, tested."""
+    before = _pre_485_ids(CONSTMOD)
+    after = [m.id for m in generate(CONSTMOD, "mod.py")]
+    assert after[:len(before)] == before          # a strict prefix-extension
+    assert len(after) > len(before)
+
+
+def test_the_naive_insertion_would_have_renumbered_most_of_the_file():
+    """The counterfactual, kept as a number rather than an assertion of
+    principle: this is what folding `fconst` into `_sites` costs."""
+    before = _pre_485_ids(CONSTMOD)
+    naive = _naive_float_ids(CONSTMOD)
+    kept = sum(1 for i in before if i in set(naive))
+    assert kept < len(before)                     # it DOES renumber
+    assert kept / len(before) < 0.5               # and it is not a near miss
+    # ...while the shipped implementation keeps all of them.
+    late = [m.id for m in generate(CONSTMOD, "mod.py")]
+    assert sum(1 for i in before if i in set(late)) == len(before)
+
+
+def test_the_legacy_id_digest_of_every_pinned_subject_still_matches():
+    """Content pin, keyed by the SUBJECT's source digest so it expires on an
+    ordinary edit instead of going red for one. A subject whose source is
+    unchanged and whose legacy id list is not has been renumbered."""
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    repo = os.path.dirname(root)
+    pins = json.load(open(os.path.join(
+        repo, "state", "swe", "round-485", "legacy-id-pins.json")))["pins"]
+    checked = []
+    for rel, pin in sorted(pins.items()):
+        path = os.path.join(repo, rel)
+        if not os.path.exists(path):
+            continue
+        src = open(path, encoding="utf-8").read()
+        if hashlib.sha256(src.encode()).hexdigest() != pin["source_sha256"]:
+            continue                              # pin expired: source moved
+        ids = [m.id for m in generate(src, rel) if m.op in MUT.LEGACY_OPS]
+        assert len(ids) == pin["n_legacy_sites"], rel
+        assert hashlib.sha256("\n".join(ids).encode()).hexdigest() \
+            == pin["legacy_ids_sha256"], rel
+        checked.append(rel)
+    # Not an assertion about how many pins are live -- an assertion that the
+    # test is not silently vacuous the day every pin expires at once.
+    assert checked or all(
+        not os.path.exists(os.path.join(repo, r)) for r in pins), \
+        "every pin expired in the same commit: re-pin them deliberately"
+
+
+def test_the_two_operator_sets_partition_what_generate_emits():
+    ms = generate(CONSTMOD, "mod.py")
+    ops = {m.op for m in ms}
+    assert ops <= (set(MUT.LEGACY_OPS) | set(MUT.LATE_OPS))
+    assert not (set(MUT.LEGACY_OPS) & set(MUT.LATE_OPS))
+    assert {op for _n, op, _d, _a, _u in MUT._late_sites(ast.parse(CONSTMOD))} \
+        <= set(MUT.LATE_OPS)
+    assert {op for _n, op, _d, _a, _u in MUT._sites(ast.parse(CONSTMOD))} \
+        <= set(MUT.LEGACY_OPS)
+
+
+def test_mutable_constant_types_says_what_generate_actually_mutates():
+    """`falsifiers.unreachable_constants` reports bound 5 out of this tuple,
+    so a tuple that disagrees with the engine is a false report of the bound."""
+    cases = {"bool": "V = True\n", "int": "V = 7\n", "float": "V = 1.5\n",
+             "str": "V = 'x'\n", "bytes": "V = b'x'\n", "NoneType": "V = None\n",
+             "complex": "V = 1j\n"}
+    for name, src in cases.items():
+        mutated = bool(generate(src, "mod.py"))
+        assert mutated == (name in MUT.MUTABLE_CONSTANT_TYPES), name
+
+
+def test_docstring_ids_is_shared_by_both_walks():
+    tree = ast.parse(CONSTMOD)
+    ds = MUT._docstring_ids(tree)
+    assert len(ds) == 1
+    assert not any(id(n) in ds for n, _o, _d, _a, _u in MUT._all_sites(ast.parse(CONSTMOD)))
+
+
+def test_the_ops_filter_does_not_renumber_what_it_keeps():
+    """`generate` filters AFTER `enumerate` on purpose: a filtered campaign's
+    ids have to name the same sites as an unfiltered one, or `--ops` would be
+    a second renumbering knob."""
+    every = {m.id for m in generate(CONSTMOD, "mod.py")}
+    for op in sorted({m.op for m in generate(CONSTMOD, "mod.py")}):
+        subset = [m.id for m in generate(CONSTMOD, "mod.py", ops=(op,))]
+        assert subset, op
+        assert set(subset) <= every, op

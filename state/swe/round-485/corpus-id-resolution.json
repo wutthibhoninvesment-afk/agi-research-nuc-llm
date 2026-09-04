@@ -1,0 +1,56 @@
+{
+ "_comment": "Round 485 (SWE-loop D). Do the mutant ids committed under state/swe/ still name a site the engine generates at HEAD? Excludes state/swe/round-485/ -- this round's own id-renumbering.json carries the NAIVE variant's ids, which are exactly the ids the tree does not have, and counting them would be measuring this round's own artefacts (four false positives, one per subject, before the exclusion).",
+ "measured_round": 485,
+ "artefact_dirs": "state/swe/*/*.json (excluding round-485)",
+ "distinct_ids": 5740,
+ "resolve_at_head": 2114,
+ "unresolvable": 3626,
+ "pct_unresolvable": 63.2,
+ "by_subject_basename": {
+  "falsifiers.py": {
+   "in_artefacts": 82,
+   "unresolvable": 79,
+   "pct_lost": 96.3
+  },
+  "interp.py": {
+   "in_artefacts": 4743,
+   "unresolvable": 3465,
+   "pct_lost": 73.1
+  },
+  "lexer.py": {
+   "in_artefacts": 117,
+   "unresolvable": 0,
+   "pct_lost": 0.0
+  },
+  "parser.py": {
+   "in_artefacts": 30,
+   "unresolvable": 0,
+   "pct_lost": 0.0
+  },
+  "redattrib.py": {
+   "in_artefacts": 204,
+   "unresolvable": 0,
+   "pct_lost": 0.0
+  },
+  "scoreaudit.py": {
+   "in_artefacts": 75,
+   "unresolvable": 0,
+   "pct_lost": 0.0
+  },
+  "tierbudget.py": {
+   "in_artefacts": 93,
+   "unresolvable": 0,
+   "pct_lost": 0.0
+  },
+  "values.py": {
+   "in_artefacts": 83,
+   "unresolvable": 82,
+   "pct_lost": 98.8
+  },
+  "whenceslow.py": {
+   "in_artefacts": 313,
+   "unresolvable": 0,
+   "pct_lost": 0.0
+  }
+ }
+}

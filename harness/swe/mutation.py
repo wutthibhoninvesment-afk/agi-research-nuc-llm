@@ -14,9 +14,51 @@ Operators (each yields the smallest plausible semantic slip):
   const  True <-> False, int n -> n + 1 (docstrings and other strings skipped)
   arith  + <-> -, * -> +, / -> *, % -> *
   ifneg  `if c:` -> `if not c:`
+  fconst float f -> f + 1.0   (round 485; see THE ID SCHEME IS FROZEN below)
 
 Nothing here touches the original checkout: every mutant runs inside its own
 temporary copy of the project directory.
+
+THE ID SCHEME IS FROZEN, AND THAT IS WHY `_late_sites` EXISTS
+--------------------------------------------------------------
+A mutant id is `basename:line:op#i` where `i` is the index of the site in
+`_sites`' emission order over the WHOLE file -- one counter, not per-kind,
+and the order is `ast.walk`'s (breadth-first), not source order. That is why
+`redattrib.py:297:ifneg#4` and `redattrib.py:297:not#32` are the same source
+line thirty indices apart: the `If` node is shallow and the `not` inside its
+test is two levels down.
+
+`i` is therefore POSITIONAL, and 12 395 such ids sit in 37 committed campaign
+artefacts under `state/swe/`. Round 479 (SWE-loop D) reasoned about this
+correctly and drew the wrong conclusion from it. Wanting a float operator to
+discharge its own bound 5 (`falsifiers.py`: a test whose only dependence on
+the subject is a float can never be reached), it wrote:
+
+    The obvious repair is a float operator (`f -> f + 1.0`) [...]. It was
+    measured and declined this round: mutant ids are index-based, so
+    inserting a site kind RENUMBERS every id in every campaign artefact on
+    disk.
+
+The premise is right and the conclusion does not follow. Round 485 measured
+both implementations over the four subjects round 473 ran campaigns on
+(`state/swe/round-485/id-renumbering.json`):
+
+    float folded into the existing `const` branch   1-52% of legacy ids survive
+    float in its own pass, appended after `_sites`  100%, on all four
+
+Inserting a `float` case into `_sites`' `elif` chain interleaves it with the
+walk, so every later index shifts: `tierbudget.py` keeps 1 of 95 ids. Yielding
+it from a SECOND walk that runs after `_sites` is exhausted appends indices
+315..325 and touches nothing -- the new id list is a strict prefix-extension
+of the old one. The cost round 479 declined was a property of one
+implementation, not of the id scheme.
+
+So: `_sites` is FROZEN. Its emission order is data, on a par with the
+artefacts that quote it. Every operator added from round 485 on goes in
+`_late_sites`, is named in `LATE_OPS`, and appends. `test_swe_mutation.py`
+pins this against a digest of the legacy id list per subject, keyed by the
+subject's own source digest so the pin expires when the source moves rather
+than going red for an unrelated edit.
 """
 
 import ast
@@ -41,6 +83,25 @@ _CMP_SWAP = {
 _ARITH_SWAP = {ast.Add: ast.Sub, ast.Sub: ast.Add, ast.Mult: ast.Add,
                ast.Div: ast.Mult, ast.Mod: ast.Mult}
 
+#: Operator kinds emitted by `_sites`. Their enumeration indices are FROZEN
+#: -- see the module docstring. Nothing may be added to this set.
+LEGACY_OPS = frozenset({"cmp", "bool", "not", "const", "arith", "ifneg"})
+
+#: Operator kinds emitted by `_late_sites`, in the order that tuple lists
+#: them. Appending a kind here cannot move a legacy index; inserting one
+#: before another late kind CAN move that kind's, so add at the END.
+LATE_OPS = ("fconst",)
+
+#: Constant python types SOME operator in this engine can rewrite.
+#: `falsifiers.unreachable_constants` reads this instead of keeping its own
+#: list, because round 479 shipped one that said `float` was unmutable and
+#: round 485 made it mutable four lines from here. A bound that is reported
+#: from a hand-maintained copy of the operator set drifts silently the first
+#: time the operator set moves -- and bound 5 is a claim about exactly that
+#: set. `bool` is listed although `isinstance(True, int)`: readers of this
+#: tuple check membership by `type(v).__name__`, not by isinstance.
+MUTABLE_CONSTANT_TYPES = ("bool", "int", "float")
+
 
 class Mutant(object):
     def __init__(self, mid, path, lineno, op, description, source, end_lineno=None):
@@ -61,18 +122,32 @@ class Mutant(object):
                 "seconds": round(self.seconds, 2), "detail": self.detail[:300]}
 
 
-def _sites(tree):
-    """Yield (node, op, description, apply, undo) for every mutation site.
-    `apply()` changes the node in place; `undo()` restores it. Mutating in
-    place and re-unparsing only the enclosing top-level statement keeps
-    generation at ~1ms per mutant instead of deep-copying the module."""
-    docstrings = set()
+def _docstring_ids(tree):
+    """`id()` of every Constant node that is a docstring rather than a value.
+
+    Factored out of `_sites` by round 485 so `_late_sites` cannot drift from
+    it -- `falsifiers.unreachable_constants` re-implemented this same walk and
+    the two agreeing is pinned by a test rather than by care."""
+    out = set()
     for n in ast.walk(tree):
         if isinstance(n, (ast.Module, ast.FunctionDef, ast.ClassDef)) and n.body \
            and isinstance(n.body[0], ast.Expr) \
            and isinstance(getattr(n.body[0], "value", None), ast.Constant) \
            and isinstance(n.body[0].value.value, str):
-            docstrings.add(id(n.body[0].value))
+            out.add(id(n.body[0].value))
+    return out
+
+
+def _sites(tree):
+    """Yield (node, op, description, apply, undo) for every mutation site.
+    `apply()` changes the node in place; `undo()` restores it. Mutating in
+    place and re-unparsing only the enclosing top-level statement keeps
+    generation at ~1ms per mutant instead of deep-copying the module.
+
+    FROZEN (round 485). The emission order of this function is the mutant-id
+    numbering that 12 395 committed ids depend on. Add new operators to
+    `_late_sites`, never here."""
+    docstrings = _docstring_ids(tree)
     for n in ast.walk(tree):
         if isinstance(n, ast.Compare) and len(n.ops) == 1:
             old = n.ops[0]
@@ -117,6 +192,39 @@ def _sites(tree):
                    lambda n=n, old=old: setattr(n, "test", old))
 
 
+def _late_sites(tree):
+    """Sites for operators added AFTER the id scheme was frozen (round 485).
+
+    Same tuple shape as `_sites`. `generate` runs this walk only once `_sites`
+    is exhausted, so these sites take the indices AFTER every legacy one and
+    no committed id moves. Order within this function follows `LATE_OPS`:
+    append, never insert.
+
+    `fconst` is here because `falsifiers.py`'s bound 5 -- a node whose only
+    dependence on the subject is a constant no operator can rewrite is
+    UNREACHABLE, not vacuous -- was first hit by a float:
+    `test_plan_default_is_smaller_than_slowtiers` asserts
+    `signature(plan).parameters["default_s"].default == 120.0` and `_sites`
+    emits nothing on that line. Reporting a bound is not discharging it."""
+    docstrings = _docstring_ids(tree)
+    for n in ast.walk(tree):
+        if (isinstance(n, ast.Constant) and id(n) not in docstrings
+                and isinstance(n.value, float)):
+            old = n.value
+            yield (n, "fconst", "%r -> %r" % (old, old + 1.0),
+                   lambda n=n, old=old: setattr(n, "value", old + 1.0),
+                   lambda n=n, old=old: setattr(n, "value", old))
+
+
+def _all_sites(tree):
+    """Every mutation site, legacy first. See the module docstring: the
+    concatenation order IS the id scheme, and it is append-only."""
+    for site in _sites(tree):
+        yield site
+    for site in _late_sites(tree):
+        yield site
+
+
 def generate(source, rel_path, ops=None):
     """All mutants of one module's source text, in source order."""
     tree = ast.parse(source)
@@ -126,7 +234,7 @@ def generate(source, rel_path, ops=None):
             owner[id(n)] = idx
     parts = [ast.unparse(stmt) for stmt in tree.body]
     out = []
-    for i, (node, op, desc, apply, undo) in enumerate(_sites(tree)):
+    for i, (node, op, desc, apply, undo) in enumerate(_all_sites(tree)):
         if ops and op not in ops:
             continue
         idx = owner[id(node)]

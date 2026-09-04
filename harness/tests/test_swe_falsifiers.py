@@ -30,6 +30,7 @@ sys.path.insert(0, os.path.dirname(_HERE))
 sys.path.insert(0, REPO_ROOT)
 
 from swe import falsifiers as F                                   # noqa: E402
+from swe import mutation as MUT                                  # noqa: E402
 from swe.mutation import BaselineNotGreen, generate               # noqa: E402
 
 ROUND_473 = os.path.join(REPO_ROOT, "state", "swe", "round-473")
@@ -507,9 +508,21 @@ def test_unreachable_constants_counts_what_no_operator_can_mutate():
             return CAP
     ''')
     got = F.unreachable_constants(src)
-    assert got == {"float": 1, "str": 1, "NoneType": 1, "bytes": 1}, got
+    # ROUND 485: `float` used to be in this dict. It came out not because the
+    # rule changed but because the OPERATOR SET did -- `mutation._late_sites`
+    # now emits `fconst`, so `CAP = 120.0` is reachable. The expected value
+    # here is therefore DERIVED from the engine, not typed, because a typed
+    # one is the defect this assertion is about: round 479 hard-coded
+    # `UNMUTABLE_KINDS` and it became a false report of bound 5 the first time
+    # the operator set moved.
+    unmutable = {k: v for k, v in
+                 {"float": 1, "str": 1, "NoneType": 1, "bytes": 1}.items()
+                 if k not in MUT.MUTABLE_CONSTANT_TYPES}
+    assert got == unmutable, got
     assert "int" not in got and "bool" not in got, \
         "`const` mutates bool and int; those are REACHABLE"
+    assert "float" not in got, \
+        "round 485 made floats reachable; bound 5 must stop claiming otherwise"
 
 
 def test_unreachable_constants_agrees_with_generate_about_docstrings():
@@ -542,13 +555,51 @@ def test_a_subject_with_nothing_unreachable_prints_no_bound_5_line():
 # round 479: the two never-red nodes round 473 published, pinned
 # --------------------------------------------------------------------------
 
-def test_the_float_default_round_473_published_as_never_red_has_no_mutation_site():
+def _def_plan_line(src):
+    """1-based line of `def plan(` in `whenceslow.py`'s source.
+
+    Round 479 wrote this inline as `1 + src[:src.index("\ndef plan(")].count("\n")`
+    and it is off by one: `index` returns the offset of the newline BEFORE the
+    `def`, so the prefix holds one fewer newline than there are lines above
+    it. It answered 624 for a `def` on 625. That mattered -- see below."""
+    return 2 + src[:src.index("\ndef plan(")].count("\n")
+
+
+def test_round_479s_def_plan_locator_was_off_by_one():
+    """Kept as its own node because the off-by-one is the interesting part.
+
+    Round 479 pinned bound 5 with `assert sites == []` -- "a site now covers
+    `def plan`; the node may have become reachable" -- against a line number
+    one too small. When round 485 made exactly that event happen, the guard
+    PASSED: no site covers line 624, and the assertion written to catch this
+    could not catch it. The test went red on its next line instead, for a
+    different reason, which is the only reason anyone looked. A guard that
+    cannot go red for the event it names is this program's own
+    `named-guardian-must-go-red` failure, inside a test written to enforce
+    it."""
+    src = open(os.path.join(REPO_ROOT, "harness", "whenceslow.py"),
+               encoding="utf-8").read()
+    old = 1 + src[:src.index("\ndef plan(")].count("\n")
+    fixed = _def_plan_line(src)
+    assert fixed == old + 1
+    lines = src.splitlines()
+    assert lines[fixed - 1].startswith("def plan(")
+    assert not lines[old - 1].startswith("def plan(")
+
+
+def test_the_float_default_round_473_published_as_never_red_is_now_reachable():
     """`test_whenceslow::test_plan_default_is_smaller_than_slowtiers` asserts
-    `signature(plan).parameters['default_s'].default == 120.0`. `120.0` is a
-    float, `mutation.generate`'s `const` operator handles bool and int only,
-    so NO mutant can change it: the node is unreachable (bound 5), not
-    vacuous. Round 473 stated bound 4/5 about STRINGS; the first node anyone
-    classified under it was this float."""
+    `signature(plan).parameters['default_s'].default == 120.0`.
+
+    Round 473 published the node as `never_red`. Round 479 classified it
+    UNREACHABLE rather than vacuous -- `120.0` is a float and `const` handled
+    bool and int only -- and declined the repair, pricing a float operator as
+    a renumbering of every committed mutant id. Round 485 measured that price
+    at ZERO (`_late_sites` appends) and shipped the operator, which is what
+    discharging a bound looks like as against reporting one.
+
+    This node now pins the OPPOSITE of round 479's, deliberately: the site
+    exists, it is `fconst`, and it changes the number the test asserts on."""
     import inspect
     sys.path.insert(0, os.path.join(REPO_ROOT, "harness"))
     import whenceslow as W
@@ -556,12 +607,14 @@ def test_the_float_default_round_473_published_as_never_red_has_no_mutation_site
     assert isinstance(default, float) and not isinstance(default, bool)
     path = os.path.join(REPO_ROOT, "harness", "whenceslow.py")
     src = open(path, encoding="utf-8").read()
-    def_line = 1 + src[:src.index("\ndef plan(")].count("\n")
+    def_line = _def_plan_line(src)
     sites = [m for m in generate(src, "harness/whenceslow.py")
              if m.lineno <= def_line <= m.end_lineno]
-    assert sites == [], \
-        "a site now covers `def plan`; the node may have become reachable"
-    assert F.unreachable_constants(src).get("float", 0) >= 1
+    assert [m.op for m in sites] == ["fconst"], sites
+    assert sites[0].description == "%r -> %r" % (default, default + 1.0)
+    assert "default_s=%r" % (default + 1.0) in sites[0].source
+    # ...and bound 5 no longer claims the subject has an unreachable float.
+    assert F.unreachable_constants(src).get("float", 0) == 0
 
 
 def test_round_473s_redattrib_report_would_not_be_sound_under_this_rule():
@@ -707,3 +760,95 @@ def test_the_summary_lists_at_most_five_killers():
                   selection={"generated": len(attrs), "selected": len(attrs)})
     killers = [l for l in rep.summary().splitlines() if l.startswith("  killer")]
     assert len(killers) == 5
+
+
+# --------------------------------------------------------------------------
+# round 485: BOUND 4's FOURTH KNOB -- `--ops`
+#
+# Round 479 made incompleteness part of `sound` by folding `site_coverage`
+# into it, and `site_coverage` is computed from the `selection` dict that
+# `select_sites` builds. `--ops` never reached `select_sites`: `audit` passed
+# it to `mutation.generate`, so `generated` counted the POST-filter list, the
+# coverage came out 1.0, and an eleven-of-326-site campaign would have
+# reported `sound: true` with a `never_red` list. Bound 4's exact failure,
+# through the one door bound 4 did not cover -- and round 485's own planned
+# measurement (a float-only campaign) was about to walk through it.
+# --------------------------------------------------------------------------
+
+def _sites_of(source, rel="mod.py"):
+    return generate(source, rel)
+
+
+OPSMOD = textwrap.dedent('''
+    """m."""
+    CAP = 1.5
+    def f(x):
+        if x < CAP:
+            return x + 1
+        return x * 2
+''')
+
+
+def test_select_sites_records_the_ops_narrowing_and_counts_it_against_coverage():
+    ms = _sites_of(OPSMOD)
+    kept, sel = F.select_sites(ms, ops=("fconst",))
+    assert sel["generated"] == len(ms)          # the WHOLE site list, not the subset
+    assert sel["ops"] == ["fconst"]
+    assert sel["selected"] == len(kept) < len(ms)
+    assert all(m.op == "fconst" for m in kept)
+
+
+def test_an_ops_narrowed_campaign_is_unsound_and_names_ops_as_the_reason():
+    ms = _sites_of(OPSMOD)
+    _kept, sel = F.select_sites(ms, ops=("fconst",))
+    sel = dict(sel)
+    rep = _report([_killer()], selection=sel)
+    assert not rep.complete_selection
+    assert not rep.sound
+    reason = " ".join(rep.unsound_reasons)
+    assert "ops=fconst" in reason and "eligible site(s) were run" in reason
+    assert "unsound" in rep.summary()
+
+
+def test_an_ops_narrowed_campaign_describes_itself_as_narrowed_not_whole():
+    """Round 479 fixed exactly this for `funcs` -- a function-scoped campaign
+    printed `whole` two lines above the verdict it was about. `ops` had the
+    same hole."""
+    _kept, sel = F.select_sites(_sites_of(OPSMOD), ops=("fconst",))
+    rep = _report([_killer()], selection=dict(sel))
+    assert "ops fconst" in rep.summary()
+    assert "whole" not in rep.summary()
+
+
+def test_an_unnarrowed_campaign_is_still_sound_and_still_says_whole():
+    ms = _sites_of(OPSMOD)
+    _kept, sel = F.select_sites(ms)
+    sel = dict(sel)
+    sel["selected"] = sel["generated"]
+    rep = _report([_killer()], selection=sel)
+    assert rep.sound and rep.complete_selection
+    assert "whole" in rep.summary()
+    assert rep.unsound_reasons == []
+
+
+def test_ops_narrows_before_funcs_so_the_recorded_generated_is_the_same_either_way():
+    """Order of narrowing is documented in `select_sites`; the invariant a
+    reader depends on is that `generated` is the pre-narrowing total whichever
+    knobs were turned."""
+    ms = _sites_of(OPSMOD)
+    seen = set()
+    for kwargs in ({}, {"ops": ("fconst",)}, {"sample": 2},
+                   {"ops": ("const", "fconst")}, {"limit": 1}):
+        _kept, sel = F.select_sites(ms, **kwargs)
+        seen.add(sel["generated"])
+    assert seen == {len(ms)}
+
+
+def test_unmutable_kinds_is_derived_from_the_engines_operator_set():
+    """Not a re-statement of the list -- an assertion that nobody may type
+    one. If a future operator makes strings mutable, this passes without
+    an edit; if someone re-hardcodes the tuple, it fails."""
+    for kind in F.UNMUTABLE_KINDS:
+        assert kind not in MUT.MUTABLE_CONSTANT_TYPES, kind
+    for kind in MUT.MUTABLE_CONSTANT_TYPES:
+        assert kind not in F.UNMUTABLE_KINDS, kind
