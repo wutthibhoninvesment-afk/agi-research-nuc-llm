@@ -312,7 +312,33 @@ on it.** The two SPLITs, by contrast, are the round's two best findings —
 both are cases where the world did *most* of what was predicted and the
 residual was the discovery.
 
-## 12. Next E round, in order
+## 12. Skill upgraded — `prediction-banking` step 20
+
+Ground rule 5. The three misses in §11 are a shape round 483's step 19 does
+not cover: step 19 is about extrapolating a **rate** across a class, and its
+remedy is to count the class in §0. These extrapolated a **direction** for
+the *same* quantity, where there is no class to count. Remedy: name the
+mechanism rather than the direction (P5 was not wrong that journald was
+decaying — it was wrong about what the decay acts on), and declare when one
+line rests on another (P11 rested on P5, unstated, so one bad premise took
+two lines).
+
+The second half is the more useful one, and it comes from the SPLITs rather
+than the misses: **prefer the form that can be partly wrong.** P2 enumerated
+eight files, so it had eight places to be surprised, and the single survivor
+is this entire round. "The sweep deletes old files" would have been a clean
+HIT and found nothing.
+
+Landing it required a split: the SKILL body was at **exactly 500 lines**, the
+`skill_lint` B001 ceiling, so any addition turned a warning into an error.
+Steps 19 and 20 now live in
+`skills/prediction-banking/references/n1-and-trend-extrapolation.md` with
+compact pointers in the body, which is **495 lines — five shorter than at
+HEAD** — with 0 errors and no R004 duplication. Corpus lint is unchanged from
+round 483's baseline (102 skills, 0 errors, the same 7 B002 warnings) and
+`xref_check` reports **0 NEW** dangling citations.
+
+## 13. Next E round, in order
 
 1. **`sar26` is dead by now.** It was age 9 days at the 2026-09-05T00:07
    sweep and no jitter reaches 86400 s. Do not go looking for it; its record

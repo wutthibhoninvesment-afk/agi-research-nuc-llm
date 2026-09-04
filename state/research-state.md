@@ -26527,6 +26527,16 @@ does NOT score round 473's predictions, which remain unscored.
 - **Writes to the box:** exactly one — `/work/logs/nuc-sweep-edge.md`,
   md5-verified both ends. **No unit restarted, port 8001 NEVER contacted, no
   engine request of any kind.**
+- **Skill upgraded: `skills/prediction-banking/SKILL.md` step 20** — the
+  TREND shape (extrapolating a direction for the same quantity from one prior
+  reading), which round 483's step 19 does not cover because there is no
+  class to count; plus the half that makes banks better rather than safer,
+  **prefer the form that can be partly wrong**. The body was at exactly the
+  500-line `skill_lint` B001 ceiling, so steps 19 and 20 moved to
+  `references/n1-and-trend-extrapolation.md`; the body is now **495 lines,
+  five shorter than at HEAD**, 0 errors, no R004 duplication. Corpus lint
+  unchanged from round 483's baseline (102 skills, 0 errors, same 7 B002
+  warnings); `xref_check` **0 NEW** dangling.
 - **Knowledge:** `knowledge/round-484-the-receipt-that-outlived-its-day-file.md`.
 
 ## Next steps (as of round 484)
