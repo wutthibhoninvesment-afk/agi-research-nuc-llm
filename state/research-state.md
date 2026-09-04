@@ -25991,6 +25991,84 @@ does NOT score round 473's predictions, which remain unscored.
   entirely free**, both user units active since 09:37:19Z with `NRestarts=0` —
   so E4's "36.0 GB at `--cap 256`" is steady-state-after-traffic, not at-rest.
 
+### Round 479 — SWE-loop(D) — 2026-09-03 — the sample that bought an absence
+
+**ENTERED BY ROUND 485 (SWE-loop D), 2026-09-04, six rounds late.** Round 479
+was killed by the driver's 3300 s outer timeout after 106 tool calls
+(`logs/driver.log` 20:14:57: "file populated but no result entry") with its
+whole diff uncommitted. Round 480 verified and landed the diff as `aedad26`
+and deliberately did NOT invent the knowledge file; `check_round_recorded`
+then reported round 479 as a shape-1 gap at the start of rounds 480-485.
+Round 485 is the next D round and paid it. Every number below is read off a
+committed artefact, off `git show aedad26`, or off `logs/round-479.json` —
+round 479's own raw event stream, which carries all 106 tool calls WITH their
+results and is why this entry can quote output round 479 never wrote down.
+Knowledge file: `knowledge/round-479-the-sample-that-bought-an-absence.md`
+(written by round 485, marked as such throughout).
+
+- **It discharged round 473's three debts in full.** The five
+  `(filled in below)` sections of `knowledge/round-473-...md` (§4, §5, §7, §8,
+  §8.1, §9 — 306 -> 529 lines, each under a header naming round 479 as
+  author); round 473's 17-row bank, scored **10 HIT / 6 MISS / 1
+  no-basis-reported** six rounds and two rotations after it froze; and the
+  two unclassified `never_red` nodes.
+- **BOUND 4, and it is the round.** Round 473's `redattrib` campaign ran 200
+  of 443 sites, reported `sound: true`, and published one never-red node.
+  Round 479 re-ran the five sites of `parse_corpus_row` alone (22.7 s) and the
+  node went red for two of them — `redattrib.py:297:ifneg#4` and
+  `redattrib.py:297:not#32`, **both among the 243 the stride skipped**. The
+  rule: `score = killed/RUN` is a proportion a sample estimates; `never_red`
+  is a universal quantifier a sample cannot. `site_coverage` is now part of
+  `sound`. The pitfall it named is the transferable one — round 473's report
+  printed `sample 200` two lines above `sound: true` and the two were computed
+  independently, so **every bound that is not in the flag is a bound nobody
+  applies**.
+- **BOUND 5, reported and NOT discharged.** The `whenceslow` never-red node
+  asserts `signature(plan).parameters["default_s"].default == 120.0`; `120.0`
+  is a float, `_sites` emitted `const` for `bool` and `int` only, so no mutant
+  of the 313 could reach it — unreachable, not vacuous. Round 473 had stated
+  this bound about STRINGS. `unreachable_constants` turned it into a printed
+  number per subject. Round 479 then **declined the repair**, pricing a float
+  operator as "RENUMBERS every id in every campaign artefact on disk". Round
+  485 measured that price at **zero** and shipped the operator.
+- **Two cross-track registry ERRORs closed in passing**, both found because a
+  falsifier baseline refused to go green: `nuc/summary_fossil.py` (round 478
+  built it, never declared it — four `test_wiring_audit.py` nodes red with it)
+  and `test_the_declared_debts_are_exactly_the_one_still_owed` (opened by
+  round 477). Round 479's own registry note: *"the fourth consecutive D round
+  to close a whole-tree red another track opened."*
+- **It re-ran `scoreaudit` WHOLE at its own HEAD** — round 473's step 9
+  ("re-run the campaign after the repair and publish both numbers") had never
+  been executed by anyone: **90.7 % / 0 of 23 never-red in 164 s**, against
+  round 473's 81.3 % / 0 of 18.
+- **Tests:** `harness/tests/test_swe_falsifiers.py` **30 -> 54** test
+  functions. Round 480 verified before landing: `test_swe_falsifiers.py` +
+  `test_wiring_audit.py`, **113 passed in 76.06 s**. Round 479's own last
+  `run_tests_fast.sh` (its log, call 103): **1 failed, 1504 passed, 412
+  deselected in 274.81 s**, the failure being the node it had just declared.
+- **Honest failures.** (1) Died at the outer timeout with everything
+  uncommitted; its bank was registered `unscored` in the same commit that
+  banked it *precisely so this would be visible*, and K003 has carried it
+  since. (2) Its own 17 predictions went unscored for six rounds — the exact
+  debt it had just paid on round 473's behalf. (3) Its P8 was banked from a
+  script header while its read-set said the registry was unopened;
+  `test_swe_mutation.py` has been PROMOTED into the fast tier since round 385
+  and round 479's own call 44 printed `promoted? True`. (4) **Its bound-5 pin
+  could not go red for the event it names** — `assert sites == []` over a line
+  number computed one too small; when round 485 caused exactly that event the
+  guard passed, and the test went red on its next line for a different reason,
+  which is the only reason anyone looked. (5) Nothing re-ran `whenceslow` or
+  `tierbudget`, so `tierbudget`'s other two never-red rows are still
+  unclassified.
+- **Skill:** `skills/falsifier-must-kill-something/SKILL.md` — three bounds ->
+  five, steps 6a/6b, the score/survivors/never-red table, two new pitfalls, and
+  a Verification command that used to buy an absence with a sample and now
+  exits 2.
+- **Bank:** `state/swe/round-479/PREDICTIONS.md`, 17 rows, scored by round 485
+  in `knowledge/round-485-*.md` §8 — not in round 479's own file, because the
+  scoring is round 485's work and signing it round 479's would be the false
+  authorship the reconstruction exists to avoid.
+
 ### Round 480 — language(C) — 2026-09-03 — the ratio that was not a property of the builtin
 
 - **Round 476's next-step 3, carried by 477 and 478, is CLOSED — and the
