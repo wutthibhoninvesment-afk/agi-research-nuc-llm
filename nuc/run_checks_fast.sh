@@ -21,15 +21,36 @@
 #     `reachability_check` (round 334) and never opens a socket. No ssh, no
 #     engine contact, and in particular no possibility of touching port 8001.
 #   * `constant_audit.py` reads .py files with `ast` and nothing else.
-# Wall cost measured on this box, round 388: 65.6 s total (490 tests + audit).
-# That is roughly double the 30 s the suite takes alone, and the doubling is
-# deliberate and self-inflicted: `test_the_fast_check_runs_green_on_this_tree`
-# invokes this script end-to-end, so the pytest leg runs twice — once nested
+# Wall cost, round 388: 65.6 s total (490 tests + audit) — roughly double the
+# 30 s the suite took alone, because `test_the_fast_check_runs_green_on_this_tree`
+# invokes this script end-to-end and so ran the pytest leg twice: once nested
 # (guarded by NUC_FAST_CHECK_NESTED, which is what stops it recursing) and once
-# outside. The alternative is an unexercised FAIL path in the one check whose
-# last line the driver quotes; round 379 spent 38 driver rounds quoting the
-# wrong line for exactly that reason. Cost stated, not hidden: it is the
-# slowest of the four health checks (harness 34-45 s, whence 23 s, skills <3 s).
+# outside. Round 388 called that doubling deliberate and self-inflicted, and it
+# was the right trade at 2 x 30 s.
+#
+# ROUND 496 ENDED THE DOUBLING. It was no longer 2 x 30 s: the suite had grown
+# to 1139 tests and one leg measured 319.25 s solo on this box, so the nested
+# run cost a duplicated 5-minute suite EVERY round, on `nproc` 1, against three
+# other health suites. That is also what made the node red for nine rounds
+# (487-495, plus 483 and 485) — never an assertion, always
+# `subprocess.TimeoutExpired` at a `timeout=600` constant round 388 wrote when
+# it had 20x headroom.
+#
+# The nested leg is now narrowed by the caller, which passes
+# `-k "fast_check and not strict_instrument"` through the `"$@"` below. EVERY
+# LINE OF THIS SCRIPT STILL RUNS in that nested invocation — interpreter
+# resolution, pytest leg, audit leg, summary fragment, the three strict
+# instruments, the verdict line; only the tests the pytest leg selects change,
+# and the outer run is already running the whole tree. Measured: 5.684 s
+# instead of 319.25 s, and the saving bought a test for this script's
+# pytest-leg FAIL path, which nothing had exercised since round 388. Same trade
+# round 442 made in `test_run_checks_interpreter.py` with `--collect-only -q`.
+# The budget is now `solo x driver-concurrency x margin` with all three factors
+# re-derived from outside the test — see `TestDerivedBudget` and
+# `state/nuc/round-496/fast-check-solo.json`.
+#
+# Cost stated, not hidden: it was the slowest of the four health checks
+# (harness 34-45 s, whence 23 s, skills <3 s) and is now one suite pass.
 #
 # Diagnostic-only, exactly like the other three: it logs a verdict, never
 # blocks and never stops the driver — a broken check can itself be the NEXT

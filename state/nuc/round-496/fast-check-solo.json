@@ -1,0 +1,25 @@
+{
+  "_comment": "Round 496 (NUC-integration E). The receipt behind FAST_CHECK_TIMEOUT_S in nuc/tests/test_constant_audit.py. Round 493 (harness A) did the arithmetic for the OLD shape of this node -- a nested leg that re-ran the whole suite -- and deliberately left the edit to the owning track (state/harness/round-493/nuc-fastcheck-solo.json). Round 496 took the handoff and changed the shape first: the nested leg is now narrowed with `-k`, so what the budget budgets is 5.7 s of script, not 319 s of duplicated suite. Both legs are recorded here because the SAVING is the finding, not just the constant.",
+  "measured_round": 496,
+  "node": "nuc/tests/test_constant_audit.py::test_the_fast_check_runs_green_on_this_tree",
+  "nproc": 1,
+  "driver_concurrent_suites": 4,
+  "budget_margin": 1.5,
+  "solo_wall_s": 5.684,
+  "solo_wall_s_what": "NUC_FAST_CHECK_NESTED=1 bash nuc/run_checks_fast.sh -k 'fast_check and not strict_instrument' -- the leg the node now runs. 6 passed, 1 skipped, 1133 deselected. Every line of the script runs: interpreter resolution, pytest leg, audit leg, summary fragment, three strict instruments, verdict line.",
+  "solo_wall_s_alone": "NOT an idle box: an unrelated round-495 whence coverage process held ~66% of the single core throughout. This is a contended FLOOR, which biases the budget upward, i.e. safe. Labelled rather than dropped -- round 493 made the same call and said so.",
+  "full_suite_leg_wall_s": 319.25,
+  "full_suite_leg_what": "The SAME command without -k, i.e. what this node cost every round from 388 to 495. 1139 passed, 1 skipped in 313.85s; script wall 319.25 s; nuc-checks PASS. Measured under the same ~66% competitor.",
+  "observed_contended_leg_s": 15.79,
+  "observed_contended_leg_what": "Worst of FOUR narrowed legs run concurrently, reproducing the driver's own four-way health-check block on nproc=1 (copies: 15.785, 15.419, 15.790, 14.806 s; all four nuc-checks PASS). Contention factor 2.78x, consistent with the 2.6-2.8x implied by the health logs and with round 487's >=3.27x floor.",
+  "budget_s": 35,
+  "budget_derivation": "ceil(solo_wall_s * driver_concurrent_suites * budget_margin) = ceil(5.684 * 4 * 1.5) = 35",
+  "budget_headroom_over_observed": "35 / 15.79 = 2.22x",
+  "replaces": "a bare `timeout=600` literal written by round 388 (1bd242e) and unchanged for 108 rounds",
+  "red_closed": {
+    "since_round": 487,
+    "red_rounds_observed": [483, 485, 487, 488, 489, 490, 491, 492, 493, 494, 495],
+    "failure_mode": "subprocess.TimeoutExpired, Popen returncode -9 (SIGKILL). Never an assertion.",
+    "why_it_flapped": "The verdict tracked one threshold: the nested leg's contended wall time against a constant 600 s. Rounds 483 and 485 crossed it and 484 and 486 fell back under it, which the red-attribution registry recorded as three separate episodes. One defect, one threshold."
+  }
+}

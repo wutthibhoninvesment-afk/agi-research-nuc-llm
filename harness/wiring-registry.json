@@ -417,7 +417,7 @@
     },
     "nuc/constant_audit.py": {
       "status": "wired",
-      "via": "nuc/run_checks_fast.sh:146",
+      "via": "nuc/run_checks_fast.sh:167",
       "via_kind": "path"
     },
     "nuc/decode_fix.py": {
