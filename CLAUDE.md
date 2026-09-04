@@ -113,3 +113,24 @@ registry, and `--provenance` is what proved the body was recoverable.
 Without this fix, Whence-lang cannot perform list aggregation, totaling, or accumulation operations — a fundamental building block for any production use case.
 
 ---
+
+## 🚀 MASTER MISSION: WHENCE-LANG v1.0.0 ROADMAP (Active)
+**Target:** Production Ready Version | **Model Focus:** Opus-5 Deep Analysis
+
+### Phase 1: Core Hardening (Rounds 484-490)
+**Goal:** Reach 1,500+ Tests & Fix Edge Cases
+1. Expand Test Suite: Add E2E tests for complex logic (nested ifs, recursion > 5 levels)
+2. Provenance Chaos Tests: Verify why(x) works after 10+ layers of function calls
+3. Stress Testing: Find exact limits of fold on lists of 1M items
+4. Documentation: Convert one .lang example into Tutorial format with comments
+
+### Phase 2: Speed and Features (Rounds 491-500)
+**Goal:** Performance Benchmarking & Built-in Expansion
+1. Benchmark Suite: Compare Whence fold speed vs Python Native sum()
+2. Profile interp.py to identify if derived() or _propagate() is the bottleneck
+3. New Built-ins: Implement zip(), len(), and advanced str formatting
+
+### Instructions for Opus-5:
+- Always check knowledge/v1_roadmap_mission.txt before starting any round
+- Run all generated code; do not skip failing tests
+- Report progress in state/research-state.md under "Roadmap Progress" section
