@@ -460,6 +460,210 @@ def test_cli_crosscheck_strict_exits_zero_on_the_real_capture():
 
 
 # --------------------------------------------------------------------------
+# Round 484: the retention theorem's edge case, measured on the real box
+# --------------------------------------------------------------------------
+
+R484 = os.path.join(ROOT, "state", "nuc-capture-r484")
+R484_NOW = "2026-09-04T01:27:04Z"
+
+
+def test_an_orphan_receipt_is_scored_as_a_fire_that_ran():
+    """Round 478 named orphans and threw them away. A receipt is written only
+    by a fire, so it dates that fire whether or not its day file survives --
+    and the orphan is always the OLDEST decidable day, i.e. the first one to
+    exist nowhere but a capture."""
+    text = ls(
+        ("sar09", 2000, "Aug 10 00:07"),
+        ("sa10", 1000, "Aug 10 23:50"),
+        ("sar10", 2000, "Aug 11 00:07"),
+    )
+    rep = sf.fires(text, "2026-08-12T09:00:00Z")
+    row = [r for r in rep["fires"] if r["receipt"] == "sar09"][0]
+    assert row["verdict"] == "fire_ran"
+    assert row["evidence"] == "receipt_only"
+    assert row["day_file"] is None
+    assert row["fire_utc"] == "2026-08-10T00:07:00Z"
+    assert rep["counts"]["fire_ran"] == 2
+
+
+def test_an_orphan_still_appears_in_the_orphan_list():
+    """Scoring it must not hide it: the orphan is also a fact about the
+    directory, and round 478's field is the thing a reader greps for."""
+    text = ls(
+        ("sar09", 2000, "Aug 10 00:07"),
+        ("sa10", 1000, "Aug 10 23:50"),
+        ("sar10", 2000, "Aug 11 00:07"),
+    )
+    assert sf.fires(text, "2026-08-12T09:00:00Z")["orphan_receipts"] == ["sar09"]
+
+
+def test_an_orphans_swept_days_are_not_reported_as_no_day_file_holes():
+    """`no_day_file` means "the box never created it", which is why the module
+    refuses a verdict there. A day the sweep took is a different fact and must
+    not be laundered into that bucket by widening the hole scan."""
+    text = ls(
+        ("sar05", 2000, "Aug 6 00:07"),
+        ("sa10", 1000, "Aug 10 23:50"),
+        ("sar10", 2000, "Aug 11 00:07"),
+    )
+    rep = sf.fires(text, "2026-08-12T09:00:00Z")
+    assert rep["no_day_file_dates"] == []
+
+
+def test_the_live_capture_recovers_the_day_the_sweep_took():
+    """2026-09-04T00:07:18 deleted sa26 and spared sar26. The fire of
+    2026-08-27T00:07 is decidable from the orphan alone."""
+    rep = sf.fires(sf.read_listing(R484), R484_NOW)
+    assert rep["orphan_receipts"] == ["sar26"]
+    row = [r for r in rep["fires"] if r["receipt"] == "sar26"][0]
+    assert row["verdict"] == "fire_ran"
+    assert row["evidence"] == "receipt_only"
+    assert row["fire_utc"] == "2026-08-27T00:07:00Z"
+    # 5 ran + 3 missed = 8 decidable; without the orphan it would be 7.
+    assert rep["counts"]["fire_ran"] == 5
+    assert rep["counts"]["fire_missed"] == 3
+
+
+def test_the_sweep_really_did_take_the_day_file_and_spare_the_receipt():
+    """The falsification itself, straight off the two captures' listings.
+    If this ever goes green-by-accident because both files are absent, the
+    r478 half will fail first."""
+    before = {e["name"] for e in sf.parse_sysstat_ls(
+        sf.read_listing(REAL_CAPTURE), REAL_NOW)}
+    after = {e["name"] for e in sf.parse_sysstat_ls(
+        sf.read_listing(R484), R484_NOW)}
+    assert {"sa26", "sar26"} <= before
+    assert "sa26" not in after, "the sweep should have taken the day file"
+    assert "sar26" in after, "the receipt outlived it -- the pair SPLIT"
+    # and its three older siblings went together, pair and all
+    for nn in ("23", "24", "25"):
+        assert f"sa{nn}" not in after and f"sar{nn}" not in after
+
+
+# --------------------------------------------------------------------------
+# sweep_margins() -- the split, predicted from journal timestamps alone
+# --------------------------------------------------------------------------
+
+def journal(*stamps) -> str:
+    return "\n".join(
+        f"{t} pgain-nuc systemd[1]: Starting sysstat-summary.service - "
+        f"Generate a daily summary of process accounting..." for t in stamps)
+
+
+def test_a_sweep_firing_later_in_the_minute_takes_the_receipt():
+    rep = sf.sweep_margins(journal("2026-08-01T00:07:04+00:00",
+                                   "2026-08-09T00:07:20+00:00"))
+    row = rep["margins"][0]
+    assert row["margin_s"] == 16.0
+    assert row["outcome"] == "swept"
+
+
+def test_a_sweep_firing_earlier_in_the_minute_orphans_the_receipt():
+    """The whole finding: `-mtime +7` floors to whole days, so a receipt whose
+    age is 8 days LESS three seconds scores 7, and `7 > 7` is false."""
+    rep = sf.sweep_margins(journal("2026-08-01T00:07:21+00:00",
+                                   "2026-08-09T00:07:18+00:00"))
+    row = rep["margins"][0]
+    assert row["margin_s"] == -3.0
+    assert row["outcome"] == "orphaned"
+
+
+def test_a_margin_inside_the_journals_resolution_is_undecidable_not_guessed():
+    """A journal line has whole-second precision and the real mtime carries a
+    fraction (`sar26` is 00:07:21.677 where the journal says :21). At one
+    second, a verdict would be a guess wearing a number."""
+    rep = sf.sweep_margins(journal("2026-08-01T00:07:05+00:00",
+                                   "2026-08-09T00:07:05+00:00"))
+    assert rep["margins"][0]["outcome"] == "undecidable"
+    assert rep["margins"][0]["margin_s"] == 0.0
+
+
+def test_a_margin_of_exactly_zero_is_a_deletion_not_a_reprieve(monkeypatch):
+    """`-mtime +7` is `int(age_s // 86400) > 7`, so an age of EXACTLY 8 days
+    floors to 8 and the file dies. The `>= 0` boundary is otherwise
+    unreachable -- the resolution guard swallows it -- which is precisely why
+    it needs pinning: nothing else in this suite can tell `>=` from `>`.
+    (Found by mutation: the `margin > 0` mutant survived the first pass.)"""
+    monkeypatch.setattr(sf, "MARGIN_RESOLUTION_S", 0.0)
+    rep = sf.sweep_margins(journal("2026-08-01T00:07:07+00:00",
+                                   "2026-08-09T00:07:07+00:00"))
+    row = rep["margins"][0]
+    assert row["margin_s"] == 0.0
+    assert row["outcome"] == "swept"
+
+
+def test_a_sweep_that_never_fired_deletes_nothing():
+    """An outage does not defer the sweep -- `Persistent=no` -- so a receipt
+    whose eighth-day fire never happened simply lives to the next one."""
+    rep = sf.sweep_margins(journal("2026-08-01T00:07:04+00:00"),
+                           now_utc="2026-08-20T00:00:00Z")
+    assert rep["margins"][0]["outcome"] == "sweep_missed"
+    assert rep["margins"][0]["margin_s"] is None
+
+
+def test_history_days_moves_the_boundary():
+    """HISTORY is read off the box, never assumed; the arithmetic must follow
+    it. At HISTORY=30 the same pair of fires is nowhere near an edge."""
+    j = journal("2026-08-01T00:07:21+00:00", "2026-08-09T00:07:18+00:00")
+    assert sf.sweep_margins(j, history_days=7)["counts"] == {
+        "orphaned": 1, "sweep_pending": 1}
+    assert sf.sweep_margins(j, history_days=30)["counts"] == {
+        "sweep_pending": 2}
+
+
+def test_margins_reads_starting_lines_not_finished_lines():
+    """`sa2` renders the receipt near the top and sweeps at the bottom, so the
+    receipt mtime tracks the START. Scoring off `Finished` would bias every
+    margin by the service's own duration."""
+    text = (journal("2026-08-01T00:07:21+00:00") + "\n" +
+            "2026-08-01T00:07:44+00:00 pgain-nuc systemd[1]: Finished "
+            "sysstat-summary.service - Generate a daily summary.")
+    rep = sf.sweep_margins(text)
+    assert rep["fire_instants_utc"] == ["2026-08-01T00:07:21Z"]
+
+
+def test_the_live_journal_predicts_exactly_the_orphan_that_happened():
+    """Two disjoint sources agree. `fires` reads the filesystem LISTING and
+    finds sar26 orphaned; `sweep_margins` reads only journal TIMESTAMPS and
+    names the same receipt, at -3 s. Neither input mentions the other."""
+    with open(os.path.join(R484, "journal-pid1-full.txt"),
+              encoding="utf-8", errors="replace") as fh:
+        rep = sf.sweep_margins(fh.read(), now_utc=R484_NOW)
+    orphaned = [r for r in rep["margins"] if r["outcome"] == "orphaned"]
+    assert len(orphaned) == 1
+    assert orphaned[0]["margin_s"] == -3.0
+    assert orphaned[0]["receipt_written_utc"] == "2026-08-27T00:07:21Z"
+    assert orphaned[0]["sweep_fire_utc"] == "2026-09-04T00:07:18Z"
+    # sar26 is the receipt written by the 2026-08-27 fire.
+    listing = sf.fires(sf.read_listing(R484), R484_NOW)
+    assert listing["orphan_receipts"] == ["sar26"]
+    assert [r for r in listing["fires"]
+            if r["receipt"] == "sar26"][0]["fire_utc"] == "2026-08-27T00:07:00Z"
+
+
+def test_the_timer_jitter_is_real_and_is_what_decides_the_edge():
+    """`OnCalendar=00:07:00` with no AccuracySec override. If the fires were
+    punctual there would be no edge case at all, and round 478's theorem would
+    have held."""
+    with open(os.path.join(R484, "journal-pid1-full.txt"),
+              encoding="utf-8", errors="replace") as fh:
+        rep = sf.sweep_margins(fh.read())
+    assert rep["n_fires"] == 6
+    assert rep["jitter_span_s"] == 17
+    seconds = {int(t[17:19]) for t in rep["fire_instants_utc"]}
+    assert len(seconds) > 1, "a punctual timer cannot orphan a receipt"
+
+
+def test_cli_margins_runs_on_the_real_capture():
+    proc = subprocess.run(
+        [sys.executable, os.path.join(ROOT, "nuc", "summary_fossil.py"),
+         "margins", "--capture", R484, "--now", R484_NOW, "--strict"],
+        capture_output=True, text=True, timeout=120)
+    assert proc.returncode == 0, proc.stderr
+    assert json.loads(proc.stdout)["counts"]["orphaned"] == 1
+
+
+# --------------------------------------------------------------------------
 # The mutation ledger
 # --------------------------------------------------------------------------
 
@@ -493,6 +697,25 @@ MUTATIONS = {
         "test_read_listing_prefers_the_marked_section",
     "schedule tie-break reverts to Counter.most_common":
         "test_a_tied_schedule_vote_is_broken_deterministically_and_is_visible",
+    # round 484
+    "orphan receipts named but not scored (round 478 behaviour restored)":
+        "test_an_orphan_receipt_is_scored_as_a_fire_that_ran",
+    "orphan rows dropped from the orphan_receipts list":
+        "test_an_orphan_still_appears_in_the_orphan_list",
+    "hole scan widened to include orphan rows":
+        "test_an_orphans_swept_days_are_not_reported_as_no_day_file_holes",
+    "sweep_margins `margin >= 0` becomes `margin > 0`":
+        "test_a_margin_of_exactly_zero_is_a_deletion_not_a_reprieve",
+    "MARGIN_RESOLUTION_S set to 0 (a guess wearing a number)":
+        "test_a_margin_inside_the_journals_resolution_is_undecidable_not_guessed",
+    "sweep horizon `history_days + 1` becomes `history_days`":
+        "test_a_sweep_firing_later_in_the_minute_takes_the_receipt",
+    "history_days hardcoded to 7":
+        "test_history_days_moves_the_boundary",
+    "sweep_margins matches Finished instead of Starting":
+        "test_margins_reads_starting_lines_not_finished_lines",
+    "a missing sweep fire scored `swept` instead of `sweep_missed`":
+        "test_a_sweep_that_never_fired_deletes_nothing",
 }
 
 
@@ -507,8 +730,11 @@ def test_every_public_entry_point_is_covered_by_at_least_one_mutation():
     covered = " ".join(MUTATIONS)
     for fn in ("fires", "crosscheck", "blindspot", "read_listing"):
         assert callable(getattr(sf, fn))
+    for fn in ("sweep_margins", "parse_fire_instants"):
+        assert callable(getattr(sf, fn))
     for token in ("fire_pending", "no_day_file", "boot horizon",
-                  "blindspot", "read_listing"):
+                  "blindspot", "read_listing", "orphan receipts",
+                  "sweep_margins", "history_days"):
         assert token in covered
 
 

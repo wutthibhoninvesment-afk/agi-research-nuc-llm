@@ -1,0 +1,11 @@
+{"captures": ["nuc-capture-r400", "nuc-capture-r424", "nuc-capture-r478"], "evidence": ["day_file"], "fire_utc": "2026-08-24T00:07:00Z", "n_captures": 3, "verdict": "fire_ran"}
+{"captures": ["nuc-capture-r400", "nuc-capture-r424", "nuc-capture-r478"], "evidence": ["day_file"], "fire_utc": "2026-08-25T00:07:00Z", "n_captures": 3, "verdict": "fire_ran"}
+{"captures": ["nuc-capture-r400", "nuc-capture-r424", "nuc-capture-r478"], "evidence": ["day_file"], "fire_utc": "2026-08-26T00:07:00Z", "n_captures": 3, "verdict": "fire_ran"}
+{"captures": ["nuc-capture-r400", "nuc-capture-r424", "nuc-capture-r478", "nuc-capture-r484"], "evidence": ["day_file", "receipt_only"], "fire_utc": "2026-08-27T00:07:00Z", "n_captures": 4, "verdict": "fire_ran"}
+{"captures": ["nuc-capture-r400", "nuc-capture-r424", "nuc-capture-r478", "nuc-capture-r484"], "evidence": ["day_file"], "fire_utc": "2026-08-28T00:07:00Z", "n_captures": 4, "verdict": "fire_ran"}
+{"captures": ["nuc-capture-r400", "nuc-capture-r424", "nuc-capture-r478", "nuc-capture-r484"], "evidence": ["day_file"], "fire_utc": "2026-08-29T00:07:00Z", "n_captures": 4, "verdict": "fire_ran"}
+{"captures": ["nuc-capture-r400", "nuc-capture-r424", "nuc-capture-r478", "nuc-capture-r484"], "evidence": ["day_file"], "fire_utc": "2026-08-30T00:07:00Z", "n_captures": 4, "verdict": "fire_missed"}
+{"captures": ["nuc-capture-r400", "nuc-capture-r424", "nuc-capture-r478", "nuc-capture-r484"], "evidence": ["day_file"], "fire_utc": "2026-08-31T00:07:00Z", "n_captures": 4, "verdict": "fire_ran"}
+{"captures": ["nuc-capture-r424", "nuc-capture-r478", "nuc-capture-r484"], "evidence": ["day_file"], "fire_utc": "2026-09-01T00:07:00Z", "n_captures": 3, "verdict": "fire_missed"}
+{"captures": ["nuc-capture-r478", "nuc-capture-r484"], "evidence": ["day_file"], "fire_utc": "2026-09-02T00:07:00Z", "n_captures": 2, "verdict": "fire_missed"}
+{"captures": ["nuc-capture-r484"], "evidence": ["day_file"], "fire_utc": "2026-09-04T00:07:00Z", "n_captures": 1, "verdict": "fire_ran"}

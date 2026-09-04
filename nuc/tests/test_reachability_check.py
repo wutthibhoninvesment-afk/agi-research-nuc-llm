@@ -3548,17 +3548,28 @@ def test_the_never_seen_sentinel_is_not_a_bracket():
 # --- the precision audit ---------------------------------------------------
 
 def test_the_audit_finds_nothing_unearned_in_the_live_log_today():
-    """The honest headline, as a pin. 20 of the live log's 60 rows are coarse
-    and they carry 60% of its published ignorance -- and not one published
-    conclusion currently rests on that coarseness. The guards added this round
-    are PREVENTIVE. Saying so is the finding; if a later round makes this go
-    red, the log has started drawing conclusions from rounded digits."""
+    """The honest headline, as a pin. 21 of the live log's 65 rows are coarse
+    and they carry 63% of its published ignorance -- and not one published
+    conclusion currently rests on that coarseness. The guards added at round
+    460 are PREVENTIVE. Saying so is the finding; if a later round makes the
+    first two assertions go red, the log has started drawing conclusions from
+    rounded digits.
+
+    TWO KINDS OF NUMBER LIVE IN THIS TEST and they need different reactions
+    (round 484). `unearned_claims` and `unearned_missed_excursions` are
+    INVARIANTS: they are empty because of a rule, and a later round making
+    them non-empty is a real finding. The census figures below are
+    CORPUS-DERIVED: every E round that appends a row moves them, by
+    construction. Round 484 moved coarse 20 -> 21 and the gap count 23 -> 24
+    by backfilling round 478's missing row (`backfill-prose-r478`,
+    `precision: coarse` because the addendum quotes no LastSeen and this
+    program does not invent digits). Re-derive them; do not preserve them."""
     aud = rc.precision_audit(rc.load_log(str(REAL_LOG)))
     assert aud["unearned_claims"] == []
     assert aud["unearned_missed_excursions"] == []
-    assert aud["by_precision"]["coarse"] == 20
-    assert aud["gaps_with_a_coarse_endpoint"] == 23
-    assert 0.60 < aud["unobserved_carried_by_coarse_endpoint_fraction"] < 0.61
+    assert aud["by_precision"]["coarse"] == 21
+    assert aud["gaps_with_a_coarse_endpoint"] == 24
+    assert 0.63 < aud["unobserved_carried_by_coarse_endpoint_fraction"] < 0.64
 
 
 def test_the_audit_catches_an_excursion_that_only_a_point_reading_supports():
@@ -3746,7 +3757,20 @@ def test_the_live_log_gains_seven_bracketed_gaps_and_no_headline_number_moves():
     anywhere in the span'. `unobserved_total_s` does NOT move, because
     REBOOT_ONLY has never reduced it; what moves is that 16h49m of the log's
     ignorance is now one journal capture away from a bound instead of being
-    permanently out of reach."""
+    permanently out of reach.
+
+    ROUND 484: the bracketed set is UNCHANGED (still those seven gaps, still
+    60528.0 s) but `unobserved_total_s` moved 396378.0 -> 426906.0, and the
+    docstring title's "no headline number moves" is now false about that one.
+    The cause is worth keeping, because it is not a defect. Round 484 appended
+    TWO rows -- a live one for itself and a `backfill-prose-r478` one for the
+    round that connected, wrote a capture and forgot its own row. Removing
+    EITHER row restores 396378.0 exactly; only both together move it. A single
+    observation of an up box has no interior, so it creates no measurable
+    unobserved interval; two create the 30528 s between 2026-09-03T17:10:54Z
+    and 2026-09-04T01:39:41Z. Closing a coverage gap therefore INCREASES
+    published ignorance, because the program can now name a stretch it
+    previously could not see at all."""
     rep = rc.gap_continuity(rc.load_log(str(REAL_LOG)))
     bracketed = [g for s in rep for g in s["gaps"]
                  if g["witness_source"] == "boot_utc_unchanged_bracketed"]
@@ -3757,4 +3781,4 @@ def test_the_live_log_gains_seven_bracketed_gaps_and_no_headline_number_moves():
     assert sum(g["unobserved_s"] for g in bracketed) == 60528.0
     assert all(g["witness_strength"] == rc.WITNESS_REBOOT_ONLY for g in bracketed)
     full = rc.continuity_report(rc.load_log(str(REAL_LOG)))
-    assert full["unobserved_total_s"] == 396378.0
+    assert full["unobserved_total_s"] == 426906.0

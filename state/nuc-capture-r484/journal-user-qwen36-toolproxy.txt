@@ -1,0 +1,59 @@
+### USER_UNIT_qwen36-toolproxy
+2026-08-26T03:28:11+00:00 pgain-nuc python3[1023]: [toolproxy] "GET /healthz HTTP/1.1" 200 -
+2026-08-26T03:29:17+00:00 pgain-nuc python3[1023]: [toolproxy] "GET /healthz HTTP/1.1" 200 -
+2026-08-26T04:30:55+00:00 pgain-nuc python3[1023]: [toolproxy] "GET /healthz HTTP/1.1" 200 -
+2026-08-26T07:06:37+00:00 pgain-nuc python3[1023]: [toolproxy] "GET /healthz HTTP/1.1" 200 -
+2026-08-26T18:05:51+00:00 pgain-nuc python3[1023]: [toolproxy] "GET /v1/models HTTP/1.1" 200 -
+2026-08-26T19:17:49+00:00 pgain-nuc python3[24766]: qwen36 tool-proxy: http://127.0.0.1:8080 -> http://127.0.0.1:8000/v1/chat/completions
+2026-08-26T19:17:59+00:00 pgain-nuc python3[24766]: [toolproxy] "GET /healthz HTTP/1.1" 200 -
+2026-08-26T19:24:02+00:00 pgain-nuc python3[24862]: qwen36 tool-proxy: http://127.0.0.1:8080 -> http://127.0.0.1:8000/v1/chat/completions
+-- Boot 391cb36ece2a4bbfb6743cf279d01148 --
+2026-08-27T11:50:54+00:00 pgain-nuc python3[1082]: qwen36 tool-proxy: http://127.0.0.1:8080 -> http://127.0.0.1:8000/v1/chat/completions
+-- Boot 43e0c767e98e41c5a2c0d475a15e06cf --
+2026-08-30T00:32:35+00:00 pgain-nuc python3[1112]: qwen36 tool-proxy: http://127.0.0.1:8080 -> http://127.0.0.1:8000/v1/chat/completions
+2026-08-30T10:25:38+00:00 pgain-nuc python3[1112]: [toolproxy] "GET /health HTTP/1.1" 404 -
+-- Boot f13afb479fc047839cf3621342cf6995 --
+2026-09-01T05:33:35+00:00 pgain-nuc python3[1143]: qwen36 tool-proxy: http://127.0.0.1:8080 -> http://127.0.0.1:8000/v1/chat/completions
+2026-09-01T14:58:35+00:00 pgain-nuc python3[1143]: [toolproxy] "GET /v1/models HTTP/1.1" 200 -
+2026-09-01T15:01:30+00:00 pgain-nuc python3[1143]: [toolproxy] "GET /v1/models HTTP/1.1" 200 -
+2026-09-01T15:01:30+00:00 pgain-nuc python3[1143]: [toolproxy] "GET /api/v1/models HTTP/1.1" 404 -
+2026-09-01T15:01:30+00:00 pgain-nuc python3[1143]: [toolproxy] "GET /api/tags HTTP/1.1" 404 -
+2026-09-01T15:01:31+00:00 pgain-nuc python3[1143]: [toolproxy] "GET /v1/props HTTP/1.1" 404 -
+2026-09-01T15:01:31+00:00 pgain-nuc python3[1143]: [toolproxy] "GET /props HTTP/1.1" 404 -
+2026-09-01T15:01:31+00:00 pgain-nuc python3[1143]: [toolproxy] "GET /version HTTP/1.1" 404 -
+2026-09-01T15:01:31+00:00 pgain-nuc python3[1143]: [toolproxy] "GET /v1/models HTTP/1.1" 200 -
+2026-09-01T15:01:31+00:00 pgain-nuc python3[1143]: [toolproxy] "GET /v1/models/qwen36-tools HTTP/1.1" 200 -
+2026-09-01T15:01:31+00:00 pgain-nuc python3[1143]: [toolproxy] "GET /v1/models HTTP/1.1" 200 -
+2026-09-01T15:01:31+00:00 pgain-nuc python3[1143]: [toolproxy] "POST /api/show HTTP/1.1" 404 -
+2026-09-01T15:01:31+00:00 pgain-nuc python3[1143]: [toolproxy] code 400, message Bad request syntax ('{"name":"qwen36-tools"}')
+2026-09-01T15:01:31+00:00 pgain-nuc python3[1143]: [toolproxy] "{"name":"qwen36-tools"}" 400 -
+2026-09-01T15:01:31+00:00 pgain-nuc python3[1143]: [toolproxy] "GET /v1/models/qwen36-tools HTTP/1.1" 200 -
+2026-09-01T15:01:31+00:00 pgain-nuc python3[1143]: [toolproxy] "GET /v1/models HTTP/1.1" 200 -
+2026-09-01T15:01:31+00:00 pgain-nuc python3[1143]: [toolproxy] "POST /api/show HTTP/1.1" 404 -
+2026-09-01T15:01:31+00:00 pgain-nuc python3[1143]: [toolproxy] code 400, message Bad request syntax ('{"name":"qwen36-tools"}')
+2026-09-01T15:01:31+00:00 pgain-nuc python3[1143]: [toolproxy] "{"name":"qwen36-tools"}" 400 -
+2026-09-01T15:01:42+00:00 pgain-nuc python3[1143]: [toolproxy] "GET /v1/models/qwen36-tools HTTP/1.1" 200 -
+2026-09-01T15:01:42+00:00 pgain-nuc python3[1143]: [toolproxy] "GET /v1/models HTTP/1.1" 200 -
+2026-09-01T15:01:42+00:00 pgain-nuc python3[1143]: [toolproxy] "POST /api/show HTTP/1.1" 404 -
+2026-09-01T15:01:42+00:00 pgain-nuc python3[1143]: [toolproxy] code 400, message Bad request syntax ('{"name":"qwen36-tools"}')
+2026-09-01T15:01:42+00:00 pgain-nuc python3[1143]: [toolproxy] "{"name":"qwen36-tools"}" 400 -
+2026-09-01T15:01:42+00:00 pgain-nuc python3[1143]: [toolproxy] "POST /v1/chat/completions HTTP/1.1" 400 -
+2026-09-01T15:01:43+00:00 pgain-nuc python3[1143]: [toolproxy] "POST /v1/chat/completions HTTP/1.1" 400 -
+2026-09-01T15:01:43+00:00 pgain-nuc python3[1143]: [toolproxy] "GET /v1/models/qwen36-tools HTTP/1.1" 200 -
+2026-09-01T15:01:43+00:00 pgain-nuc python3[1143]: [toolproxy] "GET /v1/models HTTP/1.1" 200 -
+2026-09-01T15:01:43+00:00 pgain-nuc python3[1143]: [toolproxy] "POST /api/show HTTP/1.1" 404 -
+2026-09-01T15:01:43+00:00 pgain-nuc python3[1143]: [toolproxy] code 400, message Bad request syntax ('{"name":"qwen36-tools"}')
+2026-09-01T15:01:43+00:00 pgain-nuc python3[1143]: [toolproxy] "{"name":"qwen36-tools"}" 400 -
+2026-09-01T15:01:44+00:00 pgain-nuc python3[1143]: [toolproxy] "POST /v1/chat/completions HTTP/1.1" 400 -
+2026-09-01T15:02:09+00:00 pgain-nuc python3[1143]: [toolproxy] "POST /v1/chat/completions HTTP/1.1" 400 -
+2026-09-01T15:02:21+00:00 pgain-nuc python3[1143]: [toolproxy] "POST /v1/chat/completions HTTP/1.1" 400 -
+2026-09-01T15:02:33+00:00 pgain-nuc python3[1143]: [toolproxy] "POST /v1/chat/completions HTTP/1.1" 400 -
+2026-09-01T15:02:43+00:00 pgain-nuc python3[1143]: [toolproxy] "POST /v1/chat/completions HTTP/1.1" 400 -
+2026-09-01T15:04:33+00:00 pgain-nuc python3[1143]: [toolproxy] "GET /v1/models/qwen36-tools HTTP/1.1" 200 -
+2026-09-01T15:04:33+00:00 pgain-nuc python3[1143]: [toolproxy] "GET /v1/models HTTP/1.1" 200 -
+2026-09-01T15:04:33+00:00 pgain-nuc python3[1143]: [toolproxy] "POST /api/show HTTP/1.1" 404 -
+2026-09-01T15:04:33+00:00 pgain-nuc python3[1143]: [toolproxy] code 400, message Bad request syntax ('{"name":"qwen36-tools"}')
+2026-09-01T15:04:33+00:00 pgain-nuc python3[1143]: [toolproxy] "{"name":"qwen36-tools"}" 400 -
+2026-09-01T15:06:07+00:00 pgain-nuc python3[1143]: [toolproxy] "POST /v1/chat/completions HTTP/1.1" 400 -
+-- Boot 0d0e3188da124a4b9f78b26dd95d3ea2 --
+2026-09-03T09:37:19+00:00 pgain-nuc python3[1090]: qwen36 tool-proxy: http://127.0.0.1:8080 -> http://127.0.0.1:8000/v1/chat/completions

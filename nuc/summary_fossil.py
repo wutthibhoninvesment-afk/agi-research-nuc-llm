@@ -35,16 +35,56 @@ The obvious objection is that a missing `sarNN` might just have been swept.
 It cannot have been, whenever `saNN` is still present:
 
 * `saNN` is stamped at the last collect of day NN (~23:50).
-* `sarNN` is stamped at 00:07 on day NN+1, i.e. **17 minutes younger**.
+* `sarNN` is stamped at ~00:07 on day NN+1, i.e. **17 minutes younger**.
 * The sweep is `-mtime +7`: `int(age_s // 86400) > 7`, whole days truncated.
-* At any fire instant T (itself 00:07), `saNN`'s age is an integer number of
-  days plus 0:17, and `sarNN`'s age is that same integer exactly. Both floor
-  to the same integer, so the two files always share a verdict.
+* At the sweep, `saNN`'s age is (whole days + 0:17:14) and `sarNN`'s age is
+  (the same whole number of days) +/- a few SECONDS. So when the boundary
+  bites, `saNN` is 17 minutes past it and `sarNN` is sitting exactly on it.
 
 So `saNN` present AND `sarNN` absent means the fire did not write it -- never
-that the sweep took it. `saNN` absent is a different matter and this module
-refuses to answer there (`no_day_file`), because a day file the box never
-created and a day file rotation deleted look identical from outside.
+that the sweep took it. THAT direction is safe, and it is the only direction
+this module's verdicts depend on. `saNN` absent is a different matter and this
+module refuses to answer there (`no_day_file`), because a day file the box
+never created and a day file rotation deleted look identical from outside.
+
+WHERE ROUND 478 GOT THIS WRONG -- measured by round 484
+-------------------------------------------------------
+Round 478 wrote, in this docstring and in the `orphans` comment below, that
+the pair "always share a verdict" and that a receipt "is younger and dies no
+earlier". Both sentences are false, and the box falsified them on the first
+sweep this program ever observed.
+
+`sysstat-summary.timer` is `OnCalendar=00:07:00` with no `AccuracySec=`
+override, so systemd may fire it anywhere inside a one-minute window. The
+fire instants in `state/nuc-capture-r484/journal-pid1-full.txt` are
+00:07:21, 00:07:21, 00:07:04, 00:07:04, 00:07:05, 00:07:18 -- a **17-second**
+spread. And `/usr/lib/sysstat/sa2` renders the receipt BEFORE it sweeps, in
+that order, in one script.
+
+`sarNN`'s age at its eighth-day sweep is therefore an exact integer number of
+days plus (this fire's offset in the minute) minus (that fire's offset), i.e.
+a number within +/- 17 s of the `-mtime +7` boundary. `saNN`'s is that plus
+17m14s. `saNN` is never near the edge; `sarNN` is ON it, once per file, on
+exactly one day of its life.
+
+The 2026-09-04T00:07:18 sweep is what proved it. It deleted `sa23 sa24 sa25
+sa26 sar23 sar24 sar25` -- and spared `sar26`, whose mtime is
+2026-08-27T00:07:21.677. 00:07:18 minus 00:07:21.677 is **8 days less 3.7
+seconds**, which floors to 7, and `7 > 7` is false. The pair split by three
+and a half seconds.
+
+The split has ONE direction. The receipt is 17 minutes younger, so it can
+only ever outlive its day file, never predecease it -- by exactly one sweep,
+then it dies. So the observable is a one-day window in which `sarNN` sits in
+the directory with no `saNN` beside it: an ORPHAN RECEIPT.
+
+An orphan receipt is not an anomaly. It is a receipt, and a receipt is
+self-sufficient: it was written by a fire, so that fire ran. Round 478 keyed
+every verdict off the `saNN` file and listed orphans without scoring them,
+which throws away evidence at precisely the rotation frontier -- the one day
+whose record is about to exist in no place but a capture. Round 484 scores
+them (`evidence: "receipt_only"`), and `sweep_margins()` below computes, from
+data every capture already banks, WHICH receipt orphans next.
 
 WHAT THIS MODULE WILL NOT DO
 ----------------------------
@@ -240,16 +280,52 @@ def fires(ls_text: str, now_utc: str, settle_s: int = DEFAULT_SETTLE_S) -> dict:
                 _parse(receipt["mtime_utc"]) - fire).total_seconds()
         out.append(row)
 
-    # A receipt with no day file: the sweep cannot produce this (the receipt is
-    # younger and dies no earlier), so it is a genuine anomaly worth naming.
+    # A receipt with no day file. Round 478's comment here said "the sweep
+    # cannot produce this (the receipt is younger and dies no earlier), so it
+    # is a genuine anomaly". Round 484 watched the sweep produce one: see the
+    # module docstring. The receipt IS younger, but `-mtime` floors to whole
+    # days and the receipt's age at its eighth-day sweep is an exact integer
+    # number of days give or take the timer's sub-minute jitter, so it can
+    # clear the boundary the day file just failed -- and then die one sweep
+    # later. The window is one day wide and it is routine, not anomalous.
+    #
+    # A receipt is self-sufficient evidence: `sa2` writes it only when it
+    # runs, so its existence dates a fire whether or not the day file it
+    # rendered is still on disk. Scoring these is the whole point -- the
+    # orphan is always the OLDEST decidable day, i.e. the one about to
+    # survive nowhere but in a capture.
     orphans = [n for n in receipts
                if "sa" + _SAR_RE.match(n).group(1) not in day_files]
+    for name in sorted(orphans, key=lambda n: receipts[n]["mtime_utc"]):
+        e = receipts[name]
+        fired = _parse(e["mtime_utc"])
+        out.append({
+            "day_file": None,
+            "covers_date": (fired.date() - _dt.timedelta(days=1)).isoformat(),
+            "day_file_mtime_utc": None,
+            "day_file_size": None,
+            "fire_utc": _fmt(fired.replace(second=0, microsecond=0)),
+            "receipt": name,
+            "receipt_mtime_utc": e["mtime_utc"],
+            "verdict": "fire_ran",
+            "evidence": "receipt_only",
+            "note": "orphan receipt: its day file has been swept but the "
+                    "receipt itself is proof the fire ran, so the box was "
+                    "running at this instant",
+        })
+    out.sort(key=lambda r: (r["fire_utc"] or "", r["receipt"] or ""))
 
     # Calendar days inside the span with NO day file at all. The fire that
     # would render them is NOT decidable here: the box never created the file,
     # so there was nothing for `sa2` to render and the receipt's absence is
     # overdetermined.
-    dates = [_dt.date.fromisoformat(r["covers_date"]) for r in out]
+    # Day-file rows only. An orphan's day file is KNOWN swept, so counting
+    # its date as present would be right, but counting the gap between it and
+    # the oldest surviving day file as `no_day_file` holes would be wrong --
+    # those days were swept too, not never-created. Holes stay a statement
+    # about the surviving day-file run.
+    dates = [_dt.date.fromisoformat(r["covers_date"]) for r in out
+             if r["day_file"] is not None]
     holes = []
     if dates:
         d = min(dates)
@@ -278,6 +354,133 @@ def fires(ls_text: str, now_utc: str, settle_s: int = DEFAULT_SETTLE_S) -> dict:
         "day_file_month_mismatch": mismatched,
         "note": "`fire_missed` means the timer did not run, which is downtime "
                 "ONLY once a second instrument agrees; run `crosscheck`.",
+    }
+
+
+#: `Starting sysstat-summary.service` in `journalctl -o short-iso _PID=1`.
+#: The Starting line, not Finished: `sa2` renders the receipt near the top of
+#: the script and sweeps at the bottom, so the receipt's mtime tracks the
+#: START and the `find` runs a beat later. Using Finished would bias every
+#: margin by the service's own duration in the wrong direction.
+_FIRE_RE = re.compile(
+    r"^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2})[+-]\d{2}:\d{2}\s+\S+\s+"
+    r"systemd\[1\]:\s+Starting sysstat-summary\.service\b")
+
+
+def parse_fire_instants(journal_text: str) -> list:
+    """`journal-pid1-full.txt` -> sorted list of summary-fire datetimes.
+
+    Second precision, which is the finest a capture carries. The receipt
+    mtimes in `ls -l` are MINUTE precision, so this journal is the only banked
+    source that can see the jitter at all -- and the jitter is the whole
+    quantity that decides an orphan.
+    """
+    seen = set()
+    for line in journal_text.splitlines():
+        m = _FIRE_RE.match(line)
+        if m:
+            seen.add(_parse(f"{m.group(1)}T{m.group(2)}Z"))
+    return sorted(seen)
+
+
+#: A margin this small is inside the resolution of what a capture can know.
+#: The journal gives whole seconds; the real mtime carries a fraction (`sar26`
+#: is 00:07:21.677, and the journal says 00:07:21). So a margin of -0.4 s and
+#: one of +0.6 s are indistinguishable here, and a verdict at that distance
+#: would be a guess wearing a number. Round 484's live case cleared by 3 s.
+MARGIN_RESOLUTION_S = 2.0
+
+
+def sweep_margins(journal_text: str, history_days: int = 7,
+                  now_utc: str = None) -> dict:
+    """For each observed fire, how close its receipt came to the sweep edge.
+
+    THE ARITHMETIC. `sa2` writes `sarNN` at fire instant `W` and then runs
+    `find -mtime +HISTORY | xargs rm -f`. GNU `find` floors: `-mtime +7`
+    matches iff `int(age_s // 86400) > 7`, i.e. iff `age_s >= 8 days`. So the
+    first sweep that can take the receipt is the fire `S` at `W + 8 days`,
+    and it takes it iff
+
+        margin = (S - W) - (HISTORY + 1) days   >=  0
+
+    `S` and `W` are both nominally 00:07:00 but land where systemd's default
+    one-minute `AccuracySec` puts them, so `margin` is just
+    (S's offset in the minute) - (W's offset), a number of order +/-17 s
+    on this box. Negative means the receipt SURVIVES a sweep its day file
+    does not -- an orphan, for exactly one day, because the next sweep is a
+    further 86400 s along and no jitter reaches that.
+
+    This is not a model. Both instants are read out of the journal.
+    """
+    fires_at = parse_fire_instants(journal_text)
+    by_date = {f.date(): f for f in fires_at}
+    horizon = _dt.timedelta(days=history_days + 1)
+    now = _parse(now_utc) if now_utc else None
+
+    rows = []
+    for w in fires_at:
+        sweep_date = (w + horizon).date()
+        s_at = by_date.get(sweep_date)
+        if s_at is None:
+            rows.append({
+                "receipt_written_utc": _fmt(w),
+                "sweep_due_utc": _fmt(w + horizon),
+                "sweep_fire_utc": None,
+                "margin_s": None,
+                "outcome": "sweep_pending" if (now is None or
+                                               w + horizon > now)
+                           else "sweep_missed",
+                "note": "no fire is recorded on the day this receipt's "
+                        "eighth-day sweep was due; a sweep that never ran "
+                        "deletes nothing and the receipt lives on to the "
+                        "next one",
+            })
+            continue
+        margin = (s_at - w).total_seconds() - horizon.total_seconds()
+        if abs(margin) < MARGIN_RESOLUTION_S:
+            outcome = "undecidable"
+            note = (f"margin {margin:+.0f}s is inside the {MARGIN_RESOLUTION_S}s "
+                    "resolution of a journal timestamp; the receipt's real "
+                    "mtime carries a sub-second fraction this capture does "
+                    "not hold")
+        elif margin >= 0:
+            outcome = "swept"
+            note = ("the sweep fired later in the minute than the receipt was "
+                    "written, so the receipt reached its eighth day and died "
+                    "with its day file")
+        else:
+            outcome = "orphaned"
+            note = ("the sweep fired EARLIER in the minute than the receipt "
+                    "was written, so the receipt missed the boundary by "
+                    f"{-margin:.0f}s and outlives its day file by one sweep")
+        rows.append({
+            "receipt_written_utc": _fmt(w),
+            "sweep_due_utc": _fmt(w + horizon),
+            "sweep_fire_utc": _fmt(s_at),
+            "margin_s": margin,
+            "outcome": outcome,
+            "note": note,
+        })
+
+    counts = collections.Counter(r["outcome"] for r in rows)
+    decided = [r["margin_s"] for r in rows if r["margin_s"] is not None]
+    return {
+        "history_days": history_days,
+        "n_fires": len(fires_at),
+        "fire_instants_utc": [_fmt(f) for f in fires_at],
+        "jitter_span_s": (
+            max(f.second + 60 * f.minute for f in fires_at)
+            - min(f.second + 60 * f.minute for f in fires_at)
+            if fires_at else None),
+        "margin_resolution_s": MARGIN_RESOLUTION_S,
+        "margins": rows,
+        "counts": dict(counts),
+        "min_margin_s": min(decided) if decided else None,
+        "max_margin_s": max(decided) if decided else None,
+        "note": "`orphaned` is a PREDICTION about the directory contents on "
+                "the day after `sweep_fire_utc`: the receipt is there and "
+                "its day file is not. It is derived only from journal "
+                "timestamps a capture already banks.",
     }
 
 
@@ -428,7 +631,9 @@ def main(argv=None) -> int:
     for name, helptext in (
             ("fires", "per-day verdict on the 00:07 summary fire"),
             ("crosscheck", "score the fossil against journalctl --list-boots"),
-            ("blindspot", "which fires our own probe log could decide")):
+            ("blindspot", "which fires our own probe log could decide"),
+            ("margins", "how close each receipt came to the sweep edge "
+                        "(round 484) -- which receipt orphans next")):
         sp = sub.add_parser(name, help=helptext)
         sp.add_argument("--capture", required=True)
         sp.add_argument("--now", required=True,
@@ -442,7 +647,25 @@ def main(argv=None) -> int:
         if name == "crosscheck":
             sp.add_argument("--strict", action="store_true",
                             help="exit 1 on any DISAGREE row")
+        if name == "margins":
+            sp.add_argument("--history-days", type=int, default=7,
+                            help="HISTORY from /etc/sysstat/sysstat "
+                                 "(default %(default)s)")
+            sp.add_argument("--strict", action="store_true",
+                            help="exit 1 if any margin is `undecidable`")
     args = p.parse_args(argv)
+
+    if args.mode == "margins":
+        jpath = os.path.join(args.capture, "journal-pid1-full.txt")
+        if not os.path.exists(jpath):
+            raise SystemExit(
+                f"summary-fossil ERROR: {jpath} missing; margins needs the "
+                f"unfiltered _PID=1 journal from the same capture")
+        with open(jpath, "r", encoding="utf-8", errors="replace") as fh:
+            rep = sweep_margins(fh.read(), args.history_days, args.now)
+        print(json.dumps(rep, indent=2))
+        return 1 if (args.strict and
+                     rep["counts"].get("undecidable")) else 0
 
     ls_text = read_listing(args.capture)
     if args.mode == "fires":
