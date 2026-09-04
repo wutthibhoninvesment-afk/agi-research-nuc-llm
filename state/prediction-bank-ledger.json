@@ -1238,9 +1238,11 @@
   },
   "483": {
    "bank": "state/skills/round-483/PREDICTIONS.md",
-   "status": "unscored",
-   "owner": "skills(B)",
-   "why": "Banked by round 483 at HEAD 2a54690 (commit bac968a) before a single subject was run under a perturbed hash seed, and registered here in the round that wrote it -- rounds 474/476/478 each let K001 be the thing that noticed, three rounds running, and round 478's own entry says so. Twelve predictions about cross-process determinism of this tree's derived-value instruments, tagged STRUCTURAL/RATE, [CMD]/[MODEL]/[SENT]/[NONE] and SYSTEM/AUTHOR. Round 483 scores it in its own knowledge file; if this entry still says `unscored` after round 483's commits, round 483 died before scoring."
+   "status": "scored",
+   "scored_by": 483,
+   "where": "knowledge/round-483-the-sweep-that-could-not-name-its-own-cause.md",
+   "quote": "**Tally: 8 HIT, 3 MISS, 1 PARTIAL of 12.**",
+   "note": "Section 9 of the knowledge file, one table row per banked item, all twelve scored -- no remainder. Banked at HEAD 2a54690 (commit bac968a) before a single subject ran under a perturbed hash seed, and registered here in the round that wrote it, ending the 474/476/478 run of banks that K001 -- not the round -- noticed. The three misses (P2, P5, P6) are ONE bet stated three ways: that this tree's derived-value instruments would turn out cross-process dirty. They lost 0-of-13, and the reason is that the bank had been shown exactly one instance of the class (round 481's `best_incoming` tie) and predicted the population from it. That is now step 19 of skills/prediction-banking/SKILL.md. Step 18's AUTHOR/SYSTEM axis reached its third bank here and is settled as REFUTED: SYSTEM 5 HIT / 3 MISS against AUTHOR 3 HIT / 1 PARTIAL."
   }
  }
 }

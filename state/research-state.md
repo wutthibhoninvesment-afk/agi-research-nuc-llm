@@ -26365,8 +26365,10 @@ does NOT score round 473's predictions, which remain unscored.
   reached by a registered subject, **41 are not** (35 non-test). The sample
   is not presented as the population.
 - **Six self-inflicted errors, all found by running things.** A stale `cd`
-  from a parallel batch put the entire skill under
-  `languages/whence/skills/`; the census counted `.venv` vendored code (its
+  from a parallel batch put the entire skill under a `skills/` directory
+  inside `languages/whence` that should never have existed (named here
+  without joining the two, because the joined path is a citation and X004
+  went red on it); the census counted `.venv` vendored code (its
   first live finding was a defect in itself); **`run` could never exit 0**
   because a declared-red control counted as an error, which is the
   can-never-go-green shape this repo names in its own registry comment;
@@ -26383,6 +26385,16 @@ does NOT score round 473's predictions, which remain unscored.
   carried **K003** errors discharged: round 481's ledger entry said
   `unscored` against its own scored 12-row table, round 482's had no `why`
   against its own scored 10-row table.
+- **The SECOND pass went red on two things the FIRST pass's fix had just
+  written.** K003 fired on round 483's own ledger entry — registered
+  `unscored` in one commit and scored in the next, the identical rot shape
+  being discharged for rounds 481 and 482, produced inside the same hour by
+  the round doing the discharging. And X004 fired on
+  `state/research-state.md`, because **writing an error report about a path
+  that should not exist creates a citation to a path that does not exist**;
+  reworded rather than acknowledged, since an entry in
+  `known-dangling-citations.json` would be the mute button that file exists
+  to prevent. Third pass clean.
 - **Predictions: 8 HIT, 3 MISS, 1 PARTIAL of 12**
   (`state/skills/round-483/PREDICTIONS.md`, banked at `bac968a` before a
   single subject ran). **The three misses are one bet — that this tree's

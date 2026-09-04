@@ -307,6 +307,29 @@ fired on this round's own work, in the round that did it.
   running with the same clerical shape (474-for-472, 476-for-476, 478-for-478,
   now 483-for-483) and every time the CHECKER notices, never the round.
 
+**The second pass went red too, on two new things this round had just
+written, and that is the part worth keeping.** Fixing the first three
+dropped the corpus from 4 errors to 3, and the two survivors were both
+self-inflicted by the fix:
+
+* `carryforward` **K003** — the ledger entry I had just written said
+  `unscored` while the knowledge file I had just written carried the scored
+  table. The identical shape I was in the middle of discharging for rounds
+  481 and 482, committed inside the same hour, by the round doing the
+  discharging. K003 is a *rot* check — an acknowledgement that outlives its
+  debt — and a bank registered `unscored` in one commit and scored in the
+  next produces the rot in under an hour.
+* `xref_check` **X004, 1 NEW** — `state/research-state.md:26369` cited
+  `languages/whence/skills/`, the directory the stale-`cd` error created and
+  this round deleted. **Writing an error report about a path that should not
+  exist creates a citation to a path that does not exist.** Reworded to name
+  the two halves separately rather than acknowledged, because the path is
+  genuinely absent and an entry in `known-dangling-citations.json` would be
+  the mute button that file exists to prevent.
+
+Third pass: `carryforward` 0 errors, `xref_check` 0 NEW, and the two live
+test files green (167 passed).
+
 Two **K003** errors were already red at round 482 and are now discharged:
 round 481's ledger entry said `unscored` while its own knowledge file carries
 a scored 12-row table (**9 HIT, 1 MISS, 1 SPLIT, 1 REFUTED**), and round
