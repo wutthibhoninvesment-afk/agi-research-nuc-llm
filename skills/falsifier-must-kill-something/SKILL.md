@@ -1,6 +1,6 @@
 ---
 name: falsifier-must-kill-something
-description: Use when a suite is green and nobody can say which of its tests would have caught the bug — "these tests guard the parser", a test that only asserts a call did not raise, a published number defended by a test nobody has ever seen fail. Symptoms: a test file grew alongside its module and never went red; a review says "add a test" and the test passes the moment it is written; a suite's mutation score is high and its author cannot name a node that has ever failed. Also trigger when an absence claim came out of a NARROWED campaign — --sample, --limit, --funcs, "we ran the first N" — because a sample buys a score and cannot buy an absence. Covers running a mutation campaign whose MUTANT runs each emit a junit report, attributing every kill to the node that produced it, and the five bounds on the never-red list: scope, attribution, equivalent mutants, selection completeness, operator coverage. NOT plain mutation testing (that scores the CODE), and NOT named-guardian-must-go-red (one pin, one call).
+description: Use when a suite is green and nobody can say which test would have caught the bug — "these tests guard the parser", a test that only asserts a call did not raise, a published number defended by a test nobody has seen fail. Symptoms: a test file grew alongside its module and never went red; a review says "add a test" and it passes the moment it is written; a suite's mutation score is high and nobody can name a node that has ever failed. Also trigger when an absence claim came out of a NARROWED campaign (--sample/--limit/--funcs/--ops): a sample buys a score, never an absence. Covers mutation campaigns whose MUTANT runs each emit a junit report, attributing kills to the node that produced them, the five bounds on the never-red list (scope, attribution, equivalent mutants, selection completeness, operator coverage), and the audit that makes a soundness flag trustworthy — over the narrowing KNOBS, not the flag. NOT plain mutation testing (that scores the CODE), nor named-guardian-must-go-red (one pin, one call).
 ---
 
 # A falsifier that never went red is not a falsifier
@@ -124,6 +124,45 @@ This walks from a TEST to whether anything can make it fail.
    list MEANS, not whether the campaign was complete — every real module has
    hundreds of strings, and a flag that is always False says nothing.
 
+6c. **Audit the NARROWING KNOBS, not the soundness flag.** Step 6a puts the
+   bound in the flag. That is necessary and it is not sufficient, because a
+   flag can only enforce what it can see, and the thing it has to see is
+   "was this campaign narrowed" — a question whose answer is assembled from
+   every knob in the tool.
+
+   Round 485 is the worked example, and it cost nothing because the defect
+   was found while reading the code that was about to be used. Round 479 had
+   folded `site_coverage` into `sound` and shipped. `site_coverage` is
+   computed from the selection record that the SELECTION function builds —
+   and one knob, `--ops` (restrict to certain mutation operators), was
+   applied in the GENERATOR instead, one call earlier:
+
+       mutants = generate(src, path, ops=ops)      # <- narrowed here
+       mutants, selection = select_sites(mutants, funcs=..., sample=...)
+       #                    ^ records `generated = len(mutants)`: the POST-filter list
+
+   So an operator-scoped campaign over 11 of 326 sites reported
+   `generated: 11, selected: 11, coverage: 1.0, sound: true` and a
+   `never_red` list. Bound 4's exact failure, through the one door bound 4
+   did not cover.
+
+   The audit is mechanical and takes minutes:
+
+   1. List every parameter of every entry point that can REDUCE the set of
+      mutants run — CLI flags, function kwargs, config keys, an early
+      `break`, a `try/except` that drops a mutant.
+   2. For each, ask where it is APPLIED. Anything applied before the
+      selection record is built is invisible to the flag.
+   3. Move them all into one function, against one pre-narrowing total.
+      Do not add a special case per knob: the special cases are the defect.
+   4. Assert it. One test per knob, each one checking that the recorded
+      `generated` is the pre-narrowing total no matter which knobs are on.
+
+   The generalisation is not about mutation testing: **a flag nobody
+   re-derives is trusted exactly as far as the completeness of its inputs,
+   so the review question is "can this flag see every way its subject can be
+   narrowed", not "is the bound in the flag".**
+
 7. **A campaign that killed nothing reports `no_kills`, not `never_red`.**
    Every node is trivially never-red when no mutant died. Saying
    `never_red` there blames the tests for the engine's silence.
@@ -190,6 +229,29 @@ budget-cutting a universal claim destroys it.
   its `--sample 200` two lines above `sound: true` and the two were computed
   independently; the reader who published the finding had both numbers on
   screen. Put the bound in the flag, not in the prose next to it.
+- **Reporting a bound out of a hand-maintained copy of the operator set.**
+  Bound 5 is a claim ABOUT the operators, so a literal list of "kinds no
+  operator can mutate" is a claim that goes false the moment somebody adds
+  an operator — silently, in a different file, and in the reassuring
+  direction (it over-reports unreachability, which excuses tests). Round 479
+  wrote `("float", "str", "bytes", "complex", "NoneType")`; round 485 added a
+  float operator and the tuple became a false report of the very bound it
+  exists to state. Derive it: ask the engine what it can mutate.
+- **Widening the operator set as a remedy for absence.** It is a remedy for
+  ONE node at a time and it is not general. Round 485 added a float operator
+  to reach a node that had been `never_red` since round 473 — and over the
+  one OTHER subject with never-red rows open, zero of nine new mutants killed
+  anything and all three rows stayed never-red. What the widening actually
+  bought was a SURVIVOR list: 17 new survivors across two subjects, four with
+  a real decision behind them. Price it as test-gap discovery, not as
+  never-red repair.
+- **A locator that is off by one is invisible while the thing it locates is
+  absent.** Round 479 guarded bound 5 with `assert sites == []` over a line
+  number computed one too small. When the event it names finally happened,
+  the guard passed; the test went red on its next line for an unrelated
+  reason, which is the only reason anyone looked. If a pin asserts an EMPTY
+  set, test the locator against something you know is there, in the same
+  test, or the pin is an assertion about your arithmetic.
 - **Repairing a test that was never reachable.** If the node's only
   dependence on the subject is a float or a string, "fixing" it means
   writing an assertion about something else — you will make it reachable by
@@ -214,6 +276,14 @@ python3 harness/swe/falsifiers.py audit \
     --subject harness/swe/scoreaudit.py \
     --tests harness/tests/test_swe_scoreaudit.py \
     --sample 8 --timeout-s 60 --quiet --json /tmp/fals-check.json ; echo "rc=$?"
+# Step 6c: the OTHER narrowing knob. Before round 485 this printed
+# `sound: true` over 2 of 79 sites, because `--ops` was applied in the
+# generator and the selection record never saw it. It now exits 2 and its
+# unsound reason names `ops=`.
+python3 harness/swe/falsifiers.py audit \
+    --subject harness/swe/scoreaudit.py \
+    --tests harness/tests/test_swe_scoreaudit.py \
+    --ops fconst --timeout-s 60 --quiet --json /tmp/fals-ops.json ; echo "rc=$?"
 python3 -c "import json;d=json.load(open('/tmp/fals-check.json'));\
 print(d['verdict'], d['sound'], d['unsound_reasons'])"
 

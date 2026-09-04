@@ -495,13 +495,23 @@ def test_the_real_tree_yields_the_units_round_469_measured():
     (harness A), which is also the round that found it: this assertion was
     red for a full round because round 474 ran the harness fast tier and
     published no number from it, so nothing read the failure. Membership is
-    still written down; what was missing was somebody looking."""
+    still written down; what was missing was somebody looking.
+
+    Round 482 (language C) added `tests/test_v47.py` -- v0.47 / decision 60,
+    ONE marked test -- taking the tier 28 -> 29 units and 114 -> 115 marked
+    nodes. Re-pinned by round 485 (SWE-loop D), which found it the same way
+    round 475 did and for the same reason: the round that moved the membership
+    ran the whence suite and not the harness one, so the only run that could
+    see this assertion belonged to a different track. THIRD occurrence of that
+    shape (474 and 482 as openers, 475 and 485 as readers) -- the pin works,
+    and what it keeps catching is the rotation, not the language."""
     units = W.slow_tier_units()
-    assert len(units) == 28
-    assert sum(len(u["tests"]) for u in units) == 114
+    assert len(units) == 29
+    assert sum(len(u["tests"]) for u in units) == 115
     assert not [u for u in units if u["registry_error"]]
     by = dict((u["id"], u) for u in units)
     assert len(by["test_testcorpus_suite_census.py"]["tests"]) == 12
+    assert len(by["test_v47.py"]["tests"]) == 1
 
 
 def test_a_module_level_pytestmark_is_discovered(tmp_path):
@@ -676,3 +686,56 @@ def test_an_untagged_commit_joins_the_round_before_it():
         [["a"], ["b"]],
         ["round 468 (language C)", "driver: slow-tier ledger append"])
     assert groups == [["a", "b"]]
+
+
+# --------------------------------------------------------------------------
+# round 485 (SWE-loop D): killers written from the FLOAT survivor list.
+#
+# `mutation.generate` gained an `fconst` operator this round (float f -> f+1.0)
+# and eleven sites in this module became mutable for the first time. Three were
+# killed by the existing suite; eight survived
+# (`state/swe/round-485/whenceslow-fconst.json`, score 27.3 %). These are the
+# survivors with a real decision behind them.
+# --------------------------------------------------------------------------
+
+def test_replay_and_plan_price_the_same_tier_with_the_same_default():
+    """Kills `whenceslow.py:780:fconst` — `replay(..., default_s=120.0)`.
+
+    TWO functions carry the 120 s default. Round 469 pinned `plan`'s with
+    `test_plan_default_is_smaller_than_slowtiers`, whose docstring argues the
+    120-vs-300 choice from this tier's recorded 5.4-7.3 s per marked test.
+    Nothing pinned `replay`'s -- and `replay` is the function that PRICES a
+    budget before anyone spends it, so an unpinned default there moves every
+    published recall number silently. The two must agree because they are two
+    readings of one decision, which is why this asserts equality and not a
+    literal in two places."""
+    import inspect
+    plan_default = inspect.signature(W.plan).parameters["default_s"].default
+    replay_default = inspect.signature(W.replay).parameters["default_s"].default
+    assert replay_default == plan_default == 120.0
+
+
+def test_the_size_prior_is_in_MEGABYTES_and_stays_under_a_second(tmp_path):
+    """Kills `whenceslow.py:620:fconst` — the `1e6` divisor.
+
+    `_size_prior`'s docstring says "bytes of the test file scaled to a
+    fraction of a second", and the whole justification for using it as a
+    tie-break is that it CANNOT outweigh a real measurement. Nothing tested
+    the scale: at 1e6+1 the number barely moves, but nothing would have
+    noticed 1e3 either, and at 1e3 a 200 kB test file prices at 200 s and the
+    tie-break becomes the planner."""
+    root = str(tmp_path)
+    _write(os.path.join(root, W.TESTS_SUBDIR, "test_big.py"), "x" * 250000)
+    prior = W._size_prior("test_big.py", root=root)
+    assert abs(prior - 0.25) < 1e-9          # 250 000 bytes / 1e6
+    assert prior < 1.0, "a size prior may never outweigh a measured second"
+
+
+def test_a_unit_file_that_is_not_there_prices_at_zero(tmp_path):
+    """Kills `whenceslow.py:622:fconst` — the `return 0.0` in the except arm.
+
+    A unit whose file has been deleted or renamed must contribute NOTHING to
+    the tie-break, not a constant: `plan` adds this to `default_s`, so a
+    non-zero fallback would push every missing-file unit down the order for a
+    reason that is not about the unit."""
+    assert W._size_prior("no-such-file.py", root=str(tmp_path)) == 0.0

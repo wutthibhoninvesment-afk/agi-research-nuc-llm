@@ -10,11 +10,22 @@
   },
   "_track_suites": {
     "_comment": "Which suite a round of each track routinely runs DURING the round, i.e. while its author is still alive to act on a red. Taken from CURRICULUM.md's track definitions: A harness/, B skills/, C languages/<lang>/, D `harness/ + languages/` (uses the harness ON the language), E state/nuc-missions.md + nuc/. This is the `visible` relation; a red node outside it is one the opening round could not have seen.",
-    "harness(A)": ["harness/tests"],
-    "skills(B)": ["skills"],
-    "language(C)": ["languages/whence/tests"],
-    "SWE-loop(D)": ["harness/tests", "languages/whence/tests"],
-    "NUC-integration(E)": ["nuc/tests"]
+    "harness(A)": [
+      "harness/tests"
+    ],
+    "skills(B)": [
+      "skills"
+    ],
+    "language(C)": [
+      "languages/whence/tests"
+    ],
+    "SWE-loop(D)": [
+      "harness/tests",
+      "languages/whence/tests"
+    ],
+    "NUC-integration(E)": [
+      "nuc/tests"
+    ]
   },
   "nodes": {
     "harness/tests/test_whenceslow.py::test_the_real_tree_yields_the_units_round_469_measured": {
@@ -196,6 +207,41 @@
       "subject_scope": "whole-tree",
       "evidence": "subject",
       "why": "Fourth node of the same file and the same subject as test_the_registry_is_clean: it loads harness/wiring-registry.json over the whole repo and asserts the set of `unwired` entries is exactly {`python3 -m swe.loop`}. A W001 anywhere in the tree does not by itself move that set, but the node reads the SAME registry the other three read and goes red with them whenever the registry stops matching the tree -- it did so in round 477's log, alone, and in round 478's log with the other three. Opened by round 477 (skills B), which discharged the `bank_audit.py` debt and left the registry in a state this pin disagreed with; the earliest run that could have SEEN it is round 478 (NUC E), so neither the opener nor the reader runs harness/tests/. Declared by round 479 (SWE-loop D), the fourth consecutive D round to close a whole-tree red another track opened."
+    },
+    "harness/tests/test_escalationguard.py::test_no_adjudicated_diff_of_this_repo_is_sitting_at_head": {
+      "subject_scope": "whole-tree",
+      "evidence": "subject",
+      "why": "It resolves the fate of every entry in state/known-escalated-diffs.json against git HEAD and the worktree, and those entries may name ANY tracked path, so a commit anywhere in the repo can land one and turn it red -- that is what decides the scope, with every clause naming a round deleted. Corroboration only: the red round 484's log records was not a landed diff at all but the node's own VACUITY GUARD (`assert rows`), fired when round 484 correctly deleted the registry's last entry after its record check found the acknowledgement dead. Round 485 split the guard onto its own node so the emptiness is a decision somebody re-states rather than a precondition of the regression assertion under it. Declared by round 485 (SWE-loop D). Eight R001 errors had accumulated over rounds 481-484 and none of the opening rounds could see them: `redattrib audit` is reported by harness/tests/, which harness(A) and SWE-loop(D) run and the other tracks do not. This is the fifth consecutive D round to close a whole-tree registry red another track opened."
+    },
+    "harness/tests/test_viapin.py::TestThisTree::test_the_dump_round_trips_the_real_registry_byte_for_byte": {
+      "subject_scope": "shared-corpus",
+      "evidence": "subject",
+      "why": "Its subject is exactly one file -- harness/wiring-registry.json -- read raw, re-dumped through `_dump_registry`, and compared byte for byte. A change anywhere else in the repo cannot touch it, which rules out whole-tree; and every track writes that file, because declaring an entry point is what any round does after adding a module (rounds 477 skills(B), 479 and 485 SWE-loop(D), 481 harness(A) all wrote it). That is the shared-corpus shape: narrow subject, universal authorship. The failure mode it guards is this repo's own recorded pitfall -- a writer using json.dumps' default ensure_ascii=True re-escapes every em dash and a two-line repair lands as a ninety-line diff. Declared by round 485 (SWE-loop D). Eight R001 errors had accumulated over rounds 481-484 and none of the opening rounds could see them: `redattrib audit` is reported by harness/tests/, which harness(A) and SWE-loop(D) run and the other tracks do not. This is the fifth consecutive D round to close a whole-tree registry red another track opened."
+    },
+    "harness/tests/test_viapin.py::TestThisTree::test_this_registry_makes_no_false_via_claim": {
+      "subject_scope": "whole-tree",
+      "evidence": "subject",
+      "why": "`V.audit(REPO)` re-resolves every `via` pin in harness/wiring-registry.json against the file and LINE it names, and those pins point into arbitrary trees -- nuc/tests/, skills/*/scripts/, harness/. Inserting or deleting a line above a pinned one, anywhere in the repo, drifts the pin and takes this node red. That is the subject and it decides the scope on its own. Declared by round 485 (SWE-loop D). Eight R001 errors had accumulated over rounds 481-484 and none of the opening rounds could see them: `redattrib audit` is reported by harness/tests/, which harness(A) and SWE-loop(D) run and the other tracks do not. This is the fifth consecutive D round to close a whole-tree registry red another track opened."
+    },
+    "harness/tests/test_viapin.py::test_an_import_pin_can_hold": {
+      "subject_scope": "own-suite",
+      "evidence": "subject",
+      "why": "A synthetic repo built under tmp_path by `make_repo`: three files the test writes itself, a registry it constructs, and no read of the checked-in tree at all. Nothing outside harness/viapin.py and this file can turn it red. Its first red is in round 481's own log, which is the round that WROTE it -- an author's first run, not a cross-track open; the docstring says so in its first line (`Before round 481 this test could not pass at all`). Declared by round 485 (SWE-loop D). Eight R001 errors had accumulated over rounds 481-484 and none of the opening rounds could see them: `redattrib audit` is reported by harness/tests/, which harness(A) and SWE-loop(D) run and the other tracks do not. This is the fifth consecutive D round to close a whole-tree registry red another track opened."
+    },
+    "harness/tests/test_wiring_audit.py::TestEdgeLines::test_an_import_edge_carries_the_import_line": {
+      "subject_scope": "own-suite",
+      "evidence": "subject",
+      "why": "Two files written into tmp_path and one call to `W.references`. The assertion is that an import edge carries line 3; no checked-in file is read. Red in round 481's log because round 481 is the round that added edge LINES to the graph -- before it, `references()` recorded every import edge at line 0 -- so this is the instrument's author watching a new assertion fail, not a foreign change. Declared by round 485 (SWE-loop D). Eight R001 errors had accumulated over rounds 481-484 and none of the opening rounds could see them: `redattrib audit` is reported by harness/tests/, which harness(A) and SWE-loop(D) run and the other tracks do not. This is the fifth consecutive D round to close a whole-tree registry red another track opened."
+    },
+    "harness/tests/test_wiring_audit.py::TestEdgeLines::test_the_three_ast_passes_return_lines_with_their_values": {
+      "subject_scope": "own-suite",
+      "evidence": "subject",
+      "why": "Its subject is a five-line source string written inline in the test and parsed by `W._parse_for_ast`. There is no path into the repo at all, so the only thing that can turn it red is harness/wiring_audit.py's own AST passes. Same round-481 authoring red as its two siblings in TestEdgeLines. Declared by round 485 (SWE-loop D). Eight R001 errors had accumulated over rounds 481-484 and none of the opening rounds could see them: `redattrib audit` is reported by harness/tests/, which harness(A) and SWE-loop(D) run and the other tracks do not. This is the fifth consecutive D round to close a whole-tree registry red another track opened."
+    },
+    "harness/tests/test_wiring_audit.py::TestEdgeLines::test_no_edge_in_this_tree_has_line_zero": {
+      "subject_scope": "whole-tree",
+      "evidence": "subject",
+      "why": "The one node of TestEdgeLines whose subject is the REAL tree: it builds `W.Graph(REPO)`, takes its closure, and asserts no edge in the whole repo carries line 0. Any file any track adds -- a new nuc/ module, a new skills/*/scripts/ checker -- enters that graph and can produce a zero-line edge, so a change anywhere turns it red while its two class-siblings above are sealed inside tmp_path. Three nodes, one class, two different scopes: the class name is not the scope, the subject is. Declared by round 485 (SWE-loop D). Eight R001 errors had accumulated over rounds 481-484 and none of the opening rounds could see them: `redattrib audit` is reported by harness/tests/, which harness(A) and SWE-loop(D) run and the other tracks do not. This is the fifth consecutive D round to close a whole-tree registry red another track opened."
     }
   },
   "_evidence_kind": {

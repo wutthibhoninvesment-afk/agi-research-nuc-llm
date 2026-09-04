@@ -23,13 +23,13 @@
             "why": "SWE loop wiring; sub-second"
         },
         "test_swe_mutation.py": {
-            "measured_s": 18.17,
-            "measured_round": 385,
-            "measured_utc": "2026-08-31",
-            "measured_by": "python3 harness/tierbudget.py measure --cap-s 25",
+            "measured_s": 20.63,
+            "measured_round": 485,
+            "measured_utc": "2026-09-04",
+            "measured_by": "python3 harness/tierbudget.py measure --cap-s 25 test_swe_mutation.py",
             "first_pass_s": 16.27,
-            "n_tests": 15,
-            "why": "the most expensive promotion and the one most likely to drift; kept because the cap is the policy and an unmeasured exemption is the thing this round removed"
+            "n_tests": 33,
+            "why": "the most expensive promotion and the one most likely to drift; kept because the cap is the policy and an unmeasured exemption is the thing this round removed. RE-MEASURED by round 485 (SWE-loop D) after adding nine id-stability tests: 18.17s -> 20.63s SOLO, still under the 25s cap and green, so the promotion stands on a measurement rather than on inertia. The `n_tests` this replaces (15) had been stale since round 385 -- the file collected 24 at round 479 and 33 now; nothing reads that field, which is why it drifted. A first run this round reported 27.3s while a pristine-worktree baseline was running on this 1-CPU box: that is a CONTENDED number and is not the one recorded here."
         },
         "test_swe_oracles.py": {
             "measured_s": 5.01,
@@ -38,7 +38,7 @@
             "measured_by": "python3 harness/tierbudget.py measure --cap-s 25",
             "first_pass_s": 4.43,
             "n_tests": 37,
-            "why": "holds all three injected-bug tests (fast_slow / direct / frames) \u2014 round 383 item 5's actual ask; these are the tests that go red on a language change and the whole reason the tier was re-measured"
+            "why": "holds all three injected-bug tests (fast_slow / direct / frames) — round 383 item 5's actual ask; these are the tests that go red on a language change and the whole reason the tier was re-measured"
         },
         "test_swe_prioritize.py": {
             "measured_s": 2.44,

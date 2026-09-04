@@ -392,13 +392,51 @@ def test_no_adjudicated_diff_of_this_repo_is_sitting_at_head():
     assertion.
 
     If this goes red, do not delete the registry entry. Run
-    `python3 harness/escalationguard.py audit` and repair HEAD."""
+    `python3 harness/escalationguard.py audit` and repair HEAD.
+
+    ROUND 485 (SWE-loop D) split this node in two. Round 475 wrote it with a
+    vacuity guard as its FIRST assertion -- `assert rows, "... if that is a
+    real resolution, this test should be deleted deliberately"` -- and round
+    484 (NUC E) then legitimately emptied the registry: its record check
+    reported `languages/whence/SECURITY.md` as a DEAD acknowledgement (the
+    path had stopped being dirty, so the entry suppressed nothing and read as
+    coverage) and deleted it. The regression assertion below is unaffected by
+    an empty registry; it was the guard that went red, on the one event it was
+    written to allow. Deleting the node -- which its own message offers --
+    would delete the regression with it, so the guard moved to its own node
+    where the emptiness is a statement somebody has to re-decide rather than a
+    precondition of the assertion beneath it."""
     rows = eg.audit()
-    assert rows, "the escalated-diff registry is empty -- if that is a real " \
-                 "resolution, this test should be deleted deliberately"
     committed = [r for r in rows if r["fate"] == eg.FATE_COMMITTED]
     assert not committed, "\n".join(
         "%s: %s" % (r["path"], r["detail"]) for r in committed)
+
+
+@pytest.mark.skipif(
+    not os.path.isdir(os.path.join(REPO_ROOT, "..", ".git")),
+    reason="not a git checkout")
+def test_the_escalated_diff_registry_is_empty_and_that_is_a_recorded_decision():
+    """The vacuity guard round 475 attached to the node above, as its own
+    assertion about a state somebody decided.
+
+    The registry is EMPTY at round 485, and that is not neglect: round 349
+    escalated `languages/whence/SECURITY.md` (the Hermes gateway, a separate
+    autonomous system sharing this repo, had rewritten its authorship and
+    licence sections); the entry was carried for 134 rounds and content-pinned
+    the whole way; round 484's record check found the path no longer dirty and
+    deleted the acknowledgement, which is exactly what this registry's own
+    `_comment` requires -- *"an acknowledgement that suppresses nothing reads
+    as coverage"*.
+
+    When the next escalation is added this node goes RED, and that is the
+    point: adding an entry is an assertion that a round inspected a specific
+    diff, and somebody re-deciding what this test says is the cheapest
+    available proof that somebody looked."""
+    rows = eg.audit()
+    assert rows == [], (
+        "the registry is no longer empty -- an escalation has been added. "
+        "Read it, confirm the reasoning is recorded, then re-pin this node:\n"
+        + "\n".join("%s: %s" % (r["path"], r.get("detail", "")) for r in rows))
 
 
 # ------------------------------------------------- the restore exemption

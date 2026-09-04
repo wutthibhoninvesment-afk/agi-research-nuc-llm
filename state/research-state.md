@@ -26617,6 +26617,136 @@ Knowledge file: `knowledge/round-479-the-sample-that-bought-an-absence.md`
   warnings); `xref_check` **0 NEW** dangling.
 - **Knowledge:** `knowledge/round-484-the-receipt-that-outlived-its-day-file.md`.
 
+### Round 485 — SWE-loop(D) — 2026-09-04 — the cost that was a property of one implementation
+
+- **Round 479's reason for declining a repair was measured, and it is zero.**
+  It wrote that a float operator could not be added because "mutant ids are
+  index-based, so inserting a site kind RENUMBERS every id in every campaign
+  artefact on disk", and left `falsifiers.py`'s bound 5 (operator coverage)
+  reported but undischarged. The premise is right — `mid = "%s:%d:%s#%d" %
+  (basename, lineno, op, i)` with `i` an `enumerate` index over `_sites`, one
+  counter for the whole file, in `ast.walk` BFS order — and the conclusion does
+  not follow. Measured over the four subjects round 473 ran campaigns on
+  (`state/swe/round-485/id-renumbering.json`): folding `float` into the
+  existing `const` branch keeps **17.5 / 30.9 / 51.9 / 1.1 %** of legacy ids;
+  yielding it from a SECOND walk appended after `_sites` keeps **100 % on all
+  four**, as a strict prefix-extension. `tierbudget.py` keeps 1 of 95 under the
+  naive version because its first float sits above almost every other site — the
+  naive cost is a function of WHERE the new site lands, which is exactly why it
+  needed measuring rather than reasoning about.
+- **`_sites` is now FROZEN and `_late_sites` appends.** `LEGACY_OPS` /
+  `LATE_OPS` name the two halves, the module docstring carries the table, and
+  `state/swe/round-485/legacy-id-pins.json` pins each subject's legacy id
+  digest KEYED BY ITS SOURCE DIGEST — so the pin expires on an ordinary edit
+  and fails on a renumbering. A convention that lives only in a docstring is
+  one the next author does not know about.
+- **The committed corpus was already 63.2 % decayed, from a different cause.**
+  Of 5 740 distinct mutant ids under `state/swe/`, **3 626 no longer name a
+  site the engine generates at HEAD** — but `interp.py` alone is 3 465 of them
+  (73.1 % of its own) and `falsifiers.py`'s 96.3 % is THIS ROUND's edit, hours
+  old. The four subjects that have not moved lost **zero**. A positional id
+  decays whenever its subject is edited; appending removes the one way an
+  operator change could move ids in files nobody touched. A content-addressed
+  id would survive edits elsewhere and would rewrite all 5 740 to buy it —
+  priced, not taken, and the measurement is on disk for whoever decides.
+- **`--ops` was bound 4's FOURTH narrowing knob and the only one round 479's
+  `sound` flag could not see.** `audit` passed it to `mutation.generate`, so
+  `select_sites` recorded `generated` as the POST-filter list, coverage came
+  out 1.0, and an 11-of-326-site campaign would have reported **`sound: true`**
+  with a `never_red` list — bound 4's exact failure through the one door bound 4
+  did not cover, and this round's own planned measurement was about to walk
+  through it. Every narrowing now happens in `select_sites` against one
+  `generated`; the fix removes a special case rather than adding a fourth. The
+  rule: **a soundness flag can only enforce the bounds it can SEE, so the audit
+  is over the narrowing KNOBS, not over the flag.**
+- **Round 479's bound-5 pin could not go red for the event it names.** Its
+  guard computed `def_line = 1 + src[:src.index("\ndef plan(")].count("\n")`,
+  one too small, and when round 485 put a site on that line the assertion
+  PASSED. The test went red on its next line for an unrelated reason, which is
+  the only reason anybody looked. Pinned as its own node
+  (`test_round_479s_def_plan_locator_was_off_by_one`) rather than quietly
+  corrected: an off-by-one in a LOCATOR is invisible while the thing located
+  is absent, and absence is what the assertion is about.
+- **`falsifiers.UNMUTABLE_KINDS` is now DERIVED from
+  `mutation.MUTABLE_CONSTANT_TYPES`.** Round 479 typed the tuple
+  `("float", "str", "bytes", "complex", "NoneType")`; adding one operator four
+  files away turned it into a false report of the very bound it states. A bound
+  about the operator set has to be computed from the operator set.
+- **Round 473's step 9 executed for the first time in this program** —
+  *"re-run the campaign after the repair and publish both numbers"*. Float-only
+  campaigns, solo, whole test file, before → after: `whenceslow` **27.3 % →
+  54.5 %** (3 → 6 of 11 killed, 33 s), `tierbudget` **0.0 % → 44.4 %** (0 → 4
+  of 9, 79 s → 74 s).
+- **The widening reclassified exactly ONE node and produced a work list.**
+  `whenceslow.py:625:fconst#315` (`120.0 -> 121.0`) kills
+  `test_plan_default_is_smaller_than_slowtiers` — the node round 473 published
+  `never_red` and round 479 called unreachable — with no change to the test.
+  Over `tierbudget`, the other subject with rows open, **zero** of nine float
+  mutants killed anything and all three of its round-473 rows stay never-red.
+  Widening an operator set is not a general remedy for absence. The 17 new
+  survivors are where the value was: `whenceslow.replay(default_s=120.0)` is a
+  SECOND copy of the 120 s default that nothing pinned (and `replay` is the
+  function that PRICES a budget); `_size_prior`'s `/ 1e6` scale was untested;
+  `tierbudget`'s three registry defaults are the fallback path for a registry
+  that omits a key and nothing exercised it; and its `max(budget_s, 1e-9)`
+  divisor guard had no pin on how SMALL it has to be — at ~1.0 it becomes a
+  floor that renames the worst-by-ratio file. Six killers written, all six
+  kill.
+- **Round 479's record, paid.** Its knowledge file and `### Round 479` entry
+  were reconstructed from committed artefacts, `git show aedad26`, and
+  `logs/round-479.json` — its own raw event stream, all 106 tool calls WITH
+  results. Its 17-row bank is scored in round 485's knowledge file §9.1:
+  **8 HIT, 5 MISS, 1 SPLIT, 1 VOID, 2 no-basis-reported**, 57.1 % of 14
+  scorable. **Four of its five misses are lines about artefacts its own
+  read-set listed as NOT READ, and every one was one command away** —
+  `tier-budget.json` is a `json.load` (P8); the grandchild node is a `pytest`
+  invocation round 479 itself ran minutes later (P9). That is step 14's last
+  line with a worked example: *if a band is cheap to convert into a
+  measurement, it is a baseline and not a prediction.*
+- **Five whole-tree reds another track opened, closed.**
+  `wiring_audit` W001 × 2 (`nuc/fossil_ledger.py`, round 484 E; and
+  `skills/seed-sweep-needs-a-same-seed-control/scripts/seedsweep.py`, round
+  483 B) — **fifth consecutive D round** to do this, and the pattern is now
+  long enough to be a fact about the ROTATION: a track that does not run
+  `harness/tests/` cannot see the check its own commit reddens.
+  `redattrib` R001 × 8 declared in `harness/crosstrack-registry.json` (36 → 43
+  nodes) — three `test_viapin.py`, three `test_wiring_audit.py::TestEdgeLines`,
+  the escalation-guard node, all opened by rounds 481-484. Note the TestEdgeLines
+  trio: two are sealed in `tmp_path` (`own-suite`) and the third builds
+  `W.Graph(REPO)` (`whole-tree`). **The class name is not the scope; the subject
+  is.** And the whence slow-tier membership pin re-pinned 28 → 29 units /
+  114 → 115 marked (round 482's `test_v47.py`) — third occurrence of that exact
+  opener/reader split.
+- **The escalation-guard node's red was its own VACUITY GUARD.** Round 484
+  correctly deleted `state/known-escalated-diffs.json`'s last entry (the record
+  check found the acknowledgement dead — the path had stopped being dirty), and
+  `assert rows` fired on the one event it was written to allow. Its message
+  offered deletion, which would have taken the regression assertion with it;
+  round 485 split the guard onto its own node instead, where the emptiness is a
+  decision somebody re-states.
+- **Tests: +22 nodes** by both counters (`def test_` and collected, 165 → 187),
+  across four files; `harness/tests/` fast tier **8 failed, 1524 passed →
+  7 failed, 1540 passed** (the whenceslow membership pin fixed), with all seven
+  remaining reds present in a pristine `pristine_check baseline` at the round's
+  own start commit (**5 failed, 1506 passed, 21 skipped, 412 deselected in
+  428.84 s**; the pristine run SKIPS the log-reading nodes the live one fails,
+  so the two lists differ by construction) — and five of the seven closed after
+  that run by the registry work above. `test_swe_mutation.py` re-measured SOLO for its
+  promotion: **18.17 s → 20.63 s**, under the 25 s cap, green.
+- **Predictions: 10 HIT, 1 SPLIT, 1 MISS, 2 no-basis-reported of 14** (83.3 %
+  of 12 scorable). The miss and the split are one shape: **a STRUCTURE inferred
+  from a handful of instances nobody counted** — P3 read six id strings and
+  inferred kind-blocks where the real ordering is BFS; P4 reasoned "these two
+  things count different populations, therefore they differ" over a population
+  with no instance of the difference. When a structural line rests on such a
+  gap, the bank owes the DIFFERENCE as a §0 count, not the inequality as a §1
+  bet.
+- **Knowledge:** `knowledge/round-485-the-cost-that-was-a-property-of-one-implementation.md`,
+  `knowledge/round-479-the-sample-that-bought-an-absence.md`.
+  **Skill:** `skills/falsifier-must-kill-something/SKILL.md` — step 6c (audit
+  the narrowing knobs, not the flag), three new pitfalls, a Verification
+  command that used to buy an absence with `--ops`.
+
 ## Next steps (as of round 484)
 
 1. **`sar26` is dead by now** — age 9 days at the 2026-09-05T00:07 sweep, and

@@ -1,0 +1,253 @@
+{
+ "attribution_coverage": 1.0,
+ "baseline": {
+  "evidence_verdict": "ok",
+  "n_nodes": 29,
+  "n_passed": 29,
+  "n_skipped": 0,
+  "returncode": 0,
+  "seconds": 4.94,
+  "skipped": [],
+  "tail": ".............................                                            [100%]\n29 passed in 4.64s",
+  "timed_out": false
+ },
+ "complete_selection": false,
+ "eligible_sites": 102,
+ "errored": 0,
+ "killed": 4,
+ "kills": {
+  "harness.tests.test_tierbudget::test_a_broken_registry_does_not_break_collection": 0,
+  "harness.tests.test_tierbudget::test_a_file_exactly_AT_its_budget_has_not_drifted": 0,
+  "harness.tests.test_tierbudget::test_a_file_exactly_AT_the_cap_is_not_promotable": 0,
+  "harness.tests.test_tierbudget::test_a_malformed_registry_promotes_nothing_and_never_raises[[]]": 0,
+  "harness.tests.test_tierbudget::test_a_malformed_registry_promotes_nothing_and_never_raises[{\"cap_s\": 25.0}]": 0,
+  "harness.tests.test_tierbudget::test_a_malformed_registry_promotes_nothing_and_never_raises[{\"promoted\": [\"test_swe_x.py\"]}]": 0,
+  "harness.tests.test_tierbudget::test_a_malformed_registry_promotes_nothing_and_never_raises[{not json at all]": 0,
+  "harness.tests.test_tierbudget::test_a_missing_registry_file_reports_the_same_defaults": 3,
+  "harness.tests.test_tierbudget::test_a_missing_registry_promotes_nothing": 0,
+  "harness.tests.test_tierbudget::test_a_promoted_file_that_did_not_run_is_not_evidence": 0,
+  "harness.tests.test_tierbudget::test_a_red_file_is_never_promotable_however_cheap_it_is": 0,
+  "harness.tests.test_tierbudget::test_a_registry_with_no_thresholds_falls_back_to_the_modules_own_defaults": 3,
+  "harness.tests.test_tierbudget::test_an_unlisted_swe_file_is_slow_with_no_edit_anywhere": 0,
+  "harness.tests.test_tierbudget::test_drift_is_the_factor_when_the_file_is_big_enough_for_it_to_bite": 0,
+  "harness.tests.test_tierbudget::test_every_promoted_entry_names_a_file_that_exists": 0,
+  "harness.tests.test_tierbudget::test_every_promoted_entry_records_how_and_when_it_was_measured": 0,
+  "harness.tests.test_tierbudget::test_measure_classifies_the_four_outcomes": 0,
+  "harness.tests.test_tierbudget::test_only_a_non_passing_row_keeps_its_output_tail": 0,
+  "harness.tests.test_tierbudget::test_over_cap_is_a_lower_bound_not_a_failure": 0,
+  "harness.tests.test_tierbudget::test_swe_files_finds_the_real_tree": 0,
+  "harness.tests.test_tierbudget::test_the_drift_branch_names_the_file_and_the_remedy": 0,
+  "harness.tests.test_tierbudget::test_the_drift_floor_stops_a_sub_second_file_alarming_on_noise": 0,
+  "harness.tests.test_tierbudget::test_the_no_evidence_line_substitutes_the_count_it_names": 0,
+  "harness.tests.test_tierbudget::test_the_registry_can_never_demote_a_core_harness_file": 0,
+  "harness.tests.test_tierbudget::test_the_registry_only_promotes_files_the_filename_rule_would_have_slowed": 0,
+  "harness.tests.test_tierbudget::test_the_tier_budget_line_is_printed_above_pytests_count_line": 0,
+  "harness.tests.test_tierbudget::test_the_verify_line_is_not_pytest_shaped": 0,
+  "harness.tests.test_tierbudget::test_the_worst_by_ratio_divisor_guard_does_not_swamp_a_sub_second_budget": 1,
+  "harness.tests.test_tierbudget::test_the_worst_file_is_the_worst_BY_RATIO_not_by_wall_clock": 0
+ },
+ "mutants": [
+  {
+   "description": "25.0 -> 26.0",
+   "detail": "FAILED harness/tests/test_tierbudget.py::test_a_registry_with_no_thresholds_falls_back_to_the_modules_own_defaults\nFAILED harness/tests/test_tierbudget.py::test_a_missing_registry_file_reports_the_same_defaults\n2 failed, 27 passed in 5.35s",
+   "end_line": 81,
+   "id": "tierbudget.py:81:fconst#95",
+   "junit_ok": true,
+   "line": 81,
+   "n_nodes": 29,
+   "op": "fconst",
+   "path": "harness/tierbudget.py",
+   "red": [
+    "harness.tests.test_tierbudget::test_a_missing_registry_file_reports_the_same_defaults",
+    "harness.tests.test_tierbudget::test_a_registry_with_no_thresholds_falls_back_to_the_modules_own_defaults"
+   ],
+   "seconds": 5.65,
+   "status": "killed"
+  },
+  {
+   "description": "2.0 -> 3.0",
+   "detail": "FAILED harness/tests/test_tierbudget.py::test_a_registry_with_no_thresholds_falls_back_to_the_modules_own_defaults\nFAILED harness/tests/test_tierbudget.py::test_a_missing_registry_file_reports_the_same_defaults\n2 failed, 27 passed in 6.03s",
+   "end_line": 82,
+   "id": "tierbudget.py:82:fconst#96",
+   "junit_ok": true,
+   "line": 82,
+   "n_nodes": 29,
+   "op": "fconst",
+   "path": "harness/tierbudget.py",
+   "red": [
+    "harness.tests.test_tierbudget::test_a_missing_registry_file_reports_the_same_defaults",
+    "harness.tests.test_tierbudget::test_a_registry_with_no_thresholds_falls_back_to_the_modules_own_defaults"
+   ],
+   "seconds": 6.33,
+   "status": "killed"
+  },
+  {
+   "description": "3.0 -> 4.0",
+   "detail": "FAILED harness/tests/test_tierbudget.py::test_a_registry_with_no_thresholds_falls_back_to_the_modules_own_defaults\nFAILED harness/tests/test_tierbudget.py::test_a_missing_registry_file_reports_the_same_defaults\n2 failed, 27 passed in 5.14s",
+   "end_line": 83,
+   "id": "tierbudget.py:83:fconst#97",
+   "junit_ok": true,
+   "line": 83,
+   "n_nodes": 29,
+   "op": "fconst",
+   "path": "harness/tierbudget.py",
+   "red": [
+    "harness.tests.test_tierbudget::test_a_missing_registry_file_reports_the_same_defaults",
+    "harness.tests.test_tierbudget::test_a_registry_with_no_thresholds_falls_back_to_the_modules_own_defaults"
+   ],
+   "seconds": 5.44,
+   "status": "killed"
+  },
+  {
+   "description": "0.0 -> 1.0",
+   "detail": "",
+   "end_line": 138,
+   "id": "tierbudget.py:138:fconst#98",
+   "junit_ok": true,
+   "line": 138,
+   "n_nodes": 29,
+   "op": "fconst",
+   "path": "harness/tierbudget.py",
+   "red": [],
+   "seconds": 5.31,
+   "status": "survived"
+  },
+  {
+   "description": "0.0 -> 1.0",
+   "detail": "",
+   "end_line": 260,
+   "id": "tierbudget.py:260:fconst#99",
+   "junit_ok": true,
+   "line": 260,
+   "n_nodes": 29,
+   "op": "fconst",
+   "path": "harness/tierbudget.py",
+   "red": [],
+   "seconds": 7.34,
+   "status": "survived"
+  },
+  {
+   "description": "0.0 -> 1.0",
+   "detail": "",
+   "end_line": 205,
+   "id": "tierbudget.py:205:fconst#100",
+   "junit_ok": true,
+   "line": 205,
+   "n_nodes": 29,
+   "op": "fconst",
+   "path": "harness/tierbudget.py",
+   "red": [],
+   "seconds": 5.35,
+   "status": "survived"
+  },
+  {
+   "description": "1e-09 -> 1.000000001",
+   "detail": "=========================== short test summary info ============================\nFAILED harness/tests/test_tierbudget.py::test_the_worst_by_ratio_divisor_guard_does_not_swamp_a_sub_second_budget\n1 failed, 28 passed in 5.68s",
+   "end_line": 294,
+   "id": "tierbudget.py:294:fconst#101",
+   "junit_ok": true,
+   "line": 294,
+   "n_nodes": 29,
+   "op": "fconst",
+   "path": "harness/tierbudget.py",
+   "red": [
+    "harness.tests.test_tierbudget::test_the_worst_by_ratio_divisor_guard_does_not_swamp_a_sub_second_budget"
+   ],
+   "seconds": 6.23,
+   "status": "killed"
+  },
+  {
+   "description": "0.0 -> 1.0",
+   "detail": "",
+   "end_line": 272,
+   "id": "tierbudget.py:272:fconst#102",
+   "junit_ok": true,
+   "line": 272,
+   "n_nodes": 29,
+   "op": "fconst",
+   "path": "harness/tierbudget.py",
+   "red": [],
+   "seconds": 5.94,
+   "status": "survived"
+  },
+  {
+   "description": "0.0 -> 1.0",
+   "detail": "",
+   "end_line": 343,
+   "id": "tierbudget.py:343:fconst#103",
+   "junit_ok": true,
+   "line": 343,
+   "n_nodes": 29,
+   "op": "fconst",
+   "path": "harness/tierbudget.py",
+   "red": [],
+   "seconds": 5.2,
+   "status": "survived"
+  }
+ ],
+ "never_red": [
+  "harness.tests.test_tierbudget::test_a_broken_registry_does_not_break_collection",
+  "harness.tests.test_tierbudget::test_a_file_exactly_AT_its_budget_has_not_drifted",
+  "harness.tests.test_tierbudget::test_a_file_exactly_AT_the_cap_is_not_promotable",
+  "harness.tests.test_tierbudget::test_a_malformed_registry_promotes_nothing_and_never_raises[[]]",
+  "harness.tests.test_tierbudget::test_a_malformed_registry_promotes_nothing_and_never_raises[{\"cap_s\": 25.0}]",
+  "harness.tests.test_tierbudget::test_a_malformed_registry_promotes_nothing_and_never_raises[{\"promoted\": [\"test_swe_x.py\"]}]",
+  "harness.tests.test_tierbudget::test_a_malformed_registry_promotes_nothing_and_never_raises[{not json at all]",
+  "harness.tests.test_tierbudget::test_a_missing_registry_promotes_nothing",
+  "harness.tests.test_tierbudget::test_a_promoted_file_that_did_not_run_is_not_evidence",
+  "harness.tests.test_tierbudget::test_a_red_file_is_never_promotable_however_cheap_it_is",
+  "harness.tests.test_tierbudget::test_an_unlisted_swe_file_is_slow_with_no_edit_anywhere",
+  "harness.tests.test_tierbudget::test_drift_is_the_factor_when_the_file_is_big_enough_for_it_to_bite",
+  "harness.tests.test_tierbudget::test_every_promoted_entry_names_a_file_that_exists",
+  "harness.tests.test_tierbudget::test_every_promoted_entry_records_how_and_when_it_was_measured",
+  "harness.tests.test_tierbudget::test_measure_classifies_the_four_outcomes",
+  "harness.tests.test_tierbudget::test_only_a_non_passing_row_keeps_its_output_tail",
+  "harness.tests.test_tierbudget::test_over_cap_is_a_lower_bound_not_a_failure",
+  "harness.tests.test_tierbudget::test_swe_files_finds_the_real_tree",
+  "harness.tests.test_tierbudget::test_the_drift_branch_names_the_file_and_the_remedy",
+  "harness.tests.test_tierbudget::test_the_drift_floor_stops_a_sub_second_file_alarming_on_noise",
+  "harness.tests.test_tierbudget::test_the_no_evidence_line_substitutes_the_count_it_names",
+  "harness.tests.test_tierbudget::test_the_registry_can_never_demote_a_core_harness_file",
+  "harness.tests.test_tierbudget::test_the_registry_only_promotes_files_the_filename_rule_would_have_slowed",
+  "harness.tests.test_tierbudget::test_the_tier_budget_line_is_printed_above_pytests_count_line",
+  "harness.tests.test_tierbudget::test_the_verify_line_is_not_pytest_shaped",
+  "harness.tests.test_tierbudget::test_the_worst_file_is_the_worst_BY_RATIO_not_by_wall_clock"
+ ],
+ "node_loss": [],
+ "score": 0.4444,
+ "seconds": 67.4,
+ "selection": {
+  "funcs": null,
+  "generated": 104,
+  "head_biased": false,
+  "limit": null,
+  "main_guard_excluded": 2,
+  "ops": [
+   "fconst"
+  ],
+  "sample": null,
+  "selected": 9
+ },
+ "site_coverage": 0.0882,
+ "sound": false,
+ "subject_paths": [
+  "harness/tierbudget.py"
+ ],
+ "survived": 5,
+ "test_paths": [
+  "harness/tests/test_tierbudget.py"
+ ],
+ "total": 9,
+ "unattributed_kills": [],
+ "unit": "tierbudget.fconst.after",
+ "unreachable_constants": {
+  "harness/tierbudget.py": {
+   "NoneType": 15,
+   "str": 165
+  }
+ },
+ "unsound_reasons": [
+  "only 9 of 102 eligible site(s) were run (9%; ops=fconst)"
+ ],
+ "verdict": "unsound"
+}

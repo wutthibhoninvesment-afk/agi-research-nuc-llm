@@ -750,6 +750,22 @@
       "owner": "language(C)",
       "reason": "Round 482 (language C), decision 60. Reached the way `orderhint.py`, `depthcensus.py`, `polarity.py` and `specreg.py` are: `languages/whence/run_tests_fast.sh` runs `pytest tests/`, and `tests/test_v47.py:46` does `import reprsweep`. Declared in the same commit that adds the module, per round 480's entry above and round 481's rule that a numeric via pin is checked by `harness/viapin.py` in the round that writes it.",
       "since_round": 482
+    },
+    "nuc/fossil_ledger.py": {
+      "status": "wired",
+      "via": "nuc/tests/test_fossil_ledger.py:18",
+      "via_kind": "import",
+      "owner": "NUC-integration(E)",
+      "reason": "Round 484 (E) built it and did not declare it, so W001 has been an ERROR on every wiring_audit run since and it took three nodes of harness/tests/test_wiring_audit.py red with it. Declared by round 485 (SWE-loop D), the FIFTH consecutive D round to close a whole-tree registry red another track opened (471 bank_audit.py and 472 dose_response.py by round 473, 478 summary_fossil.py by round 479, and now 484 fossil_ledger.py and 483 seedsweep.py by round 485). The closure already reached it: `nuc/run_checks_fast.sh:139` runs `pytest -q nuc/tests/` and `nuc/tests/test_fossil_ledger.py:18` does `import fossil_ledger as fl`; the only thing missing was the entry. FOURTH consecutive round in which the round that built a new nuc/ module left the registry red for the next reader. The pattern is now long enough to be a fact about the ROTATION rather than about any one round: a track that does not run harness/tests/ cannot see the check its own commit reddens, and the reader is always a D round.",
+      "since_round": 485
+    },
+    "skills/seed-sweep-needs-a-same-seed-control/scripts/seedsweep.py": {
+      "status": "wired",
+      "via": "skills/skill-authoring/scripts/corpus_check.py:-",
+      "via_kind": "dir",
+      "owner": "skills(B)",
+      "reason": "Round 483 (skills B) built it and did not declare it. Reached the way the other four skills/*/scripts/test_*.py directories are -- corpus_check.py's `unit_tests` argv names `skills/seed-sweep-needs-a-same-seed-control/scripts` literally, so `test_seedsweep.py` runs beside it and the closure has held since round 483. Declared by round 485 (SWE-loop D) alongside round 484's nuc/fossil_ledger.py: two undeclared entry points from two different tracks, both reported by the same W001 ERROR, neither visible to the round that created it because neither track runs harness/tests/.",
+      "since_round": 485
     }
   },
   "_since_round": "`since_round` on an `unwired` entry is the round that DECLARED the debt, not a guess at when the file stopped being run. W005 therefore measures how long a declared, undischarged deferral has stood -- one full rotation (6 rounds) and it rides in the summary line. Dating it any other way would require inventing a number no record carries."

@@ -364,3 +364,64 @@ def test_only_a_non_passing_row_keeps_its_output_tail():
                                tests_dir="/nowhere", runner=_runner_for(table))}
     assert "tail" not in rows["test_swe_ok.py"]
     assert "1 failed, 3 passed" in rows["test_swe_red.py"]["tail"]
+
+
+# --------------------------------------------------------------------------
+# round 485 (SWE-loop D): killers written from the FLOAT survivor list.
+#
+# `mutation.generate` gained an `fconst` operator this round (float f -> f+1.0),
+# which made nine sites in this module mutable for the first time. All nine
+# survived: `state/swe/round-485/tierbudget-fconst.json`, score 0.0 %. These
+# four are the ones with a real decision behind them.
+# --------------------------------------------------------------------------
+
+def test_a_registry_with_no_thresholds_falls_back_to_the_modules_own_defaults(tmp_path):
+    """Kills `tierbudget.py:81/82/83:fconst` — `DEFAULT_CAP_S`,
+    `DEFAULT_DRIFT_FACTOR`, `DEFAULT_DRIFT_FLOOR_S`.
+
+    The live registry sets all three, so every test that reads it reads the
+    FILE's numbers and none of them touches the module's. The defaults are the
+    fallback path for a registry that omits a key -- exactly the path a
+    hand-edited registry takes -- and until this test nothing in the suite
+    could tell 25.0 from 26.0."""
+    p = tmp_path / "reg.json"
+    p.write_text(json.dumps({"promoted": {"test_swe_x.py": {"measured_s": 1.0}}}))
+    reg = tierbudget.load_registry(str(p))
+    assert reg["cap_s"] == 25.0
+    assert reg["drift_factor"] == 2.0
+    assert reg["drift_floor_s"] == 3.0
+    # ...and the fallback is actually USED, not merely stored.
+    assert tierbudget.budget_for("test_swe_x.py", {"promoted": reg["promoted"]}) \
+        == max(1.0 * 2.0, 1.0 + 3.0)
+
+
+def test_a_missing_registry_file_reports_the_same_defaults(tmp_path):
+    """Kills the same three constants through `load_registry`'s OTHER exit --
+    the one that fires when the path does not exist. Two returns, one set of
+    numbers; a test that only covered one of them would leave the other
+    unguarded, which is how three float constants reached round 485 untouched."""
+    reg = tierbudget.load_registry(str(tmp_path / "nope.json"))
+    assert reg["promoted"] == {}
+    assert (reg["cap_s"], reg["drift_factor"], reg["drift_floor_s"]) \
+        == (25.0, 2.0, 3.0)
+
+
+def test_the_worst_by_ratio_divisor_guard_does_not_swamp_a_sub_second_budget():
+    """Kills `tierbudget.py:294:fconst` — the `1e-9` in
+    `max(r["budget_s"], 1e-9)`.
+
+    The guard exists to stop a zero budget dividing by zero. Nothing pinned
+    how SMALL it has to be, so raising it to ~1.0 -- which is what
+    `f -> f + 1.0` does to `1e-09` -- turns it from a division guard into a
+    floor that rewrites the ratio of every sub-second budget. Here `tiny.py`
+    sits at 90 % of a 0.1 s budget and `big.py` at 50 % of a 2 s one -- neither
+    drifted, so the DRIFT branch does not pre-empt the `worst` line. Under the
+    real guard `tiny.py` is worst (0.9 vs 0.5); under a ~1.0 guard its divisor
+    becomes ~1.0, its ratio collapses to 0.09, and `big.py` is."""
+    reg = {"promoted": {"tiny.py": {"measured_s": 0.05},
+                        "big.py": {"measured_s": 1.0}},
+           "drift_factor": 2.0, "drift_floor_s": 0.0}
+    result = tierbudget.verify({"tiny.py": 0.09, "big.py": 1.0}, reg)
+    assert not result["drifted"], result["drifted"]
+    line = tierbudget.format_verify_line(result)
+    assert "worst tiny.py" in line, line
