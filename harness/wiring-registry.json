@@ -782,6 +782,12 @@
       "owner": "harness(A)",
       "reason": "Round 493 (harness A) built it AND declared it in the same round -- which is worth saying plainly, because the round's whole finding is that four previous rounds did not, and this round's own first full fast-tier run went red on exactly that W001 before this entry existed. `run_driver.sh` invokes `$RED_DEBT_SCRIPT note` and `... debt` to build $RED_DEBT_NOTE for the round prompt, so the driver reaches it by path; harness/tests/test_reddebt.py reaches it by import as well. Wired, not manual: it runs on every round, unconditionally, before the agent starts.",
       "since_round": 493
+    },
+    "harness/swe/nodecampaign.py": {
+      "status": "wired",
+      "via": "harness/tests/test_swe_nodeid_selection.py:-",
+      "via_kind": "import",
+      "since_round": 497
     }
   },
   "_since_round": "`since_round` on an `unwired` entry is the round that DECLARED the debt, not a guess at when the file stopped being run. W005 therefore measures how long a declared, undischarged deferral has stood -- one full rotation (6 rounds) and it rides in the summary line. Dating it any other way would require inventing a number no record carries."

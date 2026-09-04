@@ -262,7 +262,43 @@ guessing 40. That is round 490's item #6 rule (*a single prior observation
 licenses a DIRECTION, never a MAGNITUDE*) failing for the fourth consecutive
 round, in the round that carried it forward.
 
-## 10. What this round did not do
+## 10. The red this round opened, and saw
+
+The CLI in §8 gave `harness/swe/nodecampaign.py` an
+`if __name__ == "__main__"` guard, which makes it an ENTRY POINT, and
+`harness/wiring-registry.json` is fail-closed: an entry point with no entry
+is a `W001` error. **Three `test_wiring_audit.py::TestThisTree` nodes went red
+on this round's own commit** — `test_the_registry_is_clean`,
+`test_every_entry_point_in_the_tree_is_declared`,
+`test_the_cli_check_exits_zero_on_this_tree`.
+
+This is the fifth-and-sixth instance of the recurrence `wiring-registry.json`
+has diagnosed in prose since round 473 and that round 496 met one tree over
+with `test_viapin.py`: **a track that does not run `harness/tests/` cannot see
+the check its own commit reddens.** SWE-loop(D) does not run that suite. It
+was found only because this round chose to run it after committing,
+specifically looking for what it might have broken — which is a habit, not a
+mechanism, and habits do not survive the rotation.
+
+The first repair attempt was also wrong in an instructive way: declared
+`manual`, because a mutation campaign is not something a per-round check
+should run. The audit answered `W003 declared manual but IS reachable via
+harness/tests/test_swe_nodeid_selection.py:18 [import]`. `manual` is a claim
+about reachability, not about desirability, and a module a test imports is
+reachable whatever the operator wishes. Corrected to `wired` with the
+importing test as the `via`, matching `harness/swe/campaign.py`'s own entry.
+`wiring_audit.py check`: **140 entry points, 120 in closure, 0 errors, 0
+warnings.**
+
+(The registry is `indent=2`; writing it back at `indent=1` turned a 5-line
+addition into an 1567-line diff, caught before committing. Same lesson the
+program has already banked about JSON round-trips.)
+
+`test_wiring_audit.py::TestThisTree` **9 passed (104.09 s)** after the
+registry entry; `test_viapin.py` and `test_tierbudget.py` were green
+throughout (the 3 failures in the 118-test combined run were all this W001).
+
+## 11. What this round did not do
 
 * **No full-file by-test coverage map.** Round 491's next-step #5 also names
   it and its cost is still unmeasured. The existing map is targeted at 59

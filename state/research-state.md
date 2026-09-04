@@ -27675,6 +27675,10 @@ the entry is round 493's.
 - **Tests:** `harness/tests/test_swe_linkcopy.py` **23 new**;
   `test_swe_linkcopy.py + test_swe_nodeid_selection.py` **41 passed
   (23.10 s)**; `nuc/tests/test_perturbation.py` **245 passed in 74.99 s** (+6 this round; 239 before).
+  Cross-track, run because this round edited files their checks read:
+  `test_viapin.py` + `test_wiring_audit.py` + `test_tierbudget.py` **115
+  passed / 3 failed (203.68 s)** — the 3 are the W001 above, **9 passed
+  (104.09 s)** after the registry entry.
 - **Predictions: 7 HIT / 1 SPLIT / 6 MISS of 15, plus 1 pre-registered**
   (`state/swe/predictions-d-round497.md`, `606ffa0`). **Five of the six
   misses are one shape:** a MAGNITUDE banked off a single prior observation
@@ -27682,6 +27686,18 @@ the entry is round 493's.
   and P15, which was not even a prediction (89 - 55 = 34; I guessed 40).
   That is round 490's item #6 rule failing for a fourth consecutive round,
   in the round that carried it forward.
+- **Opened a cross-track red and SAW it, by choosing to look.** The new CLI
+  gives `nodecampaign.py` a `__main__` guard, so it is an ENTRY POINT, and
+  `harness/wiring-registry.json` is fail-closed — three
+  `test_wiring_audit.py::TestThisTree` nodes went red on this round's own
+  commit. SWE-loop(D) does not run `harness/tests/`; this was found only by
+  running the suite after committing, on purpose, which is a habit and not a
+  mechanism. Declared `wired` via the importing test (the first attempt,
+  `manual`, drew `W003 declared manual but IS reachable`: `manual` is a claim
+  about reachability, not desirability). `wiring_audit.py check`: **140 entry
+  points, 120 in closure, 0 errors, 0 warnings.** The registry is `indent=2`
+  and a round-trip at `indent=1` turned a 5-line addition into a 1567-line
+  diff — caught before committing.
 - **Knowledge:** `knowledge/round-497-the-sandbox-that-was-a-copy.md`.
 
 ## Next steps (as of round 497)
@@ -27726,20 +27742,28 @@ the entry is round 493's.
    (the CLI exists, the full-file map does not); #4 has a second data point
    and is not closed. #6's `<collect>` mechanism is now confirmed as the
    cause of this slice's four 66 s mutants. SWE-loop(D).
-8. **The two harness reds from this round's briefing were NOT touched** —
+8. **The wiring-registry recurrence has now bitten SIX times in prose and
+   TWICE in a row in fact** — round 496 (via-pin, caught by round 481's live
+   gate) and round 497 (W001, caught by nothing but the author's decision to
+   run another track's suite). Round 481's gate is still the only thing in
+   the program that has ever stopped it, and it covers via-pins only. The
+   cheapest general version is the one `harness/wiring-registry.json`'s own
+   prose has proposed four times: run `wiring_audit.py check` in the
+   per-round health checks, where every track pays for it. harness(A).
+9. **The two harness reds from this round's briefing were NOT touched** —
    `test_redattrib.py::TestThisTree::test_the_cli_audit_exits_zero_on_this_tree`
    and `::test_the_registry_is_fail_closed_over_the_live_logs`, red since
    round 494, opened by language(C), owner harness(A). This round ran no
    `harness/tests/test_redattrib.py`. They are a different tree and the
    briefing's own instruction is to REPRODUCE before fixing. harness(A).
-9. **`nproc` on this box is 1 and this round obeyed it.** The replay
+10. **`nproc` on this box is 1 and this round obeyed it.** The replay
    (168.5 s), the slice (465.0 s), the kill checks and every verification run
    were serialised. Every number here is a solo number and only comparable to
    other solo numbers. One cost was paid for it: the first slice launch died
    instantly on a relative `--python ../.venv/bin/python3` resolved against
    the SANDBOX cwd, and eight minutes of the round went with it. The CLI's
    `--python` and `--root` want absolute paths.
-10. **Standing and untouched:** the operator-blocked `--cap 196`; the E3 A/B;
+11. **Standing and untouched:** the operator-blocked `--cap 196`; the E3 A/B;
    `case_coverage`'s disagreeing verdicts; `claim_check` executing 0 of its
    commands; the NUC `retention --strict` deadline; and CLAUDE.md's
    `CRITICAL MISSION` / `MASTER MISSION` blocks, re-escalated for the
