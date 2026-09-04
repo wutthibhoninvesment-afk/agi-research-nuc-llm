@@ -27095,6 +27095,177 @@ for round 479. Whoever adjudicates it should either register it in
   output says its coverage figure belongs to the last round to write.
 - **Knowledge:** `knowledge/round-489-the-verdict-that-was-right-about-the-wrong-round.md`.
 
+### Round 490 — NUC-integration(E) — 2026-09-04 — the record that was already in the repo
+
+- **Box DOWN the whole round** (two tailnet probes rc 255, CLAUDE.md's
+  two-failure rule fired; LAN key still absent so that path proves nothing).
+  A **NEW outage**, not a continuation: rounds 478 and 484 both saw the box UP
+  on boot `0d0e3188`, and the peer was last seen 2026-09-04T02:14:05.1Z,
+  **34m53s after round 484's own probe**. Gates first and unchanged:
+  `coverage --strict` 0, `precision-audit --strict` 0, `lastseen-drift
+  --strict` 1. Log 65 -> 66 rows via `replay`. **Zero ssh sessions succeeded;
+  port 8001 never contacted; nothing read from or written to the box.**
+- **THE FINDING: every window-level number in this track comes from round
+  424's capture, and a strictly better record has been committed here since
+  round 478.** `grep -rl nuc-capture-r478 --include='*.py'` returns
+  `fossil_ledger.py` and two test files only; `perturbation.py` and
+  `dose_response.py` name r424 and nothing else. Round 472's central
+  limitation — "round 424's capture IS the end of the record" — was closable
+  offline, from files already in git, on a round with no box.
+- **And the NEWEST capture is the SMALLEST record.** r484 8 sar dates, r424
+  10, r478 11, union **12** (08-23..09-04; 09-02 in no capture, box down all
+  day). The 00:07 sweep eats the front while each capture only adds to the
+  back, so "use the latest capture" gets the least data.
+- **New `nuc/record_union.py`** (+34 tests) — the sar day-files and the pid-1
+  journal unioned across every capture, with `fossil_ledger`'s three rules
+  (agreement is the null; compare per timestamped ROW, not per section; name
+  an unusable input). Live: **4 read, 5 named unusable, 120 sections, 12
+  dates, 0 conflicts, 0 merged sections**. `window_frame`: **12 paired days /
+  1145 buckets** vs 10/991 best single and 8/661 newest. Journal **1938 unit
+  starts** vs 1652. Built artefact at `state/nuc-record-union/`.
+- **The journal union had to become a MULTISET, and the module's own
+  `--strict` gate caught it.** Every journal here holds 2-3 byte-identical
+  lines (`Reloading...` at 12:23:21, `Starting rsyslog.service` at 00:32:34)
+  — two real events inside a one-second resolution. Whole-line dedup deletes
+  one of each, `parse_unit_starts` counts fires, so the deletion is a fire.
+- **Round 472 item 5 CLOSED, answer zero.** r424 re-derives round 472 exactly
+  (42 scored, 28 full, `bytes_landed` rho −0.2767). Union: **46 scored, 31
+  full**. **Round 424 — 2 896 862 bytes landed, 9x the next round — moves
+  `partial` -> `full` and holds ZERO swap bytes.** 430 and 478 `none` ->
+  `full`, also zero; 484 `partial`. **Caveat kept:** all three new full
+  windows have response exactly 0 (`response_total` byte-identical on both
+  records; +154 buckets, +0 costly), so every coefficient the union moved it
+  moved by adding zero-response points. Verdict **NULL**, unchanged. At n=31
+  the only terms under p 0.05 are the negative CONTROLS `local_bytes`
+  (−0.4376, p 0.0149) and `local_calls` (−0.3911, p 0.0312), wrong way round.
+- **THE OTHER FINDING: `n` was never 454.** Round 472 contrasted
+  "login-instant resolution (n=454), strong and robust" against "round-window
+  resolution (n=28), nothing". A round makes ~14 logins in 10-25 min and a
+  bucket is 600 s, so most share a bucket. New `effective_cells`: 484 fires
+  -> **69 distinct (round, bucket) cells** (median 6/cell, max 34). The two
+  resolutions are **69 and 28**. The coincidence SURVIVES the collapse —
+  `shift_null_covered` per cell 0.1449 vs null 0.0381, **p 0.0065**; the
+  control, gap-blocked the same way, 4 of 86 cells, 0.0465. New `gap_blocks`
+  derives the blocks from the journal's own silences and returns the SAME 34
+  blocks / 69 cells as the transcript-derived split.
+- **Round 472 item 2 ANSWERED; its §4b is WITHDRAWN.** New
+  `block_lead_lag_profile` splits every landed fire into `sibling_occupied`
+  and `clean`. At offset 0, **7 of 478** fires have their bucket to
+  themselves; at +1, **283 of 471 (60 %)** are sibling-occupied at 0.1237 vs
+  0.0426 clean. Mean asymmetry **+0.00519 all fires, −0.00027 clean**. New
+  `block_shift_null_lead_lag` (item 3, the null the profile never had):
+  `rate_at_zero` 0.2008 vs null 0.0360 **p 0.0010 = p floor** — the peak
+  SURVIVES; `asymmetry_after_minus_before` **p 0.4060** — the shoulder does
+  not. Caveats kept: the clean/dirty split is not randomised, and the clean
+  subsets differ in size across offsets.
+- **The new null is weaker than designed and its own field said so.**
+  `sibling_structure_preserved_in_all_draws` **False, 0 of 1000** — whole-
+  bucket shifts preserve co-occupancy only where the record is continuous,
+  and this box's is not (observed 409, null median **256** = 62.6 %). The
+  direction of the resulting bias on `p` is NOT established.
+- **Round 484 items 2 and 4 paid.** `fossil_ledger append`: exit 0, ledger
+  **byte-identical, 11 instants, 0 conflicts**; r490 correctly unusable.
+  `margins --strict` over all nine: **3 scorable** (all exit 0), **r400 exits
+  1** (no `journal-pid1-full.txt`), 5 with no derivable `now`. On the UNIONED
+  journal it sees **8 fire instants** vs 7 (best single) / 6 (newest) and
+  flips 08-24/-25/-26 `sweep_pending` -> `sweep_missed`; round 484's −3.0 s
+  orphan reproduces exactly.
+- **Did round 484's capture kill the box? No.** Five up->down transitions,
+  four with a placeable `LastSeen`; `u` = (last-seen − last up probe) /
+  (probe window) = **0.9788, 0.6935, 0.8204, 0.0613**; Fisher against the
+  small-`u` alternative **X² 6.753, df 8, p 0.5635**. Three of four die LATE.
+  One draw at the 6th percentile is not evidence — written down before the
+  next early death makes it look like a pattern.
+- **Tests: 55 new. 29 mutations, first pass 24 killed / 5 SURVIVED** — four
+  distinct causes: a dead `Average:` branch (deleted, round 466's F7 rule); a
+  field no input can falsify (`dedup_is_lossless`, re-pointed at a decidable
+  helper); a test that read the report and not the behaviour; two missing
+  boundary cases. **Second pass 29 of 29 killed, 0 survived.**
+- **Suite `nuc/tests` 1076 -> 1131, all green, 564 s** (alone; `nproc` 1; the
+  two new files collect 55 and 1131 − 55 = 1076, exactly where round 484 left
+  it). Two tests went red on the first full run, both this round's own doing:
+  `test_the_live_union_beats_every_single_capture` pinned
+  `n_captures_unusable == 5` and round 490 banked its own tailscale-only
+  capture. **The corpus grew; the ledger did not break** — and it will recur
+  every down round, so the count is now derived from the directory listing
+  while `n_captures_read == 4`, a claim about the ledger, stays literal. The
+  `constant_audit` fast-check red was downstream of it.
+- **New skill `skills/newest-snapshot-is-not-the-record/SKILL.md`** — a
+  snapshot of a rotating source is a WINDOW, so "newest" is a claim about the
+  back edge only and the record you want is the union you already have. Nine
+  steps, six pitfalls, two runnable verification commands; `skill_lint
+  --house --strict` 0/0 after the description was cut 1102 -> 970 chars;
+  three positive trigger cases plus a discriminating negative
+  (`nsr-neg-one-snapshot`) in `skills/trigger-cases.json`; registered unprobed
+  in `state/known-unprobed-skills.json` with an owner and a scorable
+  prediction rather than a by-reading sibling guess (round 405's rule).
+- **Predictions 13 HIT / 1 MISS / 2 OPEN-KEPT of 15**
+  (`nuc/predictions-e-round490.md`, banked `a0f244d` before measuring). The
+  miss is P5 and it is round 484's shape again: one prior observation
+  extrapolated, over-predicted.
+- **Knowledge:** `knowledge/round-490-the-record-that-was-already-in-the-repo.md`.
+
+## Next steps (as of round 490)
+
+1. **Build the union FIRST, then analyse.** `python3 nuc/record_union.py build
+   --captures 'state/nuc-capture-r*' --out-dir state/nuc-record-union
+   --strict`, then `frame --strict` (exits 1 if the union buys nothing over
+   the best single capture). No round should build a `BucketMap` from one
+   capture again without writing down why. NUC(E).
+2. **A capture is worth MORE than round 484 said, and for a new reason.** It
+   is no longer only a record of today: it is the only thing that will ever
+   pair a new date with a journal, and the 00:07 sweep takes 08-27 on 09-05
+   and 08-28 on 09-06. Take one on the first up round even if nothing else
+   happens. NUC(E).
+3. **Round 490's own weakness, named by round 490.** `block_shift_null_lead_lag`
+   preserves 62.6 % of the clustering it was designed to preserve exactly,
+   because a train shifted onto a hole or a wide bucket stops being a train.
+   Either shift within fully-covered stretches only, or publish the p as a
+   bracket. Whoever does it should say which direction the current bias runs
+   — this round could not. NUC(E).
+4. **`test_perturbation.py` has STILL never been mutation-tested** while
+   carrying every published number in this track. Round 490 mutation-tested
+   only its own two new files, for the third consecutive round; the item is
+   now four rounds old (472 item 4, 478, 484 item 6, 490). NUC(E) or
+   SWE-loop(D).
+5. **The `%vmeff` / `pgsteal_kswapd` residual is still one read-only command
+   away**, untouched for eight E rounds. Check `pgsteal_kswapd > 0` FIRST —
+   the box has swap 0 since the 09-01 reboot, so the direct test may be
+   vacuous a fourth time, and that is worth knowing before spending a window
+   on it. NUC(E).
+6. **A rule this round earned, for `skills/prediction-banking/SKILL.md`.**
+   P5 missed the same way round 484's three misses did: extrapolating how bad
+   a known-bad thing has got from ONE prior observation. Two of the last
+   three E rounds have made that exact error. The rule is not "predict less";
+   it is that a single prior observation licenses a DIRECTION, never a
+   MAGNITUDE, and a bank row that names a magnitude off one datum should say
+   so in the row. skills(B).
+7. **Two negative CONTROLS are now under p 0.05 in the dose table and no dose
+   is.** `local_bytes` −0.4376 (p 0.0149), `local_calls` −0.3911 (p 0.0312),
+   both the wrong way round, nine correlated terms, no multiplicity
+   correction. That is a statement about the design, not about local work.
+   Either explain the controls or stop reporting the table as if the doses
+   were the only interesting column. NUC(E).
+8. **Round 436's items 4, 5 and 9 stand, untouched for an eighth round** —
+   the `commit` channel vs the 9.25 GB weights load, `Consumed` coverage at
+   4 of 26 units, the separability route. NUC(E).
+9. **Standing and untouched by this round:** the operator-blocked `--cap 196`
+   (band [129, 204], `bounded_by: engine_lru`, 1.096 GB margin —
+   **twenty-ninth** round unchanged) and the E3 A/B, which must publish its
+   full six-gate table; `case_coverage`'s 49-of-103 disagreeing verdicts;
+   `claim_check` executing 0 of its commands; and CLAUDE.md's `CRITICAL
+   MISSION` block, re-escalated for the TWENTIETH time and still a one-line
+   deletion for the operator. `languages/whence/SECURITY.md` remains the
+   operator's decision — do not copy a carry count for it from this file;
+   the checker's own line is the only source.
+10. **Rounds 489's and 488's next-steps lists stand because nothing here
+   touched them**, not because anything checked them. This round re-derived
+   two carried numbers before quoting them (round 472's 28 full-record
+   windows and its `bytes_landed` rho −0.277) and BOTH were right, because
+   round 472 banked the command behind each. Re-derive first, and prefer a
+   carried number whose command is banked over one whose prose is.
+
+
 ## Next steps (as of round 489)
 
 1. **Round 479's published K003 evidence is STILL not a scoring line, and

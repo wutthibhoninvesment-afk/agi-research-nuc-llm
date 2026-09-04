@@ -4082,6 +4082,367 @@ def lead_lag_profile(bmap: BucketMap, fires: Iterable,
     }
 
 
+def _bucket_at(bmap, t):
+    """The bucket an absolute second falls in, or None if off the record."""
+    if not (0 <= t < bmap.span_s):
+        return None
+    return bmap._map_any.get((t // 86400, t % 86400))
+
+
+def _block_seconds(bmap, blocks) -> dict:
+    """{block_id: sorted absolute seconds}, with the ledger's own exclusions."""
+    items = blocks.items() if isinstance(blocks, dict) else enumerate(blocks)
+    out = {}
+    for bid, fires in items:
+        secs = bmap.seconds(fires)
+        if secs:
+            out[bid] = sorted(secs)
+    return out
+
+
+def _profile_from_blocks(bmap, bsecs: dict, offsets_s, base: int = 0,
+                         span: int = None, shifts: dict = None) -> dict:
+    """One lead-lag profile, with the sibling split, over shifted blocks.
+
+    `shifts` moves each block rigidly (wrapped in [base, base+span)); the
+    sibling relation is recomputed AFTER the shift, from the shifted
+    positions, so it describes the arrangement actually being scored.
+    """
+    span = bmap.span_s if span is None else span
+    placed = {}
+    for bid, secs in bsecs.items():
+        d = 0 if not shifts else shifts.get(bid, 0)
+        placed[bid] = [base + (x - base + d) % span for x in secs] if d \
+            else list(secs)
+
+    home = {}          # block -> {bucket: how many of its fires sit there}
+    own = {}           # block -> [bucket of each fire at offset 0]
+    for bid, secs in placed.items():
+        h, o = {}, []
+        for x in secs:
+            k = _bucket_at(bmap, x)
+            o.append(k)
+            if k is not None:
+                h[k] = h.get(k, 0) + 1
+        home[bid], own[bid] = h, o
+
+    n_cooccupied = sum(c - 1 for h in home.values() for c in h.values() if c > 1)
+
+    rows = []
+    for off in offsets_s:
+        la = ha = lc = hc = ld = hd = 0
+        for bid, secs in placed.items():
+            h, o = home[bid], own[bid]
+            for i, x in enumerate(secs):
+                k = _bucket_at(bmap, x + off)
+                if k is None:
+                    continue
+                la += 1
+                costly = k in bmap.costly
+                ha += costly
+                sibs = h.get(k, 0) - (1 if o[i] == k else 0)
+                if sibs:
+                    ld += 1
+                    hd += costly
+                else:
+                    lc += 1
+                    hc += costly
+        rows.append({
+            "offset_s": off,
+            "offset_buckets": off / bmap.interval_s,
+            "n_landed": la, "n_costly": ha,
+            "rate": (ha / la) if la else None,
+            "n_landed_clean": lc, "n_costly_clean": hc,
+            "rate_clean": (hc / lc) if lc else None,
+            "n_landed_sibling_occupied": ld, "n_costly_sibling_occupied": hd,
+            "rate_sibling_occupied": (hd / ld) if ld else None,
+        })
+    return {"profile": rows, "n_sibling_cooccupancies": n_cooccupied}
+
+
+def _summarise_profile(rows: list, key: str) -> dict:
+    at0 = next((r for r in rows if r["offset_s"] == 0), None)
+    have = [r for r in rows if r[key] is not None and r["offset_s"] != 0]
+    seen = [r for r in rows if r[key] is not None]
+    peak = max(seen, key=lambda r: r[key]) if seen else None
+    left = [r[key] for r in have if r["offset_s"] < 0]
+    right = [r[key] for r in have if r["offset_s"] > 0]
+    mb = (sum(left) / len(left)) if left else None
+    ma = (sum(right) / len(right)) if right else None
+    return {
+        "rate_at_zero": at0[key] if at0 else None,
+        "peak_offset_s": peak["offset_s"] if peak else None,
+        "peak_is_at_zero": bool(at0 and peak and peak["offset_s"] == 0),
+        "mean_rate_before": mb, "mean_rate_after": ma,
+        "asymmetry_after_minus_before": (ma - mb) if (mb is not None
+                                                     and ma is not None)
+        else None,
+    }
+
+
+def gap_blocks(fires: Iterable, gap_s: int = 1500) -> dict:
+    """Group fires into BURSTS separated by more than `gap_s` of silence.
+
+    Round 490. `block_lead_lag_profile` needs blocks, and this program's own
+    logins have one for free: the round that made them. The box's other logins
+    do not, and treating all 656 of them as one block silently redefines
+    "sibling" from "another login of the same burst" to "any other login on
+    any day" -- which is a different predicate, so the control's clean numbers
+    stop being comparable to the population's.
+
+    `gap_s` defaults to 1500 s because an E round's login train runs ten to
+    twenty-five minutes; the value is an argument so the sensitivity is
+    checkable rather than baked in.
+    """
+    evs = sorted(fires, key=lambda e: e.at_utc)
+    blocks: dict = {}
+    bid, last = -1, None
+    for e in evs:
+        t = _iso_seconds(e.at_utc)
+        if last is None or t - last > gap_s:
+            bid += 1
+        blocks.setdefault(bid, []).append(e)
+        last = t
+    return blocks
+
+
+def effective_cells(bmap: BucketMap, blocks) -> dict:
+    """How many INDEPENDENT observations a fire population really carries.
+
+    Round 490, and the reason round 472's two resolutions disagreed. Round 472
+    reported "at login-instant resolution (n=454) the coincidence is strong and
+    robust; at round-window resolution (n=28) there is nothing", and read the
+    gap as a statement about what the effect is like. Some of it is arithmetic:
+    a round makes about fourteen logins in ten to twenty-five minutes and a
+    bucket is 600 s wide, so most of those logins are IN THE SAME BUCKET AS
+    EACH OTHER. They are not 454 draws on the bucket grid.
+
+    The independent unit is the (block, bucket) CELL: one round meeting one
+    bucket, however many times it knocked. This counts them, and reports the
+    costly rate per cell beside the per-fire rate that has been published.
+    """
+    bsecs = _block_seconds(bmap, blocks)
+    cells: dict = {}
+    n_fires = n_landed = 0
+    for bid, secs in bsecs.items():
+        for x in secs:
+            n_fires += 1
+            k = _bucket_at(bmap, x)
+            if k is None:
+                continue
+            n_landed += 1
+            cells.setdefault((bid, k), 0)
+            cells[(bid, k)] += 1
+    costly = [c for c in cells if c[1] in bmap.costly]
+    sizes = sorted(cells.values())
+    return {
+        "n_fires": n_fires,
+        "n_fires_landed": n_landed,
+        "n_cells": len(cells),
+        "n_cells_costly": len(costly),
+        "n_distinct_buckets": len({k for _, k in cells}),
+        "n_distinct_costly_buckets": len({k for _, k in costly}),
+        "rate_per_fire": (sum(1 for bid, secs in bsecs.items() for x in secs
+                              if _bucket_at(bmap, x) in bmap.costly) / n_landed
+                          if n_landed else None),
+        "rate_per_cell": (len(costly) / len(cells)) if cells else None,
+        "fires_per_cell": {"min": sizes[0] if sizes else None,
+                           "median": sizes[len(sizes) // 2] if sizes else None,
+                           "max": sizes[-1] if sizes else None,
+                           "mean": round(n_landed / len(cells), 3)
+                           if cells else None},
+        "why": ("a rate over fires treats fourteen logins in one 600 s bucket "
+                "as fourteen draws on that bucket; the cell count is how many "
+                "draws there actually were"),
+    }
+
+
+def block_lead_lag_profile(bmap: BucketMap, blocks, offsets_s: Iterable = None,
+                           interval_s: int = SAR_INTERVAL_S) -> dict:
+    """`lead_lag_profile` with the WITHIN-BLOCK confound taken out of it.
+
+    Round 490, answering round 472's item 2. Round 472 measured that this
+    program's own logins peak hard at offset 0 (rate 0.217) and carry a right
+    shoulder (+1 0.099, +2 0.061) roughly twice the left, and then said the
+    honest thing: a round makes about twelve logins over ten to twenty-five
+    minutes, so a login displaced by one 600-second bucket can land on a
+    bucket that a LATER LOGIN OF THE SAME ROUND is already sitting in. That
+    bucket may be costly because of the sibling, not because the first login's
+    cost outlived it. Clustering and persistence make the same shoulder.
+
+    The separation is mechanical, not statistical. Split the landed fires at
+    every offset into
+
+      * `sibling_occupied` -- the landing bucket already holds another fire of
+        the same block, so the sibling is a sufficient explanation, and
+      * `clean` -- it does not, so nothing but the displaced fire itself is
+        there to explain a cost.
+
+    The clean profile is the deconfounded one. If its right shoulder survives,
+    persistence has evidence a shared clock does not predict. If the clean
+    profile is flat or symmetric, the shoulder was the round's own login
+    train and round 472's section 4b should be withdrawn.
+
+    A block is any grouping whose internal structure is the confound: here an
+    E-round window. `lead_lag_profile` remains the unsplit view and is the
+    thing this reduces to when every block has one fire.
+    """
+    bsecs = _block_seconds(bmap, blocks)
+    if not bsecs:
+        raise PerturbationError("no block has a fire in the pooled window")
+    offs = list(offsets_s) if offsets_s is not None else [
+        k * interval_s for k in range(-6, 7)]
+    got = _profile_from_blocks(bmap, bsecs, offs)
+    rows = got["profile"]
+    n_fires = sum(len(v) for v in bsecs.values())
+    sizes = sorted(len(v) for v in bsecs.values())
+    return {
+        "n_blocks": len(bsecs),
+        "n_fires": n_fires,
+        "block_sizes": {"min": sizes[0], "median": sizes[len(sizes) // 2],
+                        "max": sizes[-1],
+                        "mean": round(n_fires / len(sizes), 3)},
+        "n_sibling_cooccupancies": got["n_sibling_cooccupancies"],
+        "interval_s": interval_s,
+        "profile": rows,
+        "all_fires": _summarise_profile(rows, "rate"),
+        "clean": _summarise_profile(rows, "rate_clean"),
+        "sibling_occupied": _summarise_profile(rows, "rate_sibling_occupied"),
+        "why": ("a shoulder built out of a block's own later fires is "
+                "clustering; a shoulder that survives removing every landing "
+                "bucket a sibling already occupies is persistence"),
+    }
+
+
+def block_shift_null_lead_lag(bmap: BucketMap, blocks,
+                              trials: int = 1000,
+                              seed: int = 20260903,
+                              offsets_s: Iterable = None,
+                              interval_s: int = SAR_INTERVAL_S,
+                              restrict_to_population_days: bool = True,
+                              shifts: Iterable = None) -> dict:
+    """The null `lead_lag_profile` never had -- round 472's item 3.
+
+    Each BLOCK is translated rigidly by its own random offset and wrapped in
+    the population's day range. Within-block spacing, block size and the whole
+    burst shape survive; only each block's alignment with the bucket grid is
+    destroyed. Offsets are drawn in whole buckets so that two fires sharing a
+    bucket before the shift still share one after it -- otherwise the null
+    would quietly dissolve the very clustering it is supposed to preserve, and
+    `sibling_structure_preserved` would not be checkable.
+
+    **This is NOT the deconfound.** A block shift destroys the association
+    between a block's fires and the costly buckets wholesale, so a shoulder
+    made of within-round clustering beats this null exactly as well as a
+    shoulder made of persistence does. It answers "is the profile's shape more
+    than chance"; `block_lead_lag_profile`'s clean split answers "is the
+    shoulder the round's own logins". Both were asked for, as separate items,
+    and they are separate instruments.
+    """
+    bsecs = _block_seconds(bmap, blocks)
+    if not bsecs:
+        raise PerturbationError("no block has a fire in the pooled window")
+    offs = list(offsets_s) if offsets_s is not None else [
+        k * interval_s for k in range(-6, 7)]
+    allsecs = [x for v in bsecs.values() for x in v]
+    if restrict_to_population_days:
+        lo, hi = min(allsecs) // 86400, max(allsecs) // 86400
+        base, span = lo * 86400, (hi - lo + 1) * 86400
+    else:
+        base, span = 0, bmap.span_s
+
+    obs = _profile_from_blocks(bmap, bsecs, offs)
+    stats = _profile_stats(obs["profile"], interval_s)
+
+    ids = sorted(bsecs, key=str)
+    n_slots = span // interval_s
+    rng = random.Random(seed)
+    if shifts is not None:
+        draws_in = [list(d) for d in shifts]
+    else:
+        draws_in = [[rng.randrange(n_slots) * interval_s for _ in ids]
+                    for _ in range(trials)]
+    if not draws_in:
+        raise PerturbationError("no shift draws")
+    trials = len(draws_in)
+
+    acc = {k: [] for k in stats}
+    identity = 0
+    preserved = 0
+    for d in draws_in:
+        sh = {bid: d[i] % span for i, bid in enumerate(ids)}
+        got = _profile_from_blocks(bmap, bsecs, offs, base, span, sh)
+        st = _profile_stats(got["profile"], interval_s)
+        for k, v in st.items():
+            acc[k].append(v)
+        if all(v % span == 0 for v in sh.values()):
+            identity += 1
+        if got["n_sibling_cooccupancies"] == obs["n_sibling_cooccupancies"]:
+            preserved += 1
+
+    out = {}
+    for k, series in acc.items():
+        vals = sorted(v for v in series if v is not None)
+        o = stats[k]
+        if not vals or o is None:
+            out[k] = {"observed": o, "n_draws_scored": len(vals),
+                      "why_empty": "statistic undefined on this population"}
+            continue
+        ge = sum(1 for v in vals if v >= o - 1e-12)
+        out[k] = {
+            "observed": round(o, 5),
+            "null_mean": round(sum(vals) / len(vals), 5),
+            "null_median": round(vals[len(vals) // 2], 5),
+            "null_p95": round(vals[min(len(vals) - 1, int(0.95 * len(vals)))], 5),
+            "n_draws_scored": len(vals),
+            "n_draws_ge_observed": ge,
+            "p_value": ge / len(vals),
+            "p_floor": 1.0 / len(vals),
+        }
+    return {
+        "n_blocks": len(bsecs),
+        "n_fires": len(allsecs),
+        "shift_group_days": [bmap.days[min(allsecs) // 86400],
+                             bmap.days[max(allsecs) // 86400]],
+        "trials": trials,
+        "offsets_were_explicit": shifts is not None,
+        "shift_quantum_s": interval_s,
+        "n_identity_draws": identity,
+        "sibling_structure_preserved_in_n_draws": preserved,
+        "sibling_structure_preserved_in_all_draws": preserved == trials,
+        "observed_n_sibling_cooccupancies": obs["n_sibling_cooccupancies"],
+        "statistics": out,
+        "null": ("each block translated rigidly by its own whole-bucket "
+                 "offset, wrapped in the population's day range: within-block "
+                 "spacing and burst shape preserved, grid alignment destroyed"),
+        "not_a_deconfound": ("a within-block-clustering shoulder beats this "
+                             "null as well as a persistence shoulder does; "
+                             "see `block_lead_lag_profile`"),
+    }
+
+
+def _profile_stats(rows: list, interval_s: int) -> dict:
+    """The scalars a null can be run on, from one profile."""
+    a = _summarise_profile(rows, "rate")
+    c = _summarise_profile(rows, "rate_clean")
+    by = {r["offset_s"]: r for r in rows}
+
+    def at(off, key):
+        r = by.get(off)
+        return r[key] if r else None
+
+    return {
+        "rate_at_zero": a["rate_at_zero"],
+        "rate_at_zero_clean": c["rate_at_zero"],
+        "asymmetry_after_minus_before": a["asymmetry_after_minus_before"],
+        "asymmetry_after_minus_before_clean": c["asymmetry_after_minus_before"],
+        "rate_plus_one_bucket": at(interval_s, "rate"),
+        "rate_plus_one_bucket_clean": at(interval_s, "rate_clean"),
+        "rate_minus_one_bucket": at(-interval_s, "rate"),
+        "rate_minus_one_bucket_clean": at(-interval_s, "rate_clean"),
+    }
+
+
 def population_coverage(sar_text: str, journal_text: str,
                         populations: dict,
                         channel: Channel = SWAP_CHANNEL,

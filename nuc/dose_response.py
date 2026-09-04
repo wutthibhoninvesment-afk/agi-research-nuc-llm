@@ -34,6 +34,7 @@ Nothing here contacts the box. Every input is already on this host.
 """
 from __future__ import annotations
 
+import bisect
 import json
 import math
 import random
@@ -896,6 +897,63 @@ def split_scopes_by_provenance(journal_text: str, doses: Iterable,
         "why": ("the sentence `the scopes are this program`s footprints` is a "
                 "claim about THIS fraction, not about the probe-side one"),
     }
+
+
+def split_scopes_by_round(journal_text: str, doses: Iterable,
+                          match_s: int = 120) -> dict:
+    """`split_scopes_by_provenance`, but keeping WHICH round each scope is.
+
+    Round 490. `split_scopes_by_provenance` answers "is this login ours?" and
+    throws away the only thing that makes the lead-lag confound checkable: a
+    login belongs to a ROUND, a round makes about a dozen of them in ten to
+    twenty-five minutes, and it is that train -- not the population -- that
+    can manufacture a right shoulder out of nothing.
+
+    A scope is attributed to the round whose NEAREST call matched it, which is
+    the same decision `split_scopes_by_provenance` makes; this only records the
+    answer instead of discarding it. Scopes matching no call are returned under
+    the key `None`, because "the box's own logins" is a real block too and
+    dropping it would hide the negative control.
+    """
+    calls = []
+    for d in doses:
+        if d.get("missing"):
+            continue
+        for c in d.get("calls", []):
+            if c.get("issued_utc"):
+                calls.append((_iso_seconds(c["issued_utc"]), d["round"]))
+    if not calls:
+        raise PerturbationError("no NUC calls in any transcript")
+    calls.sort()
+    secs = [c for c, _ in calls]
+    first = min(d["first_contact_utc"][:10] for d in doses
+                if d.get("first_contact_utc"))
+
+    blocks: dict = {}
+    before = 0
+    for e in parse_unit_starts_any_kind(journal_text, ("scope",)):
+        if e.at_utc[:10] < first:
+            before += 1
+            continue
+        t = _iso_seconds(e.at_utc)
+        i = bisect.bisect_left(secs, t)
+        best, bestd = None, None
+        for j in (i - 1, i):
+            if 0 <= j < len(calls):
+                d = abs(calls[j][0] - t)
+                if bestd is None or d < bestd:
+                    best, bestd = calls[j][1], d
+        blocks.setdefault(best if bestd is not None and bestd <= match_s
+                          else None, []).append(e)
+    return {"blocks": blocks, "match_s": match_s,
+            "n_before_the_transcript_corpus": before,
+            "n_rounds_with_scopes": sum(1 for k in blocks if k is not None),
+            "n_scopes_ours": sum(len(v) for k, v in blocks.items()
+                                 if k is not None),
+            "n_scopes_not_ours": len(blocks.get(None, [])),
+            "why": ("the lead-lag confound is WITHIN a round's login train, "
+                    "so the train has to survive the split that identifies "
+                    "it")}
 
 
 def scope_provenance_nulls(bmap: BucketMap, split: dict,

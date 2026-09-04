@@ -273,11 +273,17 @@ def test_verify_names_an_unparseable_line_rather_than_dropping_it(tmp_path):
 # --------------------------------------------------------------------------
 
 def test_the_live_union_beats_every_single_capture():
-    rep = fl.build(sorted(
-        os.path.join(CAPTURES, n) for n in os.listdir(CAPTURES)
-        if n.startswith("nuc-capture-r")))
+    dirs = sorted(os.path.join(CAPTURES, n) for n in os.listdir(CAPTURES)
+                  if n.startswith("nuc-capture-r"))
+    rep = fl.build(dirs)
     assert rep["n_captures_read"] == 4
-    assert rep["n_captures_unusable"] == 5
+    # Round 490: this was pinned at `== 5` and went red the moment round 490
+    # banked its own down-round capture, which carries a `tailscale status`
+    # and nothing else. That is the corpus growing, not the ledger breaking,
+    # and it will happen on EVERY down round -- so the unusable count is
+    # derived from the directory listing and only the READ count, which is a
+    # claim about the ledger, stays literal.
+    assert rep["n_captures_unusable"] == len(dirs) - 4
     assert rep["n_fire_days_union"] == 11
     assert rep["n_fire_days_best_single"] == 10
     assert rep["best_single_capture"] == "nuc-capture-r478"

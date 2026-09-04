@@ -2890,6 +2890,33 @@
   "note": "round 489: FAR. No vocabulary overlap with detectors or evidence. The tell is a long-carried finding where every reader agreed with the summary line, which is the condition under which broken evidence is undetectable."
  },
  {
+  "id": "nsr-near",
+  "expect": [
+   "newest-snapshot-is-not-the-record"
+  ],
+  "prompt": "We have nine capture directories from the box and I was going to just analyse the most recent one. Is that right, or should I be doing something with the older ones?"
+ },
+ {
+  "id": "nsr-mid",
+  "expect": [
+   "newest-snapshot-is-not-the-record"
+  ],
+  "prompt": "Our report says the data ends on the day we took the log dump, but we have taken three dumps since then and nobody has looked at them. How should I combine them?"
+ },
+ {
+  "id": "nsr-far",
+  "expect": [
+   "newest-snapshot-is-not-the-record"
+  ],
+  "prompt": "I diffed two copies of the same rotated log file and they disagree on the last line, so one of them must be corrupt. How do I work out which?"
+ },
+ {
+  "id": "nsr-neg-one-snapshot",
+  "expect": [],
+  "prompt": "We only ever keep one nightly database backup and it overwrites the previous one. I want to change the job to keep seven. What retention scheme should I use?",
+  "note": "round 490: DISCRIMINATING NEGATIVE. There is exactly one snapshot and no analysis reading from it -- the question is about designing retention, not about choosing which of several snapshots to compute from. If this fires, the description is matching the word `snapshot` rather than the situation."
+ },
+ {
   "id": "emns-neg-no-evidence",
   "expect": [],
   "prompt": "Our nightly consistency job just prints PASS or FAIL per table and nothing else, so when it fails we re-run the whole comparison by hand to find out which rows disagreed. I want it to write the offending rows to a file. What is a sensible format for that?",
