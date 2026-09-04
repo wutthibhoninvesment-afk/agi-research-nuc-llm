@@ -2887,3 +2887,89 @@ def test_the_observer_cli_strict_goes_red_on_this_capture():
     assert out.returncode == 1, out.stdout[-500:]
     d = json.loads(out.stdout)
     assert d["trace"]["n_probes_matched"] == 33
+
+
+# --------------------------------------------------------------- round 491 --
+# Boundary tests written to KILL specific surviving mutants from round 491's
+# nodeid-subset mutation campaign (SWE-loop D). Each names the mutant it
+# kills, so a later round can re-derive rather than trust this comment; the
+# ledger is `state/swe/perturbation-mutation-ledger.jsonl`.
+#
+# Every one is the same gap: `classify_bucket` and `power_floor` were tested
+# on values comfortably inside their regions and never ON a threshold, so
+# `>=` -> `>` and `n` -> `n + 1` changed nothing any test could see. These
+# thresholds are the ones every published bucket classification in this track
+# is computed through.
+
+def test_classify_bucket_is_inclusive_at_both_cache_thresholds():
+    """kills perturbation.py:585:cmp#331 (GtE -> Gt) and :586:cmp#332."""
+    # exactly AT the surge ratio and exactly AT the pgpgin floor
+    assert pt.classify_bucket(pgpgin_s=500.0, pgpgin_baseline_s=50.0,
+                              commit_delta_kb=0.0, swapped_bytes=0,
+                              surge_factor=10.0, min_pgpgin_s=500.0) == "page_cache"
+    # one step under either one is NOT page_cache -- pins the direction too
+    assert pt.classify_bucket(pgpgin_s=499.0, pgpgin_baseline_s=50.0,
+                              commit_delta_kb=0.0, swapped_bytes=0,
+                              surge_factor=10.0, min_pgpgin_s=400.0) == "quiet"
+
+
+def test_classify_bucket_is_inclusive_at_the_commit_step_threshold():
+    """kills perturbation.py:587:cmp#130 (GtE -> Gt)."""
+    assert pt.classify_bucket(pgpgin_s=0.0, pgpgin_baseline_s=0.0,
+                              commit_delta_kb=50_000.0, swapped_bytes=0,
+                              min_step_kb=50_000) == "commitment"
+    assert pt.classify_bucket(pgpgin_s=0.0, pgpgin_baseline_s=0.0,
+                              commit_delta_kb=49_999.0, swapped_bytes=0,
+                              min_step_kb=50_000) == "quiet"
+
+
+def test_a_single_swapped_byte_is_unattributed_not_quiet():
+    """kills perturbation.py:594:const#333 (0 -> 1). The smallest swap this
+    track can observe must still be attributed to something."""
+    assert pt.classify_bucket(pgpgin_s=0.0, pgpgin_baseline_s=0.0,
+                              commit_delta_kb=0.0, swapped_bytes=1) == "unattributed"
+    assert pt.classify_bucket(pgpgin_s=0.0, pgpgin_baseline_s=0.0,
+                              commit_delta_kb=0.0, swapped_bytes=0) == "quiet"
+
+
+def test_a_surge_factor_of_exactly_two_is_accepted():
+    """kills perturbation.py:581:const#329 (`surge_factor <= 1` -> `<= 2`).
+    The guard rejects <= 1 because a ratio of 1 is no surge; 2 is a legal
+    setting and must not raise."""
+    assert pt.classify_bucket(pgpgin_s=100.0, pgpgin_baseline_s=50.0,
+                              commit_delta_kb=0.0, swapped_bytes=0,
+                              surge_factor=2.0, min_pgpgin_s=1.0) == "page_cache"
+    with pytest.raises(pt.PerturbationError):
+        pt.classify_bucket(pgpgin_s=100.0, pgpgin_baseline_s=50.0,
+                           commit_delta_kb=0.0, swapped_bytes=0,
+                           surge_factor=1.0)
+
+
+def test_the_hypergeometric_tail_accepts_every_legal_edge_of_its_guard():
+    """kills perturbation.py:1580:cmp#373, :1580:cmp#377 and :1580:const#627.
+
+    `if n < 0 or h < 0 or K < 0 or n > N or K > N: raise` has six edges and
+    the suite tested none of them, so every one-step widening of the guard
+    (`< 0` -> `<= 0`, `> N` -> `>= N`) rejected a LEGAL argument and no test
+    noticed. Each assertion below is a draw the function must accept."""
+    assert pt._hypergeom_atleast(5, 2, 5, 1) == 1.0        # n == N: draw all
+    assert pt._hypergeom_atleast(5, 2, 0, 1) == 0.0        # n == 0: draw none
+    assert pt._hypergeom_atleast(5, 0, 3, 1) == 0.0        # K == 0: none costly
+    assert pt._hypergeom_atleast(5, 5, 3, 1) == 1.0        # K == N: all costly
+    with pytest.raises(pt.PerturbationError):
+        pt._hypergeom_atleast(5, 2, 6, 1)                  # n == N + 1
+    with pytest.raises(pt.PerturbationError):
+        pt._hypergeom_atleast(5, 6, 5, 1)                  # K == N + 1
+
+
+def test_a_zero_hit_requirement_is_certain_and_a_negative_one_is_rejected():
+    """Asking for >= 0 successes is certain, not an error.
+
+    Does NOT kill perturbation.py:1582:cmp#161 (`h <= 0` -> `h < 0`), and
+    round 491 verified that it cannot: with the early return removed for
+    h == 0 the sum falls through to i in 0..min(K, n), which is the whole
+    distribution and totals exactly 1.0. That mutant is EQUIVALENT, not a
+    test gap -- the only survivor of the 15 in round 491's slice proved so."""
+    assert pt._hypergeom_atleast(5, 2, 3, 0) == 1.0
+    with pytest.raises(pt.PerturbationError):
+        pt._hypergeom_atleast(5, 2, 3, -1)

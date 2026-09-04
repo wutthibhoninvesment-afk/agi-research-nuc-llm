@@ -130,7 +130,14 @@ class MapPrioritizer(object):
         cov = CV.load(path)
         if not CV.is_by_file(cov):
             raise ValueError("%s is not a by-file coverage map (collect with by_file=True)" % path)
-        return cls(cov, default_test_files(root), subset=subset, root=root, require_fresh=require_fresh)
+        # Round 491: a BY-TEST map's units are nodeids, and they must come
+        # from the map, not from `default_test_files(root)`. Reading the
+        # filesystem here would hand `covering()` a `test_files` whitelist of
+        # FILE paths, none of which match a nodeid key, so every covering set
+        # would filter down to empty and every mutant would silently fall
+        # back to the full suite -- the exact no-op this mode exists to end.
+        units = CV.test_units(cov) if CV.is_by_test(cov) else default_test_files(root)
+        return cls(cov, units, subset=subset, root=root, require_fresh=require_fresh)
 
     def _cost(self, f):
         return self.durations.get(f, float("inf"))

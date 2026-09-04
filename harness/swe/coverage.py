@@ -42,7 +42,8 @@ import atexit, dis, json, os, sys, threading, time
 TARGETS = %(targets)r            # realpath -> rel
 INTEREST = %(interest)r          # realpath -> sorted lines of interest, or None (= every line)
 OUT = %(out)r
-BY_FILE = %(by_file)r            # True: hits keyed by the running test FILE (round 113)
+BY_FILE = %(by_file)r            # True: hits keyed by the running test UNIT (round 113)
+BY_TEST = %(by_test)r            # True: that unit is the full nodeid, not the file (round 491)
 HITS = dict((k, {}) for k in TARGETS)     # real -> {line: hits} | by file: real -> {test_file: {line: hits}}
 CURD = dict((k, HITS[k]) for k in TARGETS)  # real -> the dict line events write to right now
 DUR = {}                         # by file: test_file -> seconds spent in its tests
@@ -64,9 +65,16 @@ def _switch(test_file):
     for k, d in list(HITS.items()):
         CURD[k] = d.setdefault(test_file, {})
 
+def _unit(nodeid):
+    """The key a hit is filed under: the whole nodeid in by-test mode, the
+    test file otherwise. Round 491: file granularity buys nothing on a
+    subject whose entire suite is ONE file (nuc/tests/test_perturbation.py,
+    233 tests), which is the whole reason by-test mode exists."""
+    return nodeid if BY_TEST else nodeid.split("::")[0]
+
 class _ByFilePlugin(object):
     def pytest_runtest_logstart(self, nodeid, location):
-        _switch(nodeid.split("::")[0])
+        _switch(_unit(nodeid))
         # a test that measures frames may call sys.settrace(None) and leave
         # the tracer OFF for every later test (round 113: test_v10/test_v11
         # showed zero hits) -- re-arm at every test start
@@ -74,7 +82,7 @@ class _ByFilePlugin(object):
         threading.settrace(_global)
         _t[0] = time.monotonic()
     def pytest_runtest_logfinish(self, nodeid, location):
-        f = nodeid.split("::")[0]
+        f = _unit(nodeid)
         if _t[0] is not None:
             DUR[f] = DUR.get(f, 0.0) + (time.monotonic() - _t[0])
         _switch("<between>")
@@ -169,7 +177,8 @@ def executable_lines(source, filename="<file>"):
 
 
 def collect(root, rel_paths, pytest_args=("-q", "-p", "no:cacheprovider", "tests"),
-            timeout_s=3600.0, python=sys.executable, interest=None, by_file=False):
+            timeout_s=3600.0, python=sys.executable, interest=None, by_file=False,
+            by_test=False):
     """Run the suite under the tracer; return the coverage dict
     `{rel: {lineno(int): hits}}` plus `_meta`.
 
@@ -188,6 +197,7 @@ def collect(root, rel_paths, pytest_args=("-q", "-p", "no:cacheprovider", "tests
     the run); `collapse()` folds it back into the plain shape. One full-trace run then gives both the coverage triage and the
     per-file map that `prioritize.MapPrioritizer` orders and restricts the
     suite with."""
+    by_file = bool(by_file or by_test)      # by-test IS the by-file shape, finer key
     root = os.path.realpath(root)
     targets = {}
     for rel in rel_paths:
@@ -202,7 +212,8 @@ def collect(root, rel_paths, pytest_args=("-q", "-p", "no:cacheprovider", "tests
     os.close(fd)
     try:
         prog = _BOOTSTRAP % {"targets": targets, "out": out, "args": list(pytest_args),
-                             "interest": interest_real, "by_file": bool(by_file)}
+                             "interest": interest_real, "by_file": bool(by_file),
+                             "by_test": bool(by_test)}
         t0 = time.time()
         p = run_capped([python, "-c", prog], root, timeout_s)
         if p.timed_out:
@@ -227,6 +238,7 @@ def collect(root, rel_paths, pytest_args=("-q", "-p", "no:cacheprovider", "tests
     cov["_meta"] = {"root": root, "files": list(rel_paths), "pytest_args": list(pytest_args),
                     "returncode": p.returncode, "seconds": round(secs, 1), "pytest_tail": tail,
                     "targeted": interest is not None, "by_file": bool(by_file),
+                    "by_test": bool(by_test),
                     "file_hashes": dict((rel, _file_hash(real)) for real, rel in targets.items())}
     if interest is not None:
         cov["_interest"] = dict((rel, interest_real[real]) for real, rel in targets.items())
@@ -238,6 +250,35 @@ _SPECIAL = ("_meta", "_interest", "_durations")
 
 def is_by_file(cov):
     return bool((cov.get("_meta") or {}).get("by_file"))
+
+
+def is_by_test(cov):
+    """True for a map whose per-unit keys are full pytest nodeids.
+
+    Such a map is ALSO `is_by_file` -- the storage shape is identical and
+    every reader below (`save`, `load`, `collapse`, `covering_files`) works
+    on it unchanged. Only the key's meaning is finer.
+    """
+    return bool((cov.get("_meta") or {}).get("by_test"))
+
+
+def test_units(cov):
+    """The unit keys the map actually observed, sorted, with the
+    synthetic `<collect>` / `<between>` buckets dropped.
+
+    For a by-test map these are runnable pytest nodeids, which is what makes
+    a subset command constructible without re-reading the filesystem: a
+    nodeid that pytest never reported cannot be selected, and a test that
+    was deselected at collection time is correctly absent.
+    """
+    seen = set()
+    for rel, per_unit in cov.items():
+        if rel in _SPECIAL:
+            continue
+        for k in per_unit:
+            if not k.startswith("<"):
+                seen.add(k)
+    return sorted(seen)
 
 
 def save(cov, path):

@@ -27095,6 +27095,126 @@ for round 479. Whoever adjudicates it should either register it in
   output says its coverage figure belongs to the last round to write.
 - **Knowledge:** `knowledge/round-489-the-verdict-that-was-right-about-the-wrong-round.md`.
 
+### Round 491 — SWE-loop(D) — 2026-09-04 — the suite that was one file
+
+- **Round 490's tail landed first** (`183baab`, five uncommitted files). Every
+  number in its new §13 re-derived at HEAD before committing: 37 passed;
+  `sar --strict` rc 0 with 4 read / 6 unusable / 12 dates / 0 conflicts;
+  `frame --strict` gain 2; `sar --captures 'state/no-such-*' --strict` rc 1.
+  `state/round_counter` deliberately excluded — its 490->491 bump is 491's.
+- **Round 490 next-step #4 was not neglect, it was arithmetic** — and the
+  arithmetic had a fixable term. `nuc/perturbation.py` has **1794** mutation
+  sites; `nuc/tests/test_perturbation.py` is **233 tests in ONE file, 95.98 s**;
+  `nproc` is 1. Naive campaign **47.8 h** against a 3300 s round. The program's
+  only cost-reduction mechanism, `prioritize.MapPrioritizer(subset=True)`
+  (round 113), has the test **FILE** as its unit, so on this subject every
+  covering set is the whole suite: reduction **1.00x**, measured. Four rounds
+  (472, 478, 484, 490) carried the item as a chore; the instrument could not
+  be pointed at the subject at all.
+- **`coverage.collect(by_test=True)`**: the tracer already received the full
+  nodeid in `pytest_runtest_logstart` and threw the discriminating half away
+  (`nodeid.split("::")[0]`). Keeping it is a one-line change; the STORAGE
+  SHAPE is unchanged on purpose, so `save`/`load`/`collapse`/`covering_files`
+  work untouched. Median covering set **39 of 233**, a **6.0x** reduction.
+- **The one place it could not stay additive.** `MapPrioritizer.from_file`
+  handed a by-test map would call `default_test_files(root)`, whose FILE
+  paths match no nodeid key — so `covering()`'s whitelist filter empties
+  every covering set and every mutant falls back to the full suite. The
+  no-op the mode exists to end, **failing green**. Pinned by
+  `test_from_file_takes_units_from_a_by_test_map_not_the_filesystem`.
+- **`swe/nodeguard.py` — the soundness condition finer granularity creates.**
+  A test that only passes when a file-mate ran first FAILS alone, pytest
+  exits 1, and `classify_mutant_run` reads exit 1 as `killed`: one
+  order-dependent test **manufactures a kill for every mutant on every line
+  it covers**, inflating the one number the campaign reports, in the
+  direction that looks like good news. `baseline_check` cannot see it (whole
+  suite satisfies the dependency by construction). Subsets are probed against
+  UNMUTATED code, cached by frozenset. An EMPTY selection is POISONED, not
+  clean — **round 490's `sar --strict`-exits-0-on-zero-captures defect, one
+  round later, in the instrument that scores tests**, written in deliberately.
+- **The slice.** `swe/nodecampaign.py`, budgeted and resumable, ledger keyed
+  by `(mutant_id, subject_digest)` because a mutant id's `#i` is POSITIONAL.
+  89 sites in scope (`classify_bucket`, the hypergeometric/power block,
+  `verdict_floor` — the functions the published numbers run through).
+  **55 run, 34 left by budget and reported as such; 40 killed, 15 survived,
+  kill rate 72.7 %; 12.78 s/mutant against 96.0 s = 7.5x**; 12 distinct
+  subsets, 12 clean, 125.1 s of probes.
+- **The 15 survivors are ONE gap.** Every one is a threshold: `>=` -> `>`, or
+  a default constant moved by one. `classify_bucket` was tested inside each
+  region and never ON a boundary. Six tests added — **and then run against
+  the mutants they claim to kill, because "kills X" in a comment is a claim.**
+  First pass **5 of 9**; the three failures were all edges of one six-edge
+  guard (`n < 0 or h < 0 or K < 0 or n > N or K > N`) that the suite tested
+  none of; widened, **8 of 9 killed**. The ninth, `1582:cmp#161`, is proved
+  **EQUIVALENT** — with `h <= 0`'s early return gone the sum falls through to
+  the whole distribution and totals exactly 1.0. Proved by trying to kill it,
+  not by reading it, and the test docstring now says so.
+- **Predictions 5 HIT / 2 MISS of 7** (`state/swe/predictions-d-round491.md`,
+  banked before any measurement). P2 MISS: median 39, not the <20 banked —
+  right direction, wrong magnitude. **P4 MISS is the one to read**: 0 of 12
+  subsets poisoned, so `nodeguard` found nothing on this suite. It is a
+  precondition that happened to hold, NOT a guard vindicated by evidence, and
+  must not be quoted as if it had fired.
+- **Tests:** `harness/tests/test_swe_nodeid_selection.py` 18 passed (9.35 s);
+  the four touched-module suites together 65 passed (55.25 s), no regression;
+  the six new perturbation tests 11 passed (45.34 s).
+- **Knowledge:** `knowledge/round-491-the-suite-that-was-one-file.md`.
+
+## Next steps (as of round 491)
+
+1. **The next lever is the COPY, not test selection.** `_copy_project` is
+   **4.87 s of every 12.78 s mutant** — 38 % of the remaining 6.2 h — and it
+   is invariant to every selection improvement, because it copies a 562 MB
+   checkout per mutant. Nothing this round touched it. SWE-loop(D).
+2. **`test_perturbation.py` is 96.9 % un-mutation-tested and the item is NOT
+   closed** — 55 of 1794 sites, five rounds old now (472 #4, 478, 484 #6,
+   490 #4, 491). What changed is that it has a number and a resumable ledger
+   (`state/swe/perturbation-mutation-ledger.jsonl`); a later slice skips what
+   is scored. **6.2 h at the current rate.** SWE-loop(D).
+3. **7 survivors are open** from the 15 this slice found: `559:const#126`,
+   `633:const#334`, `1631:const#379`, `1638:cmp#631`, `1661:const#382`,
+   `2246:cmp#662`, plus `1582:cmp#161` which needs no work (proved
+   equivalent). All the same threshold shape as the 8 already closed.
+   SWE-loop(D) or NUC(E).
+4. **`nodeguard` has never been observed to fire on real code.** 0 of 12
+   subsets poisoned. Do not report it as a guard that catches something; the
+   honest test is whether 12-of-12-clean survives the other 1739 sites. If a
+   later slice still sees zero, the question worth asking is whether the
+   125.1 s/slice is buying anything on THIS suite. SWE-loop(D).
+5. **`nodecampaign.py` has no CLI**, unlike every other runner in `swe/`, and
+   the by-test map is TARGETED at 59 lines — re-scoping means re-collecting
+   (194.0 s). A full-file by-test map was never attempted and its cost is
+   unmeasured. Both are in the way of the next slice. SWE-loop(D).
+6. **P2's miss has a named cause, not just a wrong number.** The median is 39
+   because a `<collect>` (import-time) hit on a line makes EVERY unit cover
+   it — one mutant selected all 233. Selection granularity is not the last
+   word; call-graph distance would be. harness(A) or SWE-loop(D).
+7. **Round 490's next-steps #1, #2, #3, #5, #7 and #8 are NUC(E)'s and stand
+   untouched by this round** — the union-first rule, the capture-on-first-up
+   rule, `block_shift_null_lead_lag`'s 62.6 %, the `%vmeff`/`pgsteal_kswapd`
+   residual (check `pgsteal_kswapd > 0` FIRST), the two negative CONTROLS
+   under p 0.05 with no multiplicity correction, and round 436's items 4/5/9.
+   NUC(E).
+8. **Round 490 item #6's rule is still owed to
+   `skills/prediction-banking/SKILL.md`** — a single prior observation
+   licenses a DIRECTION, never a MAGNITUDE. This round is a third instance:
+   P2 had the direction right (granularity reduces the covering set) and the
+   magnitude wrong by 2x, off one plausible guess. skills(B).
+9. **`nproc` on this box is 1** and this round obeyed it — the coverage
+   collect (194.0 s), the campaign slice (702.9 s) and every verification run
+   were serialised, never concurrent. The 96.0 s baseline and the 12.78 s
+   per-mutant figure are both solo numbers and only comparable to other solo
+   numbers.
+10. **Standing and untouched:** the operator-blocked `--cap 196` (THIRTIETH
+   round unchanged) and the E3 A/B's six-gate table; `case_coverage`'s
+   49-of-103 disagreeing verdicts; `claim_check` executing 0 of its commands;
+   and CLAUDE.md's `CRITICAL MISSION` block, re-escalated for the
+   TWENTY-FIRST time and still a one-line deletion for the operator.
+   `languages/whence/SECURITY.md` remains the operator's decision — do not
+   copy a carry count for it from this file; the checker's own line is the
+   only source.
+
+
 ### Round 490 — NUC-integration(E) — 2026-09-04 — the record that was already in the repo
 
 - **Box DOWN the whole round** (two tailnet probes rc 255, CLAUDE.md's

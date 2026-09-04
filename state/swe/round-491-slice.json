@@ -1,0 +1,118 @@
+{
+ "n_sites_in_scope": 89,
+ "n_already_scored": 0,
+ "n_run_this_slice": 55,
+ "n_left_unrun_by_budget": 34,
+ "by_status": {
+  "killed": 40,
+  "survived": 15
+ },
+ "kill_rate": 72.7,
+ "seconds": 702.9,
+ "seconds_per_mutant": 12.78,
+ "oracle": {
+  "subset": 55,
+  "full": 0
+ },
+ "median_units_selected": 40,
+ "subset_baseline": {
+  "n_distinct_subsets": 12,
+  "n_probes_run": 12,
+  "n_clean": 12,
+  "n_poisoned": 0,
+  "probe_seconds": 125.1,
+  "poisoned": []
+ },
+ "survivors": [
+  {
+   "id": "perturbation.py:559:const#126",
+   "line": 559,
+   "op": "const",
+   "description": "50000 -> 50001"
+  },
+  {
+   "id": "perturbation.py:587:cmp#130",
+   "line": 587,
+   "op": "cmp",
+   "description": "GtE -> Gt"
+  },
+  {
+   "id": "perturbation.py:1582:cmp#161",
+   "line": 1582,
+   "op": "cmp",
+   "description": "LtE -> Lt"
+  },
+  {
+   "id": "perturbation.py:581:const#329",
+   "line": 581,
+   "op": "const",
+   "description": "1 -> 2"
+  },
+  {
+   "id": "perturbation.py:585:cmp#331",
+   "line": 585,
+   "op": "cmp",
+   "description": "GtE -> Gt"
+  },
+  {
+   "id": "perturbation.py:586:cmp#332",
+   "line": 586,
+   "op": "cmp",
+   "description": "GtE -> Gt"
+  },
+  {
+   "id": "perturbation.py:594:const#333",
+   "line": 594,
+   "op": "const",
+   "description": "0 -> 1"
+  },
+  {
+   "id": "perturbation.py:633:const#334",
+   "line": 633,
+   "op": "const",
+   "description": "True -> False"
+  },
+  {
+   "id": "perturbation.py:1580:cmp#373",
+   "line": 1580,
+   "op": "cmp",
+   "description": "Lt -> LtE"
+  },
+  {
+   "id": "perturbation.py:1580:cmp#377",
+   "line": 1580,
+   "op": "cmp",
+   "description": "Gt -> GtE"
+  },
+  {
+   "id": "perturbation.py:1631:const#379",
+   "line": 1631,
+   "op": "const",
+   "description": "0 -> 1"
+  },
+  {
+   "id": "perturbation.py:1661:const#382",
+   "line": 1661,
+   "op": "const",
+   "description": "True -> False"
+  },
+  {
+   "id": "perturbation.py:1580:const#627",
+   "line": 1580,
+   "op": "const",
+   "description": "0 -> 1"
+  },
+  {
+   "id": "perturbation.py:1638:cmp#631",
+   "line": 1638,
+   "op": "cmp",
+   "description": "LtE -> Lt"
+  },
+  {
+   "id": "perturbation.py:2246:cmp#662",
+   "line": 2246,
+   "op": "cmp",
+   "description": "GtE -> Gt"
+  }
+ ]
+}
