@@ -1,17 +1,28 @@
 # Whence — a provenance-first language
 
-*Spec level: **v0.44** (round 452). The `## vN` sections below are the
-authoritative version list and each names the round that built it; this
-line deliberately no longer enumerates rounds, because the enumeration it
-replaced had said "v0.16.6 + v0.14.2" since round 266 while the file went
-on to document v0.17, v0.18, v0.19 and v0.20 — a header asserting a number
-no round re-executes, which is the rot class round 321 item 14 named and
-round 345's `xref_check.py` was built for. Round 348 wrote that sentence
-and the sentence rotted in ONE round: round 350 added `## v0.21` and left
-the header saying v0.20, so round 354 arrived to find it two levels stale.
-A better sentence was never the fix. `tests/test_v22.py::
-test_spec_level_header_matches_the_highest_version_section` is, and it is
-what keeps this line true from here on.*
+*Spec level: **v0.47** (round 482; this heading written by round 486). The
+`## vN` sections below are the authoritative version list and each names the
+round that built it; this line deliberately no longer enumerates rounds,
+because the enumeration it replaced had said "v0.16.6 + v0.14.2" since round
+266 while the file went on to document v0.17, v0.18, v0.19 and v0.20 — a
+header asserting a number no round re-executes, which is the rot class round
+321 item 14 named and round 345's `xref_check.py` was built for. Round 348
+wrote that sentence and the sentence rotted in ONE round: round 350 added
+`## v0.21` and left the header saying v0.20, so round 354 arrived to find it
+two levels stale. A better sentence was never the fix; a test was.*
+
+*And the test was not enough, which round 486 found by re-deriving round
+482's carried next-step rather than quoting it.
+`tests/test_v22.py::test_spec_level_header_matches_the_highest_version_section`
+compares this line against the highest `## vN` SECTION. It was green without
+interruption while rounds 476, 480 and 482 minted v0.45, v0.46 and v0.47 in
+CODE — 64 claims across `whence/*.py`, `reprsweep.py` and two test FILENAMES
+(`tests/test_v46.py`, `tests/test_v47.py`) — and wrote no section for any of
+them. A range whose top is read off its own sections is dense by
+construction, and the header agrees with whatever the document already says.
+**The top of this range is set by the code.** `specreg.py`'s `S007` (round
+486) is the check that reads it from there; the three sections it made this
+round write are v0.45, v0.46 and v0.47 below. See § Decision 61.*
 
 **One idea:** every value remembers where it came from. `why x` returns the
 derivation tree of `x` as a first-class value. Failures are values too, so a
@@ -845,7 +856,7 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    See § Decision 57.
 58. **A value this implementation HANDS A CALLER is a surface, and every
    surface is either a literal the reader can type back verbatim in Whence
-   or prose (round 476).** Decision 48 (v0.39) settled that rule for
+   or prose (v0.45, round 476).** Decision 48 (v0.39) settled that rule for
    DIAGNOSTICS and stopped there, because a return value carries no error
    and so nothing pointed the rule at it. `Interpreter.run` returns the
    top-level `Env` — documented, load-bearing for v0.32's drop rule, for
@@ -874,7 +885,7 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    See § Decision 58.
 59. **A declared kind is a CONTRACT, checked whether or not the body would
    have reached the argument — and the diagnostic that rides on it has a
-   ceiling, which is now measured rather than assumed (round 480).**
+   ceiling, which is now measured rather than assumed (v0.46, round 480).**
    `map`/`filter`/`find`/`fold` all declare `fn:fn, xs:list`; all four
    checked `xs` and none checked `fn`, so a wrong-kind callback was noticed
    only when the loop got round to CALLING it, and on an EMPTY list it
@@ -905,7 +916,7 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    coverage gap and entirely beyond a mechanism built on kinds and misses.
    See § Decision 59.
 60. **Decision 58's rule, applied by ENUMERATION rather than by a list —
-   and the list was wrong in both directions (round 482).** Decision 58
+   and the list was wrong in both directions (v0.47, round 482).** Decision 58
    stated a general rule ("a value this implementation hands a caller is a
    surface") and gave exactly one class, `Env`, a `__repr__`; round 476's
    own next-step named eight more candidates from memory and was carried
@@ -929,6 +940,35 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    decision 58 fixed. *A rule set derived from one known failure finds that
    failure again; only enumerating finds the ones nobody thought of.*
    See § Decision 60.
+61. **A document that mints TWO ordinal sequences needs density checking for
+   both, and the one nobody checks is the one whose top is set outside the
+   document (round 486).** SPEC.md mints decision numbers and version
+   levels. Round 464 built `specreg.py` on the rule *a registry that mints
+   ordinals is a DENSE range, and density is checkable without a single
+   citation*, and applied it to decisions only. The version range went
+   unchecked for 22 rounds and drifted three levels: rounds 476, 480 and 482
+   each minted a number into CODE — 64 claims across `whence/*.py`,
+   `reprsweep.py`, SPEC prose and two test FILENAMES — and wrote no `## vN`
+   section, so this document's authoritative version list stopped at v0.44
+   while the code said v0.47. **`tests/test_v22.py::test_spec_level_header_
+   matches_the_highest_version_section` was GREEN throughout**, and that is
+   the finding rather than an aside: it reads the top of the range off the
+   SECTIONS, so the range is dense by construction and the header agrees
+   with whatever the document already says. A checker that derives both
+   sides of its comparison from one artefact cannot report that the artefact
+   is incomplete. **The top of a version range is set by the code.**
+   `S007`/`S008`/`S009`/`S010` ask S001's, S003's and S004's questions of the
+   second registry, `VERSION_FLOOR` is v0.6 by the same device as
+   `TAG_FLOOR`, and the repair wrote §§ v0.45, v0.46 and v0.47 rather than
+   deleting the claims — deleting them would also have had to delete two
+   test FILENAMES, which no comment edit can reach. Three defects in the new
+   family were found by its own first runs and none by reasoning: a
+   `vN.N` regex over prose is not a version detector but a `vN.N` detector
+   (four foreign namespaces in scope), the citation scope had been walking
+   984 files of vendored third-party code inside `languages/whence/.venv`
+   for 22 rounds, and this module cited a level it does not define three
+   times, each in the paragraph explaining that hazard.
+   See § Decision 61.
 
 ## Syntax (statements are newline-separated; `#` comments)
 ```
@@ -9791,6 +9831,47 @@ as rows carrying a location and a class, and the instrument's own diagnosis
 becomes falsifiable — including by the rows that turn out not to be in the
 residual at all.*
 
+## v0.45 (round 476, language C) — the return value nothing rendered
+
+**Level minted by round 476. Decision 58 is this level.**
+
+`Interpreter.run` returns the top-level `Env`. It is documented, it is
+load-bearing for v0.32's drop rule and for `depthcensus.py`'s BUILT walk, and
+until this level it printed as `<whence.interp.Env object at 0x7d6a91893740>`
+— a host module path and a heap address, out of the one language whose
+premise is that a value says where it came from.
+
+What v0.45 changes is one method. `Env` gains a `__repr__`: prose, because
+there is no Whence literal for a scope; deterministic and address-free, so it
+is pinnable; bounded at `_ENV_REPR_NAMES = 4`, measured at 166/187/191
+characters for 2/50/2000 names. `run`'s return TYPE does not change, `Env`
+does not gain a `payload`, and `b_fold` is not touched — the false bug report
+that produced this level named `b_fold`, and `b_fold` was correct in all 24
+argument shapes across 4 engine configurations.
+
+Decision 48 (v0.39) had already settled the governing rule — *every token a
+diagnostic names is either a literal the author can type back verbatim in
+Whence, or prose* — and it is scoped to DIAGNOSTICS, which is why nothing
+pointed it at a return value for six levels.
+
+### What v0.45 deliberately does NOT do
+
+It does not generalise. The rule is stated for every value the implementation
+hands a caller and applied to exactly one class. That gap is what v0.47 is.
+
+*This heading was written by round 486, ten rounds after the level it names.
+Round 476 minted the number, wrote it into the code below and into its test
+file, and did not write this section; rounds 480, 482 and 482 did the same;
+round 482's next-step 2 asked for the repair and rounds 483-485 carried it.
+Nothing in this tree could say so, because the only check on the version
+range — `tests/test_v22.py::test_spec_level_header_matches_the_highest_
+version_section` — takes the top of the range from these headings, so the
+range is dense by construction. `specreg.py`'s `S007` (round 486) takes it
+from the code instead. See § Decision 61. The prose below is a summary
+written from decision 58's registry entry and its own section, which follows
+directly; no claim here is new.*
+
+
 ### Decision 58 (round 476, language C): a return value is a surface, and it was the only one this language never rendered
 
 Decision 48 (v0.39, round 408) closed the `got` slot with a rule:
@@ -9936,6 +10017,59 @@ this repr, and — like `tests/test_critical_mission_claims.py` (round 444) —
 
 ---
 
+## v0.46 (round 480, language C) — a declared kind is a contract, and the hint that rides on it has a ceiling
+
+**Level minted by round 480. Decision 59 is this level.**
+
+`map`, `filter`, `find` and `fold` all declare `fn:fn, xs:list`. All four
+checked `xs`; none checked `fn`. A wrong-kind callback was therefore noticed
+only when the loop got round to CALLING it — and on an empty list it never
+does. At v0.45 `map(0, [])` was `[]`, `fold(0, 7, [])` was `7`, and
+`find(0, [])` missed with `find: no element matched`, which is false: nothing
+was matched against anything.
+
+v0.46 checks a declared kind whether or not the body would have reached the
+argument. That is the level's whole semantic change, and it is a change in
+WHEN a contract is enforced, not in what the contract says.
+
+### The ceiling, measured
+
+`orderhint.py` (round 480) takes the ratio round 476 asked for over every
+builtin of declared arity >= 2: **30 of 40 wrong permutations carry the v0.22
+order hint, against a structural ceiling of 31.** The remaining 9 are
+`kind_blind` — the permuted payloads still fit the declared kinds, so
+`_order_hint`'s second silence fires and no miss site, however placed, can
+produce a hint. The ratio is a property of the **(builtin, witness) pair**:
+`note(label, v)` is caught and hinted with a number in `v` and structurally
+unhintable with a string in it, so a published `coverage(note)` is a number
+that does not exist.
+
+The number nobody asked for is the larger one: **7 of 40 wrong orders return
+a non-miss value that differs from the correct call** — no miss, no hint, a
+wrong answer. That is seven times the reachable coverage gap and entirely
+outside a mechanism built on kinds and misses.
+
+### What v0.46 deliberately does NOT do
+
+The boundary hoist that would have made hint coverage structural was
+prototyped and **reverted**. Gated on `is_origin_miss` it blocks the one row
+it exists to convert; un-gated it re-creates the false cure. The 25
+hand-placed `_order_hint` sites stay: a site knows whether the miss it is
+raising is about its own arguments, and the boundary does not.
+
+*This heading was written by round 486, ten rounds after the level it names.
+Round 480 minted the number, wrote it into the code below and into its test
+file, and did not write this section; rounds 476, 482 and 482 did the same;
+round 482's next-step 2 asked for the repair and rounds 483-485 carried it.
+Nothing in this tree could say so, because the only check on the version
+range — `tests/test_v22.py::test_spec_level_header_matches_the_highest_
+version_section` — takes the top of the range from these headings, so the
+range is dense by construction. `specreg.py`'s `S007` (round 486) takes it
+from the code instead. See § Decision 61. The prose below is a summary
+written from decision 59's registry entry and its own section, which follows
+directly; no claim here is new.*
+
+
 ### Decision 59 (round 480, language C): a declared kind is a contract, and the hint that rides on it has a ceiling nobody had measured
 
 Round 476 closed with one number and a request:
@@ -10071,6 +10205,75 @@ the boundary is the finding; `orderhint.py` is the instrument that will
 re-derive it rather than let a later round quote this section's numbers.
 
 ---
+
+## v0.47 (round 482, language C) — every value a caller can hold, enumerated rather than listed
+
+**Level minted by round 482. Decision 60 is this level.**
+
+v0.45 stated a general rule and applied it to one class. Round 476's own
+next-step named eight more candidates from memory and asked somebody to
+"grep for classes with no `__repr__`". Rounds 477-481 carried it. v0.47 is
+what happened when it was finally run, and the interesting part is that the
+proposed method — the grep, plus a judgement call per class — would have
+found neither the largest violation nor the subtlest one.
+
+`reprsweep.py` does not take the list. It crawls the public object graph from
+what `Interpreter.run` actually returns and audits every class it reaches
+against four properties:
+
+* **R1** no host leak (no module path, no heap address);
+* **R2** bounded by `values.REPR_CAP` (240) however large the value;
+* **R3** identical across three `PYTHONHASHSEED`s;
+* **R4** a constructor-shaped repr names its own class.
+
+At the commit before this level, **11 of 19 reachable classes violated**,
+against the eight remembered. Two of the eight (`WList`, `PMap`) were on the
+list as already-fine and were the two largest R2 failures in the tree —
+156 787 characters for `range(0, 3000)` and 22 986 at 400 keys, with no bound
+of any kind. Nine violators were on no list at all: `Interpreter` itself (not
+a value, so no list of value classes could hold it, and reachable at
+`run().parent.interp`); `MergedProv`, which passed R1, R2 and R3 while
+introducing itself under the wrong class name and dropping `count`, its only
+slot; and the seven AST node classes reachable through the public
+`Closure.body`, whose generated repr recursed over the entire subtree
+(15 471 characters for a 400-statement body, bounded only by program size).
+
+**R4 is the rule the sweep found rather than inherited.** A rule set derived
+from one known failure finds that failure again.
+
+### The renderer was never missing
+
+`show_payload` is total over every payload kind, bounded and deterministic —
+it is what `Prov.__repr__` interpolates, which is why a `Prov` holding a
+`Record` rendered correctly while the `Record` itself printed a heap address.
+The Python object protocol was simply never wired to it. Measured before any
+change: the **Whence-level surface was already clean**. No program can get an
+address into a Whence rendering, and `test_v12.py` and
+`test_contract_message_differential.py` have asserted exactly that for
+rounds. Every leak was in the Python embedding API, one attribute below the
+object v0.45 fixed — two surfaces one attribute apart, opposite hygiene, and
+the enforced one read like coverage for both.
+
+### What v0.47 deliberately does NOT do
+
+`Miss.__repr__` diverges from `show_payload` on purpose and decision 52's
+snapshot contract is unchanged. A repr is read by somebody holding the object
+and asking what went wrong, and `<whence miss>` answers a question they did
+not ask. `_PNode` stays excluded by the public-path rule, with the delta
+between the strict and loose crawls measured rather than argued.
+
+*This heading was written by round 486, ten rounds after the level it names.
+Round 482 minted the number, wrote it into the code below and into its test
+file, and did not write this section; rounds 476, 480 and 482 did the same;
+round 482's next-step 2 asked for the repair and rounds 483-485 carried it.
+Nothing in this tree could say so, because the only check on the version
+range — `tests/test_v22.py::test_spec_level_header_matches_the_highest_
+version_section` — takes the top of the range from these headings, so the
+range is dense by construction. `specreg.py`'s `S007` (round 486) takes it
+from the code instead. See § Decision 61. The prose below is a summary
+written from decision 60's registry entry and its own section, which follows
+directly; no claim here is new.*
+
 
 ### Decision 60 (round 482, language C): the sweep decision 58 asked for, and what a crawl found that a list could not
 
@@ -10215,3 +10418,163 @@ strings on the object, so a bounded head of them costs one join and no
 recursion. The snapshot contract is unchanged, and `test_v47.py` pins that
 it is unchanged, because the divergence is only legitimate while the thing
 it diverges from stays put.
+
+### Decision 61 (round 486, language C): the second registry, and the check whose two sides came from one artefact
+
+Round 464 built `specreg.py` and stated the rule it is built on:
+
+> **A registry that mints ordinals is a DENSE range, and density is
+> checkable without a single citation.** Membership needs someone to ask;
+> density does not.
+
+That is right, and it was applied to one of the two ordinal sequences this
+document mints. `## v0.N (round R, …)` is the other one. It has the same
+shape — dense, minted one level at a time by a language round, cited from
+code that says *"at v0.45 this returned `[]`"* — and nothing checked it.
+
+### What that cost
+
+Rounds 476, 480 and 482 each minted a level. Each wrote the number into the
+code:
+
+```
+whence/values.py:17     #: v0.47 (round 482), decision 60 — the cap every …
+whence/interp.py:230    # v0.45 / decision 58 (round 476). An `Env` is the …
+whence/ast_nodes.py:31  #: v0.47 (round 482), decision 60. A node's repr …
+reprsweep.py:4          v0.47 (round 482, language C). Decision 58 (round 476) …
+tests/test_v46.py       (the whole FILENAME)
+tests/test_v47.py       (the whole FILENAME)
+```
+
+None wrote the section. At round 486's start commit the document's header
+said **v0.44**, its highest `## vN` section was **v0.44 (round 452)**, and
+**64 claims** of v0.45/v0.46/v0.47 stood in the tree — 28, 13 and 23
+respectively by `specreg.py versions`. Decisions 58, 59 and 60 sat as `###`
+children of `## v0.44`, so an outline reader saw seven decisions from six
+rounds filed under a level minted by a seventh.
+
+Round 482 found this by grep and wrote it as its next-step 2: *"Write all
+three sections or delete the version claims from the code comments, and say
+which."* Rounds 483, 484 and 485 carried it un-run.
+
+### Why nothing reported it
+
+`tests/test_v22.py::test_spec_level_header_matches_the_highest_version_section`
+is the one pin on the version range, and it was green without interruption
+through all three drifts. It is not a weak test; it is a test of the wrong
+edge:
+
+```python
+sections = re.findall(r"^## v(\d+\.\d+)", text, re.M)
+highest = max(sections, key=_ver)
+header  = re.search(r"^\*Spec level: \*\*v(\d+\.\d+)\*\*", text, re.M)
+assert header.group(1) == highest
+```
+
+Both sides come from `text`, and `text` is SPEC.md. The range is dense
+because its top is *defined* as its own maximum, and the header is correct
+because it is compared against that. Every quantity in the assertion is
+internal to the artefact being audited.
+
+**The generalisation, and it is the decision:** *a check whose two sides are
+both derived from one artefact can report that the artefact is inconsistent
+and can never report that it is incomplete. Completeness is a claim about
+something outside it, so at least one side has to come from outside.* Here
+the outside is the code: a version level exists because a comment, a
+docstring or a filename says it does, and the document is the thing that has
+to catch up.
+
+### The four new families
+
+`S007` (ERROR) a version cited in scope with no `## vN` section — S001's
+question. `S008` (ERROR) a hole in the minor sequence — S003's question,
+over the minor component only, because the sub-version dimension
+(v0.14.1-.14, v0.16.1-.6, v0.17.1) is deliberately sparse. `S009` (WARN) a
+registry entry tagged `(round R)` with no label while a `## vN` heading names
+round R. `S010` (ERROR) the header against the highest section — `test_v22`'s
+assertion, restated where a round will run it.
+
+`S009` is the one that explains the 22 rounds. `S004` has two branches: a
+tag like `(v0.44, round 452)` is checked against a version heading; a tag
+like `(round 456)` is checked against the decision's own prose section. The
+convention changed at entry **54** — entries 54 through 60, rounds 456 to
+482, ALL carry the second form. So S004's version branch has had no new
+subject since entry 53, and the branch that did run compares two writings by
+one round in one file, which agree by construction. Round 486 retagged
+entries 58, 59 and 60 as `(v0.45, round 476)`, `(v0.46, round 480)` and
+`(v0.47, round 482)`; S009 names the next one.
+
+`VERSION_FLOOR` is `v0.6`, the first `## vN` heading in the document. v0.1 to
+v0.5 predate the convention and are documented under prose-titled headings
+that carry the number in the parenthetical (`## Provenance as data (v0.2)`,
+`## Records as data / self-hosting (v0.5, round 014)`) plus registry entries
+1-13. A floor and not an allowlist, for `TAG_FLOOR`'s reason: the exemption
+has to expire automatically. Measured without it, the family reports seven
+permanent non-problems beside three real ones, and round 363's rule says
+what happens to a check like that.
+
+### Three defects, all found by running it, none by reasoning about it
+
+1. **A `vN.N` regex over prose is a `vN.N` detector, not a version
+   detector.** X001's scope includes all of `knowledge/`, where round 106
+   names a server `v1.7.0` and rounds 105 and 111 name a skills schema
+   `v4.1`/`v4.2`, and `CHANGELOG.md` links `semver.org/spec/v2.0.0.html`.
+   Four foreign namespaces. S008's `hi` came out `(4, 2)` and its
+   `while n <= hi` walked `(0, 6), (0, 7), …`, which never arrives, because
+   a minor cannot overtake a major. It did not raise — it appended findings
+   until it was killed. S008 now iterates an explicit `range()` over one
+   major, and both families test the namespace.
+
+2. **The citation scope had been walking a vendored third-party tree for 22
+   rounds.** `_in_scope_files()` yielded **1 452 files, 984 of them (67.8 %)
+   inside `languages/whence/.venv/lib/python3.12/site-packages/`** —
+   invisible to every `ls` in this tree's history, because it is a dotfile.
+   For S001-S006 it was inert by luck: no vendored file happens to contain
+   `decision <N>`. It was never *safe*, because S006 is an INVERSE check, so
+   one vendored sentence would have suppressed a warning in the reassuring
+   direction. For S007 it was not inert at all — three vendored files name
+   versions, and one of them is fourteen minor levels above anything this
+   language has released. Fixed by four names in `SKIP_DIRS`; the audit's
+   in-scope set went 1 452 → 468 files.
+
+3. **This module cited a level it does not define, three times, each time in
+   the paragraph explaining that exact hazard.** Round 464's docstring
+   documents the trap for decision ids and walks around it by writing a
+   hypothetical id as `decision N`. Round 486 reproduced it in the version
+   dimension in the comment describing defect 2, then again in the comment
+   describing the normalisation rule, then again in the sentence about the
+   normalisation's precondition. `tests/test_specreg.py::
+   test_this_module_cites_no_unsectioned_version` is the pin, mirroring the
+   decision-id one that has existed since round 464 and was never
+   generalised.
+
+### One level, spelled two ways
+
+`CHANGELOG.md` writes `## [v0.44.0]`, `## [v0.19.0]` and `## [v0.14.0]`;
+SPEC.md writes `## v0.44`. Those are the same levels, and `_normalise`
+collapses a trailing `.0`. The collapse is safe *in this document's
+convention* rather than in general: the third component means a patch
+release, this document has 21 of them, and not one is `.0`.
+`test_no_version_section_ends_in_a_zero_patch` asserts that precondition
+rather than trusting it. `CHANGELOG.md` is TRACKED but is not this program's
+work — `state/known-standing-dirty-paths.json` lists it, and it arrived in
+`3658e02`, "chore(whence): Production release v0.44 …", which is not a round
+commit. Its `## [v0.44.0] - 2026-09-04` is dated the day round 486 ran and
+claims a production release this program did not make. Reported, not
+touched; it belongs to the same operator-blocked cluster as
+`SECURITY_AUDIT_REPORT.md`.
+
+### What decision 61 deliberately does NOT do
+
+It does not bump the spec level. Round 486 changed no language behaviour —
+no lexer, parser, evaluator or builtin — and this document already has the
+precedent: decisions 54, 55, 56 and 57 (rounds 456, 458, 462, 468) were
+minted at v0.44 and claim no version anywhere in the tree, which is why they
+correctly remain `###` children of `## v0.44`. The level stays **v0.47**.
+That is also what makes the reparenting honest rather than cosmetic: the
+three decisions that moved are exactly the three whose rounds claimed a
+number.
+
+It does not make `S008` a live finding. It reports zero holes today and is
+kept as the negative control the family needs — the check that says the
+range is dense, rather than assuming it.

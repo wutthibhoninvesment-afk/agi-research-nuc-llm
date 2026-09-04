@@ -94,6 +94,43 @@ Findings
                 half `xref_check` cannot see. A warning, never an error:
                 an uncited decision is unloved, not wrong.
 
+The SECOND registry (round 486)
+--------------------------------
+This document mints two ordinal sequences. Everything above is about
+decisions. `## v0.N (round R, …)` is the other one, and it is the same
+shape — dense, minted one at a time, cited from code. Round 464 built
+density checking for one of the two.
+
+The consequence was live for three rounds. Rounds 476, 480 and 482 each
+wrote a version number into CODE (`#: v0.47 (round 482), decision 60.`,
+`tests/test_v46.py`, `tests/test_v47.py`) and none of them wrote the
+`## v0.45` / `## v0.46` / `## v0.47` section. Nothing said so.
+`tests/test_v22.py::test_spec_level_header_matches_the_highest_version_
+section` was GREEN throughout, because it takes the top of the range from
+the SECTIONS — so the range is dense by construction and the header agrees
+with whatever the document already says. **The top of this range is set by
+the code, not by the document**, which is the one direction that test
+cannot look.
+
+`S007` (ERROR)  version cited with no section: a `vN.N` written anywhere in
+                the citation scope, at or above `VERSION_FLOOR`, with no
+                `## vN (…)` heading. S001's question, asked of versions.
+`S008` (ERROR)  version hole: a MINOR level inside the range with neither a
+                section nor a claim. S003's question. Density is claimed
+                over the minor component only — the sub-version dimension
+                (v0.14.1-.14, v0.16.1-.6, v0.17.1) is deliberately sparse.
+`S009` (WARN)   a registry entry tagged `(round R)` with no label, while a
+                `## vN` heading names round R. S004 has two branches and
+                only the LABELLED one reaches a version heading; entries
+                54-60 all took the other branch, which compares two
+                writings by one round in one file. This names the entry
+                that should carry the label.
+`S010` (ERROR)  the `*Spec level: **vN**` header is not the highest `## vN`
+                section. A second writing of `test_v22.py`'s assertion, on
+                purpose: that test lives in the whence suite, and this is
+                the tool a round runs to ask whether SPEC.md is coherent.
+                `tests/test_specreg.py` pins the two equal.
+
 Exit code is driven by ERRORS ONLY (round 363's rule: a check that goes FAIL
 every round for a debt the program decided to carry gets ignored, then
 uninstalled). The warning counts ride in the summary line.
@@ -102,6 +139,7 @@ Usage
 -----
     python3 specreg.py audit            # findings; exit 1 if any ERROR
     python3 specreg.py table            # one row per id, all sites
+    python3 specreg.py versions         # one row per version level (round 486)
     python3 specreg.py next             # the next free decision number
     python3 specreg.py audit --json OUT # machine-readable
 
@@ -123,6 +161,7 @@ its own author breaks in the sentence that states it.
 """
 
 import argparse
+import bisect
 import json
 import os
 import re
@@ -153,6 +192,19 @@ DECISION_HEAD_RE = re.compile(r"^(#{1,6})\s+(.*\bDecision\s+(\d+)\b.*)$", re.M)
 VERSION_HEAD_RE = re.compile(r"^##\s+(.+?)\s+\((.*?)\)\s*(?:—|--|$)", re.M)
 ROUND_RE = re.compile(r"\bround\s+(\d+)\b", re.I)
 CITE_RE = re.compile(r"\bdecision\s+(\d+)\b", re.I)
+NEWLINE_RE = re.compile(r"\n")
+
+# Round 486 (language C). THE SECOND REGISTRY.
+#
+# This document mints two ordinal sequences, not one. Decisions get S001-S006
+# above. VERSION LEVELS -- `## v0.N (round R, …)` -- get nothing, and they are
+# the same shape: a dense range, minted one at a time by rounds, cited from
+# code that says "at v0.45 this returned []".
+#
+# `VERSION_CITE_RE` requires at least two numeric components so that a bare
+# `v1` in prose is not a citation, and allows more so that `v0.14.13` is one.
+VERSION_LABEL_RE = re.compile(r"^v(\d+(?:\.\d+)+)$")
+VERSION_CITE_RE = re.compile(r"\bv(\d+\.\d+(?:\.\d+)*)\b")
 
 # Entries 1-13 were written for v0.1-v0.4, before this program recorded a
 # round beside a decision. A FLOOR, not a per-id allowlist: the exemption
@@ -160,13 +212,60 @@ CITE_RE = re.compile(r"\bdecision\s+(\d+)\b", re.I)
 # would not do.
 TAG_FLOOR = 27
 
+# The same device for the version registry. `## v0.6 (round 020)` is the
+# FIRST version heading in the document; v0.1-v0.5 predate the convention and
+# are documented under prose-titled headings that carry the number in the
+# parenthetical instead -- `## Provenance as data (v0.2)`, `## Records as data
+# / self-hosting (v0.5, round 014)` -- plus registry entries 1-13, whose tags
+# are `v0.1`-`v0.4`. So they are documented, just not as `## vN` sections, and
+# S007 would report seven of them forever.
+#
+# A floor and not an allowlist, for TAG_FLOOR's reason: the exemption has to
+# expire automatically for every version above it. Round 486 measured the
+# alternative -- with no floor, the live tree reports v0.1, v0.2, v0.2.1,
+# v0.3, v0.4, v0.4.1 and v0.5 alongside the three real findings, and a check
+# that reports seven permanent non-problems beside three real ones is a check
+# somebody switches off (round 363's rule).
+VERSION_FLOOR = (0, 6)
+
 # X001's own scope, restated (`xref_check.FAMILIES[0].scope_re`). Kept as a
 # literal rather than imported so that `specreg.py` runs from a checkout of
 # `languages/whence` alone; `tests/test_specreg.py` asserts the two agree.
 CITE_SCOPE_RE = re.compile(r"^(languages/whence/|knowledge/|state/research-state)")
 CITE_SUFFIXES = (".md", ".py", ".lang", ".txt")
+# ROUND 486 (language C): `.venv`, `venv` and `site-packages` were NOT here,
+# and `languages/whence/.venv/` exists (it is a dotfile, so every `ls` in this
+# tree's history walked straight past it). Measured before the fix:
+# `_in_scope_files()` yielded **1452 files, 984 of them (67.8 %) vendored
+# third-party code** under `languages/whence/.venv/lib/python3.12/
+# site-packages/`.
+#
+# For S001-S006 that was inert -- zero of the vendored files happens to
+# contain `decision <N>`, so the citation tally never moved. It is not inert
+# in the direction that matters: S006 is an INVERSE check ("cited nowhere"),
+# so a single vendored sentence saying "decision 3" would have SUPPRESSED a
+# warning, silently and in the reassuring direction.
+#
+# And it is not inert at all for S007 below. `pygments/lexers/meson.py` names
+# Meson's 0.58 reference manual, `nodeenv.py` names 0.4.3, `pip._vendor`'s
+# `distlib/version.py` names 0.3 -- three false version citations, one of them
+# fourteen minor levels above anything this language has ever released, which
+# would drive the top of the dense range there and invent a phantom hole for
+# every level in between.
+#
+# (Those three numbers are written WITHOUT their `v` prefix on purpose. This
+# module is inside X001's scope, `VERSION_CITE_RE` requires the `v`, and the
+# first draft of this comment spelled the Meson one `v` + `0.58` -- which
+# S007 then reported, from this file, in the paragraph explaining the
+# hazard. Round 464 walked around the identical trap for decision ids one
+# docstring above; `tests/test_specreg.py::
+# test_this_module_cites_no_unsectioned_version` is the pin.)
+#
+# The scope was never wrong about the tree. It was wrong about which files
+# are the tree.
 SKIP_DIRS = {"__pycache__", ".git", "node_modules", "research-env",
-             "whence_lang.egg-info", ".pytest_cache"}
+             "whence_lang.egg-info", ".pytest_cache",
+             ".venv", "venv", "site-packages", ".mypy_cache"}
 
 
 def read_spec(path=None):
@@ -314,6 +413,104 @@ def parse_reserved(text):
     start, end = span
     return [(int(m.group(1)), int(m.group(2)), _line_of(text, start + m.start()))
             for m in RESERVED_RE.finditer(text[start:end])]
+
+
+# --------------------------------------------------------------------------
+# the version registry (round 486)
+# --------------------------------------------------------------------------
+
+def vkey(label):
+    """`"v0.14.10"` -> `(0, 14, 10)`; `None` for anything not a version label.
+
+    Sorting version labels as STRINGS puts v0.9 above v0.44 and v0.14.2 above
+    v0.14.13. `test_v22.py`'s header pin already carries its own `_ver` helper
+    with a comment saying so, which is the second writing of this function in
+    this tree; `tests/test_specreg.py` pins the two orderings equal rather
+    than importing, per this module's standing convention.
+    """
+    m = VERSION_LABEL_RE.match(label or "")
+    return tuple(int(p) for p in m.group(1).split(".")) if m else None
+
+
+def version_sections(text):
+    """{label: info} for the `## vN (…)` headings only.
+
+    `parse_versions` returns EVERY `## <label> (…)` heading, because a
+    registry tag may point at a prose-titled one (`## Decision 50 (round
+    420)`, `## Records as data / self-hosting (v0.5, round 014)`). This is the
+    subset that is a version LEVEL, which is the sequence density is a claim
+    about. At round 486's HEAD: 70 headings, 60 of them version levels.
+    """
+    return {label: info for label, info in parse_versions(text).items()
+            if vkey(label) is not None}
+
+
+def version_citations(repo=REPO, spec_text=None):
+    """{label: [(rel, line)]} -- every `vN.N` written anywhere in X001's scope.
+
+    A version token in this tree is a CITATION in exactly X001's sense. A
+    comment reading `#: v0.47 (round 482), decision 60.` and a docstring
+    reading `v0.45 returned [] for the empty list` are both promises that a
+    reader can look v0.47 / v0.45 up, and there is only one place to look.
+
+    SPEC.md's own `## vN (…)` heading lines are excluded, mirroring what
+    `citations()` does with a decision's own definition sites: a definition is
+    not a reader of itself. Everything else in SPEC.md counts -- including the
+    `*Spec level: **vN**` header, which is a genuine claim about the document.
+
+    A trailing `.0` is normalised away by `_normalise`, below.
+    """
+    text = spec_text if spec_text is not None else read_spec()
+    own_lines = {info["line"] for info in version_sections(text).values()}
+
+    hits = {}
+    for rel in _in_scope_files(repo):
+        try:
+            with open(os.path.join(repo, rel), encoding="utf-8",
+                      errors="replace") as f:
+                body = f.read()
+        except OSError:
+            continue
+        is_spec = (rel == SPEC_REL)
+        # `body.count("\n", 0, pos)` per match is what `citations()` does, and
+        # it is fine there: `decision <N>` matches a few dozen times per file.
+        # A version token matches thousands of times in
+        # `state/research-state.md` (30 000 lines), and count-from-zero is
+        # O(len) each, so the pair is O(n*m). Measured round 486: 8.07 s for
+        # the audit, against a 20 s tier budget on a box where `nproc` is 1
+        # and the driver runs four suites at once. One newline index per file
+        # and a bisect takes it to the number in the round file.
+        starts = [0] + [m.end() for m in NEWLINE_RE.finditer(body)]
+        for m in VERSION_CITE_RE.finditer(body):
+            line = bisect.bisect_right(starts, m.start())
+            if is_spec and line in own_lines:
+                continue
+            hits.setdefault(_normalise("v" + m.group(1)), []).append((rel, line))
+    return hits
+
+
+def _normalise(label):
+    """`"v0.44.0"` -> `"v0.44"`. Every other label is returned unchanged.
+
+    ROUND 486. This tree spells one version level two ways.
+    `languages/whence/CHANGELOG.md` -- a TRACKED file this program does not
+    own (`state/known-standing-dirty-paths.json` lists it; it arrived in
+    `3658e02`, "chore(whence): Production release v0.44 …", which is not a
+    round commit) -- writes `## [v0.44.0]`, `## [v0.19.0]`, `## [v0.14.0]` in
+    the three-component semver form. SPEC.md writes `## v0.44`.
+
+    They are the same level, and the collapse is unambiguous *in this
+    document's convention* rather than in general: the third component here
+    means a patch release, this document has seven of them (v0.14.1-.14,
+    v0.16.1-.6, v0.17.1), and NOT ONE is `.0`. So a trailing zero cannot be a
+    patch level and can only be the semver spelling of the two-component one.
+    `test_no_version_section_ends_in_a_zero_patch` asserts that precondition
+    rather than trusting it, because the day somebody mints a section whose
+    label ends `.0` this normalisation starts merging two real levels. (That
+    sentence named such a label in its first draft and S007 reported it, from
+    this file, for the third time in one round -- see `SKIP_DIRS`.)
+    """
+    return label[:-2] if re.fullmatch(r"v\d+\.\d+\.0", label or "") else label
 
 
 # --------------------------------------------------------------------------
@@ -491,12 +688,121 @@ def audit(repo=REPO, spec_text=None, with_citations=True):
                                  "decision %d is cited nowhere outside its "
                                  "own definition" % e["id"]))
 
+    # ---- the version registry (round 486) --------------------------------
+    #
+    # Same three questions S001/S003/S006 ask of the decision registry, asked
+    # of the OTHER dense ordinal sequence in this document. The one that
+    # matters is S007, and the reason it matters is structural rather than
+    # cosmetic: `test_v22.py::test_spec_level_header_matches_the_highest_
+    # version_section` computes the top of the range from the SECTIONS, so the
+    # range it checks is dense by construction and its top is whatever the
+    # document already says. The top is actually set by the CODE.
+    vsecs = version_sections(text)
+    vcites = version_citations(repo, text) if with_citations else {}
+    top_line = max((i["line"] for i in vsecs.values()), default=0)
+
+    def _in_namespace(label):
+        """This document mints the `v0.*` namespace and no other.
+
+        ROUND 486, and this cost the family its first run. `VERSION_CITE_RE`
+        over prose is not a Whence-version detector, it is a `vN.N` detector,
+        and X001's scope is the whole of `knowledge/` — where round 106 names
+        a server `v1.7.0`, rounds 105 and 111 name a skills schema `v4.1` /
+        `v4.2`, and `languages/whence/CHANGELOG.md` links
+        `semver.org/spec/v2.0.0.html`. Four foreign namespaces, none of them a
+        claim about this language.
+
+        The first draft had no namespace test, so S008's `hi` came out
+        `(4, 2)` and its `while n <= hi` walked `(0, 6), (0, 7), …` — which
+        never reaches `(4, 2)`, because a minor cannot overtake a major. It
+        did not raise; it appended findings until it was killed. That is why
+        S008 below iterates an explicit `range()` over one major.
+        """
+        k = vkey(label)
+        return k is not None and k[0] == VERSION_FLOOR[0] and k >= VERSION_FLOOR
+
+    # S007 cited but unsectioned -- S001's question for versions.
+    dangling = sorted((l for l in vcites if _in_namespace(l) and l not in vsecs),
+                      key=vkey)
+    for label in dangling:
+        where = vcites[label]
+        top = max(vsecs, key=vkey) if vsecs else "none"
+        f.append(Finding(
+            "S007", "ERROR", top_line,
+            "version %s is claimed in %d place(s) (%s) and has no `## %s (…)` "
+            "section; the highest section is %s"
+            % (label, len(where),
+               ", ".join("%s:%d" % w for w in where[:3])
+               + (", …" if len(where) > 3 else ""),
+               label, top)))
+
+    # S008 a hole in the MINOR sequence -- S003's question for versions.
+    #
+    # Density is claimed over the minor component only. The sub-version
+    # dimension is deliberately sparse (v0.14 has .1-.14, v0.16 has .1-.6,
+    # v0.17 has .1, and nothing else has any), so asking it to be dense would
+    # invent a hole under every level that never needed a patch release.
+    major = VERSION_FLOOR[0]
+    known = {vkey(l)[1] for l in vsecs if _in_namespace(l)}
+    known |= {vkey(l)[1] for l in vcites if _in_namespace(l)}
+    for minor in range(VERSION_FLOOR[1], (max(known) if known else 0) + 1):
+        if minor in known:
+            continue
+        f.append(Finding("S008", "ERROR", top_line,
+                         "version v%d.%d is a hole: no `## v%d.%d` section "
+                         "and nothing in scope claims it, but v%d.%d and "
+                         "v%d.%d both exist"
+                         % (major, minor, major, minor,
+                            VERSION_FLOOR[0], VERSION_FLOOR[1],
+                            major, max(known))))
+
+    # S009 the tag that could point at a version and does not.
+    #
+    # S004 has two branches. An entry tagged `(v0.44, round 452)` is checked
+    # against the version heading; an entry tagged `(round 456)` is checked
+    # against its own prose section -- two writings by the same round in the
+    # same file, which agree by construction. Registry entries 54-60 (rounds
+    # 456-482) ALL carry the second form, so S004's version branch has had no
+    # new subject since entry 53 and could not have seen v0.45/46/47 go
+    # missing. This is the warning that stops the next one.
+    by_round = {}
+    for label, info in vsecs.items():
+        if info["round"] is not None:
+            by_round.setdefault(info["round"], label)
+    for e in entries:
+        if e["tag_label"] or e["tag_round"] is None:
+            continue
+        label = by_round.get(e["tag_round"])
+        if label:
+            f.append(Finding("S009", "WARN", e["line"],
+                             "decision %d is tagged `(round %d)` with no "
+                             "label while `## %s` at line %d names the same "
+                             "round — S004's version branch cannot see this "
+                             "entry; tag it `(%s, round %d)`"
+                             % (e["id"], e["tag_round"], label,
+                                vsecs[label]["line"], label, e["tag_round"])))
+
+    # S010 the header line, which is the version registry's own summary.
+    hdr = re.search(r"^\*Spec level: \*\*(v\d+\.\d+(?:\.\d+)*)\*\*", text, re.M)
+    if vsecs:
+        top = max(vsecs, key=vkey)
+        if hdr is None:
+            f.append(Finding("S010", "ERROR", 1,
+                             "no `*Spec level: **vN**` header line; the "
+                             "highest section is %s" % top))
+        elif hdr.group(1) != top:
+            f.append(Finding("S010", "ERROR", _line_of(text, hdr.start()),
+                             "header says %s; the highest `## vN` section is "
+                             "%s" % (hdr.group(1), top)))
+
     f.sort(key=lambda x: (x.severity != "ERROR", x.code, x.line))
     return {
         "findings": f,
         "entries": entries,
         "sections": sections,
         "versions": versions,
+        "version_sections": vsecs,
+        "version_citations": {k: len(v) for k, v in vcites.items()},
         "reserved": reserved,
         "citations": {k: len(v) for k, v in cites.items()},
         "next": next_free(text),
@@ -554,9 +860,40 @@ def _print_table(res):
                  sec[n][0]["line"], res["citations"].get(n, 0)))
 
 
+def _print_versions(res):
+    """One row per version LEVEL — the second registry, side by side with the
+    only two things that can disagree about it: whether the document has a
+    section, and whether the tree claims the number."""
+    vsecs = res["version_sections"]
+    vcites = res["version_citations"]
+    labels = sorted(set(vsecs) | {l for l in vcites if vkey(l) is not None},
+                    key=vkey)
+    print("  version      line  round  section  claims")
+    for label in labels:
+        info = vsecs.get(label)
+        k = vkey(label)
+        if info:
+            note = ""
+        elif k[0] != VERSION_FLOOR[0]:
+            note = "   -- outside the v%d.* namespace, not a finding" % (
+                VERSION_FLOOR[0],)
+        elif k < VERSION_FLOOR:
+            note = "   -- below VERSION_FLOOR v%d.%d, not a finding" % (
+                VERSION_FLOOR)
+        else:
+            note = "   << CLAIMED, NO SECTION  (S007)"
+        print("  %-10s  %5s  %5s  %7s  %5d%s"
+              % (label,
+                 info["line"] if info else "-",
+                 (info["round"] if info and info["round"] is not None
+                  else "-"),
+                 "yes" if info else "NO",
+                 vcites.get(label, 0), note))
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    p.add_argument("cmd", choices=("audit", "table", "next"))
+    p.add_argument("cmd", choices=("audit", "table", "versions", "next"))
     p.add_argument("--json", metavar="OUT")
     p.add_argument("--spec", metavar="PATH", default=None)
     a = p.parse_args(argv)
@@ -572,6 +909,8 @@ def main(argv=None):
     res = audit(spec_text=text, with_citations=a.spec is None)
     if a.cmd == "table":
         _print_table(res)
+    if a.cmd == "versions":
+        _print_versions(res)
 
     errs = [x for x in res["findings"] if x.severity == "ERROR"]
     warns = [x for x in res["findings"] if x.severity != "ERROR"]
@@ -583,6 +922,11 @@ def main(argv=None):
           "heading(s), reserved %s; next free is %d"
           % (len(res["entries"]), len(res["sections"]), len(res["versions"]),
              reserved or "none", res["next"]))
+    vsecs = res["version_sections"]
+    hdr = re.search(r"^\*Spec level: \*\*(v[\d.]+)\*\*", text, re.M)
+    print("specreg: %d version level(s), highest %s; header says %s"
+          % (len(vsecs), max(vsecs, key=vkey) if vsecs else "none",
+             hdr.group(1) if hdr else "absent"))
     print("specreg: %d error(s), %d warning(s)" % (len(errs), len(warns)))
 
     if a.json:
@@ -595,6 +939,8 @@ def main(argv=None):
                 "reserved": [{"lo": lo, "hi": hi, "line": ln}
                              for lo, hi, ln in res["reserved"]],
                 "citations": res["citations"],
+                "version_sections": res["version_sections"],
+                "version_citations": res["version_citations"],
                 "next": res["next"],
             }, f, indent=1, sort_keys=True)
             f.write("\n")
