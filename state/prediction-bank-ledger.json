@@ -1252,6 +1252,12 @@
    "where": "knowledge/round-484-the-receipt-that-outlived-its-day-file.md",
    "quote": "**9 HIT, 3 MISS, 2 SPLIT of 14**",
    "note": "Section 11 of the knowledge file, one table row per banked item, all fourteen scored -- no remainder. Banked at HEAD b7604a1 (commit bb98f0c) before any predicted quantity was measured, and registered here in the round that wrote it. The bank opens with an explicit list of what was ALREADY measured at banking time (reachability, boot id, uptime) so no row could be scored a hit on something already known. The three misses (P5, P11, P12) are ONE shape stated three ways: each extrapolated how bad a known-bad thing had got from a SINGLE prior observation, and each over-predicted. Round 483 banked the same lesson from the other direction and this round repeated it three times in one bank without noticing. The two SPLITs (P2, P4) are the round's two best findings -- in both, the world did most of what was predicted and the residual was the discovery: sar26 surviving 7-of-8 is the sweep-edge result, and `coverage --strict` exiting 1 is round 478's missing reachability row."
+  },
+  "485": {
+   "bank": "state/swe/round-485/PREDICTIONS.md",
+   "status": "unscored",
+   "owner": "SWE-loop(D)",
+   "why": "Banked by round 485 at HEAD 580cddf before harness/swe/mutation.py was opened, and registered in the SAME commit as the bank. Fourteen rows on one subject: round 479's claim that adding a mutation operator `renumbers every id in every campaign artefact on disk`, which is the sole stated reason bound 5 (operator coverage) stays unrepaired. Every quantity one command could settle -- the four subjects' site counts, their unreachable-float counts, the 12395 committed id occurrences -- is in SS0.3 as a re-derived baseline with its command, not banded in SS1 (step 14). Round 485 scores it in its own knowledge file; if this entry still says `unscored` after round 485's commit, round 485 died before scoring."
   }
  }
 }
