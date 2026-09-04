@@ -199,7 +199,7 @@ the public-path rule.
 
 ## 8. Predictions, scored
 
-Banked at `d23cb04`, before the first measurement.
+Banked at `d23cb04`, before the first measurement. **9 HIT, 1 MISS, 2 REFUTED of 12.**
 
 | # | claim | verdict |
 |---|---|---|

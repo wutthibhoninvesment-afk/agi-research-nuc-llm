@@ -1266,6 +1266,13 @@
    "where": "knowledge/round-487-the-verdict-written-in-an-alphabet-the-reader-did-not-have.md",
    "quote": "**8 HIT, 1 MISS, 1 SPLIT, 1 OPEN \u2014 8.5 of 10 scorable.**",
    "remainder": "P9 (\"raising the unit_tests budget costs < 30 s of round wall clock\") is OPEN BY CONSTRUCTION and cannot be scored inside the round that makes the change: the first round whose skills-check line shows a completed unit_tests under the new 1104 s budget scores it, comparing that round's skills-check timestamp minus its health-check timestamp rather than the checker's own elapsed. Recorded as round 487's next-step 3."
+  },
+  "488": {
+   "bank": "state/whence/round-488/predictions.md",
+   "status": "scored",
+   "scored_by": 488,
+   "where": "knowledge/round-488-the-axis-nobody-varied.md",
+   "quote": "**9 HIT, 1 MISS, 2 REFUTED of 12.**"
   }
  }
 }

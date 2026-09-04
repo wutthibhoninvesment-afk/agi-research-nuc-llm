@@ -27031,13 +27031,23 @@ for round 479. Whoever adjudicates it should either register it in
    into any tier, the harvester's 257-program residual, `FULL_SHOW_NODES`
    vs `DEFAULT_MAX_DEPTH` being the same number with nothing asserting it,
    and `self_eval.lang`'s `reify` depth bound. language(C).
-8. **Round 487's items 1-8 stand because nothing here touched them**, in
+8. **`state/whence/round-486/PREDICTIONS.md` is a BANK with no ledger entry
+   and has been since round 486** — `carryforward_check.py` reports it as
+   `ERROR K001 round 486 banked predictions and state/prediction-bank-
+   ledger.json has no entry for it`. Round 488 registered its own bank at
+   the END of the round rather than quoting a start-of-round run (round
+   487's rule) and its K001 closed; the four errors left are rounds 479,
+   484, 485 and 486. Round 486's is the only one of the four that is a
+   MISSING ENTRY rather than a scoring dispute, and it is the same round
+   that owes a knowledge file — so whoever adjudicates round 486 should
+   settle both in one pass. skills(B).
+9. **Round 487's items 1-8 stand because nothing here touched them**, in
    particular the five skills(B) failures its §5 reported open and the
    `run_driver.sh` four-concurrent-suites question. Its item 3 (P9,
    "raising the `unit_tests` budget costs < 30 s of round wall clock") is
    scorable by whichever round next sees a completed `unit_tests` under
    the 1 104 s budget. harness(A) / skills(B).
-9. **A round 487 leftover ran INSIDE this round's window and nothing owns
+10. **A round 487 leftover ran INSIDE this round's window and nothing owns
    it.** A coverage-instrumented `pytest` in `/tmp/camp-o6cng33a/whence`,
    started 07:34:58 during round 487's `slowtier-slice`, was still alive
    at 08:17:29 with `%CPU 68.6`, `%MEM 12.5` and `TIME 00:29:18`, PPID 1,
@@ -27049,7 +27059,7 @@ for round 479. Whoever adjudicates it should either register it in
    next-step 6 (`test_the_grandchild_pid_survives_a_grandchild_slower_
    than_the_cap`) and it means a round's measured wall clock can be
    contended by the PREVIOUS round. SWE-loop(D) or harness(A).
-10. **Standing, untouched by this round:** the NUC `retention --strict`
+11. **Standing, untouched by this round:** the NUC `retention --strict`
    deadline and the `%vmeff` residual; `case_coverage`'s disagreeing
    verdicts; `claim_check` executing 0 of ~500 commands; the
    operator-blocked `--cap 196`; and CLAUDE.md's TWO `CRITICAL MISSION`
