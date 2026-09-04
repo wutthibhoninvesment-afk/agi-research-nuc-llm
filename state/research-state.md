@@ -26816,6 +26816,14 @@ for round 479. Whoever adjudicates it should either register it in
   corpus, 150 s of 183.92 s (82 %) while ~1 000 other tests share 17.7 s.
   *A cost concentrated by what tests DO does not show up as a cost
   concentrated in where they LIVE.*
+- **`skills/measured-budget-sizing/SKILL.md` upgraded** (CLAUDE.md rule 5)
+  with the runner-side half it was missing: a trigger ("a job crossed a
+  budget it had sat under for dozens of runs and nothing about its workload
+  changed — suspect the RUNNER"), two pitfalls (*a budget is a property of
+  the runner as much as of the work*; *a partial result is a verdict only if
+  you can read the alphabet it is written in*), and a second runnable worked
+  instance. `skill_lint --house` 0 errors / 0 warnings, `claim_check` 4/4
+  paths resolved, 0 stale claims.
 - **End-to-end on the REAL checker, not a fixture.** With
   `CHECK_TIMEOUT_S["unit_tests"]` forced to 45 s, the live suite now logs
   `unit_tests TIMEOUT timed out after 45s; 422 test(s) seen through 33%, 4

@@ -29,6 +29,9 @@ consumer refused an empty list; a human reading the directory would have been.
   *spread* is first; if it is 3x, raise the constant. If it is 1000x, no
   constant is correct.
 - Your error path returns the same value for "failed" and for "found nothing".
+- **A job crossed a budget it had sat comfortably under for dozens of runs,
+  and nothing about its workload changed.** Suspect the RUNNER before the
+  work. Measure the job alone before you touch the constant.
 - A sweep must be resumable across sessions/rounds because it cannot finish in
   one.
 
@@ -116,6 +119,28 @@ consumer refused an empty list; a human reading the directory would have been.
   distance from whatever index/head the tool seeks from, and the item you
   reach for first is the one nearest that head. Sample the item your proxy
   says is worst, not the one in front of you.
+- **A budget is a property of the RUNNER as much as of the work, and the
+  runner is the half nobody measures.** Round 487 of this program: the
+  `unit_tests` checker in `skills/skill-authoring/scripts/corpus_check.py`
+  reported `COULD NOT RUN` in three rounds after 32 rounds inside its 600 s
+  budget. Timed ALONE on the same box it takes **183.92 s**. Nothing had
+  grown. `run_driver.sh` backgrounds FOUR pytest suites on a machine where
+  `nproc` is 1, so a fair share is a quarter core and `4 x 183.92 = 735.7 s`
+  is the expected contended runtime — over budget with a workload that never
+  moved. The repair is `solo_cost x concurrency x margin`, with the
+  concurrency COUNTED in the runner's own source (`grep -c '_PID=\$!'`) so a
+  fifth concurrent job expires the constant instead of quietly re-breaking it.
+  A budget derived only from the item's cost is right about the item and
+  wrong about the machine.
+- **A partial result is a verdict, but only if you can read the alphabet it
+  is written in.** Round 451 of this program made a killed checker report
+  what it had already said — by parsing its partial output for
+  `ERROR <CODE>` lines. It was written *because* one particular checker kept
+  timing out, and that checker is a `pytest -q` run whose findings are `F`
+  characters in a bar of dots. Result: eight killed runs over 36 rounds, zero
+  salvaged findings, and five real test failures sitting in the evidence file
+  unread. If you add a salvage path, name the format each subject actually
+  speaks and check that the parser handles the ONE you wrote it for.
 - **Killing the local client does not kill the remote work.** When round 370's
   `ssh` was killed at its budget, the `journalctl` processes on the far side
   kept running for another 6 minutes, drove the load average on a shared box,
@@ -145,6 +170,16 @@ $ python3 nuc/reachability_check.py journal-boots \
 
 $ python3 -m pytest nuc/tests/test_reachability_check.py -q
 # expected: >= 230 passed (round 459)
+```
+
+Second worked instance, the runner-side sizing (round 487):
+
+```
+$ .venv/bin/python -m pytest -q skills/skill-authoring/scripts/test_corpus_check.py \
+      -k DerivedBudget
+# expected: 5 passed — the budget equals ceil(solo x concurrency x margin),
+# the solo cost matches state/harness/round-487/unit-tests-solo.json, and the
+# concurrency matches a count of `_PID=$!` in run_driver.sh
 ```
 
 Measured spread that motivated it: 7 boots of ONE machine, entry density
