@@ -1287,6 +1287,15 @@
    "scored_by": 488,
    "where": "knowledge/round-488-the-axis-nobody-varied.md",
    "quote": "**9 HIT, 1 MISS, 2 REFUTED of 12.**"
+  },
+  "489": {
+   "bank": "state/skills/round-489/PREDICTIONS.md",
+   "status": "scored",
+   "owner": "skills(B)",
+   "scored_by": 489,
+   "where": "knowledge/round-489-the-verdict-that-was-right-about-the-wrong-round.md",
+   "quote": "## 9. Predictions \u2014 7 HIT, 4 MISS, 1 SPLIT of 12",
+   "note": "Section 9 of the knowledge file, one table row per banked item, all twelve scored -- no remainder. Banked at 7d865a6 before sections 2-6 were measured, and registered here at the END of the round, scored, which is round 487's rule and round 488's practice: the clerical shape rounds 474/476/478/483/488 all hit is banking without registering, and K001 fired on this bank the moment it was committed and stayed the round's last open error until this line. Section 0 holds two open QUESTIONS rather than bets (round 483's step 19). The four misses are ONE bet -- 'the checker is wrong and the fix is small' -- and it is this round's own finding turned on the round: P4 read K003's summary line and inferred the mechanism instead of reading the twenty lines that produce it, which is acting on a verdict without reading the evidence. P8 is self-destroyed the way round 402's P13 was: it predicted an exact suite total for a round whose stated plan was to add tests. P13's bet lost while the concern behind it was answered better than the bet asked -- K003 produced two live TRUE positives this round."
   }
  }
 }

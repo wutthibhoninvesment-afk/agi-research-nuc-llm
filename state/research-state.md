@@ -26981,6 +26981,178 @@ for round 479. Whoever adjudicates it should either register it in
   stale 0; `--seeds` R3 OK across three seeds.
 - **Knowledge:** `knowledge/round-488-the-axis-nobody-varied.md`.
 
+### Round 489 — skills(B) — 2026-09-04 — the verdict that was right about the wrong round
+
+- **Round 487's next-step 1 is CLOSED — all five failures — and round 488's
+  next-step 8 with it.** The four `carryforward` ERRORs open for three to
+  five rounds were four different things, and **not one was a false verdict**:
+  K002 round 484 (an anchor that was never in the file it cites), K003
+  rounds 479 and 485 (two TRUE positives — round 485 scored both banks and
+  flipped neither status), K001 round 486 (a bank needing an adjudication).
+  The fifth failure was `test_live_corpus_is_clean`, their aggregate.
+- **THE FINDING: K003 reported round 479 correctly for four rounds and the
+  evidence it published was a sentence about ROUND 473's bank.** *"author);
+  round 473's 17-row bank, scored **10 HIT / 6 MISS / 1"* — round 479's file
+  scoring the debt it had spent its round paying off. `_attributable`'s regex
+  required `P<n>` or `prediction` after the possessive; the corpus wrote
+  `bank`. **A detector that reports `(verdict, evidence)` makes two claims
+  and only the verdict is tested**, so a broken evidence line is invisible
+  for exactly as long as the verdict happens to be right — and it is the
+  same line that produces a clean FALSE POSITIVE on the next subject, whose
+  prescribed repair would have written a scoring that never happened into
+  the ledger.
+- **Fixing the filter MOVED the wrong evidence rather than fixing it.** With
+  `bank` and up to three qualifier tokens allowed, round 479's published
+  evidence became `| debt | outcome |` — the header of its §5 cross-track
+  debts table. A first-match detector always has a next candidate. Blast
+  radius measured with both predicates: **1 of 165 banks** changes its
+  published line, and it is that one.
+- **New instrument `carryforward_check.py --audit-evidence`**: `score_evidence`
+  was a `for … return` that could not report what it skipped, and is now
+  `raw_candidates()` plus the same filter. **165 banks, 143 with evidence, 25
+  foreign lines rejected, 9 SUSPECT.** The auditing predicate is deliberately
+  WIDER than the detector's — `mentioned_rounds` against `credited_rounds` —
+  because an auditor that reuses the detector's rule can only agree with it.
+  All nine were read in context: **3 are genuinely wrong evidence (105, 369,
+  371), 6 are the round's own scoring line legitimately naming another
+  round**, and all nine sit on `scored` entries where K003 never runs. 33 %
+  precision on a queue with zero live consequence, so it ships with **no
+  severity code** — round 465's pricing rule. The value went to K003's
+  message instead, which now carries a CAVEAT naming the rounds its evidence
+  names and never its own.
+- **The record said the record had been updated.** Round 479's knowledge
+  file §8 (written by round 485) states that the ledger entry for key `479`
+  "is updated there". It was not, for four rounds, while K003 contradicted
+  it every round. Round 485's own entry is worse: its `why` says *"if this
+  entry still says `unscored` after round 485's commit, round 485 died
+  before scoring"* — round 485 did not die, it scored fourteen rows in its
+  own §8 and left the flip undone, so its self-built tripwire fired
+  correctly and its explanation named the wrong cause.
+- **Round 484's anchor never existed.** `git show` on both commits that ever
+  touched that knowledge file finds the bolded tally **0 times in each**, and
+  the string is nowhere in the repo but the ledger. Nothing ran
+  `carryforward_check` in round 484, so it was never verified at
+  registration. K002's message (*"no longer in"*) asserted a history the
+  check cannot read and pointed at the wrong repair; it now says *"is not
+  in … check whether it ever was (`git log -S`)"*.
+- **Round 486 adjudicated: ledger `unscored`, owner language(C), NOT a
+  record gap.** It has a `### Round 486` heading (round 487's declared
+  placeholder), so `check_round_recorded` does not report it and
+  `known-record-gaps.json` is for rounds with no heading. Its bank is
+  scorable from committed artefacts (`b8dff22`) by language(C) at round 492;
+  round 489 did not score a foreign track's bank, per round 426's precedent
+  over round 422. The knowledge file it still owes has a convention now —
+  round 485's `RECONSTRUCTED BY` header over round 479.
+- **A registry test that could not tell EMPTY from UNPARSEABLE.**
+  `load_escalated_diffs` returns `{}` for missing, unreadable, non-object
+  and legitimately-empty registries alike — fail-safe, since suppressing
+  nothing reports every dirty path louder. But `{}` is also the state round
+  484 correctly produced by deleting the last live escalation, so
+  `assert registry` made the correct end state a failure and could not see
+  the malformed state it was written for. Fixed in the TEST: parse directly
+  (malformed now fails at `json.load`), then assert the loader agrees with
+  the file about which escalations are live.
+- **Skill: `skills/evidence-must-name-its-subject/SKILL.md`, NEW.** Nearest
+  neighbours checked and none owns it (`matching-is-not-locating` is a
+  record's anchor; `suppressor-shares-the-detector-shape` is a suppressor;
+  `audit-the-deriver-first` is a deriver). Seven steps, six named pitfalls,
+  four Verification commands each run as written, three positive trigger
+  cases outside this repo's vocabulary plus a discriminating negative (a
+  detector emitting no evidence at all). 430 → 434 cases,
+  `skill_lint --house` 0/0, registered in `known-unprobed-skills.json`.
+  **No priced call of any kind was made this round.**
+- **Predictions 7 HIT / 4 MISS / 1 SPLIT of 12**, banked at `7d865a6` before
+  any of §2-§6 was measured, with two open QUESTIONS in §0 rather than bets.
+  **The four misses are one bet — "the checker is wrong and the fix is
+  small" — and it is this round's own finding turned on the round: P4 read
+  K003's summary line and inferred its mechanism instead of reading the
+  twenty lines that produce it.** P8 is self-destroyed the way round 402's
+  P13 was: it predicted an exact suite total for a round whose plan was to
+  add tests.
+- **Three self-inflicted errors, all found by running or reading rather than
+  by thinking.** The widening added a word boundary after a single-digit
+  prediction-id alternative, so `P14` stopped matching and every two-digit
+  foreign attribution was silently re-admitted — the exact class being
+  fixed, re-introduced by the fix, caught only because the existing
+  round-352 fixture ran in the same command. And two JSON registries were
+  re-serialised in the wrong format: the ledger's tidy-up moved two
+  pre-existing out-of-order keys (`431` after `435`, `472` after `474`) for
+  36/22 lines instead of 20/6, and `trigger-cases.json` came out
+  `ensure_ascii=False` against a file written `True` for 70/40 instead of
+  30/0. Both caught by reading `git diff --stat`.
+- **Tests: `corpus-check` 4 errors → 2 → 0**, the last step being this
+  round registering its own bank rather than any fix. `unit_tests`
+  **5 failed / 1084 passed → 0 failed / 1129 passed**, and 1084 + 40 new +
+  5 repaired = 1129 exactly: all 40 are in `test_carryforward_check.py` and
+  **no pre-existing test changed outcome**. Checker time 225.6 s → 232.4 s
+  solo (`nproc` is 1). `xref_check` **0 NEW** dangling citations;
+  `claim_check` 330 paths / 0 stale; `case_coverage` 103 skills / 434 cases
+  / 0 errors; `placeholder_check` 0 errors; `skill_lint` 103 skills / 0
+  errors / 7 B002 warnings, held across the round. `state_claim_check` went
+  `5 claims, 4 of 11 items` to `2 claims, 2 of 8` and dropped its S005 —
+  it samples the NEWEST next-steps block, so a new round's next-steps
+  replaces its subject; the instrument re-pointed, and nothing in its
+  output says its coverage figure belongs to the last round to write.
+- **Knowledge:** `knowledge/round-489-the-verdict-that-was-right-about-the-wrong-round.md`.
+
+## Next steps (as of round 489)
+
+1. **Round 479's published K003 evidence is STILL not a scoring line, and
+   this round did not fix it.** After the widening it is `| debt | outcome |`
+   from a cross-track-debts table. The general repair is a POSITIVE
+   attribution requirement, which would reject every legitimate
+   `| P8 | … | **HIT** |` row, so it is not cheap. The honest options are a
+   per-pattern rule (`outcome_table` requires a `P<n>` column) or accepting
+   that the caveat is the mitigation. Say which. skills(B).
+2. **Three banks publish genuinely wrong evidence and nobody has to care —
+   yet.** 105, 369 and 371 are all `scored`, so K003 never runs on them. The
+   day any of the three is re-opened as `unscored`, its first published
+   evidence is about rounds 27, 366 and 23 respectively. Recorded here so
+   that day is not a surprise; `--audit-evidence` re-derives it in 3 s.
+   skills(B).
+3. **`carryforward_check` was never run by the round that wrote the entry it
+   would have caught.** Round 484's anchor was imaginary and round 484's own
+   §12 reports `skill_lint` and `xref_check` only. Registering a bank and
+   verifying its anchor are one action and the corpus splits them across
+   rounds. A `--verify-entry <round>` arm that a round runs BEFORE committing
+   its ledger edit is a ~20-line addition and would have closed this five
+   rounds ago. skills(B).
+4. **Round 486 owes a knowledge file and language(C) owns it at round 492.**
+   The ledger entry names the owner and the convention (round 485's
+   `RECONSTRUCTED BY` header over round 479). Its bank is scorable from
+   `b8dff22`; scoring it discharges the `unscored` status in the same pass.
+   language(C).
+5. **Round 487's items 2-8 stand, untouched by this round** — in particular
+   the four-concurrent-suites question in `run_driver.sh` (item 2), P9's
+   scorability (item 3), and `unit_tests` being 82 % five files with round
+   451's shared-sweep trick never tried on `test_xref_check`'s six
+   live-corpus tests (item 5). Item 5 is now slightly worse: this round added
+   40 tests to `test_carryforward_check.py`, one of which
+   (`TestEvidenceAuditOnTheLiveLedger`) builds a live `Corpus` — mitigated
+   with `setUpClass`, but it is a sixth live-corpus reader. harness(A) or
+   skills(B).
+6. **Round 488's items 1-7 and 9-11 stand because nothing here touched
+   them**, including the language(C) stack (the un-derived `scale_cases()`
+   axes, `ast_nodes.Program`'s whole-interpreter unreachability claim, the 9
+   `ARG_OVERRIDE` entries, the regex-shaped `test_cap_is_the_only_place…`)
+   and the round-487 orphan `pytest` that ran inside round 488's window with
+   nobody owning it. Its item 8 is CLOSED by this round.
+7. **The probe batch is now FIFTEEN deep** and has grown in every skills(B)
+   round since 405 without one paying it. `state/known-unprobed-skills.json`
+   carries 46 entries; this round added the forty-sixth and made no priced
+   call. A probe is ~$0.05 and needs operator authorisation no round has
+   had. Price it before adding to it. skills(B).
+8. **Standing, untouched by this round:** the NUC `retention --strict`
+   deadline and the `%vmeff` residual; `case_coverage`'s 47-of-99
+   disagreeing verdicts; `claim_check` executing 0 of 508 commands; the
+   operator-blocked `--cap 196`; and CLAUDE.md's TWO `CRITICAL MISSION`
+   blocks, re-escalated for the TWENTY-SECOND time and still a one-line
+   deletion for the operator — do NOT reword them, the pinning suites expire
+   cleanly only if the blocks go. `languages/whence/SECURITY.md` and
+   `SECURITY_AUDIT_REPORT.md` remain the operator's decision; do NOT copy a
+   carry count for either from this file, the checker's own line is the only
+   source.
+
 ## Next steps (as of round 488)
 
 1. **`scale_cases()` is still eleven hand-written cases and the name axis
