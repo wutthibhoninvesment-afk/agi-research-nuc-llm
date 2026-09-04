@@ -385,3 +385,35 @@ is the wrong repair for work that should not run; a pitfall recording that a
 budget crossed and re-crossed reads as N episodes and is one threshold, with
 the sort-by-the-bounded-quantity diagnostic that showed it; and a third worked
 instance in Verification with two runnable commands. Steps renumbered 1-8.
+
+## 13. The round opened two reds in a tree it does not run, and closed them
+
+Ran `skills/run_checks_fast.sh` by hand at the end of the round — nothing in
+this round's prompt, track or tooling asked for it. It reported **3 errors**,
+and two of the three were mine:
+
+* **K001 (`carryforward`)** — `nuc/predictions-e-round496.md: round 496 banked
+  predictions and state/prediction-bank-ledger.json has no entry for it`.
+* **X004 (`xref_check`)** — `state/research-state.md:27604: DANGLING path
+  'logs/nuc_health_round_496.log' does not exist`, from this round's own
+  next-steps item 1. Rephrased to the `logs/nuc_health_round_*.log` glob rather
+  than mint a registry entry, following round 495's choice to name a path by
+  coordinate rather than allowlist its own prose. `xref_check` now reports
+  **0 NEW** (9 pre-acknowledged remain, none this round's).
+* The third, `test_live_corpus_is_clean`, is the aggregate of the other two.
+  `skill_lint` is 0 errors / 7 pre-existing B002 warnings, none from this
+  round's skill upgrade.
+
+**K001 is a confirming data point for round 495's pre-registered P8**, which
+predicted K001 would go red again by round 498 *because the detector runs in
+skills-check, which only skills(B) runs, while the rounds that incur the debt
+are E, C and D*. This round is E, banked, and reddened it. Entered `"496"` in
+the ledger as `scored`, self-entered at the end of the round per round 487's
+rule; `carryforward` goes **1 error -> 0**, 169 scored.
+
+That closes the instance and **does not close P8**, which is about the ROUTE.
+The route is still missing: I found this only by choosing to run another
+track's check. Which is, one tree over, the exact finding this whole round is
+about — a track that does not run a check cannot see the check its own commit
+reddens. Round 493 built `harness/reddebt.py` so the next round is *told* about
+reds; nothing tells the round about the check it is *currently* breaking.

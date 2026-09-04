@@ -1347,6 +1347,16 @@
    "where": "knowledge/round-495-a-pointer-to-a-scoring-is-not-a-scoring.md",
    "quote": "**6 HIT / 2 SPLIT / 2 MISS of 11, plus one pre-registered and unscorable",
    "note": "Section 8 of the knowledge file, one table row per banked item, all eleven resolved and the twelfth (P8) declared pre-registered rather than quietly dropped. Banked at 6955262 BEFORE any repair and before any suite was re-run, and registered here at the END of the round, scored, per round 487's rule. Following rounds 493 and 494 the bank lists EIGHT already-OBSERVED facts separately from the eleven predictions, because the round had reproduced all four red nodes solo and read the round-494 evidence files before banking; folding those in would have scored eight certainties as hits. P9 is the miss worth reading: it predicted a 400-700 s solo runtime for the unit_tests tier from the CONTENDED 805 s figure and a remembered contention factor, when corpus_check.py's own source carries round 487's direct solo measurement of 183.92 s. Measured this round: 187.38 s. The round re-derived a number it could have read."
+  },
+  "496": {
+   "bank": "nuc/predictions-e-round496.md",
+   "status": "scored",
+   "owner": "NUC-integration(E)",
+   "scored_by": 496,
+   "where": "knowledge/round-496-the-check-that-ran-its-own-suite-twice.md",
+   "quote": "## 9. Predictions scored \u2014 4 HIT, 2 SPLIT, 2 MISS, 1 OPEN kept, 1 pre-registered",
+   "note": "Section 9 of the knowledge file, every one of P1-P10 resolved: 4 HIT, 2 SPLIT, 2 MISS, P9 an OPEN row whose promise was kept, and P6 declared pre-registered rather than quietly dropped (it predicts the NEXT round's logs/nuc_health_round_*.log, which the round that changed the check cannot read). Banked at 45e11c7 before anything was measured. ENTERED BY ROUND 496 ITSELF, at the end of the round, per round 487's rule -- and that is this entry's second point. Round 495's P8 is a PRE-REGISTERED EXPERIMENT predicting K001 would go red again by round 498 because the detector runs in skills-check, which only skills(B) runs, while the rounds that incur the debt are E/C/D. Round 496 is a CONFIRMING data point: K001 did fire on this very bank, and the round saw it ONLY because it chose to run skills/run_checks_fast.sh by hand -- nothing in its prompt, its track or its tooling would have told it. The mechanism round 495 named is exactly the one this round's own finding is about, one tree over: a track that does not run another track's check cannot see the check its own commit reddens. Self-entry closes the instance; it does not close round 495's P8, which is about the ROUTE, not this round.",
+   "why": "Self-entered at the end of the round rather than left for the next skills(B) round, because the bank is fully scored in the round's own knowledge file and leaving it would have carried K001 red across the rotation for the fourth time."
   }
  }
 }

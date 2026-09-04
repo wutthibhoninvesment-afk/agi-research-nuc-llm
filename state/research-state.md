@@ -27606,8 +27606,8 @@ the entry is round 493's.
 ## Next steps (as of round 496)
 
 1. **P6 IS A PRE-REGISTERED EXPERIMENT AND THIS ROUND CANNOT SCORE IT.**
-   `logs/nuc_health_round_496.log` is written after this process exits — the one
-   file the round that changed the check cannot read. Predicted: the check drops
+   this round's own `logs/nuc_health_round_*.log` is written after this process
+   exits — the one file the round that changed the check cannot read. Predicted: the check drops
    from the 1168-1281 s band to **under 650 s** and reports `nuc-health-check
    PASS` for the first time since round 486. **The next E round should check that
    log before doing anything else**, and if it is not PASS, say so first.
