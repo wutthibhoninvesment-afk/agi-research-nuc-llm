@@ -446,10 +446,14 @@ def test_the_exclusions_are_counted_and_reconcile_with_the_old_call_count(
     # `tests/test_v47.py` (decision 60). `stmt_node_args` holds at 22.
     # Same shape as the two entries above: the total moved, one exclusion
     # moved with the corpus addition that caused it, the other held.
-    assert stats["module_calls"] == 46
+    #
+    # ROUND 488: 1041 -> 1057 and module_calls 46 -> 47, from
+    # `tests/test_v48.py` (decision 62). `stmt_node_args` holds at 22 for
+    # the fourth consecutive round. Same shape again.
+    assert stats["module_calls"] == 47
     assert stats["stmt_node_args"] == 22
     assert stats["calls"] + stats["module_calls"] + \
-        stats["stmt_node_args"] == 1041
+        stats["stmt_node_args"] == 1057
 
 
 def test_the_exclusions_removed_no_programs_from_the_corpus(harvest):
@@ -531,7 +535,14 @@ def test_the_residual_fell_by_more_than_a_third_and_did_not_reach_zero(
     # between a program that HAPPENS to be composed and one that must be;
     # both new rows are the second kind, both are `building`, and `rest`
     # is unchanged at eight.
-    assert residual <= 109, residual
+    #
+    # ROUND 488: 109 -> 114, all five from `tests/test_v48.py`. THREE are
+    # string-building (`binop:Mod` at :119 and two `.join` at :186/:194)
+    # and TWO ARE NOT, which is the first time in four rounds that a
+    # corpus addition moved the `rest` set -- see
+    # `test_the_residual_that_is_not_string_building_is_seven_rows_in_
+    # three_shapes` for what they are and why they are irreducible.
+    assert residual <= 114, residual
     assert residual < 258 * 2 // 3
     assert stats["unresolved_args"] > 0
     assert stats["nonconstant_programs"] > 0
@@ -1221,11 +1232,11 @@ def test_the_corpus_grew_and_exactly_one_zip_row_survives(harvest,
     _progs, stats = harvest
     assert stats["programs"] >= 829, stats["programs"]
     residual = stats["unresolved_args"] + stats["nonconstant_programs"]
-    # 101 r474 -> 106 r476 -> 107 r480 -> 109 r482; the new rows are
-    # itemised in
+    # 101 r474 -> 106 r476 -> 107 r480 -> 109 r482 -> 114 r488; the new
+    # rows are itemised in
     # `test_the_residual_fell_by_more_than_a_third_and_did_not_reach_zero`.
     # The zip row's identity, which is what THIS test is about, is untouched.
-    assert residual <= 109, residual
+    assert residual <= 114, residual
     zips = [r for r in harvest_rows
             if r["kind"] == "residual" and r["cls"].startswith("zip")]
     assert len(zips) == 1, [(r["file"], r["line"], r["cls"]) for r in zips]
@@ -1258,7 +1269,16 @@ def test_the_widening_did_not_move_the_other_residual_half(harvest):
     # ROUND 482: 63 -> 65, both from `tests/test_v47.py` and both
     # `binop:Mod` (the scale programs decision 60's R2 check needs built at
     # 400 and 50 statements). The eight-row `rest` set is untouched again.
-    assert stats["nonconstant_programs"] == 65, stats["nonconstant_programs"]
+    #
+    # ROUND 488: 65 -> 67, both from `tests/test_v48.py`: `:129` runs
+    # `reprsweep.PROBE` and `:355` runs `reprsweep.SCALE_PROBE`. Unlike
+    # every previous entry in this comment, these two are NOT
+    # string-building and they DO move the `rest` set -- which this test's
+    # sibling asserts and which is the correct outcome rather than a
+    # regression: decision 62's whole subject is a probe program that is
+    # GENERATED from three live tables, so the argument to `run` is a
+    # module attribute by construction and no folder can ever read it.
+    assert stats["nonconstant_programs"] == 67, stats["nonconstant_programs"]
 
 
 # --- 7.6 a class that outlived its own fix ---------------------------------
@@ -1360,9 +1380,38 @@ def test_the_residual_that_is_not_string_building_is_seven_rows_in_three_shapes(
     # consecutive round. That invariance is the assertion doing the work
     # here: the count below moves whenever the corpus grows, and the list
     # below it moves only when something genuinely unreadable arrives.
-    assert len(rows) == 109, len(rows)
-    assert len(building) == 101, len(building)
+    #
+    # ROUND 488: 109 -> 114 rows, 101 -> 104 building, AND `rest` 8 -> 10.
+    # This is the first time since round 474 that the list below moved, and
+    # it moved for the reason the list exists to report rather than by
+    # accident. `tests/test_v48.py:129` is `Interpreter().run(
+    # reprsweep.PROBE)` (class `attribute`) and `:355` is `scale =
+    # reprsweep.SCALE_PROBE; Interpreter().run(scale)` (class
+    # `bound_nonconstant:attribute`).
+    #
+    # NEITHER is rewritable as a whole-program literal, and that is decision
+    # 62 itself rather than a shortcut: `reprsweep.PROBE` is GENERATED from
+    # three live tables precisely so that a class added to the language is
+    # audited the round it becomes reachable. Writing the program out as a
+    # literal here would pin the derivation's OUTPUT in a second place and
+    # reintroduce the hand-written list the round removed. Rounds 476 and
+    # 480 could rewrite their composed sites because the composition was
+    # incidental; this one is the subject.
+    #
+    # The three other new rows are ordinary string-building:
+    # `test_v48.py:119` (`binop:Mod`) and `:186`/`:194` (`.join` over a
+    # `range(60)`/`range(9)` of `let` statements, the sixty-long-names case
+    # decision 62 needed).
+    #
+    # So `@pytest.mark.parametrize` is no longer the only un-modelled shape
+    # here: "the program is a module attribute" is a second, and unlike
+    # parametrize it is not waiting on a widening either -- a derived
+    # program has no literal form to fold to.
+    assert len(rows) == 114, len(rows)
+    assert len(building) == 104, len(building)
     assert sorted(r["cls"] for r in rest) == [
+        "attribute",
+        "bound_nonconstant:attribute",
         "bound_nonconstant:call:build_cases",
         "bound_nonconstant:call:build_cases",
         "bound_nonconstant:name",
@@ -1372,6 +1421,9 @@ def test_the_residual_that_is_not_string_building_is_seven_rows_in_three_shapes(
         "bound_nonconstant:subscript",
         "zip_no_literal_column/zip_nonliteral_column",
     ], sorted(r["cls"] for r in rest)
+    assert sorted((r["file"], r["line"]) for r in rest
+                  if r["file"] == "test_v48.py") == [
+        ("test_v48.py", 129), ("test_v48.py", 355)]
 
 
 # --- 7.7 what resolving a name COSTS, when the name has two bindings -------

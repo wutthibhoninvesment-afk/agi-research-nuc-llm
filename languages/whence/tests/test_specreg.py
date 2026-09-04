@@ -749,8 +749,24 @@ def test_decisions_54_to_57_stay_under_v0_44():
 
 def test_decision_61_is_minted_at_both_sites():
     """Round 462's failure was minting in prose only. The registry's own
-    instruction says to append in the SAME round."""
+    instruction says to append in the SAME round.
+
+    ROUND 488: the third assertion used to read `next_free(text) == 62`,
+    which is a claim about the TOP of the range and not about decision 61
+    at all -- so minting decision 62 (in both sites, correctly) turned this
+    test red and named the wrong subject. It is now derived: whatever the
+    highest minted id is, `next_free` is one past it. The test that catches
+    a prose-only mint is the pair of `in` assertions above, and those are
+    what this test is named for."""
     text = specreg.read_spec()
     assert 61 in specreg.registry_ids(text)
     assert 61 in {s["id"] for s in specreg.parse_sections(text)}
-    assert specreg.next_free(text) == 62
+    assert specreg.next_free(text) == max(specreg.registry_ids(text)) + 1
+
+
+def test_decision_62_is_minted_at_both_sites():
+    """v0.48, round 488. Same shape as decision 61's: the registry entry
+    and the `See § Decision 62` prose section land in the same round."""
+    text = specreg.read_spec()
+    assert 62 in specreg.registry_ids(text)
+    assert 62 in {s["id"] for s in specreg.parse_sections(text)}
