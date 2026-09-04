@@ -2921,5 +2921,35 @@
   "expect": [],
   "prompt": "Our nightly consistency job just prints PASS or FAIL per table and nothing else, so when it fails we re-run the whole comparison by hand to find out which rows disagreed. I want it to write the offending rows to a file. What is a sensible format for that?",
   "note": "round 489: DISCRIMINATING NEGATIVE. The detector reports NO evidence at all, which the skill explicitly excludes -- the job here is to make it emit some, not to audit what it emits. If this fires, the description is matching the word 'evidence' rather than the situation."
+ },
+ {
+  "id": "dss-universe-is-a-module-list",
+  "expect": [
+   "derived-subject-set"
+  ],
+  "prompt": "Our coverage checker derives the class list by reflecting over two of our packages and it reports zero gaps. A colleague found a class it has never looked at. The reflection is definitely correct \u2014 is the checker wrong?",
+  "note": "round 492: the derivation is complete and the SET IT RANGES OVER is a hand-written list of packages. `gaps: 0` means zero gaps in the part it was pointed at; the fix is to derive the range too and to compute reached-minus-universe, the direction the manifest never computes."
+ },
+ {
+  "id": "dss-who-sizes-the-input",
+  "expect": [
+   "derived-subject-set"
+  ],
+  "prompt": "We assert every log line we emit is under 500 bytes and we test it by generating enormous payloads. It has held for a year. Somebody just got a 4 KB line in production. What did the test miss?",
+  "note": "round 492: every fixture is a payload, so an input that arrives another way -- a constructor argument, an env var, a hostname -- is unreachable by the harness's SHAPE, not merely un-varied. Enumerate the expressions that reach the string and classify each by who sizes it."
+ },
+ {
+  "id": "dss-regex-gate-replacement",
+  "expect": [
+   "derived-subject-set"
+  ],
+  "prompt": "Our lint rule that every renderer calls truncate() is a regex over source lines and it's brittle. I want to replace it with a real behavioural test that lowers the limit and checks the output shrinks. Good plan?",
+  "note": "round 492: it takes TWO checks and neither subsumes the other -- the behavioural one is blind to a renderer already under the lowest limit (count and print those, they are vacuous passes) and a static call-graph one is blind to a renderer that calls truncate() and discards the result."
+ },
+ {
+  "id": "dss-neg-no-list-anywhere",
+  "expect": [],
+  "prompt": "I need to add a fourth payment provider to our billing service. The provider interface is a protocol and the concrete classes are picked up by an entry-point group, so nothing enumerates them. What is the checklist for adding one?",
+  "note": "round 492: DISCRIMINATING NEGATIVE. There is no hand-written subject set and no completeness claim to audit -- the registry is already derived and the question is about implementing a member. If this fires, the description is matching the words 'enumerate'/'registry' rather than the situation."
  }
 ]

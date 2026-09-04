@@ -1,6 +1,6 @@
 # Whence — a provenance-first language
 
-*Spec level: **v0.48** (round 488; heading first written by round 486). The
+*Spec level: **v0.49** (round 492; heading first written by round 486). The
 `## vN` sections below are the authoritative version list and each names the
 round that built it; this line deliberately no longer enumerates rounds,
 because the enumeration it replaced had said "v0.16.6 + v0.14.2" since round
@@ -1002,6 +1002,43 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    family — 16 of 23 classes never audited before — came back clean at
    every scale, which is the negative result enumeration is for.
    See § Decision 62.
+63. **A repr's INPUTS are the subject, and not all of them are in the
+   language (v0.49, round 492).** Decision 62 derived the probe from three
+   live tables and then varied three tokens in it — a string literal's
+   body, an identifier, a run of digits — because those are the three a
+   Whence PROGRAM can make arbitrarily long, and every probe this
+   implementation runs IS a program. The subject is therefore not classes
+   and not tokens but the EXPRESSIONS each repr interpolates, derived from
+   the source with `ast` and each assigned an AXIS whose FAMILY names who
+   sizes it: `text` (a long token, 15 inputs), `structure` (more program,
+   23), `embedding` (**the embedder, in host code, 2**), `constant` (13)
+   and `internal` (36). **89 inputs over 19 repr sources, 0 unclassified,
+   0 stale**, gated in both directions and keyed on the unparsed
+   expression TEXT so that editing a repr expires its own classification —
+   which fired inside round 492 itself. The violation is in the family no
+   program-shaped probe can reach: `Interpreter.__repr__` interpolates
+   `self.max_depth`, a PUBLIC constructor argument, so
+   `repr(Interpreter(max_depth=10 ** 500))` was **645** characters against
+   a `REPR_CAP` of 240, and `derive_probe(scale=True)` — every node class
+   and every builtin at 5,000-character tokens — still reaches only an
+   `Interpreter` holding `DEFAULT_MAX_DEPTH`. Fixed with decision 62's own
+   rule one class over (`_clip` the design, `_cap` the backstop): 184
+   characters, tail intact, default rendering byte-identical.
+   **Reachability from `run()` is a SUFFICIENT condition for being a
+   surface, not a necessary one** — `CONSTRUCTED_SURFACES` audits what a
+   caller builds — and the universe is now `package_classes()`, the whole
+   package rather than three of its seven modules: **48 classes, 34
+   reached, 1 constructed, 13 declared, 0 gaps**, plus the direction the
+   manifest never computed (`reached − universe`, 0, a negative control).
+   The widening found `timetravel.TimeTravelDebugger` reprring as
+   `<whence.timetravel.TimeTravelDebugger object at 0x...>` — decision
+   58's ORIGINAL failure string — and its `snapshot()` raising `TypeError`
+   against every real `Env` under ELEVEN green tests that all pass a
+   double. Round 488's regex cap gate is replaced by TWO checks that do
+   not subsume each other: `routing_manifest()` (static, total, blind to a
+   discarded cut) and `cap_response()` (behavioural, blind to a repr under
+   the lowest cap — **11 of 64 subjects**, reported as `vacuous` rather
+   than counted as passes). See § Decision 63.
 
 ## Syntax (statements are newline-separated; `#` comments)
 ```
@@ -10612,6 +10649,144 @@ It does not make `S008` a live finding. It reports zero holes today and is
 kept as the negative control the family needs — the check that says the
 range is dense, rather than assuming it.
 
+
+## v0.49 (round 492, language C) — the axis that was not in the program
+
+Decision 63. Round 488's next-step 1 ("list the inputs each repr
+interpolates and say which of them an author sizes") and its next-step 4
+(replace the regex cap gate with something behavioural), closed together
+because they are the same question asked from two ends.
+
+### Decision 63 (round 492, language C): a repr's inputs are the subject, and not all of them are in the language
+
+Decision 62 derived the PROBE from three live tables and then varied three
+tokens in it — a string literal's body, an identifier, a run of digits.
+Those are the three things a Whence PROGRAM can make arbitrarily long, and
+every probe this implementation has ever run is a program. So the derivation
+was complete over the language and silent about everything else.
+
+The subject of this decision is therefore not classes and not tokens. It is
+the EXPRESSIONS each repr interpolates, derived from the source with `ast`
+and each assigned an AXIS whose FAMILY says who sizes it:
+
+| family | who sizes it | inputs |
+|---|---|---|
+| `text` | the author, as a long TOKEN | 15 |
+| `structure` | the author, by writing MORE program | 23 |
+| `embedding` | **the embedder, in host code** | **2** |
+| `constant` | this implementation | 13 |
+| `internal` | composed from this function's own inputs | 36 |
+
+**89 interpolated inputs over 19 repr sources, 0 unclassified, 0 stale.**
+Both directions are gated exactly as `UNREACHABLE` is: an expression with no
+row is an ERROR, and a row naming an expression no repr interpolates is
+STALE. The keys are the unparsed expression TEXT, so editing a repr expires
+its own classification — which fired for real inside round 492, when adding
+`_clip` around `self.max_depth` turned one row stale and one input
+unclassified in the same edit.
+
+**The violation is in the `embedding` family, and it is the family no
+program-shaped probe can reach.** `Interpreter.__repr__` interpolates
+`self.max_depth` with `%s`, and `max_depth` is a public constructor argument:
+
+```
+repr(Interpreter(max_depth=10 ** 500))     645 chars   REPR_CAP is 240
+```
+
+No Whence source text moves it. `derive_probe(scale=True)` renders every
+node class and every builtin with 5,000-character tokens and every
+`Interpreter` it reaches still holds `DEFAULT_MAX_DEPTH`, because
+`max_depth` is not a thing the language can say. Decision 62's three tables
+describe the language; this input is not in the language.
+
+The fix is decision 62's own rule applied one class over — `_clip` is the
+design and `_cap` is the backstop. `_cap` alone left 240 characters of the
+author's integer and ate the sentence the repr exists to say; with `_clip`
+the rendering is 184 characters and still ends `returns its top-level Env>`.
+The DEFAULT repr is byte-identical to v0.48's.
+
+### Reachability from `run()` is sufficient, not necessary
+
+Decision 60's rule names classes "reachable from `Interpreter.run(source)`
+along a path of PUBLIC attribute names". Decision 58's sentence is the
+general one — *a value this implementation hands a caller is a surface* —
+and a class the caller CONSTRUCTS is on the same side of that boundary as
+one it is handed. `CONSTRUCTED_SURFACES` is that second door, audited by
+building a witness the way an embedder would.
+
+### The universe was three modules of seven
+
+`probe_manifest()`'s `gaps: 0` was computed against
+`node_classes() | runtime_classes()` — `ast_nodes`, `values`, `interp` — and
+the set of MODULES was itself a hand-written list. `package_classes()`
+derives it from the package: **48 classes, 34 reached, 1 constructed, 13
+declared unreachable, 0 gaps.** The widening added six classes and found one
+real defect:
+
+```
+repr(TimeTravelDebugger())
+  <whence.timetravel.TimeTravelDebugger object at 0x775c81dfdd60>
+```
+
+Decision 58's ORIGINAL failure string, five rounds after the rule that
+outlawed it, in the one module no universe ever contained. It now reprs in
+`Env`'s shape (bounded head of the checkpoint names, count kept whole,
+escape hatch named).
+
+`probe_manifest()` also gained the direction it never computed:
+`outside_universe` is `reached − universe`, 0 at HEAD. It is a negative
+CONTROL, not a finding — and it is the check that would have said so if a
+reached class had lived in a module the universe did not contain.
+
+### Two cap checks, and neither subsumes the other
+
+Round 488's next-step 4 asked for `test_cap_is_the_only_place_repr_cap_is_
+compared` — a regex over source lines — to become behavioural. It took two:
+
+* **`routing_manifest()`** is STATIC and total: does each reached repr's
+  transitive delegate closure contain `values._cap`? At HEAD
+  `Interpreter.__repr__` was the only one whose closure was empty, and that
+  is not a coincidence — it is the class whose unbounded input comes from
+  the embedding API. It is blind to a repr that calls `_cap` and discards
+  the result.
+* **`cap_response()`** is BEHAVIOURAL: lower `REPR_CAP` to 40 and 80 and
+  re-take every repr. It finds a repr that ignores the cut however the cut
+  is spelled. It is blind to a repr already shorter than the lowest cap —
+  **11 of 64 subjects**, reported as `vacuous` on the CLI rather than
+  counted as passes.
+
+Both are falsified in `tests/test_v49.py`: v0.48's `Interpreter.__repr__` is
+put back and each check names it, and a repr is built for each check's own
+blind spot to show the other one catching it. The v0.48 regex test is kept —
+it is a different claim (the cut is written ONCE) and it is still true.
+
+### Three sentences, three rounds, one shape
+
+v0.48 found two comments asserting compliance that six rounds of probes had
+never contradicted. This round found a third, in the class next door:
+`Builtin.__repr__`'s "all three spellings appear in `_install_builtins`".
+Measured over the live global scope: **33 int, 4 pair (`contrast`,
+`diverge`, `range`, `steps`), ZERO None.** The branch is kept — "None for
+any" is `Builtin.__slots__`'s stated contract and a directly constructed
+`Builtin` reaches it — and it is now tested rather than asserted.
+
+### A test double is a claim about the collaborator
+
+Building the `TimeTravelDebugger` witness through its PUBLIC API — the way
+an embedder would — raised:
+
+```
+TypeError: Env.get() takes 2 positional arguments but 3 were given
+```
+
+`snapshot()` read the checkpoint name as
+`env.get('_last_snap_name', 'unnamed')`. All ELEVEN tests in
+`tests/test_timetravel.py` are green and every one of them passes a local
+`MockEnv`/`NamedEnv` whose `get` has a host-dict signature, so the suite
+never touched the only `Env` this package defines. Fixed by reading
+`env.vars` first (a plain dict on the real class and on every double,
+unwrapping a `Prov` payload) and keeping the `get(key, default)` path for
+the doubles that name their checkpoints through it.
 
 ## v0.48 (round 488, language C) — the axis nobody varied
 

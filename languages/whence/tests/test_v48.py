@@ -54,8 +54,12 @@ class TestTheDerivation(object):
 
     def test_every_concrete_node_class_has_a_probe_line(self):
         universe = reprsweep.node_classes()
+        # v0.49 (round 492): `node_classes()` is the CONCRETE subclasses and
+        # the widened universe added the abstract base `Node` to
+        # `UNREACHABLE`, so the base is subtracted here rather than being
+        # counted as a class with no probe line.
         declared = {c for (m, c) in reprsweep.UNREACHABLE
-                    if m == "whence.ast_nodes"}
+                    if m == "whence.ast_nodes"} - {"Node"}
         assert set(reprsweep.NODE_SOURCE) | declared == universe, {
             "no_probe_line": sorted(universe - set(reprsweep.NODE_SOURCE)
                                     - declared),
@@ -82,9 +86,14 @@ class TestTheDerivation(object):
         universe that the sweep neither reaches nor explains."""
         man = reprsweep.probe_manifest()
         assert man["gaps"] == [], man["gaps"]
-        assert man["universe"] == 42, man
+        # v0.49 (round 492), decision 63: 42 -> 48. The universe was
+        # `node_classes() | runtime_classes()` — three of the package's
+        # seven modules, hand-listed — and is now `package_classes()`.
+        assert man["universe"] == 48, man
+        assert man["declared_unreachable"] == 13, man
+        assert man["constructed"] == 1, man
+        assert man["outside_universe"] == [], man
         assert man["reached"] == 34, man
-        assert man["declared_unreachable"] == 8, man
 
     def test_no_declared_exception_is_stale(self):
         """The OTHER direction. A class that becomes reachable expires its
@@ -327,7 +336,16 @@ class TestTheInstrument(object):
                             if c["violations"])
             assert killed == ["derived/Env", "derived/MergedProv",
                               "derived/Prov"], killed
-            assert rep["violations"] == 3, rep["violations"]
+            # v0.49 (round 492): 3 -> 46. The `scale` pass still kills
+            # exactly the three rows above; the rest are the decision-63
+            # AXIS pass and the row pass seeing the SAME three classes
+            # through more witnesses. The invariant, which does not churn
+            # when a witness is added, is that no OTHER class breaks.
+            assert rep["violations"] == 46, rep["violations"]
+            broken = {c["class"] for c in
+                      rep["rows"] + rep["scale"] + rep["axes"]
+                      if c["violations"]}
+            assert broken == {"Prov", "MergedProv", "Env"}, broken
         finally:
             V.Prov.__repr__, V.MergedProv.__repr__, Env.__repr__ = keep
         assert reprsweep.audit()["violations"] == 0
@@ -421,7 +439,7 @@ class TestTheCLI(object):
     def test_manifest_reports_the_universe_and_exits_zero(self):
         proc = self._run("--manifest")
         assert proc.returncode == 0, proc.stderr[-600:]
-        assert "universe 42, reached 34" in proc.stdout, proc.stdout
+        assert "universe 48, reached 34" in proc.stdout, proc.stdout
         assert "gaps 0" in proc.stdout, proc.stdout
 
     def test_manifest_json_is_the_same_object_the_audit_carries(self):
@@ -433,5 +451,5 @@ class TestTheCLI(object):
     def test_the_default_audit_leads_with_the_coverage_line(self):
         proc = self._run()
         assert proc.returncode == 0, proc.stderr[-600:]
-        assert proc.stdout.startswith("derived probe: universe 42, reached 34")
+        assert proc.stdout.startswith("derived probe: universe 48, reached 34")
         assert proc.stdout.rstrip().endswith("violations: 0")

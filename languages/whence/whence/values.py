@@ -652,9 +652,20 @@ class Builtin(object):
         self.is_gen = _inspect.isgeneratorfunction(fn)
 
     # v0.47 (round 482), decision 60. `arity` is an int, a (min, max)
-    # pair, or None for "any", and all three spellings appear in
-    # `_install_builtins`, so the repr renders each rather than printing
-    # the raw host tuple.
+    # pair, or None for "any", so the repr renders each rather than
+    # printing the raw host tuple.
+    #
+    # v0.49 (round 492), decision 63: this comment used to end "and all
+    # three spellings appear in `_install_builtins`". MEASURED over the
+    # live global scope, they do not — 33 int, 4 pair (`contrast`,
+    # `diverge`, `range`, `steps`), ZERO None. The `None` branch is
+    # reachable only by constructing a `Builtin` directly, which the
+    # `__slots__` comment above documents as legal and which
+    # `tests/test_v49.py` now does. Kept rather than deleted because
+    # "None for any" is part of this class's stated contract; corrected
+    # rather than left, because it is the third sentence found in this
+    # tree that asserts a table contains something it does not, and all
+    # three were written by the round that introduced the rule.
     def __repr__(self):
         a = self.arity
         if a is None:

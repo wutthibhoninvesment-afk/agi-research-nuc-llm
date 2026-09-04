@@ -22,13 +22,84 @@ Python utility; that part was always real.
 """
 
 
+from .values import _clip, _frame            # noqa: E402
+
+
 class TimeTravelDebugger:
     """Manages checkpoints and provides time-travel functionality."""
+
+    # v0.49 (round 492), decision 63. Before this the class inherited
+    # `object.__repr__` and printed
+    # `<whence.timetravel.TimeTravelDebugger object at 0x7f...>` — the
+    # EXACT string decision 58 was filed against, five rounds after the
+    # rule that outlawed it, in the one module `reprsweep.py`'s universe
+    # never contained. The universe was `ast_nodes` + `values` + `interp`,
+    # three of the package's seven modules, hand-listed; `package_classes()`
+    # now derives it from the package and this class is audited as a
+    # `CONSTRUCTED_SURFACE` (a caller builds it — the crawl cannot reach
+    # it from `run()`, and decision 60's reachability clause is a
+    # sufficient condition for being a surface, not a necessary one).
+    #
+    # Shape follows `Env`: name the KIND, a bounded head of the names with
+    # the count kept whole, and the escape hatch to the real data. A
+    # checkpoint name is caller text and is exactly as long as the caller
+    # types it, so it goes through `_clip` and the whole string through
+    # `_frame` -> `_cap`.
+    _REPR_NAMES = 4
+    _REPR_LISTING = 60
+
+    def __repr__(self):
+        names = list(self.creation_order)
+        shown = names[:self._REPR_NAMES]
+        listing = _clip(", ".join(shown), self._REPR_LISTING)
+        extra = len(names) - len(shown)
+        if extra > 0:
+            listing += ", ...%d more" % extra
+        return _frame(
+            "time-travel debugger: %d checkpoint%s%s — a HOST-side helper, "
+            "not a Whence language feature; .timeline() lists them and "
+            ".checkpoints holds them"
+            % (len(names), "" if len(names) == 1 else "s",
+               " (%s)" % listing if names else ""))
 
     def __init__(self):
         self.checkpoints = {}      # name -> {vars, order, timestamp}
         self.creation_order = []   # Maintain insertion order for timeline
         self._max_checkpoints = 100  # Prevent unbounded growth
+
+    # v0.49 (round 492), decision 63 — found while building a repr witness
+    # for this class the way a CALLER would build one, which is the first
+    # time anything in this program constructed it against a real `Env`.
+    # `snapshot` read the checkpoint name as
+    # `env.get('_last_snap_name', 'unnamed')`, and `whence.interp.Env.get`
+    # takes ONE argument: every call raised
+    # `TypeError: Env.get() takes 2 positional arguments but 3 were given`.
+    # All ELEVEN tests in `tests/test_timetravel.py` are green and every
+    # one of them passes a local `MockEnv`/`NamedEnv` whose `get` has a
+    # host-dict signature, so the suite never touched the only `Env` this
+    # package defines. A test double is a claim about the collaborator's
+    # interface, and this one was wrong about it.
+    @staticmethod
+    def _snap_name(env):
+        """The checkpoint name, from whatever kind of env this is.
+
+        `Env.vars` is a plain dict on the real class and on every double,
+        so it is tried first; a Whence binding arrives as a `Prov`, whose
+        `payload` is the string. The `get(key, default)` call is kept
+        second because two of the existing tests name their checkpoints
+        through a double that answers only there.
+        """
+        vars_ = getattr(env, "vars", None)
+        if isinstance(vars_, dict) and "_last_snap_name" in vars_:
+            val = vars_["_last_snap_name"]
+            return getattr(val, "payload", val)
+        getter = getattr(env, "get", None)
+        if getter is not None:
+            try:
+                return getter("_last_snap_name", "unnamed")
+            except TypeError:
+                pass
+        return "unnamed"
 
     def snapshot(self, env):
         """Take a named checkpoint of the current interpreter state.
@@ -44,7 +115,7 @@ class TimeTravelDebugger:
             del self.checkpoints[oldest]
             return f"snap({repr(oldest)}) ✓ [evicted due to max limit]"
 
-        name = env.get('_last_snap_name', 'unnamed')
+        name = self._snap_name(env)
         self.checkpoints[name] = {
             'vars': dict(env.vars),          # Shallow copy (values are immutable)
             'order': len(self.creation_order) + 1,

@@ -55,6 +55,14 @@ is green *because* the thing it guards grew and it did not.
   them make the value big, none makes the NAME big; all deepen the tree,
   none widens it. A "however large X is" claim checked on one axis is a
   claim about that axis.
+- **The derivation is complete and the SET IT RANGES OVER is a list** —
+  hand-picked modules, an `--include` of three directories. `gaps: 0`
+  means "0 gaps in the part I was pointed at" (round-492 section).
+- **Every witness is built out of ONE KIND of input** (all source files,
+  all rows), so an input arriving as a constructor argument or an env var
+  is not un-varied, it is unreachable by the harness's shape.
+- **You have never listed what actually reaches the output** — only the
+  nouns that produce it.
 
 **When NOT to use:** the check does not exist (write it); the check exists
 and nothing runs it (`unrun-checker-latency`); the rule is documented and
@@ -380,6 +388,17 @@ test rather than in a checker slot.
   three to four. Build a synthetic root with a controlled family; keep exactly
   one live-tree assertion, as the enforcement.
 
+## Round 492: the range of the derivation, and who sizes each input
+
+Three sub-shapes that survive a fully derived, both-directions-gated set.
+**(a)** What the derivation RANGES OVER is itself a list — compute
+`reached − universe` too. **(b)** Enumerate the INPUTS that reach the output
+and classify each by WHO SIZES IT (user TEXT / STRUCTURE / **the CALLING
+API** / CONSTANT / INTERNAL), one witness per author-sized family. **(c)**
+Replacing a source-regex gate needs TWO checks; print the count of cases
+where each passes without exercising anything. Full text and the pitfalls
+that made the deriver itself wrong: **`references/inputs-and-who-sizes-them.md`**.
+
 ## Verification
 
 Run these against your own instance; the numbers are the Whence round-392
@@ -424,6 +443,13 @@ python3 -m pytest -c pytest.ini -q tests/test_v48.py     # 65 passed
 python3 -m pytest -c pytest.ini -q tests/test_v48.py \
     -k "reverting_the_three_reprs or worst_instance"      # 2 passed
 
+# 6. round 492: inputs by who-sizes-them; universe widened to the package;
+#    two cap checks with their blind spots printed. All four exit 0.
+cd languages/whence && for f in --inputs --routing --caps --manifest; do
+    python3 reprsweep.py "$f" | tail -1; done  # embedding 2; unrouted 0;
+       # failing: 0 (11 vacuous); universe 48, reached 34, gaps 0
+python3 -m pytest -c pytest.ini -q tests/test_v49.py  # 48 passed, 2 blind_to
+
 # 5. round 482: the derived set is pinned as a SET, and the crawl that
 #    produces it reports whether it FINISHED
 cd languages/whence && .venv/bin/python reprsweep.py          # 19 classes, complete
@@ -456,7 +482,12 @@ You have done this when all of the following are true:
    it did. A traversal that hit its budget, or one that lost objects to
    `id()` reuse, returns a subset and every property you assert over it
    holds vacuously.
-9. **You asked who else reads the literal** before deriving it, and wrote
+9. **You named what the derivation RANGES OVER**, computed the other
+   direction, listed the INPUTS that reach the output with who sizes each
+   (keyed on expression text, one witness per author-sized family), and —
+   where you replaced a check — printed the count of cases where its
+   replacement passes without exercising anything.
+10. **You asked who else reads the literal** before deriving it, and wrote
    down the answer. If an analyser does, you derived the ORACLE and pinned
    the static property (round 477's section above), and you can state the
    measured cost of the alternative rather than the reason you avoided it.

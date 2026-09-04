@@ -167,7 +167,11 @@ class TestTheRule(object):
         optional."""
         res = reprsweep.seed_check()
         assert res["ok"], res
-        assert res["n_classes"] == len(PINNED_REACHED), res
+        # v0.49 (round 492), decision 63: `audit()["rows"]` now carries the
+        # CONSTRUCTED surfaces as well as the crawled ones — a class a
+        # caller builds is a surface even though the crawl cannot reach it.
+        assert res["n_classes"] == (len(PINNED_REACHED)
+                                    + len(reprsweep.CONSTRUCTED_SURFACES)), res
 
 
 class TestWhatEnumerationFound(object):

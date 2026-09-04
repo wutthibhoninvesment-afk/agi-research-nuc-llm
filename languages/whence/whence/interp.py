@@ -799,12 +799,32 @@ class Interpreter(object):
     # `interp` back-reference. Decision 58's `Env` repr ends by telling
     # the reader where the values are; this one ends by telling them where
     # the Env is, which is the same sentence taken one step upstream.
+    # v0.49 (round 492), decision 63: through `_cap`, like every other
+    # repr in this tree. This was the ONE reach of `reprsweep.py` whose
+    # delegate closure was empty, and it was empty for a reason nobody had
+    # looked for: its two inputs are `len(self.globals.vars)` and
+    # `self.max_depth`, and BOTH come from the embedding API rather than
+    # from any Whence program. `max_depth` is a public constructor
+    # argument interpolated with `%s`, so
+    # `repr(Interpreter(max_depth=10 ** 500))` was 645 characters against
+    # a `REPR_CAP` of 240. Every scale probe this implementation has ever
+    # run is a PROGRAM, and no program of any size moves either input —
+    # decision 62 derived the probe from three live tables and still could
+    # not have reached this axis, because all three describe the language
+    # and this input is not in the language.
+    #
+    # `_clip` as well as `_cap`, for decision 62's own reason: `_cap` alone
+    # left 240 characters of an author's 500-digit integer and cut away
+    # "the ENGINE, not a value or a scope; run(source) ..." — the sentence
+    # the repr exists to say. Same shape as `Prov`'s `detail`, one class
+    # over: `_cap` is the backstop, `_clip` is the design.
     def __repr__(self):
         n = len(self.globals.vars)
-        return ("<whence interpreter: %d builtin%s, max_depth %s — the "
-                "ENGINE, not a value or a scope; run(source) executes a "
-                "program and returns its top-level Env>"
-                % (n, "" if n == 1 else "s", self.max_depth))
+        return _cap("<whence interpreter: %d builtin%s, max_depth %s — the "
+                    "ENGINE, not a value or a scope; run(source) executes a "
+                    "program and returns its top-level Env>"
+                    % (n, "" if n == 1 else "s", _clip(str(self.max_depth))),
+                    ">")
 
     def run(self, source):
         """Parse and execute a program. Returns the top-level Env."""
