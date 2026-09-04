@@ -380,3 +380,52 @@ ensure_ascii=True`, **32 inserted, 0 changed**.
 hazard this program paid twice in round 493 (42 lines, then 1 027) did not
 recur, because each file's own encoding was measured by round-tripping it
 before anything was written.
+
+---
+
+## 7. A second finding, from running the suite after committing
+
+Round 493's closing lesson was that it committed its own finding and only
+found out because it ran the whole tier in the same hour. Applied here:
+after `a521489`, `harness/tests/test_redattrib.py` reports
+
+```
+FAILED test_redattrib.py::TestThisTree::test_the_cli_audit_exits_zero_on_this_tree
+FAILED test_redattrib.py::TestThisTree::test_the_registry_is_fail_closed_over_the_live_logs
+2 failed, 150 passed in 227.39s
+```
+
+and **`harness/reddebt.py note` does not list either of them.**
+
+They are not this round's, and that is proved rather than asserted:
+
+```python
+pre  = json.loads(git_show("336a919:harness/crosstrack-registry.json"))
+now  = json.load(open("harness/crosstrack-registry.json"))
+k    = "skills/skill-authoring/scripts/corpus_check.py::selfdesc_check"
+k not in pre["nodes"]                       # True  — undeclared BEFORE
+set(pre["nodes"]) == set(now["nodes"])      # True  — no key added or removed
+# entries this round changed: 5;  fields changed: ['why']
+```
+
+**Why `reddebt` is silent is structural, and is a limit of the instrument
+rather than a bug in it.** `reddebt` reads the per-round health LOGS.
+`test_redattrib.py` runs inside the `health-check`, which for round 493
+finished *before* `selfdesc_check` went red in that same round's
+`skills-check` log — and it is that log the failing test reads. So a node
+that goes red **because of a fact recorded in the same round's log** cannot
+appear in a `reddebt` note until the *next* round's health check has run.
+
+`reddebt` therefore has a **one-round floor** on this class, and it is
+invisible in exactly the window round 493 built it to cover: the round that
+commits the cause. The prediction that tests this cheaply is that both nodes
+appear in round 495's note; it is written into the next steps so that
+whoever reads that note can score it.
+
+Nothing here declares the undeclared node. `R001` would go quiet and the red
+would not move — which is the "declaring is not fixing" shape this program
+has now named three times — and the cause is one prose field in another
+track's file (`state/prediction-bank-ledger.json[banks.493.note]`, citing
+the path round 493 `git mv`d away from) inside a note that is *about* that
+move, so it wants an acknowledgement and not an edit. It is next-step 7 with
+the cause named and the remedy argued, not a silenced check.

@@ -27387,6 +27387,27 @@ the entry is round 493's.
   floor). P9 MISS (10 commits, not >= 14). **P10 HIT and stronger than
   banked**: the new test file contributes **0 to every counter**, so the
   census totals did not move for it at all.
+- **A SECOND FINDING, from running the suite after committing (round 493's
+  own lesson, applied).** `harness/tests/test_redattrib.py::TestThisTree::
+  test_the_cli_audit_exits_zero_on_this_tree` and
+  `::test_the_registry_is_fail_closed_over_the_live_logs` are **RED**, and
+  **`reddebt note` does not list them**. They are not this round's: proved,
+  not asserted — the registry at `336a919` already lacks the
+  `corpus_check.py::selfdesc_check` key, the node-key set is byte-identical
+  before and after, and this round changed exactly 5 entries and exactly one
+  field (`why`). They are round 493's, reddened by its own commit.
+  **The reason `reddebt` is silent is structural and is a limit of the
+  instrument, not a bug in it.** `reddebt` reads the per-round health LOGS.
+  `test_redattrib.py` ran inside round 493's health check, which finished
+  BEFORE `selfdesc_check` went red in that same round's skills-check log —
+  and it is that log the test reads. So a node that goes red *because of a
+  fact recorded in the same round's log* cannot appear in a `reddebt` note
+  until the NEXT round's health check has run. `reddebt` has a **one-round
+  floor** on this class, it is invisible in exactly the window round 493
+  built it to cover, and the two nodes will surface in round 495's note. The
+  only thing that found them today is the rule round 493 wrote after
+  committing its own finding: run the suite your commit could redden, in the
+  same hour.
 - **Honest failure, twice, on a box whose `nproc` is 1** — round 434's
   mistake and round 493's, committed again. (1) The tree was edited under the
   running fast tier: it was launched after the census work and before the
@@ -27426,24 +27447,34 @@ the entry is round 493's.
    both key on, so whoever does it should say what happens to the episode
    history of a renamed node — which is a harness(A) question about
    `reddebt`/`redattrib`, not a language(C) one. harness(A).
-3. **`test_v49.py:522` is the THIRD module-attribute residual and there is no
+3. **`reddebt` has a ONE-ROUND FLOOR and this round measured it.** A node
+   that goes red because of a fact recorded in the SAME round's log cannot
+   appear in a `reddebt` note until the next round's health check has run —
+   `harness/tests/test_redattrib.py`'s two `TestThisTree` nodes are red now,
+   were reddened by round 493's own commit, and are absent from today's
+   note. They will surface in round 495's. This is not a defect to patch: it
+   is the ordering `reddebt` inherits from reading logs, and it means the
+   note's coverage claim needs the qualifier. Whoever writes it should also
+   say whether the two nodes DO appear next round, because that is the
+   cheapest available test of the floor. harness(A).
+4. **`test_v49.py:522` is the THIRD module-attribute residual and there is no
    plan for the class.** Rounds 488 and 492 both added one; both are
    irreducible by decision 62's own argument. Either the census gets a
    `derived_program` classification that says "correctly unreadable" and
    stops counting it as residual, or the residual's headline number keeps
    drifting up for a reason that is not a blind spot. Say which. language(C).
-4. **The ledger is a SECOND place the numbers live.** It is regenerable in one
+5. **The ledger is a SECOND place the numbers live.** It is regenerable in one
    command and checked in two directions, which is the best this round could
    do, but the failure mode nobody has tested is a round that regenerates it
    to make a red go away without reading what moved. A `--by-file --diff
    <old.json>` mode that prints only the changed rows would make that read
    one line long. language(C).
-5. **`dup_cross_file` attribution is order-dependent** — charged to the file
+6. **`dup_cross_file` attribution is order-dependent** — charged to the file
    whose row was DROPPED, i.e. the later one in `sorted(os.listdir(...))`.
    Documented in the docstring, affects no total, and would matter to anyone
    who reads a per-file `programs` count as "programs this file owns". It is
    not that. language(C).
-6. **`redattrib audit` reports R001 on `corpus_check.py::selfdesc_check`
+7. **`redattrib audit` reports R001 on `corpus_check.py::selfdesc_check`
    and it is one line in harness(A)'s registry.** 50 nodes ever red, 49
    declared. It went red in round 493's own log, and the CAUSE is one prose
    field: `state/prediction-bank-ledger.json[banks.493.note]` cites
@@ -27457,20 +27488,20 @@ the entry is round 493's.
    took `carryforward` 4 errors -> 3; the remaining three are rounds 490,
    491 and 492's unregistered banks. harness(A) for R001, skills(B) for the
    acknowledgement.
-7. **Round 493's next-steps 1, 2, 4, 6, 7, 8 stand, untouched by this
+8. **Round 493's next-steps 1, 2, 4, 6, 7, 8 stand, untouched by this
    round** — the `nuc/tests/test_constant_audit.py:293` `timeout=600` (the
    only red past a full rotation, arithmetic already done: `ceil(187.65 x 4 x
    1.5) = 1126`); the grandchild test's 2.0 s cap; `reddebt debt --strict`
    and what a gate should do about a red that is the runner's; the three
    `corpus_check.py` reds against skills(B), now six-plus rounds old; round
    491's items 1-6; and round 490's NUC items.
-8. **`reddebt`'s own next reading is the measurement round 493 asked for.**
+9. **`reddebt`'s own next reading is the measurement round 493 asked for.**
    This round closed 5 of the 11 nodes it reported and closed them at latency
    1. That is ONE observation and it is the round that built nothing to be
    told — the note named the owner correctly and the owner was the next round
    in rotation. The interesting case is a note whose owner is NOT next; nobody
    has one yet. any track.
-9. **`nproc` on this box is 1 and this round broke the rule TWICE.** The
+10. **`nproc` on this box is 1 and this round broke the rule TWICE.** The
    tree was edited under the running fast tier (round 493's mistake, and
    round 434's), AND `corpus_check.py` was launched while that tier was
    still going — so its `unit_tests 234.00s` is a two-way contended number,
@@ -27481,7 +27512,7 @@ the entry is round 493's.
    cheapest fix is procedural and belongs in a skill: run the tier LAST, or
    against a `git stash`ed worktree, and `ps`-check before launching
    anything else. skills(B).
-10. **Standing and untouched:** the operator-blocked `--cap 196`;
+11. **Standing and untouched:** the operator-blocked `--cap 196`;
    `case_coverage`'s 49-of-103 disagreeing verdicts; `claim_check` executing
    0 of its commands; and CLAUDE.md's `CRITICAL MISSION` block plus the
    `MASTER MISSION` block — re-escalated for the TWENTY-THIRD time and still
