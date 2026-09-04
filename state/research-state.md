@@ -12,7 +12,22 @@ Workspace: ~/agi-research
   - **Recurring pattern this track exists to catch, confirmed across 15+ rounds now (144/152/153/157/159/161/163/164/167/168/169/170/173/176/177/179/180/182/184/188/192/194/197/198/204/210, each eventually fixed by a later round):** real, tested, uncommitted work with no knowledge file and no research-state entry, usually from the driver's outer round-timeout firing mid-round. Every reconciliation follows the same discipline: verify from a clean re-read, never trust a prior round's own narration, check `git log` directly. Round 213 backfilled two more instances of the narrower "ran, real git_committed=True commits exist, but no `### Round N —` heading" variant: round 198 (language C, a clean backfill — real commits + knowledge file already existed) and round 197 (SWE-loop D, whose own work left no surviving diff — the flake it was chasing was independently fixed a different way by round 209).
   - **Closed (round 243):** the `--distractors`/`--paired` suppression diagnostic, open and un-run since round 105, was finally run live twice — a real near-miss pair (`~/.hermes/skills/{autonomous-ai-agents/merge-reconciler,devops/kanban-orchestrator}`) staged against `session-inheritance-audit`'s `sia-concurrent` case (`ok`, 4/4 plain vs 4/4 staged, distractors never fired) and a positive-control near-duplicate paraphrase distractor staged against `sia-{near,mid,concurrent}` (also `ok`, but the distractor co-fired in 10/12 probes rather than suppressing — sonnet's native Skill selection isn't forced-exclusive). See `references/trigger-evaluation.md`'s "Controlled distractors" section and `knowledge/round-243-skills-distractors-paired-diagnostic-first-live-run.md`. Cross-track file-ownership convention (rounds 165/174/183/188/196/207/212) — flag other tracks' uncommitted/unattributed work, don't fix or delete it outside skills(B)'s own files; this includes the non-driver Hermes-gateway files in `languages/whence/` (round 172/198/201/207/212/213, unchanged since round 212).
   - Full round-by-round detail for rounds 3-195 lives in this file's own round log above and each round's `knowledge/round-{...}-skills-*.md`; rounds 1-174's round-log entries are further archived to `state/research-state-archive.md`. Trust those over re-deriving from this summary.
-- **Language (C):** **v0.49** (round 492 — decision 63: an audit derived
+- **Language (C):** **v0.50** (round 494 — decision 64: an assertion's SIZE
+  and an assertion's SHAPE may not share a test node, and a whole-tree total
+  is the wrong unit for a corpus. `tests/test_testcorpus_census.py` held
+  `assert len(rows) == 114` three lines above the class list that is the
+  only thing distinguishing "the corpus grew" from "something genuinely
+  unreadable arrived"; pytest stops at the first failing assert, so on all
+  six corpus additions since round 474 the shape assertion was never
+  evaluated. Round 492's `test_v49.py:522` added an ELEVENTH irreducible
+  residual row (`attribute`, `Interpreter().run(reprsweep.PROBE)`) and its
+  `ad7ff7f` shifted two pinned locations 129 -> 138 and 355 -> 373; both
+  went unseen for two rounds. `depthcensus.harvest_tests(by_file=True)` +
+  `state/whence/testcorpus-contributions.json` make the FILE the unit, so a
+  corpus addition is one regeneration instead of six re-guessed literals and
+  a compensating move goes red naming two files. `tests/
+  test_testcorpus_contributions.py` 13 passed; census 84 passed.
+  *Previously v0.49 (round 492 — decision 63: an audit derived
   from the LANGUAGE is silent about every input the language cannot reach.
   Decision 62's probe varied the three tokens a Whence PROGRAM can make
   arbitrarily long, and every probe this implementation has ever run IS a
@@ -23,7 +38,7 @@ Workspace: ~/agi-research
   an axis whose family says WHO sizes it: `text` and `structure` the author,
   `embedding` the host-code embedder, `constant`/`internal` neither.
   `Interpreter.__repr__` now routes through `values._cap`, the last repr in
-  the tree that did not. `tests/test_v49.py` 48 passed.
+  the tree that did not. `tests/test_v49.py` 48 passed.)*
   Landed by round 493, which also wrote this line — round 492 died at
   `--max-turns` before ground-rule step 4, and this line is the one
   `tests/test_v22.py::test_research_state_track_c_names_the_same_version_as_spec_md`
@@ -27283,6 +27298,196 @@ the entry is round 493's.
   Writing a rule down is not applying it, which is this round's finding one
   level up.
 - **Knowledge:** `knowledge/round-493-the-diagnosis-nobody-built-an-instrument-from.md`.
+
+### Round 494 — language(C) — 2026-09-04 — the assertion that was on the line after the one that always failed first
+
+- **ROUND 493's NEXT-STEP 3 ASKED THE NEXT READER OF `reddebt` TO SAY WHETHER
+  THE NOTE IS WHAT MADE THEM LOOK. IT IS.** `state/research-state.md` was read
+  first, as rule 1 requires, and its next-step 5 names these five nodes — but
+  the note is what put them in front of the round with an OWNER, an AGE, an
+  OPENER and a NEW/RECURRENT verdict before a file was opened, and `NEW —
+  first time this node has ever been red` is what made "reproduce it first"
+  cheap rather than a coin flip. **Latency from round 493's instrument to a
+  closed item: one round.** Round 493 closed at 3, rounds 491/492 not at all.
+- **THE FINDING: `harness/crosstrack-registry.json`'s declaration of these
+  five nodes is wrong in both halves, and re-deriving rather than quoting
+  found it.** It records "the counts moved by exactly one row each … This is
+  the 'your own artefacts are in the corpus' shape, **not a defect in the
+  census**". Harvesting `tests/` twice, once with only `test_v49.py`
+  symlinked out: `calls` **+4** (992 vs 988, so the call sum moved 1057 ->
+  **1061**, not by one), `nonconstant_programs` +1, `unresolved_args` +0,
+  `module_calls` +0, `stmt_node_args` +0, residual rows +1, **`building` +0**,
+  **`rest` 10 -> 11**. The one new row is `test_v49.py:522`, class
+  `attribute` — `Interpreter().run(reprsweep.PROBE)`, the THIRD instance of
+  round 488's irreducible module-attribute shape, and the one thing in the
+  delta the census exists to report.
+- **AND ITS ASSERTION NEVER RAN.** The eleven-class `rest` list sat three
+  lines below `assert len(rows) == 114` in the same function. pytest stops at
+  the first failing assert, so on **all six** corpus additions since round
+  474 the SIZE assertion shadowed the SHAPE assertion — the one the file's
+  own round-482 comment calls the signal, written three screens above the two
+  assertions that make it unenforceable. Every instance was reported by a
+  HUMAN reading the rows. Round 492 died at `--max-turns` and read nothing.
+- **The same shadow hid a second and sharper defect.** The location pin read
+  `[("test_v48.py", 129), ("test_v48.py", 355)]`; the live rows are at **138**
+  and **373**, moved by round 492's `ad7ff7f` editing `test_v48.py`. That pin
+  exists for exactly that event ("same classes, same locations, before and
+  after", round 476). **Neither assertion in the node had been evaluated
+  since round 488.** Found by WIDENING the pin to all eleven rows, not by
+  reading it — the pin named one file and could not see a row move in another.
+- **THE UNIT WAS WRONG TOO.** A whole-tree total moves on every corpus
+  addition (five red nodes, a hand-written paragraph and six re-guessed
+  literals, six times over; **22** `ROUND NNN:` paragraphs in one file) and is
+  **blind to composition** — one file gaining a residual row while another
+  loses one moves nothing. Not asserted:
+  `test_a_compensating_move_is_invisible_to_a_total_and_visible_to_the_ledger`
+  builds a synthetic A/B pair whose **nine** whole-tree counters and residual
+  class multiset are identical while `by_file` differs, and checks that both
+  files are named.
+- **Built: `depthcensus.harvest_tests(by_file=True)`** — the per-file
+  breakdown the loop has discarded since round 458, at no extra walk —
+  plus `is_building`, `file_contribution`, `contribution_totals`,
+  `check_contributions`, `contribution_report`, `contributions_path`,
+  `load_contributions` and the CLI `--by-file`. Path resolution goes through
+  `curecheck.AGI_ROOT`, imported lazily, reading nothing at import: both are
+  curecheck's own round-413 notes (five `__file__`-derived roots blocked every
+  mutation campaign; a `state/` read at import aborted COLLECTION).
+- **`state/whence/testcorpus-contributions.json`**, 70 rows, regenerated by
+  `python3 depthcensus.py --by-file --json <path>`. The census's totals are
+  its sums, so a corpus addition is ONE regeneration; an existing file's
+  contribution changing goes red naming the **file and the key**; and
+  `residual == ledger` is strictly stronger than round 474's `<= 114` ratchet,
+  which passed silently when round 470 LOST a row. Round 474's itemisation
+  rule is not weakened but enforced by something other than a person — the
+  ledger carries `residual`/`building`/`rest` per file.
+- **The gate.** `tests/test_testcorpus_contributions.py::test_the_shape_of_
+  the_residual_is_asserted_where_no_count_can_shadow_it` walks the census's
+  own AST and fails on any magnitude-vs-literal comparison inside the shape
+  node, with a sibling that asserts the node still EXISTS under that name so
+  a rename cannot silently green it.
+- **Every gate was seen RED before being trusted**: the AST gate against the
+  census as round 492 left it (`[(1410, 'len(rows) == 114'), (1411,
+  'len(building) == 104')]`); both its halves falsified synthetically; the
+  per-file check against a corrupted ledger (3 rows, `declared=0 live=1`); the
+  coverage check against a real file dropped into `tests/` (named the file AND
+  the regeneration command); the closure check (`assert 67 == 68`). Probe file
+  deleted, ledger restored from backup, both verified.
+- **Predictions 6 HIT / 4 MISS of 10**
+  (`state/whence/round-494/predictions.md`, banked `45e821f` before any
+  harvest over a modified tree, with six already-OBSERVED facts listed
+  separately so the scoring could not claim them). **P3 is the miss that IS
+  the finding**: I predicted the new row would be string-building because
+  five of the six previous additions were — a base rate quoted as a
+  mechanism, which is round 493's own P10 miss one round later from the other
+  direction. **P6 MISS is the one to read**: I predicted greening the five
+  nodes takes 6 literals; it takes **8** plus a class-list entry, because
+  greening the failing asserts makes two more asserts REACHABLE. I got the
+  shadowing wrong inside my own arithmetic about the shadowing. P7 MISS
+  (`programs` is 873, I banked [830, 860], anchored on the test's own 829
+  floor). P9 MISS (10 commits, not >= 14). **P10 HIT and stronger than
+  banked**: the new test file contributes **0 to every counter**, so the
+  census totals did not move for it at all.
+- **Honest failure, twice, on a box whose `nproc` is 1** — round 434's
+  mistake and round 493's, committed again. (1) The tree was edited under the
+  running fast tier: it was launched after the census work and before the
+  SPEC.md / research-state.md / registry edits, and
+  `test_v22.py::test_research_state_track_c_names_the_same_version_as_spec_md`
+  reads both of those at test time, so its pass cannot be attributed to
+  either state. **The settled-tree re-run is the number to quote: 196 passed
+  in 33.58 s** over `test_v22.py`, both census files, `test_depthcensus.py`
+  and `test_testcorpus_suite_census.py`, solo. (2) `corpus_check.py` was then
+  launched while the tier was STILL running, so its `unit_tests 234.00s` is a
+  two-way contended number and so is the tier's own **2841 passed, 3 skipped,
+  116 deselected in 637.90 s (exit 0)**. Both are reported as what they are.
+- **Not fixed, recorded:** the node is still named `..._is_seven_rows_in_
+  three_shapes` and guards ELEVEN rows in seven classes. It is cited by a
+  sibling's docstring and by `harness/crosstrack-registry.json`, and round 474
+  set the precedent for keeping a stale name so its citations land. A count in
+  a test's NAME is the same defect one level up as a count in its assertion.
+- **Also:** the five registry `why` fields corrected in place, appended rather
+  than rewritten, `indent=2` matched against the file's own encoding — **5
+  lines changed, 5 inserted** and no reformat, which is the hazard round 493
+  paid twice.
+- **Knowledge:** `knowledge/round-494-the-assertion-on-the-line-after.md`.
+
+## Next steps (as of round 494)
+
+1. **The AST shadow gate is ONE NODE DEEP.** `_count_asserts` is applied to
+   exactly one function, named by a constant. Every other shape assertion in
+   this tree is unswept — `test_polarity.py`'s registry lists,
+   `reprsweep.py`'s manifest tests, `test_testcorpus_suite_census.py` — and
+   the same shadow can exist in any of them. The sweep is cheap (one `ast`
+   walk per test file) and nothing here measured it. The honest first
+   question is not "fix them" but "how many test nodes in this tree put a
+   magnitude-vs-literal assert above a list-equality assert". language(C).
+2. **The stale test NAME was recorded, not fixed.** `..._is_seven_rows_in_
+   three_shapes` guards eleven rows. Renaming it moves a node id that
+   `harness/crosstrack-registry.json` and `harness/redattrib.py`'s history
+   both key on, so whoever does it should say what happens to the episode
+   history of a renamed node — which is a harness(A) question about
+   `reddebt`/`redattrib`, not a language(C) one. harness(A).
+3. **`test_v49.py:522` is the THIRD module-attribute residual and there is no
+   plan for the class.** Rounds 488 and 492 both added one; both are
+   irreducible by decision 62's own argument. Either the census gets a
+   `derived_program` classification that says "correctly unreadable" and
+   stops counting it as residual, or the residual's headline number keeps
+   drifting up for a reason that is not a blind spot. Say which. language(C).
+4. **The ledger is a SECOND place the numbers live.** It is regenerable in one
+   command and checked in two directions, which is the best this round could
+   do, but the failure mode nobody has tested is a round that regenerates it
+   to make a red go away without reading what moved. A `--by-file --diff
+   <old.json>` mode that prints only the changed rows would make that read
+   one line long. language(C).
+5. **`dup_cross_file` attribution is order-dependent** — charged to the file
+   whose row was DROPPED, i.e. the later one in `sorted(os.listdir(...))`.
+   Documented in the docstring, affects no total, and would matter to anyone
+   who reads a per-file `programs` count as "programs this file owns". It is
+   not that. language(C).
+6. **`redattrib audit` reports R001 on `corpus_check.py::selfdesc_check`
+   and it is one line in harness(A)'s registry.** 50 nodes ever red, 49
+   declared. It went red in round 493's own log, and the CAUSE is one prose
+   field: `state/prediction-bank-ledger.json[banks.493.note]` cites
+   `languages/whence/state/harness/round-493/predictions.md`, the path round
+   493 `git mv`d away from. That note is a note ABOUT the move, so editing it
+   erases the evidence — it wants an entry in the acknowledgement mechanism
+   `selfdesc-check` already reports against (`0 acknowledged` today), not a
+   rewrite. The same dangling path is one of `xref_check`'s two NEW
+   authoritative danglings; the other is CLAUDE.md's operator-owned
+   `knowledge/v1_roadmap_mission.txt`. Round 494 registered its OWN bank and
+   took `carryforward` 4 errors -> 3; the remaining three are rounds 490,
+   491 and 492's unregistered banks. harness(A) for R001, skills(B) for the
+   acknowledgement.
+7. **Round 493's next-steps 1, 2, 4, 6, 7, 8 stand, untouched by this
+   round** — the `nuc/tests/test_constant_audit.py:293` `timeout=600` (the
+   only red past a full rotation, arithmetic already done: `ceil(187.65 x 4 x
+   1.5) = 1126`); the grandchild test's 2.0 s cap; `reddebt debt --strict`
+   and what a gate should do about a red that is the runner's; the three
+   `corpus_check.py` reds against skills(B), now six-plus rounds old; round
+   491's items 1-6; and round 490's NUC items.
+8. **`reddebt`'s own next reading is the measurement round 493 asked for.**
+   This round closed 5 of the 11 nodes it reported and closed them at latency
+   1. That is ONE observation and it is the round that built nothing to be
+   told — the note named the owner correctly and the owner was the next round
+   in rotation. The interesting case is a note whose owner is NOT next; nobody
+   has one yet. any track.
+9. **`nproc` on this box is 1 and this round broke the rule TWICE.** The
+   tree was edited under the running fast tier (round 493's mistake, and
+   round 434's), AND `corpus_check.py` was launched while that tier was
+   still going — so its `unit_tests 234.00s` is a two-way contended number,
+   not a solo one, and must not be quoted as a runtime. The tier's own
+   637.90 s is contended by the same amount in the other direction. The
+   suite-vs-edit race is now the third consecutive round to record it, which
+   makes it a property of how rounds are worked rather than a slip. The
+   cheapest fix is procedural and belongs in a skill: run the tier LAST, or
+   against a `git stash`ed worktree, and `ps`-check before launching
+   anything else. skills(B).
+10. **Standing and untouched:** the operator-blocked `--cap 196`;
+   `case_coverage`'s 49-of-103 disagreeing verdicts; `claim_check` executing
+   0 of its commands; and CLAUDE.md's `CRITICAL MISSION` block plus the
+   `MASTER MISSION` block — re-escalated for the TWENTY-THIRD time and still
+   a deletion for the operator. `languages/whence/SECURITY.md` remains the
+   operator's decision; the checker's own line is the only source for its
+   carry count.
 
 ## Next steps (as of round 493)
 

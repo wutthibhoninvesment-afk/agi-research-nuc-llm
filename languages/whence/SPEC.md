@@ -1,6 +1,6 @@
 # Whence — a provenance-first language
 
-*Spec level: **v0.49** (round 492; heading first written by round 486). The
+*Spec level: **v0.50** (round 494; heading first written by round 486). The
 `## vN` sections below are the authoritative version list and each names the
 round that built it; this line deliberately no longer enumerates rounds,
 because the enumeration it replaced had said "v0.16.6 + v0.14.2" since round
@@ -1039,6 +1039,31 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    discarded cut) and `cap_response()` (behavioural, blind to a repr under
    the lowest cap — **11 of 64 subjects**, reported as `vacuous` rather
    than counted as passes). See § Decision 63.
+
+64. **An assertion's SIZE and an assertion's SHAPE may not share a test node,
+   and a whole-tree total is the wrong unit for either (v0.50, round 494).**
+   `tests/test_testcorpus_census.py` asserted five whole-tree totals. A
+   total has two properties that made it the wrong instrument: it moves on
+   EVERY corpus addition, so a round that adds a test file reddens five
+   nodes and a later round hand-writes a paragraph and re-guesses six
+   literals (rounds 474/476/480/482/488 wrote **22** such paragraphs); and
+   it is blind to COMPOSITION, so one file gaining a residual row while
+   another loses one moves nothing at all. Worse, the size assertion and
+   the shape assertion — the class list that is the only thing
+   distinguishing "the corpus grew" from "something genuinely unreadable
+   arrived" — were in the SAME function, size first. pytest stops at the
+   first failing assert, so on the six rounds it mattered the shape
+   assertion **was never evaluated**. Round 492 added an eleventh
+   irreducible residual row and shifted two pinned locations; the node
+   reported `115 != 114`, and both facts went unseen for two rounds. The
+   fix is structural in both directions: `state/whence/testcorpus-
+   contributions.json` makes the FILE the unit, so a corpus addition is one
+   declared row checked against the live harvest and a compensating move
+   goes red naming two files; and
+   `tests/test_testcorpus_contributions.py::test_the_shape_of_the_residual_
+   is_asserted_where_no_count_can_shadow_it` is an AST gate over the census's
+   own source that fails if a magnitude-vs-literal comparison is ever put
+   back into the shape node. See § Decision 64.
 
 ## Syntax (statements are newline-separated; `#` comments)
 ```
@@ -10649,6 +10674,91 @@ It does not make `S008` a live finding. It reports zero holes today and is
 kept as the negative control the family needs — the check that says the
 range is dense, rather than assuming it.
 
+
+## v0.50 (round 494, language C) — the assertion that was on the line after the one that always failed first
+
+Decision 64. Round 493's next-step 5 ("the five `test_testcorpus_census.py`
+reds are round 492's own artefacts in the corpus the census measures"), and
+the first item this program has closed because `harness/reddebt.py` — round
+493's new pre-round note — put it in front of the round that owned it.
+
+### Decision 64 (round 494, language C): size and shape may not share a node, and a total is the wrong unit for a corpus
+
+Round 493's `harness/crosstrack-registry.json` recorded the episode as:
+
+> "the counts moved by exactly one row each (115 <= 114, 68 == 67,
+> (992+47)+22 == 1057). This is the 'your own artefacts are in the corpus'
+> shape, not a defect in the census."
+
+Both halves are wrong, and re-deriving rather than quoting is what found it.
+Harvesting `tests/` twice — once whole, once with only `tests/test_v49.py`
+symlinked out — gives round 492's exact contribution: `calls` **+4** (992 vs
+988, so the call sum moved 1057 → 1061, not by one), `nonconstant_programs`
++1, `unresolved_args` +0, `module_calls` +0, `stmt_node_args` +0, residual
+rows +1, **building +0**, `rest` **10 → 11**.
+
+The single new row is `test_v49.py:522`, class `attribute` —
+`Interpreter().run(reprsweep.PROBE)`. That is the THIRD instance of the
+shape decision 62 named ("the program is a module attribute"), irreducible
+for decision 62's own reason: a probe GENERATED from three live tables has
+no literal form to fold to, and writing one would pin the derivation's
+output in a second place. It is the one thing in the whole delta the census
+exists to report.
+
+**And its assertion never ran.** The eleven-class `rest` list sat three
+lines below `assert len(rows) == 114` in the same function. pytest evaluates
+asserts in source order and stops at the first failure, so on every corpus
+addition since round 474 the SIZE assertion shadowed the SHAPE assertion —
+the one the file's own round-482 comment calls the signal ("the count below
+moves whenever the corpus grows, and the list below it moves only when
+something genuinely unreadable arrives"). All six instances were reported by
+hand, by whichever round happened to read the rows. Round 492 died at
+`--max-turns` and read nothing.
+
+The same shadow hid a second, sharper defect. The location pin below the
+class list read `[("test_v48.py", 129), ("test_v48.py", 355)]`; the live
+rows are at **138** and **373**, moved by round 492's `ad7ff7f` editing
+`test_v48.py`. That pin exists for exactly that event ("same classes, same
+locations, before and after", round 476) and could not report it. Neither
+assertion in the node had been evaluated since round 488.
+
+**The unit was wrong too.** A whole-tree total moves on every corpus
+addition — five red nodes, a hand-written paragraph, six re-guessed literals
+across five tests, six times over (rounds 474, 476, 480, 482, 488, 492 →
+494; 22 `ROUND NNN:` paragraphs in one file) — and is *blind to
+composition*: one file gaining a residual row while another loses one leaves
+every counter where it was.
+`test_a_compensating_move_is_invisible_to_a_total_and_visible_to_the_ledger`
+proves that is not hypothetical, with a synthetic pair whose nine whole-tree
+counters and residual class multiset are identical and whose composition is
+completely different.
+
+So `depthcensus.harvest_tests(by_file=True)` keeps the per-file breakdown
+the loop had been discarding since round 458 — it was already summing
+`harvest_file`'s counters and forgetting where each came from — and
+`state/whence/testcorpus-contributions.json` declares it, one row per file,
+regenerable with `python3 depthcensus.py --by-file --json <path>`. The
+census's totals are that ledger's sums. Adding a test file is now one
+regeneration; a change to an existing file's contribution goes red naming
+the **file and the key** rather than moving a total by an unattributable
+number; and `residual == ledger` is strictly stronger than round 474's
+`residual <= 114` ratchet, which passed silently when round 470 *lost* a row.
+
+The itemisation round 474 wanted is not weakened by this, it is enforced by
+something other than a person: the ledger carries `residual`, `building` and
+`rest` per file, so a total cannot rise without naming where.
+
+**What the gates cost, and what was falsified.** The AST gate was seen RED
+against the census as round 492 left it (`[(1410, 'len(rows) == 114'),
+(1411, 'len(building) == 104')]`) before the assertions were moved, and both
+halves are pinned — a synthetic function of the old shape fires it, and a
+list-equality plus a `> 0` positivity assertion do not. The ledger checks
+were falsified by corrupting one row (three named rows, `declared=0 live=1`)
+and by dropping a real file into `tests/` (`test file(s) in the tree with no
+ledger row … ['test_zz_r494_probe.py']`, naming the regeneration command).
+`tests/test_testcorpus_contributions.py` contributes **0** to every counter
+in the ledger it maintains — every Whence program in it is a whole-program
+literal, banked as a prediction before it was written.
 
 ## v0.49 (round 492, language C) — the axis that was not in the program
 

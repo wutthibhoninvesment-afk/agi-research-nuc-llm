@@ -215,6 +215,27 @@ def harvest():
 
 
 @pytest.fixture(scope="module")
+def ledger():
+    """ROUND 494. The whole-tree totals in sections 5 and 7 were LITERALS,
+    and a literal naming a property of the whole corpus is an edit every
+    round that adds a test file has to make. Rounds 474, 476, 480, 482, 488
+    and 492 each moved them; the 22 `ROUND NNN:` paragraphs in this file are
+    the record of that tax, and round 492 never paid it at all -- it died at
+    `--max-turns` and left five nodes red for round 494 to find through
+    `harness/reddebt.py`.
+
+    `state/whence/testcorpus-contributions.json` declares the same numbers
+    PER FILE. The totals below are its sums, so a corpus addition is one
+    regeneration (`python3 depthcensus.py --by-file --json <path>`) instead
+    of six re-guessed literals in five tests, and a change to an EXISTING
+    file's contribution -- which no total can see, because a total is blind
+    to a compensating move -- goes red naming that file.
+    `tests/test_testcorpus_contributions.py` owns the ledger-vs-tree check
+    and the synthetic pair that proves the blindness is real."""
+    return dc.contribution_totals(dc.load_contributions())
+
+
+@pytest.fixture(scope="module")
 def harvest_rows():
     """The same harvest with `keep_rows`. A separate fixture on purpose:
     `--json` dumps the stats dict, and 480-odd rows would change the shape of
@@ -416,7 +437,7 @@ def test_the_fold_is_capped_and_the_cap_is_counted():
 # ---------------------------------------------------------------------------
 
 def test_the_exclusions_are_counted_and_reconcile_with_the_old_call_count(
-        harvest):
+        harvest, ledger):
     """985 calls at round 458 = 918 + 45 module calls + 22 statement-node
     arguments. The exclusions are auditable arithmetic, not a silent
     narrowing of the walk.
@@ -450,10 +471,22 @@ def test_the_exclusions_are_counted_and_reconcile_with_the_old_call_count(
     # ROUND 488: 1041 -> 1057 and module_calls 46 -> 47, from
     # `tests/test_v48.py` (decision 62). `stmt_node_args` holds at 22 for
     # the fourth consecutive round. Same shape again.
-    assert stats["module_calls"] == 47
-    assert stats["stmt_node_args"] == 22
+    #
+    # ROUND 494: the three literals below (47, 22, 1057) are now the
+    # LEDGER's sums. The claim this test is named for is unchanged and is
+    # the reason it still exists: the exclusions are auditable ARITHMETIC,
+    # so the two exclusion counters and the total must close against an
+    # independently declared per-file breakdown, not against a number a
+    # round typed. Round 492's `tests/test_v49.py` moved the total 1057 ->
+    # 1061 -- by FOUR, not by the "exactly one row each" that
+    # `harness/crosstrack-registry.json` recorded, which is what re-deriving
+    # the carried claim rather than quoting it found.
+    assert stats["module_calls"] == ledger["module_calls"]
+    assert stats["stmt_node_args"] == ledger["stmt_node_args"]
     assert stats["calls"] + stats["module_calls"] + \
-        stats["stmt_node_args"] == 1057
+        stats["stmt_node_args"] == (ledger["calls"] +
+                                    ledger["module_calls"] +
+                                    ledger["stmt_node_args"])
 
 
 def test_the_exclusions_removed_no_programs_from_the_corpus(harvest):
@@ -470,7 +503,7 @@ def test_the_exclusions_removed_no_programs_from_the_corpus(harvest):
 
 
 def test_the_residual_fell_by_more_than_a_third_and_did_not_reach_zero(
-        harvest):
+        harvest, harvest_rows, ledger):
     """258 = 127 + 131 at round 458; both counters must stay POSITIVE.
     `"".join(parts)` over a loop-built list and `open(path).read()` over a
     runtime `listdir` are not statically foldable and saying so is the
@@ -542,10 +575,38 @@ def test_the_residual_fell_by_more_than_a_third_and_did_not_reach_zero(
     # corpus addition moved the `rest` set -- see
     # `test_the_residual_that_is_not_string_building_is_seven_rows_in_
     # three_shapes` for what they are and why they are irreducible.
-    assert residual <= 114, residual
+    #
+    # ROUND 494 REPLACES THE RATCHET WITH THE LEDGER, and keeps what the
+    # ratchet was for. Round 474's rule was "raise this bound only together
+    # with a row that says where the new residual is" -- the itemisation was
+    # enforced by a human writing the paragraph above. It is now enforced by
+    # `state/whence/testcorpus-contributions.json`, which carries `residual`,
+    # `building` and `rest` PER FILE: you cannot raise the total without
+    # saying which file it came from, and the equality below is strictly
+    # stronger than `<=` (a row LOST no longer passes silently, which is
+    # exactly the failure round 470 hit and round 474 had to detect by hand).
+    #
+    # Round 492's contribution, measured by harvesting `tests/` twice, once
+    # with only `test_v49.py` symlinked out: calls +4, nonconstant_programs
+    # +1, unresolved_args +0, module_calls +0, stmt_node_args +0, residual
+    # rows +1, building +0, `rest` 10 -> 11. The one row is
+    # `test_v49.py:522`, class `attribute` -- `Interpreter().run(
+    # reprsweep.PROBE)`, the THIRD instance of round 488's "the program is a
+    # module attribute". See the shape test below, whose class list is where
+    # that is asserted and which round 494 moved out of the count's way.
+    assert residual == ledger["residual"], residual
     assert residual < 258 * 2 // 3
     assert stats["unresolved_args"] > 0
     assert stats["nonconstant_programs"] > 0
+    #
+    # ROUND 494 MOVED THESE TWO HERE, out of the shape node three sections
+    # down, where they shadowed the class list on every corpus addition.
+    # This is where they belong: this node is the one that owns the
+    # residual's SIZE, and both are now the ledger's sums.
+    rows = [r for r in harvest_rows if r["kind"] == "residual"]
+    assert len(rows) == ledger["residual"], len(rows)
+    assert len([r for r in rows if dc.is_building(r["cls"])]) == \
+        ledger["building"]
 
 
 
@@ -1210,7 +1271,8 @@ def test_a_class_is_no_longer_earned_by_a_sibling_binding_of_the_same_name():
 # --- 7.5 the corpus, after ------------------------------------------------
 
 def test_the_corpus_grew_and_exactly_one_zip_row_survives(harvest,
-                                                          harvest_rows):
+                                                          harvest_rows,
+                                                          ledger):
     """Round 468: 765 programs, residual 114, of which 13 were zip rows.
     Round 470: "the zip rows are gone from the live tree".
 
@@ -1232,11 +1294,15 @@ def test_the_corpus_grew_and_exactly_one_zip_row_survives(harvest,
     _progs, stats = harvest
     assert stats["programs"] >= 829, stats["programs"]
     residual = stats["unresolved_args"] + stats["nonconstant_programs"]
-    # 101 r474 -> 106 r476 -> 107 r480 -> 109 r482 -> 114 r488; the new
-    # rows are itemised in
-    # `test_the_residual_fell_by_more_than_a_third_and_did_not_reach_zero`.
-    # The zip row's identity, which is what THIS test is about, is untouched.
-    assert residual <= 114, residual
+    # 101 r474 -> 106 r476 -> 107 r480 -> 109 r482 -> 114 r488 -> 115 r492;
+    # the new rows are itemised in
+    # `test_the_residual_fell_by_more_than_a_third_and_did_not_reach_zero`
+    # and, since round 494, per file in the ledger this reads. The zip row's
+    # identity, which is what THIS test is about, is untouched -- and note
+    # that this assertion has never been the point of this node: it was
+    # inherited noise that reddened the node on every corpus addition while
+    # the identity below stayed true throughout.
+    assert residual == ledger["residual"], residual
     zips = [r for r in harvest_rows
             if r["kind"] == "residual" and r["cls"].startswith("zip")]
     assert len(zips) == 1, [(r["file"], r["line"], r["cls"]) for r in zips]
@@ -1244,7 +1310,7 @@ def test_the_corpus_grew_and_exactly_one_zip_row_survives(harvest,
         ("test_v30.py", "zip_no_literal_column/zip_nonliteral_column"), zips[0]
 
 
-def test_the_widening_did_not_move_the_other_residual_half(harvest):
+def test_the_widening_did_not_move_the_other_residual_half(harvest, ledger):
     """`nonconstant_programs` is the half a zip row cannot be in --
     `_unresolved_class` is consulted only for a bare NAME. It was 58 at
     round 468 and a change to it would mean this round did something it did
@@ -1278,7 +1344,14 @@ def test_the_widening_did_not_move_the_other_residual_half(harvest):
     # regression: decision 62's whole subject is a probe program that is
     # GENERATED from three live tables, so the argument to `run` is a
     # module attribute by construction and no folder can ever read it.
-    assert stats["nonconstant_programs"] == 67, stats["nonconstant_programs"]
+    #
+    # ROUND 494: 67 -> 68, one row, `test_v49.py:522` -- and it is the SAME
+    # class as round 488's pair (`attribute` / the program is a module
+    # attribute), not a new one. The literal is now the ledger's sum; the
+    # claim ("a change to this counter would mean the round did something it
+    # did not intend") is unchanged, and is now answerable per file.
+    assert stats["nonconstant_programs"] == ledger["nonconstant_programs"], \
+        stats["nonconstant_programs"]
 
 
 # --- 7.6 a class that outlived its own fix ---------------------------------
@@ -1366,8 +1439,7 @@ def test_the_residual_that_is_not_string_building_is_seven_rows_in_three_shapes(
     # construct, it would have landed in `rest` and the list would have
     # failed instead.
     rows = [r for r in harvest_rows if r["kind"] == "residual"]
-    building = [r for r in rows
-                if "binop:" in r["cls"] or ".join" in r["cls"]]
+    building = [r for r in rows if dc.is_building(r["cls"])]
     rest = [r for r in rows if r not in building]
     #
     # ROUND 480: 106 -> 107 rows and 98 -> 99 building, the single row being
@@ -1407,9 +1479,49 @@ def test_the_residual_that_is_not_string_building_is_seven_rows_in_three_shapes(
     # here: "the program is a module attribute" is a second, and unlike
     # parametrize it is not waiting on a widening either -- a derived
     # program has no literal form to fold to.
-    assert len(rows) == 114, len(rows)
-    assert len(building) == 104, len(building)
+    # =====================================================================
+    # ROUND 494 REMOVED TWO ASSERTIONS FROM THIS NODE AND THAT IS THE ROUND'S
+    # WHOLE FINDING.
+    # =====================================================================
+    # `assert len(rows) == 114` and `assert len(building) == 104` used to
+    # stand HERE, immediately above the class list. pytest evaluates asserts
+    # in source order and stops at the first failure, so on every round that
+    # added a test file the SIZE assertion fired and the SHAPE assertion --
+    # the only thing in this file that distinguishes "the corpus grew" from
+    # "something genuinely unreadable arrived" -- was never evaluated at all.
+    # Round 482's own comment three screens up says the size count "moves
+    # whenever the corpus grows" and the list below it "moves only when
+    # something genuinely unreadable arrives". They were in the same node,
+    # in that order, for six corpus additions.
+    #
+    # It cost this round's subject exactly that. Round 492 added
+    # `tests/test_v49.py`; `rest` went from TEN rows to ELEVEN with a new
+    # `attribute` at `test_v49.py:522`; the node reported `115 != 114` and
+    # said nothing about the class list, and `harness/crosstrack-registry
+    # .json` recorded the whole episode as "counts moved by exactly one row
+    # each ... not a defect in the census". The call sum had moved by four
+    # and the census had a defect.
+    #
+    # The two counts now live in
+    # `test_the_residual_fell_by_more_than_a_third_and_did_not_reach_zero`
+    # and in the ledger, where they are per-file and derived.
+    # `tests/test_testcorpus_contributions.py::test_the_shape_of_the_
+    # residual_is_asserted_where_no_count_can_shadow_it` is a structural
+    # gate over this function's AST that fails if a magnitude-vs-literal
+    # comparison is ever put back into it, with both halves falsified.
+    #
+    # ROUND 494's ROW, itemised as round 474's rule requires:
+    #
+    #     test_v49.py:522  attribute  `Interpreter().run(reprsweep.PROBE)`
+    #
+    # THIRD instance of round 488's shape and irreducible for round 488's
+    # reason: decision 62's probe is GENERATED from three live tables so
+    # that a class added to the language is audited the round it becomes
+    # reachable, and a derived program has no literal form to fold to.
+    # Writing it out as a literal would pin the derivation's OUTPUT in a
+    # second place -- which is the thing decision 62 removed.
     assert sorted(r["cls"] for r in rest) == [
+        "attribute",
         "attribute",
         "bound_nonconstant:attribute",
         "bound_nonconstant:call:build_cases",
@@ -1421,9 +1533,35 @@ def test_the_residual_that_is_not_string_building_is_seven_rows_in_three_shapes(
         "bound_nonconstant:subscript",
         "zip_no_literal_column/zip_nonliteral_column",
     ], sorted(r["cls"] for r in rest)
-    assert sorted((r["file"], r["line"]) for r in rest
-                  if r["file"] == "test_v48.py") == [
-        ("test_v48.py", 129), ("test_v48.py", 355)]
+    # =====================================================================
+    # THE LOCATION PIN WAS STALE TOO, AND BY A DIFFERENT ROUND'S EDIT.
+    # =====================================================================
+    # It read `[("test_v48.py", 129), ("test_v48.py", 355)]` and the live
+    # rows are at 138 and 373: round 492's `ad7ff7f` edited `test_v48.py`
+    # and shifted both. That is a SECOND instance of the shadowing above and
+    # a sharper one -- this pin exists for exactly the event that moved it
+    # ("same eight classes, same eight locations, before and after", round
+    # 476), it was wrong for the whole of rounds 492 and 493, and it could
+    # not report so because `assert len(rows) == 114` ran first. Neither
+    # assertion in this node had been evaluated since round 488.
+    #
+    # It now covers ALL of `rest`, not just the newest file's two rows. A
+    # pin that names one file cannot notice a row that moves in another,
+    # and this round found the stale entry by widening it rather than by
+    # reading it.
+    assert sorted((r["file"], r["line"]) for r in rest) == [
+        ("test_miss_message_differential.py", 574),
+        ("test_v27.py", 175),
+        ("test_v27.py", 364),
+        ("test_v27.py", 376),
+        ("test_v27.py", 379),
+        ("test_v29.py", 375),
+        ("test_v29.py", 505),
+        ("test_v30.py", 307),
+        ("test_v48.py", 138),
+        ("test_v48.py", 373),
+        ("test_v49.py", 522),
+    ], sorted((r["file"], r["line"]) for r in rest)
 
 
 # --- 7.7 what resolving a name COSTS, when the name has two bindings -------

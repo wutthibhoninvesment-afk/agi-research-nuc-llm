@@ -2983,5 +2983,37 @@
   ],
   "prompt": "We have a schema-consistency script in the repo that I just ran by hand and it reports eleven violations. As far as I can tell nothing has ever run it automatically -- it's not in CI and there's no cron for it. Where do I start?",
   "note": "round 493: DISCRIMINATING NEGATIVE for finding-must-reach-an-actor. Here the RUN is missing, not the route; that is unrun-checker-latency, whose own 'When NOT to use' points back the other way. finding-must-reach-an-actor explicitly defers to it and says to build the runner first."
+ },
+ {
+  "id": "sanr-bump-the-count-again",
+  "expect": [
+   "shadowed-assertion-never-runs"
+  ],
+  "prompt": "Every release someone edits the same test to change `assert len(rows) == 114` to the new number. The test is called test_the_residual_is_the_shape_we_expect and there's a big pinned list of classes right underneath the count. I'm about to bump it to 115 -- anything I should check first?",
+  "note": "round 494: yes -- the list underneath has not been evaluated on any release where the count moved, because the runner stops at the first failing assert. Run the shadowed assertion alone before bumping; over six such bumps in this program one pinned coordinate had gone stale and one list had acquired a genuinely new entry, and neither was reported."
+ },
+ {
+  "id": "sanr-fixed-it-and-it-still-fails",
+  "expect": [
+   "shadowed-assertion-never-runs"
+  ],
+  "prompt": "I fixed the failing count in a test and now the SAME test fails on a completely different assertion further down -- a list of file:line pins that don't match any more. Did my change break it?",
+  "note": "round 494: no -- that second failure is latent, not new. It has existed for as long as the count failure did, and the pins went stale from edits in OTHER files. Split the count out of the node so the two report independently, then gate the split with an AST check."
+ },
+ {
+  "id": "sanr-invariant-comment-nobody-has-seen-fail",
+  "expect": [
+   "shadowed-assertion-never-runs"
+  ],
+  "prompt": "Our census test has a comment saying 'same eight classes, same eight locations, before and after' and I can't find anyone who has ever seen that assertion fail. It sits below a total that changes on basically every PR. Is the comment just wrong?",
+  "note": "round 494: the comment is right and unenforceable. A signal assertion below a noisy one is dark on exactly the events it was written for. Move the noise into its own node, derive the noisy number from a per-item ledger so it stops being noise, and add a structural gate over the suite's own AST -- prose in a comment is what failed here for six rounds."
+ },
+ {
+  "id": "sanr-neg-ratchet-only-ever-falls",
+  "expect": [
+   "ratchet-needs-a-conservation-invariant"
+  ],
+  "prompt": "We have `assert warnings <= 3` in CI. It's been lowered from 12 to 8 to 3 over a year and never raised. It's the only assertion in that test. How much is it actually protecting?",
+  "note": "round 494: DISCRIMINATING NEGATIVE for shadowed-assertion-never-runs. There is only ONE assertion in the node, so nothing is being shadowed; the problem is that a one-way bound cannot tell a fix from a suppression. That is ratchet-needs-a-conservation-invariant."
  }
 ]

@@ -2469,7 +2469,169 @@ def _is_program(src):
     return bool(getattr(prog, "stmts", None))
 
 
-def harvest_tests(directory=None, keep_rows=False):
+# --------------------------------------------------------------------------
+# Round 494 (language C), v0.50, decision 64: the per-file contribution
+# ledger.
+#
+# WHY IT EXISTS. Five nodes in `tests/test_testcorpus_census.py` assert
+# whole-tree TOTALS -- `calls + module_calls + stmt_node_args == 1057`,
+# `residual <= 114`, `nonconstant_programs == 67`, `len(rows) == 114`,
+# `len(building) == 104`. A total has two properties that made this file's
+# maintenance a per-round tax and its signal unreadable:
+#
+#   1. It moves on EVERY corpus addition, so a round that adds a test file
+#      reddens all five, and a later round hand-writes a new paragraph and a
+#      new number. Rounds 470/474/476/480/482/488 wrote 22 such paragraphs;
+#      round 492 opened the seventh instance and round 494 is paying it.
+#   2. It is BLIND TO COMPOSITION. One file gaining a residual row while
+#      another loses one leaves every total where it was. Nothing in this
+#      module could see that, because the sum was the only unit.
+#
+# The ledger makes the FILE the unit. Adding a test file is then a one-row
+# declaration whose numbers are checked, instead of a whole-tree number that
+# has to be re-guessed; and a compensating move goes red naming the two
+# files, which `test_a_compensating_move_is_invisible_to_a_total` proves is
+# not hypothetical.
+#
+# The counters are exactly the ones the census asserts on, plus the two that
+# close `programs` (`rows` and `dup_cross_file`). Nothing derived is stored
+# that is not also independently summable -- `residual` must equal
+# `unresolved_args + nonconstant_programs` and `building + rest` must equal
+# `residual`, and `check_contributions` verifies both per file rather than
+# trusting the writer.
+def contributions_path():
+    """`state/whence/testcorpus-contributions.json`, resolved LAZILY and
+    through `curecheck.AGI_ROOT`.
+
+    Two pitfalls this repo has already paid for, both avoided deliberately:
+
+      * `curecheck`'s round-413 note names "five `__file__`-derived roots,
+        none of them consulting `AGI_RESEARCH_ROOT`" as the accident that
+        blocked every Whence mutation campaign at the door. Minting a sixth
+        here would be the same mistake, so the root comes from the one
+        module that owns it. The import is inside the function because an
+        instrument should not acquire a module-level dependency on a
+        checker.
+      * The same note records that reading a `state/` file at IMPORT time
+        aborted COLLECTION of the whole suite with `FileNotFoundError`.
+        Nothing here reads at import; `load_contributions` is called from
+        inside test bodies, so a missing ledger fails ONE node."""
+    import curecheck                                   # noqa: PLC0415
+    return os.path.join(curecheck.AGI_ROOT, "state", "whence",
+                        "testcorpus-contributions.json")
+
+
+def load_contributions(path=None):
+    """The declared ledger's `files` map. Raises if it is absent -- an
+    instrument that silently answers about an empty ledger would report
+    every file as EXTRA and read as "the corpus is gone"."""
+    path = contributions_path() if path is None else path
+    with open(path, encoding="utf-8") as fh:
+        return json.load(fh)["files"]
+
+
+CONTRIBUTION_KEYS = ("calls", "module_calls", "stmt_node_args",
+                     "unresolved_args", "nonconstant_programs",
+                     "forwarded_args", "rows", "dup_cross_file",
+                     "programs", "residual", "building", "rest")
+
+
+def is_building(cls):
+    """A residual row is STRING-BUILDING when the construct that defeated
+    the folder is concatenation or a join. Round 468's reading of the
+    residual ("what is left really is string-building over runtime values")
+    is this predicate, which lived as an inline comprehension inside one
+    test until round 494 needed it in two places. Kept as one function so
+    the ledger and the census cannot disagree about what `building` means."""
+    return "binop:" in cls or ".join" in cls
+
+
+def file_contribution(rows, s, dropped):
+    """One file's row in the ledger. `rows` and `s` are `harvest_file`'s
+    return; `dropped` is how many of this file's programs the CROSS-FILE
+    dedup discarded, which only `harvest_tests` knows."""
+    resid = [r for r in s["rows"] if r["kind"] == "residual"]
+    building = [r for r in resid if is_building(r["cls"])]
+    return {"calls": s["calls"],
+            "module_calls": s["module_calls"],
+            "stmt_node_args": s["stmt_node_args"],
+            "unresolved_args": s["unresolved_args"],
+            "nonconstant_programs": s["nonconstant_programs"],
+            "forwarded_args": s["forwarded_args"],
+            "rows": len(rows),
+            "dup_cross_file": dropped,
+            "programs": len(rows) - dropped,
+            "residual": len(resid),
+            "building": len(building),
+            "rest": len(resid) - len(building)}
+
+
+def contribution_totals(by_file):
+    """Sum a ledger. The census's totals are THIS, not a number somebody
+    typed: `sum_of(ledger) == live total` is the closure check, and it is
+    what lets a corpus addition be a one-row edit."""
+    out = dict((k, 0) for k in CONTRIBUTION_KEYS)
+    for row in by_file.values():
+        for k in CONTRIBUTION_KEYS:
+            out[k] += row.get(k, 0)
+    return out
+
+
+def check_contributions(declared, live):
+    """Compare a declared ledger against a live `stats["by_file"]`.
+
+    Returns a list of (file, key, declared, live) tuples, EMPTY when they
+    agree. A missing file reports `declared` None and an extra one reports
+    `live` None, so "somebody added a test file" and "somebody changed an
+    existing file's contribution" are different rows rather than one number
+    moving -- which is the whole point of the ledger and the exact
+    distinction five census nodes could not draw.
+
+    Also checks each row's two internal identities (`residual ==
+    unresolved_args + nonconstant_programs`, `residual == building + rest`)
+    against the LIVE side, reported under the pseudo-keys
+    `residual!=unresolved+nonconstant` and `residual!=building+rest`. A
+    ledger that can only be compared to itself proves nothing."""
+    bad = []
+    for f in sorted(set(declared) | set(live)):
+        d, l = declared.get(f), live.get(f)
+        if d is None or l is None:
+            bad.append((f, "*", d and dict(d), l and dict(l)))
+            continue
+        for k in CONTRIBUTION_KEYS:
+            if d.get(k) != l.get(k):
+                bad.append((f, k, d.get(k), l.get(k)))
+        if l["residual"] != l["unresolved_args"] + l["nonconstant_programs"]:
+            bad.append((f, "residual!=unresolved+nonconstant",
+                        None, l["residual"]))
+        if l["residual"] != l["building"] + l["rest"]:
+            bad.append((f, "residual!=building+rest", None, l["residual"]))
+    return bad
+
+
+def contribution_report(by_file, only_nonzero=True):
+    """The `--by-file` table. Files that contribute nothing to any counter
+    are hidden by default: 69 files, of which most contribute a handful of
+    calls and no residual at all, and a table nobody can scan is a table
+    nobody reads (round 458's own lesson about the coverage line)."""
+    keys = CONTRIBUTION_KEYS
+    out = ["%-44s %s" % ("file", " ".join("%7s" % k[:7] for k in keys))]
+    shown = 0
+    for f in sorted(by_file):
+        row = by_file[f]
+        if only_nonzero and not any(row.get(k) for k in keys):
+            continue
+        shown += 1
+        out.append("%-44s %s" % (f, " ".join("%7d" % row.get(k, 0)
+                                             for k in keys)))
+    tot = contribution_totals(by_file)
+    out.append("%-44s %s" % ("TOTAL (%d file(s), %d shown)"
+                             % (len(by_file), shown),
+                             " ".join("%7d" % tot[k] for k in keys)))
+    return "\n".join(out) + "\n"
+
+
+def harvest_tests(directory=None, keep_rows=False, by_file=False):
     """(programs, stats) over every `tests/test_*.py`. Programs are
     deduplicated on (source, max_depth) ACROSS files: the same one-liner
     appears in several version files and censusing it twice would inflate
@@ -2478,7 +2640,28 @@ def harvest_tests(directory=None, keep_rows=False):
     `keep_rows` (round 468) carries `harvest_file`'s per-entry rows up into
     `stats["rows"]`. OFF by default and on purpose: `--json` dumps this dict
     and 400-odd rows would change the shape of every artefact already on
-    disk. `--residual` turns it on."""
+    disk. `--residual` turns it on.
+
+    `by_file` (round 494) keeps the per-file breakdown this loop has been
+    throwing away since round 458. Every counter here is a SUM over
+    `harvest_file`; the loop adds each file's contribution into a total and
+    then forgets which file it came from, so the only unit the census could
+    ever assert on was the whole tree. That is a real blind spot and not a
+    cosmetic one: a total is unchanged by a COMPENSATING move — one file
+    gaining a residual row while another loses one — and
+    `tests/test_testcorpus_contributions.py` demonstrates exactly that
+    against a synthetic pair. It is also why five census nodes go red on
+    every corpus addition and have to be hand-bumped by a later round
+    (rounds 474, 476, 480, 482, 488, and 492 -> 494): the quantity the
+    assertion names is the whole tree, so the only edit that greens it is
+    a new whole-tree number.
+
+    `stats["by_file"]` is `{basename: {counter: n}}`. `dup_cross_file` is
+    attributed to the file whose row was DROPPED, which is order-dependent
+    (`sorted(os.listdir(...))`) and stated here rather than left to be
+    discovered. `residual`/`building`/`rest` are derived from
+    `harvest_file`'s rows, which it returns whether or not `keep_rows` is
+    set, so `by_file` costs no extra walk."""
     directory = TESTS if directory is None else directory
     stats = {"files": 0, "calls": 0, "unresolved_args": 0,
              "forwarded_args": 0, "nonconstant_programs": 0,
@@ -2492,6 +2675,8 @@ def harvest_tests(directory=None, keep_rows=False):
              "parse_only_distinct": 0}
     if keep_rows:
         stats["rows"] = []
+    if by_file:
+        stats["by_file"] = {}
     progs = []
     seen = set()
     po_all = set()
@@ -2514,13 +2699,17 @@ def harvest_tests(directory=None, keep_rows=False):
         stats["parse_only_runners"] += (len(s["runners"]) -
                                         len(s["executing_runners"]))
         stats["programs_before_dedup"] += len(rows)
+        dropped = 0
         for r in rows:
             key = (r["src"], r["max_depth"])
             if key in seen:
                 stats["dup_cross_file"] += 1
+                dropped += 1
                 continue
             seen.add(key)
             progs.append(r)
+        if by_file:
+            stats["by_file"][f] = file_contribution(rows, s, dropped)
     stats["programs"] = len(progs)
     stats["parse_only_distinct"] = len(po_all)
     stats["parse_only_programs"] = sum(1 for x in po_all if _is_program(x))
@@ -2808,13 +2997,30 @@ def residual_report(rows, limit=None):
     return "\n".join(out)
 
 
-def _main_tests(mode, limit, alloc, max_nodes, out_json, residual=False):
+def _main_tests(mode, limit, alloc, max_nodes, out_json, residual=False,
+                by_file=False):
     """`--tests` : harvest `tests/`, then census what was harvested.
 
     Prints the residual FIRST and unconditionally. An instrument whose
     coverage line is below a hundred rows of output is an instrument whose
     coverage nobody reads."""
-    progs, stats = harvest_tests(keep_rows=residual)
+    progs, stats = harvest_tests(keep_rows=residual, by_file=by_file)
+    if by_file:
+        # Round 494. `--by-file` is a HARVEST report, so it returns before
+        # the census runs: the ledger it regenerates is about which file
+        # contributed what to the corpus, and running 873 programs through
+        # the interpreter to answer that would be a several-minute answer
+        # to a twenty-second question.
+        print(contribution_report(stats["by_file"]))
+        if out_json:
+            with open(out_json, "w", encoding="utf-8") as fh:
+                json.dump({"_generated_by":
+                           "python3 depthcensus.py --tests --by-file "
+                           "--json <path>",
+                           "files": stats["by_file"]},
+                          fh, indent=1, sort_keys=True)
+                fh.write("\n")
+        return 0
     sys.stderr.write(harvest_report(stats))
     if residual:
         rows = stats.pop("rows")
@@ -2855,6 +3061,7 @@ def main(argv):
     paths = None
     tests_mode = None
     residual = False
+    by_file = False
     limit = None
     max_nodes = DEFAULT_MAX_NODES
     i = 0
@@ -2880,6 +3087,14 @@ def main(argv):
         if a == "--harvest-only":
             tests_mode = tests_mode or "suite"
             limit = 0
+            i += 1
+            continue
+        if a == "--by-file":
+            # Round 494. Implies `--tests`: the ledger is a property of the
+            # test corpus and of nothing else, so requiring both flags would
+            # only create a way to spell it wrong.
+            tests_mode = tests_mode or "suite"
+            by_file = True
             i += 1
             continue
         if a == "--residual":
@@ -2910,14 +3125,14 @@ def main(argv):
             sys.stderr.write("usage: depthcensus.py [--roots all|env] "
                              "[--no-alloc] [--program NAME] [--max-nodes N] "
                              "[--tests suite|default] [--limit N] "
-                             "[--harvest-only] [--residual] "
+                             "[--harvest-only] [--residual] [--by-file] "
                              "[--json OUT]\n")
             return 2
         continue
 
     if tests_mode is not None:
         return _main_tests(tests_mode, limit, alloc, max_nodes, out_json,
-                           residual)
+                           residual, by_file)
 
     rows = census(paths, roots, max_nodes,
                   progress=lambda p: sys.stderr.write(
