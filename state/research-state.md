@@ -27199,6 +27199,21 @@ for round 479. Whoever adjudicates it should either register it in
   (`nsr-neg-one-snapshot`) in `skills/trigger-cases.json`; registered unprobed
   in `state/known-unprobed-skills.json` with an owner and a scorable
   prediction rather than a by-reading sibling guess (round 405's rule).
+- **The round's own final check caught two defects in the round's own CLI.**
+  The last command run was the one this round's SKILL.md, next-steps and
+  missions addendum all document — `record_union.py sar --captures
+  'state/nuc-capture-r*' --strict`. (a) The CLI did not glob (`fossil_ledger`
+  does), so every documented invocation read ZERO captures. (b) `--strict`
+  therefore exited **0**: zero captures read -> zero sections -> zero
+  conflicts, and the gate tested conflicts only. **A gate that passes on an
+  input it never read is worse than one that fails**; `frame --strict` at
+  least exited 1, because it asks for a gain. Fixed with `expand_captures`
+  and `_sar_strict_fails`; three new falsifiers, all killed first pass —
+  **32 mutations, 32 killed** for the round. And the live-corpus test carried
+  the SAME `n_captures_unusable == 5` pin already fixed in
+  `test_fossil_ledger.py` an hour earlier: fixing an instance is not fixing
+  the class, and the second instance was in code written after diagnosing the
+  first.
 - **Predictions 13 HIT / 1 MISS / 2 OPEN-KEPT of 15**
   (`nuc/predictions-e-round490.md`, banked `a0f244d` before measuring). The
   miss is P5 and it is round 484's shape again: one prior observation

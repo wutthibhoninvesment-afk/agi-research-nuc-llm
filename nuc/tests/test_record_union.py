@@ -383,6 +383,41 @@ def test_cli_frame_strict_exits_1_when_the_union_buys_nothing(tmp_path):
     assert json.loads(p.stdout)["gain_over_best_single"] == 0
 
 
+def test_the_cli_expands_a_quoted_glob(tmp_path):
+    """Round 490 shipped this module documenting `--captures
+    'state/nuc-capture-r*'` in its own SKILL.md, its own next-steps and its
+    own missions addendum, and the CLI did not glob. The quoted pattern
+    reaches the process as one literal path."""
+    capture(tmp_path, "cap-a", [("SAR_W_SA01", sar_day(["00:00:01"]))])
+    capture(tmp_path, "cap-b", [("SAR_W_SA02", sar_day(
+        ["00:00:01"], banner=BANNER.replace("09/01", "09/02")))])
+    assert len(ru.expand_captures([str(tmp_path / "cap-*")])) == 2
+    p = cli("sar", "--captures", str(tmp_path / "cap-*"), "--strict")
+    assert p.returncode == 0
+    assert json.loads(p.stdout)["n_captures_read"] == 2
+
+
+def test_a_pattern_that_matches_nothing_is_passed_through_and_named(tmp_path):
+    """`fossil_ledger`'s choice, kept: a glob with no hits must reach the
+    report as an unusable input, not vanish."""
+    out = ru.expand_captures([str(tmp_path / "nope-*")])
+    assert out == [str(tmp_path / "nope-*")]
+    _, rep = ru.union_sar(out)
+    assert rep["n_captures_unusable"] == 1
+
+
+def test_strict_fails_on_a_union_of_nothing_rather_than_reporting_zero():
+    """The vacuous pass. Zero captures read -> zero sections -> zero conflicts,
+    and a conflict-only gate calls that clean. Round 490's own final check
+    caught its own module doing exactly this."""
+    _, rep = ru.union_sar(["/definitely/not/a/capture"])
+    assert rep["n_conflicts"] == 0          # true, and meaningless
+    assert rep["n_captures_read"] == 0
+    assert ru._sar_strict_fails(rep) is True
+    p = cli("sar", "--captures", "/definitely/not/a/capture", "--strict")
+    assert p.returncode == 1
+
+
 # ----------------------------------------------- the live corpus in this repo
 
 @pytest.mark.skipif(not os.path.isdir(os.path.join(STATE, "nuc-capture-r424")),
@@ -395,7 +430,11 @@ def test_the_live_captures_union_without_a_single_conflict():
     assert rep["n_conflicts"] == 0
     assert rep["n_merged_sections"] == 0
     assert rep["n_captures_read"] == 4
-    assert rep["n_captures_unusable"] == 5
+    # derived, not pinned: every DOWN round banks a capture with no sar in it,
+    # so a literal here goes red on schedule for a reason that is not a
+    # defect. Round 490 learned this from `test_fossil_ledger.py`, which was
+    # pinned at 5 and went red on round 490's own capture.
+    assert rep["n_captures_unusable"] == len(LIVE) - 4
 
 
 @pytest.mark.skipif(not os.path.isdir(os.path.join(STATE, "nuc-capture-r424")),
@@ -484,6 +523,12 @@ MUTATIONS = [
      "test_frame_gain_reports_what_unioning_only_the_sar_would_have_bought"),
     ("CLI: return 0 unconditionally from `sar`",
      "test_cli_sar_strict_exits_1_on_a_conflict"),
+    ("CLI: `caps = list(args.captures)`, i.e. no glob expansion",
+     "test_the_cli_expands_a_quoted_glob"),
+    ("expand_captures: drop a pattern that matches nothing",
+     "test_a_pattern_that_matches_nothing_is_passed_through_and_named"),
+    ("_sar_strict_fails: conflicts only, no `n_captures_read == 0` clause",
+     "test_strict_fails_on_a_union_of_nothing_rather_than_reporting_zero"),
     ("CLI: return 0 unconditionally from `frame`",
      "test_cli_frame_strict_exits_1_when_the_union_buys_nothing"),
 ]

@@ -51,6 +51,7 @@ CLI
 from __future__ import annotations
 
 import argparse
+import glob
 import json
 import os
 import re
@@ -526,6 +527,37 @@ def frame_gain(capture_paths, sar_text=None, journal_text=None) -> dict:
 
 # ------------------------------------------------------------------ CLI
 
+def expand_captures(patterns) -> list:
+    """Glob every `--captures` argument, exactly as `fossil_ledger.py` does.
+
+    Round 490 shipped this module without it and its OWN next-step, its own
+    SKILL.md and its own missions addendum all wrote the documented invocation
+    as `--captures 'state/nuc-capture-r*'`. A quoted glob reaches the process
+    as one literal path that does not exist, so `union_sar` read zero captures,
+    found zero sections, found zero conflicts, and `--strict` exited **0**.
+    A gate that passes on an input it never read is worse than one that fails.
+
+    A pattern that matches nothing is passed through unchanged, so the
+    downstream `unusable` report names it rather than silently dropping it --
+    the same choice `fossil_ledger.py` makes.
+    """
+    out = []
+    for pat in patterns:
+        hit = sorted(glob.glob(pat))
+        out.extend(hit if hit else [pat])
+    return out
+
+
+def _sar_strict_fails(rep: dict) -> bool:
+    """`--strict` must fail on a conflict AND on a union of nothing.
+
+    Zero captures read means zero sections, which means zero conflicts, which
+    a conflict-only gate reports as a clean run. Round 490's own final check
+    caught it.
+    """
+    return bool(rep["n_conflicts"]) or rep["n_captures_read"] == 0
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = p.add_subparsers(dest="mode", required=True)
@@ -547,7 +579,7 @@ def main(argv=None) -> int:
             sp.add_argument("--file", default=JOURNAL_FILE)
 
     args = p.parse_args(argv)
-    caps = list(args.captures)
+    caps = expand_captures(args.captures)
 
     if args.mode == "sar":
         text, rep = union_sar(caps)
@@ -555,7 +587,7 @@ def main(argv=None) -> int:
             open(args.out, "w").write(text)
             rep["out"] = args.out
         print(json.dumps(rep, indent=2))
-        return 1 if (args.strict and rep["n_conflicts"]) else 0
+        return 1 if (args.strict and _sar_strict_fails(rep)) else 0
 
     if args.mode == "journal":
         text, rep = union_journal(caps, args.file)
@@ -573,7 +605,7 @@ def main(argv=None) -> int:
         open(os.path.join(args.out_dir, JOURNAL_FILE), "w").write(jt)
         rep = {"out_dir": args.out_dir, "sar": sr, "journal": jr}
         print(json.dumps(rep, indent=2))
-        bad = sr["n_conflicts"] or not jr["dedup_is_lossless"]
+        bad = _sar_strict_fails(sr) or not jr["dedup_is_lossless"]
         return 1 if (args.strict and bad) else 0
 
     rep = frame_gain(caps)

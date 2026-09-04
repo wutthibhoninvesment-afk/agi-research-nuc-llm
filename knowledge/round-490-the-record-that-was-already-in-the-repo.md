@@ -334,7 +334,9 @@ diagnosed rather than papered over, and they were four different failures:
    test now builds a second `BucketMap` with an hour missing from day 1, which
    is the same mechanism that makes the field False on the live record.
 
-**Second pass: 29 of 29 killed, 0 survived.**
+**Second pass: 29 of 29 killed, 0 survived.** Three more falsifiers were
+added in §13 and killed on their first pass: **32 mutations, 32 killed** for
+the round.
 
 Full suite: `nuc/tests` — see §10.
 
@@ -409,6 +411,43 @@ description was cut from 1102 to 970 chars. Registered unprobed in
 `state/known-unprobed-skills.json` with an owner, a reason, and a scorable
 prediction about which case is weakest — round 405's rule, that naming a
 sibling by reading loses 5 times out of 5, applied rather than quoted.
+
+## 13. The round's own final check caught two defects in the round's own CLI
+
+The last thing this round ran was the invocation its own artefacts document —
+`python3 nuc/record_union.py sar --captures 'state/nuc-capture-r*' --strict`,
+the exact string written into `skills/newest-snapshot-is-not-the-record/SKILL.md`,
+into this round's next-steps, and into the missions addendum. It exposed two
+defects, and the second is worse than the first.
+
+1. **The CLI does not glob.** `fossil_ledger.py` expands every `--captures`
+   pattern; `record_union.py` did not. A quoted glob reaches the process as one
+   literal path that does not exist, so every documented invocation read
+   **zero** captures.
+2. **And `sar --strict` therefore exited 0.** Zero captures read means zero
+   sections, which means zero conflicts, and the gate tested conflicts only.
+   **A gate that passes on an input it never read is worse than one that
+   fails** — `frame --strict` at least exited 1, because it asks for a gain
+   and got none.
+
+Both fixed: `expand_captures` (matching `fossil_ledger`'s behaviour exactly,
+including passing a no-hit pattern through so the report names it) and
+`_sar_strict_fails`, which now fails on `n_captures_read == 0` as well as on a
+conflict. Three new falsifiers, **all killed on the first mutation pass** —
+total for the round **32 mutations, 32 killed**.
+
+The documented commands now run as documented: `sar --strict` **0** with
+4 read / 6 named unusable / 12 dates / 0 conflicts; `frame --strict` **0** with
+union 12, best single 10, **gain 2**; and `sar --captures 'state/no-such-*'
+--strict` exits **1**.
+
+**The same brittleness fixed once was still present twice.**
+`test_the_live_captures_union_without_a_single_conflict` pinned
+`n_captures_unusable == 5`, exactly as `test_fossil_ledger.py` did — and this
+round had already fixed the fossil one an hour earlier, in this same file, for
+this same reason. Both are now derived from the capture list. Fixing an
+instance is not fixing the class, and the second instance was in code this
+round wrote after diagnosing the first.
 
 ## 12. What this round did NOT do
 
