@@ -53,16 +53,39 @@ from whence import ast_nodes as A                    # noqa: E402
 #: Every class the crawl reaches by a PUBLIC path from `run()`. Pinned as
 #: a set, not a count: a count moves for two different reasons (a class
 #: added, a class no longer reached) and the diff would not say which.
-#: Round 476's next-step 2 listed eight candidates from memory; six of
-#: these nineteen are on that list.
+#: Round 476's next-step 2 listed eight candidates from memory; six are on
+#: that list.
+#:
+#: v0.48 (round 488), decision 62: 19 -> 34, and NOT because anything was
+#: added to the language. The probe this pin was taken against was a
+#: hand-written program that constructed 7 of the 23 concrete AST node
+#: classes, so this set read as "what the language exposes" and measured
+#: "what one program happened to build". `reprsweep.PROBE` is now derived
+#: from three live tables and `tests/test_v48.py` owns the totality gates;
+#: this pin is the SECOND gate, the one that catches a silent shrink.
 PINNED_REACHED = {
     ("whence.ast_nodes", "Binary"),
     ("whence.ast_nodes", "Block"),
+    ("whence.ast_nodes", "BoolLit"),
     ("whence.ast_nodes", "Call"),
+    ("whence.ast_nodes", "Check"),
     ("whence.ast_nodes", "ExprStmt"),
+    ("whence.ast_nodes", "FieldAccess"),
+    ("whence.ast_nodes", "FnDef"),
+    ("whence.ast_nodes", "FnExpr"),
     ("whence.ast_nodes", "If"),
+    ("whence.ast_nodes", "Index"),
+    ("whence.ast_nodes", "Let"),
+    ("whence.ast_nodes", "ListLit"),
+    ("whence.ast_nodes", "MissLit"),
     ("whence.ast_nodes", "NameRef"),
     ("whence.ast_nodes", "Num"),
+    ("whence.ast_nodes", "RecordLit"),
+    ("whence.ast_nodes", "Rescue"),
+    ("whence.ast_nodes", "Snip"),
+    ("whence.ast_nodes", "Str"),
+    ("whence.ast_nodes", "Unary"),
+    ("whence.ast_nodes", "Why"),
     ("whence.interp", "Env"),
     ("whence.interp", "Interpreter"),
     ("whence.values", "Builtin"),

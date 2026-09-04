@@ -87,9 +87,14 @@ def _simple(name, fields):
         return "%s(%s)" % (name, parts)
 
     def __repr__(self):
-        from whence.values import REPR_CAP
-        out = self._repr_at(0)
-        return out if len(out) <= REPR_CAP else out[:REPR_CAP - 1] + "…"
+        # v0.48 (round 488), decision 62: through `values._cap`, not a
+        # third hand-written copy of the same three lines. This copy was
+        # CORRECT — the two that were missing entirely were `Prov`/
+        # `MergedProv` and `Env` — but a rule enforced in three places is
+        # a rule that can be right in two of them, which is exactly what
+        # happened.
+        from whence.values import _cap
+        return _cap(self._repr_at(0))
 
     return type(name, (Node,), {
         "__slots__": slots, "__init__": __init__, "__repr__": __repr__,

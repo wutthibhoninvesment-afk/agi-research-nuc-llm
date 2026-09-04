@@ -19,9 +19,16 @@ SHOW_LIMIT = 40
 #: deterministic and address-free, and said so in prose; it did not say it
 #: anywhere a second class could inherit it. This is that sentence as a
 #: constant. 240 is chosen from the two reprs that already complied:
-#: `Env`'s is 186 characters at 31 names (its own `_ENV_REPR_NAMES` cut
-#: does the bounding) and `Prov`'s is 64 at a 5,000-element list and 85 at
-#: a 3,000-character string. A cap is not a target — every repr here is
+#: `Env`'s is 186 characters at 31 names and `Prov`'s is 64 at a
+#: 5,000-element list and 85 at a 3,000-character string.
+#:
+#: v0.48 (round 488), decision 62 — the parenthesis that used to stand in
+#: the line above, "(its own `_ENV_REPR_NAMES` cut does the bounding)",
+#: was FALSE. That cut bounds how many names are LISTED, not how long one
+#: name is: `let <400 z's> = 1` makes `repr(run(src))` 559 characters and
+#: sixty such names make it 1,783. BOTH reprs cited here as the evidence
+#: that the cap was already met were over it, along the one axis no scale
+#: case varied. See `_cap`. A cap is not a target — every repr here is
 #: expected to come in far under it — it is the thing that makes
 #: "bounded" a property a TEST can check on an arbitrarily large value,
 #: which is what `WList.__repr__` lacked when it rendered a 3,000-element
@@ -35,6 +42,37 @@ REPR_CAP = 240
 #: `_frame`, which is the backstop and not the design.
 _PMAP_REPR_KEYS = 4
 _MISS_REPR_REASONS = 2
+
+
+def _cap(out, close=""):
+    """R2, in ONE place: the final cut every `__repr__` in this tree ends
+    with. `close` is re-appended after the ellipsis so a frame that opens
+    `<whence ` still closes.
+
+    v0.48 (round 488), decision 62. Before this, the cut lived in two
+    hand-written copies — `_frame` here and `ast_nodes._simple.__repr__` —
+    and nowhere at all in `Prov`, `MergedProv` and `Env`, the three reprs
+    that build their string by hand. The two that had a copy were correct
+    and the three that did not were unbounded, and `reprsweep.py` reported
+    a clean sweep on all five for six rounds because every probe it ran
+    used short identifiers. R2 says "bounded, however large the value is";
+    an identifier is part of the rendering and is as large as the author
+    likes.
+    """
+    if len(out) > REPR_CAP:
+        out = out[:REPR_CAP - 1 - len(close)] + "…" + close
+    return out
+
+
+def _clip(text, limit=SHOW_LIMIT):
+    """One variable-length token of a repr, cut to `limit`.
+
+    `_cap` is the backstop and this is the design: a repr that ends in a
+    truncated 400-character identifier has lost the fields AFTER it, which
+    on `Prov` is `value=` — the thing the reader opened the repr for. Same
+    idea as `_PMAP_REPR_KEYS`/`_MISS_REPR_REASONS`, one axis over.
+    """
+    return text if len(text) <= limit else text[:limit - 1] + "…"
 
 
 def _frame(body):
@@ -51,18 +89,22 @@ def _frame(body):
       3. deterministic — same string in two processes with different
          `PYTHONHASHSEED`.
 
-    `Prov.__repr__` is the one repr here that does NOT go through this
-    helper, and it is compliant anyway: it is the provenance NODE rather
-    than a value payload, its constructor-call shape is the host
-    convention for exactly that, and all four of its fields are already
-    bounded (`show` is a `show_payload` snapshot). Decision 60's rule is
-    the three properties above, not a house style — a rule that outlawed
-    `Prov(...)` would be an aesthetic preference wearing a checker.
+    `Prov.__repr__` and `MergedProv.__repr__` do NOT go through this
+    helper — their constructor-call shape is the host convention for a
+    provenance NODE rather than a value payload, and decision 60's rule is
+    the three properties above, not a house style. They go through `_cap`
+    instead, which is where property 2 actually lives.
+
+    *This paragraph used to end "and it is compliant anyway: ... all four
+    of its fields are already bounded (`show` is a `show_payload`
+    snapshot)". That was false for six rounds. `detail` is a raw
+    identifier — a `let` of a 400-character name reprs to 442 — and the
+    sentence was written by the round that introduced `REPR_CAP`, in this
+    file, four lines from the constant. It survived because
+    `reprsweep.py`'s scale cases made every VALUE huge and every NAME
+    short.*
     """
-    out = "<whence " + body + ">"
-    if len(out) > REPR_CAP:
-        out = out[:REPR_CAP - 2] + "…>"
-    return out
+    return _cap("<whence " + body + ">", ">")
 
 
 class WList(object):
@@ -219,9 +261,13 @@ class Prov(object):
             return (self.op + " " + self.detail) if self.op else self.detail
         return self.op
 
+    # v0.48 (round 488), decision 62: `detail` is a raw identifier and
+    # `_cap` is the backstop. `Prov('let', <400-char name>, ...)` was 442
+    # characters and R2 says 240, however large the value is.
     def __repr__(self):
-        return "Prov(%r, %r, line=%r, %d inputs, value=%s)" % (
-            self.op, self.detail, self.line, len(self.inputs), self.show)
+        return _cap("Prov(%r, %r, line=%r, %d inputs, value=%s)" % (
+            self.op, _clip(self.detail), self.line, len(self.inputs),
+            self.show))
 
 
 # `payload` is a second name for the `value` slot: a member descriptor is
@@ -258,9 +304,9 @@ class MergedProv(Prov):
     # useless and obviously so, this was useful-looking and wrong. It is
     # reachable: `run().vars['looped']._ins` holds one after any tail loop.
     def __repr__(self):
-        return "MergedProv(%r, %r, line=%r, x%d, %d inputs, value=%s)" % (
-            self.op, self.detail, self.line, self.count, len(self.inputs),
-            self.show)
+        return _cap("MergedProv(%r, %r, line=%r, x%d, %d inputs, value=%s)"
+                    % (self.op, _clip(self.detail), self.line, self.count,
+                       len(self.inputs), self.show))
 
 
 class Miss(object):

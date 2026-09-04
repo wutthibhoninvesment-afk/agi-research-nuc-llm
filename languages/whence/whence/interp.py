@@ -65,6 +65,7 @@ from .values import (
     render_why, render_contrast, is_origin_miss, walk_steps, find_step,
     matches_step,
     diverge, _LAZY,
+    _cap, _clip,
 )
 import operator
 import re
@@ -203,6 +204,16 @@ _STR_OPS = {
 # `env.vars`.
 _ENV_REPR_NAMES = 4
 
+#: v0.48 (round 488), decision 62 — how many CHARACTERS the name listing
+#: may occupy. `_ENV_REPR_NAMES` bounds how many names are listed; nothing
+#: bounded how long ONE of them is, and `values.REPR_CAP`'s own comment
+#: cited this cut as the reason `Env` complied. `let <400 z's> = 1` reprs
+#: to 559 characters and sixty such names to 1,783. 60 is the room the
+#: fixed prose leaves inside `REPR_CAP` (the frame is ~162 characters and
+#: the ", ...N more" tail is appended AFTER the cut, so the exact count a
+#: reader can act on always survives).
+_ENV_REPR_LISTING = 60
+
 
 class Env(object):
     # `interp` is set only on an Interpreter's globals env (the root of every
@@ -249,7 +260,11 @@ class Env(object):
     def __repr__(self):
         names = list(self.vars)            # declaration order, deterministic
         shown = names[:_ENV_REPR_NAMES]
-        listing = ", ".join(shown)
+        # v0.48: two bounds, not one. `_ENV_REPR_NAMES` cuts HOW MANY and
+        # `_ENV_REPR_LISTING` cuts HOW LONG; the ", ...N more" tail is
+        # appended after both, because the count is the one thing here a
+        # reader can act on and it must not be what gets truncated.
+        listing = _clip(", ".join(shown), _ENV_REPR_LISTING)
         extra = len(names) - len(shown)
         if extra > 0:
             listing += ", ...%d more" % extra
@@ -258,13 +273,16 @@ class Env(object):
         while env is not None:
             depth += 1
             env = env.parent
-        return ("<whence %s: %d name%s%s, %d enclosing — a SCOPE, not a "
-                "value; Interpreter.run() returns this, and the program's "
-                "results are the names INSIDE it (env.get(\"x\"))>"
-                % ("globals" if self.interp is not None else "scope",
-                   len(names), "" if len(names) == 1 else "s",
-                   " (%s)" % listing if names else "",
-                   depth))
+        # `_cap` is the backstop under both structural cuts above — R2 is
+        # a property of the STRING, and it lives in exactly one function.
+        return _cap(
+            "<whence %s: %d name%s%s, %d enclosing — a SCOPE, not a "
+            "value; Interpreter.run() returns this, and the program's "
+            "results are the names INSIDE it (env.get(\"x\"))>"
+            % ("globals" if self.interp is not None else "scope",
+               len(names), "" if len(names) == 1 else "s",
+               " (%s)" % listing if names else "",
+               depth), ">")
 
 
 class _Call(object):

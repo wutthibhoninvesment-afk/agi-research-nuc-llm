@@ -87,6 +87,9 @@ Usage:
     python3 reprsweep.py --json
     python3 reprsweep.py --private       # also list private-path classes
     python3 reprsweep.py --seeds         # R3, in three subprocesses
+    python3 reprsweep.py --manifest      # v0.48: coverage of each derived
+                                         #   axis; exit 1 on a gap or a
+                                         #   stale UNREACHABLE entry
 """
 import json
 import os
@@ -98,13 +101,19 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from whence.interp import Interpreter                  # noqa: E402
 from whence import values as V                         # noqa: E402
 
-#: The probe. Every construct here exists to put one more CLASS on the
-#: reachable graph, and the comment on each line says which. A round that
-#: adds a value kind to the language adds a line here; if it forgets, the
-#: class simply is not audited, which is why `tests/test_v47.py` also
-#: asserts the reached set against a pinned list — the two halves catch
-#: each other.
-PROBE = '''
+#: The probe, before v0.48: a hand-written program, kept VERBATIM as the
+#: regression witness for the derived one. Round 482 shipped it and named
+#: its own defect in the same breath (its next-step 3): "a value kind no
+#: line of it constructs is not audited; the crawl is exhaustive over what
+#: the probe BUILDS, not over what the language can build." It reaches 7
+#: of the language's 23 AST node classes. `tests/test_v48.py::
+#: test_the_derived_probe_reaches_everything_the_hand_written_one_did`
+#: holds it to a strict superset — which is not a formality: the FIRST
+#: derived probe written here reached 34 classes and LOST `values.Miss`,
+#: because a miss is produced by failure and is named by neither the
+#: builtin table nor the node table. Two tables covered more and still
+#: covered less.
+LEGACY_PROBE = '''
 let n = 42
 let s = "hi"
 let xs = [1, 2, 3]                        # WList
@@ -120,6 +129,288 @@ fn loop(i, acc) { if i <= 0 { acc } else { loop(i - 1, acc + i) } }
 let looped = loop(50, 0)                  # MergedProv (a merged tail run)
 let cond = if n > 3 { "big" } else { "small" }
 '''
+
+# ----------------------------------------------------------------------
+# v0.48 (round 488), decision 62 — the probe is DERIVED, on three axes.
+#
+# The subject set of an audit must come from the artefact, not from the
+# auditor's memory. `reachable()` already derives the CLASSES it audits by
+# crawling; what it could not derive was the PROGRAM whose object graph it
+# crawls, so the sweep was exhaustive over one hand-written program and
+# read as exhaustive over the language. The three axes below are each read
+# off a live table, and each has a totality gate in `tests/test_v48.py`:
+#
+#   NODES     every concrete `ast_nodes.Node` subclass
+#   BUILTINS  every row of `interp._make_builtin_table()` / `_BUILTIN_SIGS`
+#   VALUES    every class defined in `whence.values` / `whence.interp`
+#
+# Nothing here is a list to keep in sync by hand. A class or builtin with
+# no line fails a test that names it; a line whose class is no longer
+# reachable fails a different test that names it; and `UNREACHABLE` — the
+# declared exceptions — is checked in the OTHER direction too, so a class
+# that BECOMES reachable expires its own excuse.
+
+#: Three substitution tokens, so ONE table serves two passes: the ordinary
+#: probe (short tokens) and the R2-at-scale probe (deliberately huge ones).
+#: Round 482's `scale_cases()` was a second hand-written list covering two
+#: node shapes; this covers every node class by construction.
+#:   __S__  the body of a string literal
+#:   __N__  an identifier
+#:   __D__  a run of digits
+_SMALL = {"__S__": "s", "__N__": "a", "__D__": "1"}
+#: 3000, not 5000: `lexer` refuses numeric text over `SHOW_INT_DIGITS`
+#: (4000) digits, and that refusal is a real language limit, not a bound
+#: on the repr. The point of a scale case is a legal program.
+_BIG = {"__S__": "x" * 5000, "__N__": "z" * 400, "__D__": "9" * 3000}
+
+#: One Whence construct per CONCRETE AST node class. `Program` is absent
+#: on purpose and is declared in `UNREACHABLE` with its reason.
+NODE_SOURCE = {
+    "Binary": "1 + __D__",
+    "Block": "1",
+    "BoolLit": "true",
+    "Call": "len([__D__])",
+    "Check": 'check "__S__": 1 == 1\n  1',
+    "ExprStmt": "1",
+    "FieldAccess": "@{__N__: 1}.__N__",
+    "FnDef": "fn __N__() { 1 }\n  __N__()",
+    "FnExpr": "fn(__N__) { __N__ }",
+    "If": "if true { __D__ } else { 2 }",
+    "Index": "[1, 2][0]",
+    "Let": "let __N__ = __D__\n  __N__",
+    "ListLit": "[__D__, 2]",
+    "MissLit": 'miss "__S__"',
+    "NameRef": "let __N__ = 1\n  __N__",
+    "Num": "__D__",
+    "RecordLit": "@{__N__: __D__}",
+    "Rescue": "1 rescue 0",
+    "Snip": "snip 1",
+    "Str": '"__S__"',
+    "Unary": "-__D__",
+    "Why": "why 1",
+}
+
+#: A literal of each argument KIND the builtin signature table spells.
+#: `_BUILTIN_SIGS` records kinds because `_order_hint` re-checks an
+#: out-of-order call against them (v0.22); this reuses them to WRITE the
+#: call, so 28 of the 37 builtins need no per-name entry at all.
+KIND_ARG = {
+    ("num",): "1",
+    ("str",): '"s"',
+    ("list",): "[1, 2]",
+    ("record",): "@{a: 1}",
+    ("fn",): "fn(x) { x }",
+    ("str", "list"): "[1, 2]",
+    ("str", "record"): '"num"',
+    None: "1",
+}
+
+#: The nine builtins whose generic, kind-derived call MISSES. Each entry
+#: is the whole argument list. This table is checked in BOTH directions:
+#: `test_every_argument_override_is_load_bearing` drops each entry and
+#: asserts the generic call misses without it, so an override that stops
+#: being needed (a widened builtin, a fixed kind in the sig table) fails
+#: rather than sitting here forever. A probe whose builtin call quietly
+#: returns a miss is probing the miss path, not the builtin.
+ARG_OVERRIDE = {
+    # kind `v` is spelled None ("any") and the generic literal is a num
+    "len": ["[1, 2]"],
+    "keys": ["@{a: 1}"],
+    "confidence": ['guess(7, 0.5, "s")'],
+    # kind `fn` does not carry the ARITY the builtin will call it with
+    "fold": ["fn(a, b) { a + b }", "0", "[1, 2]"],
+    # ... nor the return TYPE the builtin requires of it
+    "filter": ["fn(x) { x > 1 }", "[1, 2]"],
+    "find": ["fn(x) { x > 1 }", "[1, 2]"],
+    # kind `list` does not carry its ELEMENT type
+    "join": ['["a", "b"]', '", "'],
+    # a name/pattern argument must exist in the value it addresses
+    "get": ["@{a: 1}", '"a"'],
+    "at": ["1 + 2", '"+"'],
+}
+
+#: Value kinds that neither table names. A `Miss` is what FAILURE
+#: produces, a `MergedProv` is what a tail LOOP produces, and an
+#: `Explanation` is what a keyword produces — none of the three is a
+#: builtin's return type or an AST class, and the first derived probe
+#: written here reached 34 classes without a single `Miss` in it.
+#: The `__N__` in the `Prov` and `Env` rows is not decoration. A
+#: top-level binding NAME is what `Env.__repr__` lists and what
+#: `Prov.__repr__` puts in its `detail` slot, and it is the one part of a
+#: rendering the author sizes rather than the value. Round 482's
+#: `scale_cases()` made every VALUE huge — a 3,000-element list, a 400-key
+#: record, a 5,000-character string, a 60-parameter closure — and every
+#: NAME short, so `Env` (559 characters at ONE 400-character name) and
+#: `Prov` (442) passed R2 in every sweep for six rounds. Substituting the
+#: token here is what turns that axis on.
+#: INSERTION order is dependency order and is what `derive_probe` emits —
+#: NOT `sorted()`. Written sorted, `"Explanation": "let v_why = why
+#: v_looped"` ran three rows before `v_looped` existed and `"PMap": "let
+#: v_map = v_rec"` two rows before `v_rec` did, so both bound a MISS. Both
+#: classes were reached anyway, by another path, and the sweep reported a
+#: clean 34 — two probe lines probing nothing, invisible because their
+#: subject had a second door. `test_v48.py::test_no_probe_binding_is_an_
+#: accidental_miss` is the gate; `ARG_OVERRIDE` has the same gate for the
+#: builtin half and this half did not until it was measured.
+VALUE_SOURCE = {
+    "Prov": "let v__N__prov = 42",
+    "Env": "let v__N__scope = 1",
+    "WList": "let v_list = [1, 2, 3]",
+    "Record": "let v_rec = @{a: 1, b: @{c: 2}}",
+    "PMap": "let v_map = v_rec",
+    "Closure": "fn v_named(x) { x + 1 }\nlet v_anon = fn(x) { x * 2 }",
+    "Builtin": "let v_builtin = map",
+    "Guess": 'let v_guess = guess(7, 0.5, "sensor")',
+    # `__N__` here too: a MergedProv's `detail` is the CALLED FN's name,
+    # so a short one leaves the third unbounded repr untested. With
+    # `v_loop` the reverted-fix falsification killed 2 of 3; with the
+    # token it kills 3 of 3.
+    "MergedProv": ("fn v__N__loop(i, acc) { if i <= 0 { acc }"
+                   " else { v__N__loop(i - 1, acc + i) } }\n"
+                   "let v_looped = v__N__loop(50, 0)"),
+    "Explanation": "let v_why = why v_looped",
+    "Interpreter": "let v_engine = 1",
+    "Miss": 'let v_miss = miss "gone"\nlet v_miss2 = num("3O")',
+}
+
+#: Every class the crawl CANNOT reach, and why. Checked in both
+#: directions by `tests/test_v48.py`: a name here that the crawl does
+#: reach is a stale excuse and fails; a class in the universe that is
+#: neither reached nor named here fails too. That pair is the whole
+#: difference between "audited" and "audited as far as anybody looked".
+UNREACHABLE = {
+    ("whence.ast_nodes", "Program"):
+        "the top-level program node. `run()` returns an `Env`; the "
+        "program is consumed by `Interpreter.run` and stored on no "
+        "public attribute of the Env, the Interpreter or any value. "
+        "A function BODY is a `Block` and is public (`Closure.body`), "
+        "which is why the other 22 are reachable and this one is not.",
+    ("whence.values", "FullRendering"):
+        "the result of ONE `full_show_named` walk (decision 53). It is "
+        "returned to the caller of that function and stored on nothing.",
+    ("whence.values", "_FullCtx"):
+        "state carried down one `full_show` walk; dies with the walk.",
+    ("whence.values", "_Bare"):
+        "a stand-in node so `full_show`'s payload and node entry points "
+        "are one function; never stored.",
+    ("whence.values", "_PNode"):
+        "an AVL node inside `PMap`. Reachable only at `Record._map."
+        "_root`, every segment of which is spelled private — see "
+        "`--private` and `test_v47.py`'s public-path test.",
+    ("whence.interp", "_Call"):
+        "a trampoline frame. Lives inside `_run_trampoline`'s own loop.",
+    ("whence.interp", "_TailCall"):
+        "a trampoline tail-call frame; same lifetime as `_Call`.",
+    ("whence.interp", "_UnboundType"):
+        "the floor under `_closure_spec` for an annotation naming a "
+        "shape that is not bound. Since v0.18 the parser refuses that "
+        "source, so no program reaches it; `_check_contract` turns it "
+        "into an ordinary miss before any value could carry it.",
+}
+
+
+def node_classes():
+    """Every CONCRETE `ast_nodes.Node` subclass, read off the module."""
+    import inspect
+    from whence import ast_nodes as A
+    return {n for n, o in vars(A).items()
+            if inspect.isclass(o) and issubclass(o, A.Node) and o is not A.Node}
+
+
+def builtin_sigs():
+    """`{name: sig}` for every builtin, read off the live table.
+
+    `_make_builtin_table()` is what populates `_BUILTIN_SIGS`, so calling
+    it first is not defensive — it is the derivation.
+    """
+    from whence import interp as IN
+    IN._make_builtin_table()
+    return dict(IN._BUILTIN_SIGS)
+
+
+def runtime_classes():
+    """Every class DEFINED in `whence.values` / `whence.interp`.
+
+    Deduped by identity, not by name: `values.Value` is a second name for
+    `Prov` (`Value = Prov`), and counting it as a class would put a
+    permanent phantom in the universe that no probe can ever reach.
+    """
+    import inspect
+    from whence import interp as IN
+    out, seen = set(), set()
+    for mod in (V, IN):
+        for name, obj in vars(mod).items():
+            if (inspect.isclass(obj) and obj.__module__ == mod.__name__
+                    and id(obj) not in seen):
+                seen.add(id(obj))
+                out.add((mod.__name__, obj.__name__))
+    return out
+
+
+def _sub(text, table):
+    for token, rep in table.items():
+        text = text.replace(token, rep)
+    return text
+
+
+def builtin_call(name, sig):
+    """The source of ONE builtin call, derived from its signature kinds."""
+    args = ARG_OVERRIDE.get(name)
+    if args is None:
+        args = [KIND_ARG.get(kinds, "1") for _param, kinds in sig]
+    return "let b_%s = %s(%s)" % (name, name, ", ".join(args))
+
+
+def derive_probe(scale=False):
+    """The probe, GENERATED from the three tables. Never a literal.
+
+    `scale=True` renders the same node table with deliberately huge
+    tokens, which is how R2 gets checked against every node class rather
+    than against the two shapes somebody remembered.
+    """
+    sub = _BIG if scale else _SMALL
+    # VALUE_SOURCE FIRST, in insertion order. Both facts are load-bearing.
+    # Order, because `Env.__repr__` lists only `_ENV_REPR_NAMES` (4) names
+    # in DECLARATION order: with the value rows last, the 400-character
+    # name sat at position 74 and was never listed, so the scale pass ran
+    # with the axis it exists to exercise switched off and reported clean.
+    # Insertion order, because these rows depend on each other.
+    lines = [_sub(VALUE_SOURCE[cls], sub) for cls in VALUE_SOURCE]
+    for cls in sorted(NODE_SOURCE):
+        lines.append("fn probe_%s() {\n  %s\n}"
+                     % (cls, _sub(NODE_SOURCE[cls], sub)))
+    sigs = builtin_sigs()
+    for name in sorted(sigs):
+        lines.append(builtin_call(name, sigs[name]))
+    return "\n".join(lines) + "\n"
+
+
+PROBE = derive_probe()
+SCALE_PROBE = derive_probe(scale=True)
+
+
+def probe_manifest():
+    """Coverage of each derived axis, as data. `gaps` is the whole point:
+    a non-empty list is a class or a builtin the sweep does not audit."""
+    nodes = node_classes()
+    sigs = builtin_sigs()
+    runtime = runtime_classes()
+    universe = {("whence.ast_nodes", c) for c in nodes} | runtime
+    found, _stats = reachable()
+    unreached = sorted(universe - set(found))
+    return {
+        "nodes": {"universe": len(nodes), "with_source": len(NODE_SOURCE)},
+        "builtins": {"universe": len(sigs), "overridden": len(ARG_OVERRIDE)},
+        "runtime": {"universe": len(runtime),
+                    "with_source": len(VALUE_SOURCE)},
+        "universe": len(universe),
+        "reached": len(found),
+        "declared_unreachable": len(UNREACHABLE),
+        "gaps": [list(k) for k in unreached if k not in UNREACHABLE],
+        "stale_exceptions": [list(k) for k in sorted(UNREACHABLE)
+                             if k in found],
+    }
+
 
 #: Crawl budget. The graph is finite but the Interpreter drags in the host
 #: (modules, functions, the parser), so the crawl is bounded and the bound
@@ -185,7 +476,7 @@ def _public_children(obj):
     return out
 
 
-def reachable(source=PROBE, private=False, limit=CRAWL_LIMIT):
+def reachable(source=None, private=False, limit=CRAWL_LIMIT):
     """Crawl from `Interpreter.run(source)` and return what it reaches.
 
     Returns `(found, stats)` where `found` maps `(module, classname)` to
@@ -193,8 +484,13 @@ def reachable(source=PROBE, private=False, limit=CRAWL_LIMIT):
     descends through underscore names, which is how `--private` shows the
     classes the loose rule would have claimed as caller surfaces.
     """
+    # NOT `source=PROBE` in the signature: a default argument binds
+    # the module-level string ONCE, at def time, so a caller who
+    # rebinds `reprsweep.PROBE` (a test swapping in the legacy probe,
+    # this round's own first measurement) silently keeps auditing the
+    # old program. Cost one wrong measurement here before it was seen.
     interp = Interpreter()
-    root = interp.run(source)
+    root = interp.run(PROBE if source is None else source)
     # `keep` is not bookkeeping, it is CORRECTNESS. `seen` holds `id()`s,
     # and an id identifies an object only while that object is alive —
     # `Prov.inputs` builds a FRESH tuple on every access (`return ins if
@@ -307,16 +603,19 @@ def scale_cases():
     return cases
 
 
-def audit(private=False):
-    """The whole sweep, as data."""
-    found, stats = reachable(private=private)
+def instances(source=None, limit=CRAWL_LIMIT, worst=False):
+    """`{(module, class): (live instance, path)}` for one program.
+
+    The same walk as `reachable()`, retaining a live object per class so
+    its `repr` can be taken. `keep` is load-bearing for the same `id()`
+    reuse reason documented there.
+    """
     interp = Interpreter()
-    root = interp.run(PROBE)
-    # Re-walk to hold a live instance of each class alongside its path.
-    instances = {}
+    root = interp.run(PROBE if source is None else source)
+    out = {}
     seen, queue, keep = set(), [(root, "run()")], [root]
     steps = 0
-    while queue and steps < CRAWL_LIMIT:
+    while queue and steps < limit:
         obj, path = queue.pop()
         if id(obj) in seen:
             continue
@@ -325,14 +624,41 @@ def audit(private=False):
         steps += 1
         cls = type(obj)
         if cls.__module__.startswith("whence"):
-            instances.setdefault((cls.__module__, cls.__name__), obj)
+            if worst:
+                key = (cls.__module__, cls.__name__)
+                prev = out.get(key)
+                if prev is None or len(repr(obj)) > len(repr(prev[0])):
+                    out[key] = (obj, path)
+            else:
+                out.setdefault((cls.__module__, cls.__name__), (obj, path))
         for child, edge in _public_children(obj):
             if id(child) not in seen:
                 queue.append((child, path + edge))
+    return out
+
+
+def worst_instances(source=None, limit=CRAWL_LIMIT):
+    """Per class, the reached instance with the LONGEST repr.
+
+    `instances()` keeps the FIRST one it happens to hit, and for R2 that
+    is the wrong witness: the scale probe binds a 400-character name and
+    the first `Prov` the crawl reaches is `v_list`, 58 characters. The
+    fix reverted in-process, the whole sweep still reported 0 violations —
+    an audit checking one arbitrary member of a class is checking the
+    class only if every member reprs the same, which is exactly what a
+    variable-length field makes false.
+    """
+    return instances(source, limit, worst=True)
+
+
+def audit(private=False):
+    """The whole sweep, as data."""
+    found, stats = reachable(private=private)
+    instances_ = {k: v[0] for k, v in instances().items()}
     rows = []
     for key in sorted(found):
         mod, name = key
-        obj = instances.get(key)
+        obj = instances_.get(key)
         bad, text = check_repr(obj)
         cls = type(obj)
         rows.append({"module": mod, "class": name, "path": found[key],
@@ -345,10 +671,24 @@ def audit(private=False):
         scale.append({"case": label, "class": type(obj).__name__,
                       "repr_len": len(text), "repr": text,
                       "violations": bad})
+    # v0.48 (round 488), decision 62 — the DERIVED half of R2-at-scale.
+    # `scale_cases()` above is round 482's hand-written list and stays as
+    # a regression witness; this pass runs the SAME derived probe with the
+    # substitution tokens rendered huge, so every class the sweep reaches
+    # gets a scale check instead of the eleven somebody wrote down. It is
+    # what found `Env` (559 chars) and `Prov` (442): both were audited at
+    # scale along the VALUE axis and neither along the NAME axis.
+    for key, (obj, path) in sorted(worst_instances(SCALE_PROBE).items()):
+        bad, text = check_repr(obj)
+        scale.append({"case": "derived/" + key[1],
+                      "class": type(obj).__name__, "path": path,
+                      "repr_len": len(text), "repr": text,
+                      "violations": bad})
     n_bad = (sum(1 for r in rows if r["violations"])
              + sum(1 for r in scale if r["violations"]))
     return {"rows": rows, "scale": scale, "crawl": stats,
-            "repr_cap": V.REPR_CAP, "violations": n_bad}
+            "repr_cap": V.REPR_CAP, "violations": n_bad,
+            "manifest": probe_manifest()}
 
 
 _SEED_SNIPPET = (
@@ -386,6 +726,25 @@ def seed_check(seeds=("0", "1", "12345")):
 
 
 def main(argv):
+    if "--manifest" in argv:
+        man = probe_manifest()
+        if "--json" in argv:
+            print(json.dumps(man, indent=1))
+        else:
+            print("derived probe: %d node class(es) / %d builtin(s) / %d "
+                  "runtime class(es)"
+                  % (man["nodes"]["universe"], man["builtins"]["universe"],
+                     man["runtime"]["universe"]))
+            print("universe %d, reached %d, declared unreachable %d, "
+                  "gaps %d, stale exception(s) %d"
+                  % (man["universe"], man["reached"],
+                     man["declared_unreachable"], len(man["gaps"]),
+                     len(man["stale_exceptions"])))
+            for g in man["gaps"]:
+                print("  GAP %s.%s" % (g[0], g[1]))
+            for g in man["stale_exceptions"]:
+                print("  STALE EXCEPTION %s.%s" % (g[0], g[1]))
+        return 1 if (man["gaps"] or man["stale_exceptions"]) else 0
     if "--seeds" in argv:
         res = seed_check()
         print(json.dumps(res, indent=1) if "--json" in argv
@@ -398,6 +757,10 @@ def main(argv):
     if "--json" in argv:
         print(json.dumps(rep, indent=1))
         return 1 if rep["violations"] else 0
+    man = rep["manifest"]
+    print("derived probe: universe %d, reached %d, declared unreachable %d,"
+          " gaps %d" % (man["universe"], man["reached"],
+                        man["declared_unreachable"], len(man["gaps"])))
     print("reachable from Interpreter.run() by a PUBLIC path: %d class(es)"
           "  [crawl %d steps, %s]"
           % (len(rep["rows"]), rep["crawl"]["steps"],

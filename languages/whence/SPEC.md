@@ -1,6 +1,6 @@
 # Whence — a provenance-first language
 
-*Spec level: **v0.47** (round 482; this heading written by round 486). The
+*Spec level: **v0.48** (round 488; heading first written by round 486). The
 `## vN` sections below are the authoritative version list and each names the
 round that built it; this line deliberately no longer enumerates rounds,
 because the enumeration it replaced had said "v0.16.6 + v0.14.2" since round
@@ -969,6 +969,39 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    for 22 rounds, and this module cited a level it does not define three
    times, each in the paragraph explaining that hazard.
    See § Decision 61.
+62. **The subject set of an audit must be derived from the artefact, and a
+   scale case must vary the NAME as well as the value (v0.48, round 488).**
+   Decision 60 stopped taking the list of CLASSES from anybody — it crawls
+   — and kept taking the PROGRAM it crawls from a hand-written probe.
+   Round 482's own next-step 3 said so: *"a value kind no line of it
+   constructs is not audited; the crawl is exhaustive over what the probe
+   BUILDS, not over what the language can build."* Measured: that probe
+   constructed **7 of the 23** concrete `ast_nodes.Node` subclasses and
+   reached **19 of 42** classes, and `test_v47.py::test_the_reached_set_is_
+   exactly_the_pinned_one` was GREEN on all nineteen — *a pin measures the
+   probe, not the language.* `reprsweep.PROBE` is now GENERATED from three
+   live tables (every concrete node class, every row of
+   `interp._make_builtin_table()`, every class defined in `values`/`interp`),
+   each with a totality gate and each exception declared with a reason and
+   checked in BOTH directions, so a class that becomes reachable expires
+   its own excuse. It reaches 34 of 42; the other 8 are declared.
+   **R2 is "bounded, HOWEVER LARGE the value is", and an identifier is part
+   of the rendering and is exactly as large as the author types it.**
+   `scale_cases()` made every value huge — a 3,000-element list, a 400-key
+   record, a 5,000-character string, a 60-parameter closure — and every name
+   short, so `Env` (**559** characters at ONE 400-character name, 1,783 at
+   sixty) and `Prov` (**442** at a 400-character `let` name) passed R2 in
+   every sweep for six rounds. Both are the classes decisions 58 and 60 were
+   WRITTEN FOR, and both had a sentence asserting their boundedness — in
+   `values.REPR_CAP`'s own comment and in `_frame`'s docstring, four lines
+   from the constant, written by the round that introduced it. R2 now lives
+   in exactly one function, `values._cap`; `_clip` bounds the one
+   variable-length token so the useful tail of a constructor repr survives
+   the cut; `Env` gains `_ENV_REPR_LISTING` beside `_ENV_REPR_NAMES`
+   because *how many* and *how long* are two bounds, not one. The AST
+   family — 16 of 23 classes never audited before — came back clean at
+   every scale, which is the negative result enumeration is for.
+   See § Decision 62.
 
 ## Syntax (statements are newline-separated; `#` comments)
 ```
@@ -10578,3 +10611,163 @@ number.
 It does not make `S008` a live finding. It reports zero holes today and is
 kept as the negative control the family needs — the check that says the
 range is dense, rather than assuming it.
+
+
+## v0.48 (round 488, language C) — the axis nobody varied
+
+Decision 62. Round 482's next-step 3, carried un-run by rounds 483-487.
+
+### Decision 62 (round 488, language C): the subject set of an audit must be derived from the artefact, and a scale case must vary the NAME as well as the value
+
+Decision 60 stopped taking the list of CLASSES from anybody and kept taking
+the PROGRAM it crawls from a hand-written probe. Two rules come out of
+closing that, and only the first is the one the round set out to write:
+
+1. **Derive the WITNESS, not just the roster.** The classes were enumerated;
+   the program that instantiates them was not, so the crawl was exhaustive
+   over one fixture and read as exhaustive over the language.
+2. **A stress case varies one axis: the one the known failure was on.** R2
+   says *bounded, however large the value is*, and every scale case made the
+   VALUE large. An identifier is part of a rendering and is as large as the
+   author types it. That is where both live violations were, in two classes
+   the enlarged roster did not newly reach.
+
+The sections below are the measurement, the derivation, the two violations
+and the fix.
+
+### The probe was the last list
+
+`reprsweep.py` (v0.47) audits every class it can REACH — it crawls, it does
+not take a list of classes. It reached them from `PROBE`, fifteen
+hand-written lines of Whence. Measured at `d23cb04`:
+
+| axis | universe | the hand-written probe |
+|---|---|---|
+| concrete `ast_nodes.Node` subclasses | 23 | **7** |
+| classes reached overall | 42 | **19** |
+
+`tests/test_v47.py::test_the_reached_set_is_exactly_the_pinned_one` pinned
+those nineteen as a SET precisely so a silent shrink would fail — and it was
+green on every one of them while sixteen node classes on a public path
+(`Closure.body`) had never been reprred by the sweep at all. A pin catches a
+shrink; it cannot report that the thing it pins was never the whole subject.
+
+### Three derived axes, each with a totality gate
+
+`PROBE` is now `derive_probe()`:
+
+* **NODES** — `NODE_SOURCE` holds one Whence construct per concrete node
+  class, and `set(NODE_SOURCE) | declared-unreachable == node_classes()` is
+  a test. A per-class test then asserts the snippet REACHES its own class,
+  so a grammar change that makes a snippet parse to something else fails and
+  names it.
+* **BUILTINS** — the call text is derived from `_BUILTIN_SIGS`'s argument
+  KINDS (v0.22 recorded them for `_order_hint`; this is a second reader),
+  so 28 of the 37 need no per-name entry. The nine that do are in
+  `ARG_OVERRIDE`, and `test_every_argument_override_is_load_bearing` drops
+  each one and asserts the generic call misses without it — the table is
+  checked in the direction that catches a stale entry, which is the
+  direction round 482's own list was wrong in.
+* **VALUES** — `VALUE_SOURCE`, for the kinds neither table names: a `Miss`
+  is what FAILURE produces, a `MergedProv` what a tail LOOP produces, an
+  `Explanation` what a keyword produces. The first derived probe written
+  here reached 34 classes and lost `values.Miss`; two derivations covered
+  more and still covered less, which is why `LEGACY_PROBE` is kept and the
+  derived set is held to a strict superset of it.
+
+`UNREACHABLE` declares the 8 remaining classes with a reason each —
+`ast_nodes.Program` (the top-level node is stored on no public attribute;
+a function BODY is a `Block` and IS public, which is why the other 22 are
+reachable), `FullRendering`/`_FullCtx`/`_Bare` (one `full_show` walk),
+`_PNode` (private path, decision 60's public-path rule), `_Call`/`_TailCall`
+(trampoline frames) and `_UnboundType` (the floor under `_closure_spec`; no
+source reaches it since v0.18). `probe_manifest()["stale_exceptions"]` is
+the other direction: a class that becomes reachable expires its own excuse.
+
+### R2 was checked against big values and never against big names
+
+`scale_cases()` (v0.47) is eleven hand-written cases and every one makes the
+VALUE large: `range(0, 3000)`, a 400-key record, a 5,000-character string, a
+60-parameter closure, a 400-statement body. None makes a NAME large. R2 says
+*bounded, however large the value is* — and an identifier is part of the
+rendering and is as large as the author types it:
+
+```
+let <400 z's> = 1
+  repr(env)                    559 chars   (1,783 with sixty such names)
+  repr(env.get(<400 z's>))     442 chars   REPR_CAP is 240
+```
+
+Three reprs in this implementation build their string by hand instead of
+going through `_frame`: `Prov`, `MergedProv` and `Env`. All three were
+unbounded. All three are what decisions 58 and 60 were written for, and both
+of those decisions had recorded a sentence asserting the opposite:
+
+* `values.REPR_CAP`'s comment — "`Env`'s is 186 characters at 31 names *(its
+  own `_ENV_REPR_NAMES` cut does the bounding)*". That cut bounds how many
+  names are LISTED.
+* `values._frame`'s docstring — "`Prov.__repr__` … is compliant anyway: …
+  *all four of its fields are already bounded*". `detail` is a raw
+  identifier.
+
+Both were written by round 482, in the two files it changed, within a few
+lines of the constant they were describing. Neither was a careless sentence;
+each was true of every value anybody had built.
+
+### The fix: one cut, one clip, two bounds on a listing
+
+* `values._cap(out, close="")` is now the ONLY place `REPR_CAP` is compared
+  against a length — `_frame`, `Prov`, `MergedProv`, `Env` and
+  `ast_nodes._simple.__repr__` all route through it.
+  `test_cap_is_the_only_place_repr_cap_is_compared` keeps it that way. Three
+  hand-written copies of one cut is a rule that can be right in two of them,
+  which is exactly what had happened: the two copies that existed were
+  correct and the three reprs with no copy were unbounded.
+* `values._clip(text, limit=SHOW_LIMIT)` bounds ONE variable-length token.
+  It is the design and `_cap` is the backstop: a bare final cut on
+  `Prov(...)` eats `value=`, the field the reader opened the repr for.
+* `Env` gains `_ENV_REPR_LISTING` (60 characters) beside `_ENV_REPR_NAMES`
+  (4 names) — how many and how long are two bounds. The `, ...N more` tail is
+  appended AFTER the cut, because the exact count is the one thing in that
+  string a reader can act on.
+
+### The instrument's own two defects, again
+
+Round 482 found two defects in this file that both reported a clean sweep.
+This round found two more, and both again reported clean:
+
+1. **`instances()` kept the FIRST object of each class the crawl hit.** With
+   the fix reverted in-process the whole sweep still reported 0 violations:
+   the first `Prov` on the scale probe is `v_list`, 58 characters. Checking
+   one arbitrary member of a class checks the class only if every member
+   reprs the same length, which is what a variable-length field makes false.
+   `worst_instances()` keeps the longest.
+2. **`Env.__repr__` lists 4 names in DECLARATION order**, and the value rows
+   were emitted LAST, so the 400-character name sat at position 74 and was
+   never listed — the pass that exists to exercise the name axis ran with it
+   switched off. `derive_probe()` emits `VALUE_SOURCE` first, in insertion
+   order (which is dependency order: written `sorted()`, two rows ran before
+   their own dependency existed and bound a MISS, and both classes were
+   reached anyway through a second door).
+
+`def reachable(source=PROBE, ...)` was a third: a default argument binds the
+module-level string once at def time, so a caller who rebinds
+`reprsweep.PROBE` keeps auditing the old program and gets a plausible
+answer. It cost one wrong measurement in this round before it was seen.
+
+### What did NOT change
+
+The AST family — 22 reachable classes sharing ONE generated `__repr__`, 16
+of them never audited — is clean at 5,000-character literals,
+400-character identifiers and 3,000-digit numerals. Decision 60's fix was
+general even though the evidence for it was not, and that negative result is
+what enumerating is for. `Prov` keeps its constructor-shaped repr (round 482
+settled that; v0.48 bounds it, it does not reshape it), `Miss.__repr__` still
+diverges from `show_payload` by decision 52, and a short-name `Env` repr is
+byte-identical to v0.45's.
+
+Tests: `tests/test_v48.py`, 62 tests, including a falsifier that restores the
+three v0.47 reprs in-process and asserts the sweep reports exactly
+`derived/Env`, `derived/MergedProv`, `derived/Prov` — restored in a
+`finally`, because round 481 left a mutant applied to a file it was
+measuring and cost round 482 a health check to work out why.
