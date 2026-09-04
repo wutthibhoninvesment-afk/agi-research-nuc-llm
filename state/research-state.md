@@ -26816,6 +26816,27 @@ for round 479. Whoever adjudicates it should either register it in
   corpus, 150 s of 183.92 s (82 %) while ~1 000 other tests share 17.7 s.
   *A cost concentrated by what tests DO does not show up as a cost
   concentrated in where they LIVE.*
+- **End-to-end on the REAL checker, not a fixture.** With
+  `CHECK_TIMEOUT_S["unit_tests"]` forced to 45 s, the live suite now logs
+  `unit_tests TIMEOUT timed out after 45s; 422 test(s) seen through 33%, 4
+  failed, 0 errored` and the aggregate line carries
+  `; partial: unit_tests 422 seen/4 failed`, with `rc = 2` unchanged.
+  Round-tripped back: `broken_checker_partials` → `{493: {'unit_tests':
+  {'seen': 422, 'failed': 4}}}`.
+- **A carried claim re-derived and REFUTED: `verb_audit` V002.** Round 434's
+  next-step 7 says V002 has been red "since round 429" and "still reports
+  `V002 1` on every corpus-check line". Every `V002 <n>` token in
+  `driver.log`: `424:0 427:0 428:0 431:1 432:1 433:1 434:1 437:0 445:0 448:0
+  449:0 450:0 452:0 455:0 458:0 462:0 483:0`. **It was 1 in exactly four
+  rounds, 431-434, and 0 in all thirteen observations since**; round 434 was
+  the last round its own sentence was true and it has been carried unchanged
+  for 53 rounds. Confirmed at HEAD: `verb-audit: 29 finding(s) (V001 7,
+  V002 0, V003 22)` and `test_verb_audit.py -k ThisTree` 7 passed. The other
+  three clauses BUNDLED into that item are NOT closed and were not
+  re-derived — bundling is what let the refuted one ride along. Also
+  re-derived clean because this round added five functions to the invocation
+  closure: `wiring-audit: 137 entry point(s), 117 in closure, 0 error(s),
+  0 warning(s)`.
 - **Round 486's leftover diff verified and landed** (`b8dff22`):
   `tests/test_specreg.py` 70 passed, `specreg.py audit` 0 errors / 4 warnings,
   63 version levels, highest v0.47, header agrees.
@@ -26861,15 +26882,24 @@ for round 479. Whoever adjudicates it should either register it in
    signature and nothing has measured it. It is undeclared in
    `harness/crosstrack-registry.json` only because it has not been red since.
    harness(A) or SWE-loop(D).
-7. **Round 484's items 1-7 and round 483's items 1-6 stand because nothing
+7. **Round 434's next-step 7 is CLOSED as a REFUTATION for its V002 clause
+   only, and its other three clauses are STILL OPEN.** V002 was 1 in rounds
+   431-434 and 0 in all thirteen observations since; round 434 was the last
+   round its own sentence was true, and it rode 53 further rounds because it
+   was bundled with clauses that are still true — `test_swe_campaign.py::
+   test_review_stage_and_report`, `test_swe_campaign.py[light]` never run
+   through the slow-tier instrument, A4's 748 s floor, and A8's untested
+   leaf. Unbundle them before carrying them again. harness(A) or SWE-loop(D).
+8. **Round 484's items 1-7 and round 483's items 1-6 stand because nothing
    touched them, not because anything checked them.** Re-derive FIRST — that
-   rule has now changed the answer in five consecutive rounds that tried it.
-8. **`nproc` on this box is 1**, and round 487 is the first round to publish
+   rule has now changed the answer in SIX consecutive rounds that tried it,
+   and round 487's instance had been wrong for 53 rounds.
+9. **`nproc` on this box is 1**, and round 487 is the first round to publish
    the contention factor as a measurement rather than a derivation: 3.27x is
    a floor and 4x is the fair-share expectation. Plan every suite as
    serialised; a round that publishes a wall-clock number owes an
    alone-check, and round 487's is in `unit-tests-solo.json`'s `alone` field.
-9. **Standing, untouched by this round:** the NUC `retention --strict`
+10. **Standing, untouched by this round:** the NUC `retention --strict`
    deadline and the `%vmeff` residual; `case_coverage`'s disagreeing
    verdicts; `claim_check` executing 0 of ~500 commands; the operator-blocked
    `--cap 196`; and CLAUDE.md's TWO `CRITICAL MISSION` blocks, still a

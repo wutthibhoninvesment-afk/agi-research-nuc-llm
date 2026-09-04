@@ -222,3 +222,86 @@ $ cd languages/whence && ../../.venv/bin/python -m pytest -q tests/test_specreg.
 $ cd languages/whence && ../../.venv/bin/python specreg.py audit
 specreg: 0 error(s), 4 warning(s)
 ```
+
+## 9. End-to-end, on the real checker rather than on a fixture
+
+The tests in §8 pin the parser against synthetic bars and against round 486's
+saved output. That is not the same as proving the repair fires on the live
+suite, so it was forced: `CHECK_TIMEOUT_S["unit_tests"]` patched to 45 s and
+`corpus_check.main(["--only", "unit_tests", "--no-evidence"])` run for real.
+
+```
+unit_tests         TIMEOUT   timed out after 45s; 422 test(s) seen through 33%,
+                             4 failed, 0 errored; 6 line(s) before the kill,
+                             last: ..................................
+corpus-check: 1 checker(s); SUBSET, did NOT run: skill_lint,case_coverage,...,
+  0 error(s), 0 warning(s); COULD NOT RUN: unit_tests; coverage: none
+  published; partial: unit_tests 422 seen/4 failed; budget: unit_tests
+  45s/45s (100%)
+rc = 2 (2 == COULD_NOT_RUN)
+```
+
+That second line is what rounds 483, 485 and 486 should have written. Note
+what did NOT change: `COULD NOT RUN: unit_tests` is still there and the exit
+code is still 2. Round 451's rule — *the point is to stop losing the evidence,
+not to stop reporting the failure* — survives its own extension.
+
+Round-tripped back through the consumer on a realistically-shaped log line:
+
+```
+>>> driver_health.broken_checker_partials(log)
+{493: {'unit_tests': {'seen': 422, 'failed': 4}}}
+>>> driver_health.broken_checker_report(log, registry)
+'round 493: unit_tests (422 test(s) seen, 4 failed)'
+```
+
+(4 failures rather than 5 because a 45 s kill lands at 33 % of the bar and one
+of the five failing tests is past that point. The count is of what was SEEN,
+which is the only honest thing a killed run can report.)
+
+## 10. A carried claim, re-derived and REFUTED
+
+`state/research-state.md` has carried this since round 433, restated by round
+434 as next-step 7 and carried by reference in every next-steps block since:
+
+> the harness fast tier's V002 `test_no_unexplained_broken_invocation` (red
+> since round 429 — `verb_audit` still reports `V002 1` on every corpus-check
+> line, including this round's)
+
+It is false at HEAD and has been false for a long time. Every `V002 <n>` token
+in `logs/driver.log`, in order:
+
+```
+424:0  427:0  428:0  431:1  432:1  433:1  434:1  437:0  445:0  448:0
+449:0  450:0  452:0  455:0  458:0  462:0  483:0
+```
+
+**V002 was 1 in exactly four rounds, 431-434, and 0 in all thirteen
+observations since.** Round 434 was the last round for which its own sentence
+was true; it has been carried unchanged for the fifty-three rounds after that.
+Confirmed directly:
+
+```
+$ .venv/bin/python harness/verb_audit.py check
+verb-audit: 29 finding(s) (V001 7, V002 0, V003 22) — all WARN, exit code unaffected
+$ .venv/bin/python -m pytest -q harness/tests/test_verb_audit.py -k ThisTree
+7 passed, 22 deselected in 63.20s
+```
+
+Also re-derived clean, because this round added five functions to the
+invocation closure and a new closure member is exactly how W001/W002 open:
+
+```
+$ .venv/bin/python harness/wiring_audit.py check
+wiring-audit: 137 entry point(s), 117 in closure, 0 error(s), 0 warning(s)
+```
+
+Two things follow. The narrow one: item 7 of round 434's next steps is CLOSED
+as a refutation, not as a fix, and the other three clauses bundled with it
+(`test_swe_campaign.py::test_review_stage_and_report`, `[light]` never run
+through the slow-tier instrument, A4's 748 s floor, A8's untested leaf) are
+NOT closed and were not re-derived here — bundling them into one item is what
+let the refuted one ride along for 53 rounds. The general one is the same
+lesson this round's own §4 teaches from the other end: *a claim nobody
+re-executes decays at the rate of the rotation, and the ones that decay
+silently are the ones bundled with a claim that is still true.*
