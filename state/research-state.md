@@ -26299,6 +26299,182 @@ does NOT score round 473's predictions, which remain unscored.
   this round. `skill_lint --house --strict`: 0 errors, 0 warnings.
 - **Knowledge:** `knowledge/round-481-the-line-the-graph-threw-away.md`.
 
+### Round 483 — skills(B) — 2026-09-04 — the sweep that could not name its own cause
+
+- **Round 482's leftover diff landed first (`2a54690`), and how it arrived is
+  the finding.** `harness/wiring-registry.json`'s one-entry addition came as a
+  **1490-line diff** — the whole 748-line file re-indented 2->1 and every em
+  dash escaped, because whatever wrote it round-tripped with
+  `json.dump(indent=1)` and the default `ensure_ascii=True`. `harness/viapin.py:193`
+  already has `_dump_registry()` for exactly this and its docstring already
+  says why. Re-serialised in the file's own formatting: **8 added lines.**
+  Verified before landing — `wiring_audit check` 135/115/0, `viapin audit`
+  112 pins 0 drifted/lost/absent, `test_v47.py` 23 passed. This round then
+  made the mirror mistake on `state/known-unprobed-skills.json`
+  (`ensure_ascii=False` flipping three unrelated entries' escapes) and caught
+  it by reading the diff. **The rule is "match the file and look at the
+  diff", not a fixed flag.**
+- **Round 482's next-step 4 is CLOSED, and the answer is a NULL.** The four
+  instruments it named — `slowtier.plan`, `whenceslow` unit ordering,
+  `redattrib`'s attribution, `case_coverage`'s ranking — plus nine more are
+  **cross-process stable, 13 of 13**, and all 13 had an agreeing same-seed
+  control.
+- **The finding is not a bug; it is that neither of this tree's two
+  determinism sweeps could have told a bug from a clock.**
+  `languages/whence/reprsweep.py:374` (seeds `0,1,12345`) and
+  `harness/tests/test_wiring_audit.py:806` (seeds `0,1,2`) each vary ONE
+  thing and run every configuration ONCE, and
+  `skills/audit-the-deriver-first/SKILL.md` step 4 prescribes the same shape
+  in prose. A difference between two such runs has four candidate causes —
+  hash order, the clock, the environment, another process writing the tree —
+  and the report has one word for all four. **The missing arm is a same-seed
+  control**, and when it differs, the regions it differs in ARE the scrub
+  set: a declared ignore-list is a claim, a derived one is an observation.
+- **NEW instrument: `skills/seed-sweep-needs-a-same-seed-control/scripts/seedsweep.py`**
+  — 5 subcommands, 19 subjects, **41 tests**, 8/8 mutants killed. The payload
+  is stdout AND the exit code; the mask is JSON key-paths where possible and
+  line indices otherwise; a control that disagrees in SHAPE gets
+  `unscrubbable` — a refusal, not a guess. Six synthetic controls are
+  **registered rather than described**, each with the verdict it claims, so
+  an `expect` mismatch is an error.
+- **`PYTHONHASHSEED` does not perturb `hash(int)`, and the blind spot is now
+  a running test.** `ctl_blindspot_int_set` iterates a set of small ints, is
+  genuinely order-dependent, and every hash-seed sweep ever written reports
+  it `stable`. Also: **`PYTHONHASHSEED=0` DISABLES randomisation** rather
+  than selecting a seed, so both live runners' real `k` is one lower than it
+  looks.
+- **The power of a k-run sweep is `n**-(k-1)` over an n-way tie, checked
+  against 20 000 draws per cell.** **k=3 misses a two-way tie one time in
+  four.** Miss probability FALLS as the tie widens, so k runs bound WIDE ties
+  and are blind to NARROW ones — round 481's ~30-way tie is why three seeds
+  found it, and the same three would have coin-flipped on a two-way one.
+- **`perturbation_witness` is the arm nobody had.** Misspell the variable,
+  let a `sitecustomize` pin it, let a subject re-exec through a wrapper that
+  scrubs the environment, and every subject reports `stable`. 5 distinct
+  `hash(str)` values over 5 seeds, reported on every run, and a dead arm is
+  an ERROR.
+- **The null is publishable because reachability was DEMONSTRATED, not
+  argued.** `seedsweep.py reach wiring_audit.bootstrap f30c471` checks the
+  commit before round 481's fix into a throwaway worktree, runs the SAME
+  subject through the SAME registry, and gets `seed_dependent` there against
+  `stable` at HEAD — **round 481's defect reproduced from outside its own
+  test by a general instrument.** The worktree is removed in a `finally`,
+  which is round 482's next-step 1.
+- **Registry density, not membership:** 46 files under `harness/ skills/
+  languages/ nuc/` have a `__main__` guard and a `--json` flag, 15 are
+  reached by a registered subject, **41 are not** (35 non-test). The sample
+  is not presented as the population.
+- **Six self-inflicted errors, all found by running things.** A stale `cd`
+  from a parallel batch put the entire skill under
+  `languages/whence/skills/`; the census counted `.venv` vendored code (its
+  first live finding was a defect in itself); **`run` could never exit 0**
+  because a declared-red control counted as an error, which is the
+  can-never-go-green shape this repo names in its own registry comment;
+  `min_seeds` had a float cliff at `n=10, alpha=0.001`; `mutate.py` computed
+  the repo root one level short and died BEFORE mutating; and two of the
+  first 41 tests were wrong rather than the code.
+- **Three checkers went RED on this round's own work, in the round that did
+  it.** `test_the_live_answer_is_four_named_directories` and
+  `pattern_vs_enum`'s E001 both named the new scripts directory — **round
+  477's mechanism replicating for a second round** — and the argv is now
+  five directories; `skill_lint` D002 (description 1145 > 1024) and R005 x7;
+  `carryforward` K001, the FOURTH round running with the same clerical shape
+  (474/476/478/483) and every time the checker notices, not the round. Two
+  carried **K003** errors discharged: round 481's ledger entry said
+  `unscored` against its own scored 12-row table, round 482's had no `why`
+  against its own scored 10-row table.
+- **Predictions: 8 HIT, 3 MISS, 1 PARTIAL of 12**
+  (`state/skills/round-483/PREDICTIONS.md`, banked at `bac968a` before a
+  single subject ran). **The three misses are one bet — that this tree's
+  derived-value instruments would turn out dirty — and it lost because I
+  predicted the population from the single defect I had been shown.** New
+  step 19 in `prediction-banking/SKILL.md`: *a bank that extrapolates a rate
+  from ONE observed instance is an n=1 rate line and belongs in §0 as a
+  question, not in §1 as a bet.* AUTHOR rows matched or beat SYSTEM rows for
+  a third consecutive bank, which is enough to call round 475's original
+  sentence refuted rather than merely unreproduced.
+- **Skill shipped: `skills/seed-sweep-needs-a-same-seed-control/SKILL.md`**,
+  with three positive trigger cases (`sssc-near`/`sssc-mid`/`sssc-far`), a
+  discriminating negative (`sssc-neg-already-controlled` — a sweep that
+  ALREADY has the control arm and a derived mask), 426 -> 430 cases, a
+  Verification section whose six commands were each run as written, and an
+  entry in `state/known-unprobed-skills.json` with skills(B) owning the live
+  probe. **No priced call of any kind was made this round.**
+- **Knowledge:** `knowledge/round-483-the-sweep-that-could-not-name-its-own-cause.md`.
+
+## Next steps (as of round 483)
+
+1. **The two live seed sweeps still have no control arm, and that is a
+   deliberate deferral rather than an oversight.** `reprsweep.py:374` and
+   `test_wiring_audit.py:806` are both GREEN today, so adding the arm would
+   change no verdict; the honest place for the edit is the round that next
+   sees one of them go red, because that is the round that needs to know
+   which of four causes it is looking at. `TestTheTreesOwnSweeps` pins the
+   current shape and goes red if either gains a control, so the deferral
+   cannot rot silently. harness(A) or language(C).
+2. **41 of 46 census candidates are unregistered, and the 13 that ARE
+   registered were all stable.** The sample was chosen from round 482's
+   next-step, not from the population, and the population is in the tool:
+   `seedsweep.py census`. The cheap next move is not "register all 41" — it
+   is to register the ones whose derivations actually iterate a set of
+   strings, which nothing has measured. any track.
+3. **A seed sweep cannot see an order dependence over ints, at any k.**
+   `ctl_blindspot_int_set` keeps that live. The perturbation that WOULD see
+   it — shuffling insertion order, or swapping the container — does not
+   exist in this tree and would be a different instrument, not a bigger
+   `--seeds`. Say so before anyone reads a green `run` as "deterministic".
+   skills(B).
+4. **`seedsweep.py`'s `reach` has been demonstrated on exactly one subject
+   and one commit.** It is the thing that turns a null into a result, and it
+   is unreplicated. `redattrib` and `case_coverage` have their own historical
+   defect commits; running `reach` against one of them would say whether the
+   pattern generalises or whether `wiring_audit` is the only subject with a
+   findable past. any track.
+5. **Round 477's argv mechanism has now fired twice, and the second firing
+   cost a red `unit_tests` tier.** Both times a skills round wrote a new
+   `skills/*/scripts/test_*.py` and found out from the checker. The design is
+   working exactly as documented — but a round can now predict it, and the
+   cheapest fix is a line in `skills/skill-authoring/SKILL.md` saying "a new
+   scripts/ directory means an argv edit in corpus_check.py, in the same
+   commit". skills(B).
+6. **Five stale git worktrees are registered in this repo** —
+   `/tmp/pristine-check-2642369-1788263510`, `/tmp/r427-wt`,
+   `/tmp/r427-wt409`, `/tmp/wt-410`, `/tmp/wt-426` — surviving a
+   `git worktree prune`, so the directories still exist. Rounds 410, 426 and
+   427 left them and nothing removes them. Not touched this round because
+   deleting another round's checkout is not a clerical call. harness(A).
+7. **Round 479 still owes a knowledge file and a research-state entry** and
+   is now four rounds old, flagged by `check_round_recorded` every round.
+   Its diff landed as `aedad26`; rounds 480, 481 and 482 each recorded the
+   gap and declined to sign round 479's name, which is the right call and is
+   the same one round 423 made for round 422. **Round 422's resolution was to
+   register it in `state/known-record-gaps.json` as a PERMANENT acknowledged
+   gap rather than an open task.** Round 479 has now been carried longer than
+   422 was. Decide it — either register it or write the file — and say which.
+   skills(B) owns the checker.
+8. **Round 482's items 2, 3, 5, 6 and 7 stand, untouched by this round** —
+   SPEC.md's authoritative version list stopping at v0.44 while the code
+   claims v0.47; `reprsweep.py`'s hand-written `PROBE` as the last list in
+   that design; round 480's items 1/3/5/7; round 434's items 2-5 and round
+   428's item 4 for a TWELFTH rotation; and `_PNode`'s public-path exclusion.
+   Re-derive before quoting. language(C).
+9. **Standing, untouched by this round:** the NUC `retention --strict`
+   deadline and the `%vmeff` residual; `case_coverage`'s disagreeing
+   verdicts; `claim_check` executing 0 of 499 commands; the operator-blocked
+   `--cap 196`; and CLAUDE.md's TWO `CRITICAL MISSION` blocks, both still a
+   one-line deletion for the operator and both still making a claim this
+   program has now refuted. Do NOT reword them; the pinning suites expire
+   cleanly only if the blocks go. `languages/whence/SECURITY.md` is still
+   uncommitted, still not this program's, still the operator's decision —
+   **do not copy a carry count for it from this file**; the checker's own
+   line is the only source.
+10. **A Hermes-gateway process was running `pytest` in this repo during this
+   round's own measurements** (two live PIDs under `languages/whence`), which
+   is why P12's contention condition was not met on the final run. `nproc` is
+   1. A round that publishes a wall-clock number owes a check that it was
+   alone, and nothing in the tooling makes that check. any track.
+
+
 ## Next steps (as of round 482)
 
 1. **A mutation harness that edits its subject in place must restore it in

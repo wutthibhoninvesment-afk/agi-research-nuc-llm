@@ -1,0 +1,651 @@
+{
+ "rows": [
+  {
+   "id": "ctl_stable",
+   "owner": "skills(B)",
+   "expect": "stable",
+   "argv": [
+    "skills/seed-sweep-needs-a-same-seed-control/scripts/controls/ctl_stable.py"
+   ],
+   "n_seeds": 5,
+   "control_runs": 2,
+   "seeds": [
+    "1",
+    "2",
+    "3",
+    "5",
+    "8"
+   ],
+   "control_agrees": true,
+   "mask_kind": "none",
+   "mask": [],
+   "n_masked": 0,
+   "elapsed_s": 0.306,
+   "rcs": [
+    0
+   ],
+   "bytes": 137,
+   "raw_cross_agrees": true,
+   "cross_agrees": true,
+   "verdict": "stable",
+   "naive_verdict": "stable",
+   "control_changed_the_verdict": false
+  },
+  {
+   "id": "ctl_seed_dependent",
+   "owner": "skills(B)",
+   "expect": "seed_dependent",
+   "argv": [
+    "skills/seed-sweep-needs-a-same-seed-control/scripts/controls/ctl_seed_dependent.py"
+   ],
+   "n_seeds": 5,
+   "control_runs": 2,
+   "seeds": [
+    "1",
+    "2",
+    "3",
+    "5",
+    "8"
+   ],
+   "control_agrees": true,
+   "mask_kind": "none",
+   "mask": [],
+   "n_masked": 0,
+   "elapsed_s": 0.307,
+   "rcs": [
+    0
+   ],
+   "bytes": 146,
+   "raw_cross_agrees": false,
+   "cross_agrees": false,
+   "verdict": "seed_dependent",
+   "naive_verdict": "seed_dependent",
+   "control_changed_the_verdict": false,
+   "witness": {
+    "line": 1,
+    "values": [
+     "{\"first\": \"alpha\", \"order\": [\"alpha\", \"kilo\", \"echo\", \"hotel\", \"juliett\", \"charlie\", \"foxtrot\", \"bravo\", \"golf\", \"delta\", \"lima\", \"india\"]}",
+     "{\"first\": \"golf\", \"order\": [\"golf\", \"foxtrot\", \"juliett\", \"echo\", \"bravo\", \"alpha\", \"india\", \"lima\", \"charlie\", \"delta\", \"kilo\", \"hotel\"]}",
+     "{\"first\": \"india\", \"order\": [\"india\", \"juliett\", \"delta\", \"hotel\", \"bravo\", \"foxtrot\", \"golf\", \"lima\", \"charlie\", \"echo\", \"alpha\", \"kilo\"]}",
+     "{\"first\": \"juliett\", \"order\": [\"juliett\", \"delta\", \"charlie\", \"alpha\", \"bravo\", \"golf\", \"hotel\", \"kilo\", \"echo\", \"foxtrot\", \"lima\", \"india\"]}"
+    ]
+   }
+  },
+  {
+   "id": "ctl_volatile",
+   "owner": "skills(B)",
+   "expect": "volatile",
+   "argv": [
+    "skills/seed-sweep-needs-a-same-seed-control/scripts/controls/ctl_volatile.py"
+   ],
+   "n_seeds": 5,
+   "control_runs": 2,
+   "seeds": [
+    "1",
+    "2",
+    "3",
+    "5",
+    "8"
+   ],
+   "control_agrees": false,
+   "mask_kind": "json",
+   "mask": [
+    ".generated_at_ns"
+   ],
+   "n_masked": 1,
+   "elapsed_s": 0.368,
+   "rcs": [
+    0
+   ],
+   "bytes": 96,
+   "raw_cross_agrees": false,
+   "cross_agrees": true,
+   "verdict": "volatile",
+   "naive_verdict": "seed_dependent",
+   "control_changed_the_verdict": true
+  },
+  {
+   "id": "ctl_both",
+   "owner": "skills(B)",
+   "expect": "seed_dependent_under_volatility",
+   "argv": [
+    "skills/seed-sweep-needs-a-same-seed-control/scripts/controls/ctl_both.py"
+   ],
+   "n_seeds": 5,
+   "control_runs": 2,
+   "seeds": [
+    "1",
+    "2",
+    "3",
+    "5",
+    "8"
+   ],
+   "control_agrees": false,
+   "mask_kind": "json",
+   "mask": [
+    ".generated_at_ns"
+   ],
+   "n_masked": 1,
+   "elapsed_s": 0.722,
+   "rcs": [
+    0
+   ],
+   "bytes": 168,
+   "raw_cross_agrees": false,
+   "cross_agrees": false,
+   "verdict": "seed_dependent_under_volatility",
+   "naive_verdict": "seed_dependent",
+   "control_changed_the_verdict": true,
+   "witness": {
+    "line": 1,
+    "values": [
+     "[[\".generated_at_ns\", \"<masked>\"], [\".order[0]\", \"alpha\"], [\".order[10]\", \"lima\"], [\".order[11]\", \"india\"], [\".order[1]\", \"kilo\"], [\".order[2]\", \"echo\"], [\".ord",
+     "[[\".generated_at_ns\", \"<masked>\"], [\".order[0]\", \"golf\"], [\".order[10]\", \"kilo\"], [\".order[11]\", \"hotel\"], [\".order[1]\", \"foxtrot\"], [\".order[2]\", \"juliett\"], [",
+     "[[\".generated_at_ns\", \"<masked>\"], [\".order[0]\", \"india\"], [\".order[10]\", \"alpha\"], [\".order[11]\", \"kilo\"], [\".order[1]\", \"juliett\"], [\".order[2]\", \"delta\"], [\"",
+     "[[\".generated_at_ns\", \"<masked>\"], [\".order[0]\", \"juliett\"], [\".order[10]\", \"lima\"], [\".order[11]\", \"india\"], [\".order[1]\", \"delta\"], [\".order[2]\", \"charlie\"], "
+    ]
+   }
+  },
+  {
+   "id": "ctl_blindspot_int_set",
+   "owner": "skills(B)",
+   "expect": "stable",
+   "argv": [
+    "skills/seed-sweep-needs-a-same-seed-control/scripts/controls/ctl_blindspot_int_set.py"
+   ],
+   "n_seeds": 5,
+   "control_runs": 2,
+   "seeds": [
+    "1",
+    "2",
+    "3",
+    "5",
+    "8"
+   ],
+   "control_agrees": true,
+   "mask_kind": "none",
+   "mask": [],
+   "n_masked": 0,
+   "elapsed_s": 0.671,
+   "rcs": [
+    0
+   ],
+   "bytes": 74,
+   "raw_cross_agrees": true,
+   "cross_agrees": true,
+   "verdict": "stable",
+   "naive_verdict": "stable",
+   "control_changed_the_verdict": false
+  },
+  {
+   "id": "ctl_unscrubbable",
+   "owner": "skills(B)",
+   "expect": "unscrubbable",
+   "argv": [
+    "skills/seed-sweep-needs-a-same-seed-control/scripts/controls/ctl_unscrubbable.py"
+   ],
+   "n_seeds": 5,
+   "control_runs": 2,
+   "seeds": [
+    "1",
+    "2",
+    "3",
+    "5",
+    "8"
+   ],
+   "control_agrees": false,
+   "mask_kind": "unscrubbable",
+   "mask": [],
+   "n_masked": 0,
+   "elapsed_s": 0.238,
+   "verdict": "unscrubbable",
+   "detail": "the same seed run 2 times disagreed in SHAPE; no mask can localise the noise, so no statement about hash order is available from this subject"
+  },
+  {
+   "id": "wiring_audit.bootstrap",
+   "owner": "harness(A)",
+   "expect": "stable",
+   "argv": [
+    "harness/wiring_audit.py",
+    "bootstrap"
+   ],
+   "n_seeds": 5,
+   "control_runs": 2,
+   "seeds": [
+    "1",
+    "2",
+    "3",
+    "5",
+    "8"
+   ],
+   "control_agrees": true,
+   "mask_kind": "none",
+   "mask": [],
+   "n_masked": 0,
+   "elapsed_s": 202.226,
+   "rcs": [
+    0
+   ],
+   "bytes": 19329,
+   "raw_cross_agrees": true,
+   "cross_agrees": true,
+   "verdict": "stable",
+   "naive_verdict": "stable",
+   "control_changed_the_verdict": false
+  },
+  {
+   "id": "viapin.audit",
+   "owner": "harness(A)",
+   "expect": "any",
+   "argv": [
+    "harness/viapin.py",
+    "audit",
+    "--json"
+   ],
+   "n_seeds": 5,
+   "control_runs": 2,
+   "seeds": [
+    "1",
+    "2",
+    "3",
+    "5",
+    "8"
+   ],
+   "control_agrees": true,
+   "mask_kind": "none",
+   "mask": [],
+   "n_masked": 0,
+   "elapsed_s": 176.205,
+   "rcs": [
+    0
+   ],
+   "bytes": 44544,
+   "raw_cross_agrees": true,
+   "cross_agrees": true,
+   "verdict": "stable",
+   "naive_verdict": "stable",
+   "control_changed_the_verdict": false
+  },
+  {
+   "id": "slowtier.plan",
+   "owner": "SWE-loop(D)",
+   "expect": "any",
+   "argv": [
+    "harness/swe/slowtier.py",
+    "plan"
+   ],
+   "n_seeds": 5,
+   "control_runs": 2,
+   "seeds": [
+    "1",
+    "2",
+    "3",
+    "5",
+    "8"
+   ],
+   "control_agrees": true,
+   "mask_kind": "none",
+   "mask": [],
+   "n_masked": 0,
+   "elapsed_s": 35.629,
+   "rcs": [
+    0
+   ],
+   "bytes": 615,
+   "raw_cross_agrees": true,
+   "cross_agrees": true,
+   "verdict": "stable",
+   "naive_verdict": "stable",
+   "control_changed_the_verdict": false
+  },
+  {
+   "id": "slowtier.units",
+   "owner": "SWE-loop(D)",
+   "expect": "any",
+   "argv": [
+    "harness/swe/slowtier.py",
+    "units"
+   ],
+   "n_seeds": 5,
+   "control_runs": 2,
+   "seeds": [
+    "1",
+    "2",
+    "3",
+    "5",
+    "8"
+   ],
+   "control_agrees": true,
+   "mask_kind": "none",
+   "mask": [],
+   "n_masked": 0,
+   "elapsed_s": 0.979,
+   "rcs": [
+    0
+   ],
+   "bytes": 1712,
+   "raw_cross_agrees": true,
+   "cross_agrees": true,
+   "verdict": "stable",
+   "naive_verdict": "stable",
+   "control_changed_the_verdict": false
+  },
+  {
+   "id": "whenceslow.plan",
+   "owner": "harness(A)",
+   "expect": "any",
+   "argv": [
+    "harness/whenceslow.py",
+    "plan"
+   ],
+   "n_seeds": 5,
+   "control_runs": 2,
+   "seeds": [
+    "1",
+    "2",
+    "3",
+    "5",
+    "8"
+   ],
+   "control_agrees": true,
+   "mask_kind": "none",
+   "mask": [],
+   "n_masked": 0,
+   "elapsed_s": 6.986,
+   "rcs": [
+    0
+   ],
+   "bytes": 132,
+   "raw_cross_agrees": true,
+   "cross_agrees": true,
+   "verdict": "stable",
+   "naive_verdict": "stable",
+   "control_changed_the_verdict": false
+  },
+  {
+   "id": "whenceslow.units",
+   "owner": "harness(A)",
+   "expect": "any",
+   "argv": [
+    "harness/whenceslow.py",
+    "units"
+   ],
+   "n_seeds": 5,
+   "control_runs": 2,
+   "seeds": [
+    "1",
+    "2",
+    "3",
+    "5",
+    "8"
+   ],
+   "control_agrees": true,
+   "mask_kind": "none",
+   "mask": [],
+   "n_masked": 0,
+   "elapsed_s": 5.81,
+   "rcs": [
+    0
+   ],
+   "bytes": 1605,
+   "raw_cross_agrees": true,
+   "cross_agrees": true,
+   "verdict": "stable",
+   "naive_verdict": "stable",
+   "control_changed_the_verdict": false
+  },
+  {
+   "id": "whenceslow.status",
+   "owner": "harness(A)",
+   "expect": "any",
+   "argv": [
+    "harness/whenceslow.py",
+    "status"
+   ],
+   "n_seeds": 5,
+   "control_runs": 2,
+   "seeds": [
+    "1",
+    "2",
+    "3",
+    "5",
+    "8"
+   ],
+   "control_agrees": true,
+   "mask_kind": "none",
+   "mask": [],
+   "n_masked": 0,
+   "elapsed_s": 8.685,
+   "rcs": [
+    0
+   ],
+   "bytes": 2402,
+   "raw_cross_agrees": true,
+   "cross_agrees": true,
+   "verdict": "stable",
+   "naive_verdict": "stable",
+   "control_changed_the_verdict": false
+  },
+  {
+   "id": "redattrib.attribute",
+   "owner": "SWE-loop(D)",
+   "expect": "any",
+   "argv": [
+    "harness/redattrib.py",
+    "attribute",
+    "--json"
+   ],
+   "n_seeds": 5,
+   "control_runs": 2,
+   "seeds": [
+    "1",
+    "2",
+    "3",
+    "5",
+    "8"
+   ],
+   "control_agrees": true,
+   "mask_kind": "none",
+   "mask": [],
+   "n_masked": 0,
+   "elapsed_s": 3.984,
+   "rcs": [
+    0
+   ],
+   "bytes": 84172,
+   "raw_cross_agrees": true,
+   "cross_agrees": true,
+   "verdict": "stable",
+   "naive_verdict": "stable",
+   "control_changed_the_verdict": false
+  },
+  {
+   "id": "redattrib.nodes",
+   "owner": "SWE-loop(D)",
+   "expect": "any",
+   "argv": [
+    "harness/redattrib.py",
+    "nodes",
+    "--json"
+   ],
+   "n_seeds": 5,
+   "control_runs": 2,
+   "seeds": [
+    "1",
+    "2",
+    "3",
+    "5",
+    "8"
+   ],
+   "control_agrees": true,
+   "mask_kind": "none",
+   "mask": [],
+   "n_masked": 0,
+   "elapsed_s": 1.883,
+   "rcs": [
+    0
+   ],
+   "bytes": 15152,
+   "raw_cross_agrees": true,
+   "cross_agrees": true,
+   "verdict": "stable",
+   "naive_verdict": "stable",
+   "control_changed_the_verdict": false
+  },
+  {
+   "id": "case_coverage.list",
+   "owner": "skills(B)",
+   "expect": "any",
+   "argv": [
+    "skills/skill-authoring/scripts/case_coverage.py",
+    "--list"
+   ],
+   "n_seeds": 5,
+   "control_runs": 2,
+   "seeds": [
+    "1",
+    "2",
+    "3",
+    "5",
+    "8"
+   ],
+   "control_agrees": true,
+   "mask_kind": "none",
+   "mask": [],
+   "n_masked": 0,
+   "elapsed_s": 2.115,
+   "rcs": [
+    0
+   ],
+   "bytes": 13642,
+   "raw_cross_agrees": true,
+   "cross_agrees": true,
+   "verdict": "stable",
+   "naive_verdict": "stable",
+   "control_changed_the_verdict": false
+  },
+  {
+   "id": "reprsweep.audit",
+   "owner": "language(C)",
+   "expect": "stable",
+   "argv": [
+    "reprsweep.py",
+    "--json"
+   ],
+   "n_seeds": 5,
+   "control_runs": 2,
+   "seeds": [
+    "1",
+    "2",
+    "3",
+    "5",
+    "8"
+   ],
+   "control_agrees": true,
+   "mask_kind": "none",
+   "mask": [],
+   "n_masked": 0,
+   "elapsed_s": 1.379,
+   "rcs": [
+    0
+   ],
+   "bytes": 7846,
+   "raw_cross_agrees": true,
+   "cross_agrees": true,
+   "verdict": "stable",
+   "naive_verdict": "stable",
+   "control_changed_the_verdict": false
+  },
+  {
+   "id": "orderhint.audit",
+   "owner": "language(C)",
+   "expect": "any",
+   "argv": [
+    "orderhint.py",
+    "--json"
+   ],
+   "n_seeds": 5,
+   "control_runs": 2,
+   "seeds": [
+    "1",
+    "2",
+    "3",
+    "5",
+    "8"
+   ],
+   "control_agrees": true,
+   "mask_kind": "none",
+   "mask": [],
+   "n_masked": 0,
+   "elapsed_s": 1.118,
+   "rcs": [
+    0
+   ],
+   "bytes": 16753,
+   "raw_cross_agrees": true,
+   "cross_agrees": true,
+   "verdict": "stable",
+   "naive_verdict": "stable",
+   "control_changed_the_verdict": false
+  },
+  {
+   "id": "xref_check",
+   "owner": "skills(B)",
+   "expect": "any",
+   "argv": [
+    "skills/skill-authoring/scripts/xref_check.py"
+   ],
+   "n_seeds": 5,
+   "control_runs": 2,
+   "seeds": [
+    "1",
+    "2",
+    "3",
+    "5",
+    "8"
+   ],
+   "control_agrees": true,
+   "mask_kind": "none",
+   "mask": [],
+   "n_masked": 0,
+   "elapsed_s": 76.259,
+   "rcs": [
+    1
+   ],
+   "bytes": 998,
+   "raw_cross_agrees": true,
+   "cross_agrees": true,
+   "verdict": "stable",
+   "naive_verdict": "stable",
+   "control_changed_the_verdict": false
+  }
+ ],
+ "counts": {
+  "stable": 15,
+  "seed_dependent": 1,
+  "volatile": 1,
+  "seed_dependent_under_volatility": 1,
+  "unscrubbable": 1
+ },
+ "expectation_misses": [],
+ "perturbation": {
+  "effective": true,
+  "n_distinct": 5,
+  "n_seeds": 5,
+  "values": [
+   "-5516129535663791144",
+   "-2921245742124619190",
+   "-7986950562505221194",
+   "1683173812034397057",
+   "7174803098685846570"
+  ]
+ },
+ "n_control_changed": 2,
+ "power": {
+  "n_seeds": 5,
+  "miss_prob_2way": 0.0625,
+  "miss_prob_3way": 0.012345679012345678,
+  "widest_tie_under_5pct": 3
+ },
+ "errors": 0
+}

@@ -1,0 +1,142 @@
+{
+  "_comment": "Read by seedsweep.py (round 483, skills B). Each subject is one COMMAND whose stdout+exit-code is a derived value someone downstream believes has a single answer. `expect` is what the registry claims the measurement will say; `seedsweep.py run` treats any expect/measured mismatch as an error, so this file is a set of falsifiable claims and not a to-do list. `any` means the answer is genuinely not known and the row is exploratory. The six `ctl_` subjects are synthetic and exist so the instrument can be shown to detect what it claims to detect (falsifier-must-kill-something): if `ctl_seed_dependent` ever reports `stable`, every other `stable` on the sheet is worthless.",
+  "_cwd": "`cwd` is relative to the repo root; `argv` is passed to the SAME interpreter that runs seedsweep.py, so a subject inherits the round's .venv rather than the system python (reproduce-under-the-runners-interpreter).",
+  "subjects": [
+    {
+      "id": "ctl_stable",
+      "argv": ["skills/seed-sweep-needs-a-same-seed-control/scripts/controls/ctl_stable.py"],
+      "owner": "skills(B)",
+      "expect": "stable",
+      "why": "Negative control. A sorted derivation over the same strings. If this is ever not `stable` the runner itself is injecting noise and no row on the sheet can be read."
+    },
+    {
+      "id": "ctl_seed_dependent",
+      "argv": ["skills/seed-sweep-needs-a-same-seed-control/scripts/controls/ctl_seed_dependent.py"],
+      "owner": "skills(B)",
+      "expect": "seed_dependent",
+      "why": "Positive control. Round 481's `best_incoming` defect in nine lines: a set of strings, iterated. Proves the cross-seed arm can fire."
+    },
+    {
+      "id": "ctl_volatile",
+      "argv": ["skills/seed-sweep-needs-a-same-seed-control/scripts/controls/ctl_volatile.py"],
+      "owner": "skills(B)",
+      "expect": "volatile",
+      "why": "The whole point of the skill. A naive cross-seed sweep calls this a hash-order bug; the same-seed control localises the clock field and the verdict becomes `volatile`. `control_changed_the_verdict` must be true here."
+    },
+    {
+      "id": "ctl_both",
+      "argv": ["skills/seed-sweep-needs-a-same-seed-control/scripts/controls/ctl_both.py"],
+      "owner": "skills(B)",
+      "expect": "seed_dependent_under_volatility",
+      "why": "The scrub set must not be too WIDE. Clock noise and hash noise in one output: masking the first must leave the second visible, or the derived mask has bought its own green."
+    },
+    {
+      "id": "ctl_blindspot_int_set",
+      "argv": ["skills/seed-sweep-needs-a-same-seed-control/scripts/controls/ctl_blindspot_int_set.py"],
+      "owner": "skills(B)",
+      "expect": "stable",
+      "why": "THE DOCUMENTED BLIND SPOT, kept live. Genuinely order-dependent, and invisible to every hash-seed sweep because CPython hashes a small non-negative int to itself. `expect: stable` is a claim about the INSTRUMENT, not about the subject."
+    },
+    {
+      "id": "ctl_unscrubbable",
+      "argv": ["skills/seed-sweep-needs-a-same-seed-control/scripts/controls/ctl_unscrubbable.py"],
+      "owner": "skills(B)",
+      "expect": "unscrubbable",
+      "why": "The refusal. Same seed, different SHAPE. No mask can localise it, so the instrument must decline to answer the seed question rather than guess."
+    },
+
+    {
+      "id": "wiring_audit.bootstrap",
+      "argv": ["harness/wiring_audit.py", "bootstrap"],
+      "owner": "harness(A)",
+      "expect": "stable",
+      "why": "Round 481 fixed `best_incoming`'s cross-process tie-break; `bootstrap` is the verb that publishes it. This row is the regression guard for that fix, run from outside pytest."
+    },
+    {
+      "id": "viapin.audit",
+      "argv": ["harness/viapin.py", "audit", "--json"],
+      "owner": "harness(A)",
+      "expect": "any",
+      "why": "Round 481's other half. Reads the same graph and emits a per-pin verdict plus a `suggest` line, which is exactly the shape a tie-break can move."
+    },
+    {
+      "id": "slowtier.plan",
+      "argv": ["harness/swe/slowtier.py", "plan"],
+      "owner": "SWE-loop(D)",
+      "expect": "any",
+      "why": "Named by round 482's next-step 4. The plan picks which slow units to run inside a budget; a plan that depends on the process is a plan nobody can reproduce."
+    },
+    {
+      "id": "slowtier.units",
+      "argv": ["harness/swe/slowtier.py", "units"],
+      "owner": "SWE-loop(D)",
+      "expect": "any",
+      "why": "The ORDERING half of the same instrument, separated from `plan` so a finding names which one moved."
+    },
+    {
+      "id": "whenceslow.plan",
+      "argv": ["harness/whenceslow.py", "plan"],
+      "owner": "harness(A)",
+      "expect": "any",
+      "why": "Round 482's next-step 4 names `whenceslow` unit ordering specifically."
+    },
+    {
+      "id": "whenceslow.units",
+      "argv": ["harness/whenceslow.py", "units"],
+      "owner": "harness(A)",
+      "expect": "any",
+      "why": "The ordering itself."
+    },
+    {
+      "id": "whenceslow.status",
+      "argv": ["harness/whenceslow.py", "status"],
+      "owner": "harness(A)",
+      "expect": "any",
+      "why": "Reads a ledger and reports recall against a subject hash. Included because a status line is the thing a round quotes into research-state.md."
+    },
+    {
+      "id": "redattrib.attribute",
+      "argv": ["harness/redattrib.py", "attribute", "--json"],
+      "owner": "SWE-loop(D)",
+      "expect": "any",
+      "why": "Round 482's next-step 4 names redattrib's attribution. It assigns blame for a red check to a node; blame that depends on the process is not blame."
+    },
+    {
+      "id": "redattrib.nodes",
+      "argv": ["harness/redattrib.py", "nodes", "--json"],
+      "owner": "SWE-loop(D)",
+      "expect": "any",
+      "why": "The node table the attribution ranks over."
+    },
+    {
+      "id": "case_coverage.list",
+      "argv": ["skills/skill-authoring/scripts/case_coverage.py", "--list"],
+      "owner": "skills(B)",
+      "expect": "any",
+      "why": "Round 482's next-step 4 names case_coverage's ranking. It publishes a per-skill table whose rows feed the corpus health check."
+    },
+    {
+      "id": "reprsweep.audit",
+      "argv": ["reprsweep.py", "--json"],
+      "cwd": "languages/whence",
+      "owner": "language(C)",
+      "expect": "stable",
+      "why": "The one subject in this tree already under a seed sweep (round 482). Registered so the two instruments can be compared on the same subject, and so the claim survives outside `reprsweep.py`'s own process."
+    },
+    {
+      "id": "orderhint.audit",
+      "argv": ["orderhint.py", "--json"],
+      "cwd": "languages/whence",
+      "owner": "language(C)",
+      "expect": "any",
+      "why": "Round 480's witness table. A hint that ranks witnesses is a derived ordering and nothing has checked it."
+    },
+    {
+      "id": "xref_check",
+      "argv": ["skills/skill-authoring/scripts/xref_check.py"],
+      "owner": "skills(B)",
+      "expect": "any",
+      "why": "Exits non-zero when it finds a dangling reference, so this row also exercises the runner's rule that a return code is part of the compared payload."
+    }
+  ]
+}

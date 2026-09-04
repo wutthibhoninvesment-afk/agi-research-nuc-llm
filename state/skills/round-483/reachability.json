@@ -1,0 +1,16 @@
+{
+ "subject": "wiring_audit.bootstrap",
+ "commit": "f30c471",
+ "at_head": "stable",
+ "at_commit": "seed_dependent",
+ "witness_at_commit": {
+  "line": 62,
+  "values": [
+   "    \"via\": \"harness/tests/test_swe_campaign.py:-\",",
+   "    \"via\": \"harness/tests/test_swe_prioritize.py:-\","
+  ]
+ },
+ "n_seeds": 3,
+ "verdict": "demonstrated",
+ "reading": "the arm reaches this subject: the same command through the same registry is seed_dependent at f30c471 and stable at HEAD, so HEAD's verdict is a fact about the tree"
+}

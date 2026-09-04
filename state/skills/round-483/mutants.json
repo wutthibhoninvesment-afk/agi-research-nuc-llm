@@ -1,0 +1,64 @@
+{
+ "n_mutants": 8,
+ "n_applied": 8,
+ "n_killed": 8,
+ "n_survived": 0,
+ "results": [
+  {
+   "mutant": "M1-no-control",
+   "applied": true,
+   "killed": true,
+   "why": "delete the same-seed arm: every volatile subject becomes a hash-order finding, which is exactly the state of the two live runners in this tree",
+   "detail": "1 failed, 19 passed in 1.07s"
+  },
+  {
+   "mutant": "M2-mask-everything",
+   "applied": true,
+   "killed": true,
+   "why": "a scrub set too WIDE: masks every leaf, so a real cross-seed difference is swallowed and reported green",
+   "detail": "1 failed, 6 passed in 0.33s"
+  },
+  {
+   "mutant": "M3-shape-change-is-maskable",
+   "applied": true,
+   "killed": true,
+   "why": "align a shape change instead of refusing it: `unscrubbable` disappears and the instrument invents an answer",
+   "detail": "1 failed, 9 passed in 0.31s"
+  },
+  {
+   "mutant": "M4-witness-always-effective",
+   "applied": true,
+   "killed": true,
+   "why": "the perturbation check always passes: a dead arm reports a clean bill of health",
+   "detail": "1 failed, 15 passed in 0.40s"
+  },
+  {
+   "mutant": "M5-power-off-by-one",
+   "applied": true,
+   "killed": true,
+   "why": "the classic off-by-one in the power formula, understating the miss probability by a factor of n",
+   "detail": "1 failed in 0.07s"
+  },
+  {
+   "mutant": "M6-rc-not-in-payload",
+   "applied": true,
+   "killed": true,
+   "why": "drop the exit code from the compared payload: a deriver that answers 0 and 1 in different processes reports stable",
+   "detail": "1 failed, 12 passed in 0.33s"
+  },
+  {
+   "mutant": "M7-first-run-only",
+   "applied": true,
+   "killed": true,
+   "why": "run the control ONCE and duplicate the result: the control can never disagree with itself, so it always licenses the seed claim",
+   "detail": "1 failed, 19 passed in 0.88s"
+  },
+  {
+   "mutant": "M8-expectation-not-an-error",
+   "applied": true,
+   "killed": true,
+   "why": "a registry `expect` that disagrees with the measurement stops being an error: the registry becomes a to-do list again",
+   "detail": "1 failed, 29 passed in 2.91s"
+  }
+ ]
+}

@@ -808,11 +808,11 @@ class TestSkillTestDirs(unittest.TestCase):
         self.assertEqual(self.unit_tests_argv_dirs(ROOT),
                          corpus_check.skill_test_dirs(ROOT))
 
-    def test_the_live_answer_is_four_named_directories(self):
+    def test_the_live_answer_is_five_named_directories(self):
         """Pinned by name, not by count.
 
         `derived-subject-set` step 7's rule: an exact pin is what catches a
-        member that silently stops being covered. A count of 4 would still
+        member that silently stops being covered. A count of 5 would still
         pass if `prediction-banking` were swapped for something else.
 
         It was THREE for about an hour of round 477, and the fourth arrived
@@ -821,10 +821,18 @@ class TestSkillTestDirs(unittest.TestCase):
         test went red naming the directory, and the argv gained it. That is
         the promise the old prose description made and could not keep,
         collected on inside the same round that made it.
+
+        The FIFTH arrived the same way and is the replication: round 483
+        wrote `skills/seed-sweep-needs-a-same-seed-control/scripts/
+        test_seedsweep.py`, this test and `pattern_vs_enum`'s E001 both went
+        red naming the directory, and the argv gained it. Two rounds, two
+        live falsifications, both inside the round that caused them -- the
+        latency this design replaced was bounded by the rotation.
         """
         self.assertEqual(corpus_check.skill_test_dirs(ROOT), [
             "skills/derived-subject-set/scripts",
             "skills/prediction-banking/scripts",
+            "skills/seed-sweep-needs-a-same-seed-control/scripts",
             "skills/session-inheritance-audit/scripts",
             "skills/skill-authoring/scripts",
         ])

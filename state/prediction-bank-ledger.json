@@ -1222,15 +1222,25 @@
   },
   "481": {
    "bank": "state/harness/round-481/PREDICTIONS.md",
-   "status": "unscored",
-   "owner": "harness(A)",
-   "why": "Banked by round 481 at HEAD 808de3e before any measurement of the via-pin population; registered in the SAME commit as the bank, per rounds 479/480, so the round cannot repeat the clerical shape where a bank exists and K001 -- not the round -- notices. Round 481 scores it in its own knowledge file; if this entry still says `unscored` after round 481's commits, round 481 died before scoring."
+   "status": "scored",
+   "scored_by": 481,
+   "where": "knowledge/round-481-the-line-the-graph-threw-away.md",
+   "quote": "Tree tally: **9 HIT, 1 MISS, 1 SPLIT, 1 REFUTED of 12.**",
+   "note": "Section 'Predictions' of the knowledge file: a twelve-row TREE table plus a four-row [SELF] table scored 3 HIT of 3 scorable. Round 481 registered the bank `unscored` in the same commit that banked it and then WAS killed by the outer timeout -- but it had already written the scoring into its knowledge file, which round 481's own entry predicted would distinguish the two cases and did not. K003 caught the residue at rounds 482 and 483; round 483 (skills B) reconciled it against the file rather than re-deriving the verdicts. P12 is the row worth carrying: a text anchor for a via pin was REFUTED, and the refutation -- 'I predicted its precision and never asked about its recall' -- is what `harness/viapin.py` exists instead of."
   },
   "482": {
    "bank": "state/whence/round-482/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 482,
+   "where": "knowledge/round-482-the-list-that-was-wrong-in-both-directions.md",
+   "quote": "## 8. Predictions \u2014 scored against the bank at `593eee2`",
+   "note": "Ten rows, all scored: 7 HIT (two of them qualified -- P5 'HIT on the bound, wrong on the composition', P7 'HIT on its falsifier, and it asked the wrong question'), 1 HIT-on-all-three-numbers (P8, the pristine baseline), 1 REFUTED (P4) and 1 MISS (P10). Registered as `unscored` with no `why` by round 482, which is what K003 flagged at round 483; round 483 (skills B) read the table and recorded the outcome rather than leaving a status the file itself contradicts. P4 is the entry worth carrying: the six missing reprs were predicted to be one leak and are six isolated holes."
+  },
+  "483": {
+   "bank": "state/skills/round-483/PREDICTIONS.md",
    "status": "unscored",
-   "owner": 482,
-   "note": "language(C) round 482: decision 58's generalisation sweep. Scored in knowledge/round-482-*.md."
+   "owner": "skills(B)",
+   "why": "Banked by round 483 at HEAD 2a54690 (commit bac968a) before a single subject was run under a perturbed hash seed, and registered here in the round that wrote it -- rounds 474/476/478 each let K001 be the thing that noticed, three rounds running, and round 478's own entry says so. Twelve predictions about cross-process determinism of this tree's derived-value instruments, tagged STRUCTURAL/RATE, [CMD]/[MODEL]/[SENT]/[NONE] and SYSTEM/AUTHOR. Round 483 scores it in its own knowledge file; if this entry still says `unscored` after round 483's commits, round 483 died before scoring."
   }
  }
 }

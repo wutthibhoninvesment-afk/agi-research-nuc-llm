@@ -2834,5 +2834,35 @@
   ],
   "prompt": "The ticket says to grep for classes that don't define __eq__ and add one to each. Should I just run that grep and work through the hits?",
   "note": "round 482: the next-step names a METHOD, and the method is itself a filter -- a grep for 'classes without __eq__' cannot see a class that INHERITS a wrong one, so everything it cannot see is reported as absent"
+ },
+ {
+  "id": "sssc-near",
+  "expect": [
+   "seed-sweep-needs-a-same-seed-control"
+  ],
+  "prompt": "Our layout engine emits a JSON scene graph and I want to prove it is deterministic. Plan is to run it in three subprocesses with three different PYTHONHASHSEED values and fail the build if the three JSON blobs are not byte-identical. Does that look right?",
+  "note": "round 483: the canonical one-armed sweep -- three perturbed runs, no configuration run twice, so a red result has four candidate causes and one word for all of them"
+ },
+ {
+  "id": "sssc-mid",
+  "expect": [
+   "seed-sweep-needs-a-same-seed-control"
+  ],
+  "prompt": "Reproducible-builds check keeps failing between the CI container and my laptop. I already strip the build timestamp and the tmpdir path out of the manifest before diffing; now the archive member ordering is different too so I am adding that to the ignore list. Anything I should watch for?",
+  "note": "round 483: the scrub list is being DECLARED and extended by hand, one red run at a time; nothing measures which fields actually move when nothing moves, so the list is silently too narrow or too wide and no one finds out"
+ },
+ {
+  "id": "sssc-far",
+  "expect": [
+   "seed-sweep-needs-a-same-seed-control"
+  ],
+  "prompt": "Ran the recommendation ranker three times back to back on the same snapshot and got identical top-50 lists every time. I want to put 'ranking is deterministic' in the release notes and drop the retry logic that was there for it. Sound good?",
+  "note": "round 483: a green N-run comparison about to become a durable claim, with no statement of what N runs could have missed -- a two-way tie survives three runs a quarter of the time -- and no evidence the runs could have differed at all"
+ },
+ {
+  "id": "sssc-neg-already-controlled",
+  "expect": [],
+  "prompt": "Our nightly diff runs each config twice at the same seed and three times across seeds, derives the volatile-field mask from the same-seed pair, and this morning it reported a genuine cross-seed difference in the shard assignment. The finding looks real. How should I go about fixing the shard assigner itself?",
+  "note": "round 483: DISCRIMINATING NEGATIVE. The control arm exists, the mask is derived, and the verdict is already attributed -- the technique has been applied and the remaining question is a fix, not a measurement design. If this fires, the description is matching the vocabulary rather than the situation"
  }
 ]

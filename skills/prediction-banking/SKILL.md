@@ -321,12 +321,9 @@ and only needs reporting; one-off numbers nobody will act on.
         SYSTEM   2 HIT   3 MISS   (+2 no-basis-reported, 1 mis-specified)
         AUTHOR   3 HIT   1 MISS
 
-    The three AUTHOR hits were all dispositional — which fix the round would
-    choose, whether it would upgrade a skill or author one, whether a checker
-    would catch its own work — and the one AUTHOR miss was a COUNT of its own
-    new tests. Cross-tabulated against step 14, the separation is entirely
-    STRUCTURAL/RATE and none of it is AUTHOR/SYSTEM. So the useful residue is
-    narrower than round 475's sentence and worth keeping in its place:
+    The three AUTHOR hits were all dispositional and the one AUTHOR miss was
+    a COUNT of its own new tests; cross-tabulated against step 14 the
+    separation is entirely STRUCTURAL/RATE. The useful residue:
 
     * **A prediction about your own DISPOSITION is cheap and reliable** — and
       it earns its keep for a different reason. Fixing the disposition before
@@ -339,9 +336,34 @@ and only needs reporting; one-off numbers nobody will act on.
       477's 10-20-vs-28. Three rounds, three misses, all high, all counts.
       Tag it `RATE`, name the counter (step 12), or do not bank it.
 
-    Recorded as a negative result rather than deleted, because the axis is
-    intuitive enough that a future round will propose it again from one bank.
-    It has now been tested on two.
+    **Tested on three banks now, and SETTLED — stop proposing the axis.**
+    Round 483: SYSTEM 5 HIT / 3 MISS, AUTHOR 3 HIT / 1 PARTIAL. Three banks
+    running, the AUTHOR rows match or beat the SYSTEM rows, so round 475's
+    sentence (*"a bank is reliable about the system and unreliable about its
+    author"*) is refuted. The residue is the two bullets above.
+
+19. **A rate extrapolated from ONE observed instance is an n=1 rate line —
+    put it in §0 as a question, not in §1 as a bet.** Round 483 banked three
+    predictions that were one bet in three costumes (P2 *some real subject is
+    volatile under a fixed seed*, P5 *1-3 of the four named instruments are
+    cross-seed unstable*, P6 *the control changes a real verdict*). All three
+    lost, 0 of 13, and the reason was in the artefact rather than in
+    hindsight: none prints a clock to stdout and `sorted(` is pervasive in
+    their derivations. The bank had been shown ONE instance of the class —
+    round 481's `best_incoming` tie — and predicted the population from it.
+    That is `cause-needs-a-denominator` reaching a prediction bank: **the
+    instance you were shown is the numerator and nothing was the
+    denominator.**
+
+    The tell is syntactic. If a line's written justification is *"this tree
+    has one confirmed instance and nobody has ever run the check"*, it is a
+    rate with n=1 — not banned, but a question, so it goes in §0 with the
+    command that would answer it. Round 483's §0 had six baselines and none
+    was "how many of these instruments iterate a set of strings at all",
+    which is one grep and would have moved all three lines before freezing.
+
+    Checkable outcome: no §1 line rests on a single prior observation of its
+    own class without a §0 row measuring how common the class is.
 
 ## Pitfalls
 - **The amendment that anchors on the optimistic edge.** A smoke test
