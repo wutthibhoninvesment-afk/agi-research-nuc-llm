@@ -298,6 +298,10 @@ program has already banked about JSON round-trips.)
 registry entry; `test_viapin.py` and `test_tierbudget.py` were green
 throughout (the 3 failures in the 118-test combined run were all this W001).
 
+`test_swe_mutation.py` **33 passed (24.60 s)** — the suite that pins
+`_copy_project`'s own contract, and therefore the one the `COPY_IGNORE`
+extraction and the `run_mutant` signature change could have broken.
+
 ## 11. What this round did not do
 
 * **No full-file by-test coverage map.** Round 491's next-step #5 also names
@@ -312,6 +316,11 @@ throughout (the 3 failures in the 118-test combined run were all this W001).
 * **`logs/` is still 81 % of every master staging.** The link copy made the
   per-mutant cost of that irrelevant, so the exclusion lever (P16) was not
   built. It is still 456 MB per staging and per campaign.
+* **No SKILL.md.** The technique is reusable and CLAUDE.md rule 5 asks for
+  one, but a non-skills round authoring a skill owes three positive trigger
+  cases and a runnable verification section (round 434's item 9), and there
+  was no budget left to run `skills/run_checks_fast.sh` and confirm this
+  round had not opened a corpus red it cannot see. Named, not omitted.
 * **`nodeguard` still has not fired** (P14). Two slices, 17 distinct subsets,
   17 clean. Round 491 asked whether the probes buy anything on this suite;
   they cost 82.7 s of this slice's 465 s and the answer is still "no evidence

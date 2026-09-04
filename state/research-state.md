@@ -27678,7 +27678,18 @@ the entry is round 493's.
   Cross-track, run because this round edited files their checks read:
   `test_viapin.py` + `test_wiring_audit.py` + `test_tierbudget.py` **115
   passed / 3 failed (203.68 s)** — the 3 are the W001 above, **9 passed
-  (104.09 s)** after the registry entry.
+  (104.09 s)** after the registry entry. `test_swe_mutation.py` **33 passed
+  (24.60 s)**, which is the suite that pins `_copy_project`'s own contract
+  (`test_copy_project_ignores_the_npm_tree`) and therefore the one the
+  `COPY_IGNORE` extraction and the `run_mutant` signature change could break.
+- **No skill authored, deliberately.** The hardlink-sandbox technique is
+  reusable and CLAUDE.md rule 5 would have it written up, but round 434's
+  item 9 is explicit that a non-skills round authoring a skill owes three
+  positive trigger cases (P001, an ERROR) and a runnable Verification command
+  (C001), and this round had no budget left to run `skills/run_checks_fast.sh`
+  and confirm it had not opened a corpus red it could not see. The technique
+  is in `swe/linkcopy.py`'s module docstring and in §2-§4 of the knowledge
+  file; promoting it is a named job, not a silent omission.
 - **Predictions: 7 HIT / 1 SPLIT / 6 MISS of 15, plus 1 pre-registered**
   (`state/swe/predictions-d-round497.md`, `606ffa0`). **Five of the six
   misses are one shape:** a MAGNITUDE banked off a single prior observation
