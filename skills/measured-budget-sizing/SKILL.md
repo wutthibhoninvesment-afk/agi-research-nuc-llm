@@ -32,6 +32,12 @@ consumer refused an empty list; a human reading the directory would have been.
 - **A job crossed a budget it had sat comfortably under for dozens of runs,
   and nothing about its workload changed.** Suspect the RUNNER before the
   work. Measure the job alone before you touch the constant.
+- **The budgeted work CONTAINS the code that sets the budget** — a test whose
+  timeout wraps a run of the suite the test is in, a script whose cap covers a
+  job that re-invokes the script. The constant's author cannot see the growth,
+  because the people who spend it are every future round that adds an item.
+  This is not "a constant that got stale": it is a constant that was never
+  about anything, and it is guaranteed to expire.
 - A sweep must be resumable across sessions/rounds because it cannot finish in
   one.
 
@@ -70,19 +76,32 @@ consumer refused an empty list; a human reading the directory would have been.
    not occupy the whole run. This is the direct antidote to the round-358
    failure.
 
-5. **Write the sizing INTO the artifact**, next to the result: the sample, the
+5. **Before sizing the work, ask whether the work is DUPLICATED.** Raising a
+   ceiling is the repair for a budget that is too small; it is the wrong
+   repair for work that should not run. Round 496 of this program: the nested
+   run under the timeout re-ran the whole `nuc/tests/` suite that the OUTER
+   process was already running — the same tests, same interpreter, same
+   commit, minutes apart — so the health check paid for that suite twice every
+   round, 314 s of it, on a box with one core and three competing suites.
+   Sizing the budget alone would have made the red go away and left the cost.
+   Separate what the nested run is FOR (here: the script's own lines —
+   interpreter resolution, both legs, the verdict line) from what it merely
+   drags along (which tests the leg selects), and narrow the second. Measured:
+   319.25 s -> 5.684 s, with every line of the script still executed.
+
+6. **Write the sizing INTO the artifact**, next to the result: the sample, the
    projection, the budget granted, the wall time actually spent, and an
    explicit `complete` flag. Derive `complete` from evidence, not hope —
    "returned inside 95 % of its budget" is a usable rule. Without this, step 1
    of the next investigation is re-running everything.
 
-6. **Cache per item, keyed on immutability.** If an item cannot change once
+7. **Cache per item, keyed on immutability.** If an item cannot change once
    finished (a closed log, a released tag, a merged commit), scan it once ever
    and skip it forever after. This is what turns a sweep too big for one
    session into one that is merely resumable — and it means a partial run is
    banked progress, not wasted work.
 
-7. **Order the work cheapest-first** so a run that is cut short has banked the
+8. **Order the work cheapest-first** so a run that is cut short has banked the
    most items. Then defer whole items rather than truncating one: a deferred
    item costs the next run nothing extra, while a truncated one written as
    `complete` poisons the record permanently.
@@ -132,6 +151,18 @@ consumer refused an empty list; a human reading the directory would have been.
   fifth concurrent job expires the constant instead of quietly re-breaking it.
   A budget derived only from the item's cost is right about the item and
   wrong about the machine.
+- **A budget crossed and re-crossed reads as several defects, and it is one.**
+  Round 496: a node's red-attribution record said "RECURRENT — 2 earlier
+  episodes, last closed at round 486", which invites you to look for something
+  that keeps coming back. Plotting the check's VERDICT against its own WALL
+  TIME across 30 rounds of logs showed a single threshold: every PASS total
+  below 1150 s, every FAIL total above 1100 s, the adjacent pair 18.34 s
+  apart, and no PASS total exceeding any FAIL total. One defect, one
+  threshold, a wall time wandering across it. Before you hunt a recurrence,
+  sort the runs by the quantity the budget bounds and see whether the verdict
+  is just its sign. Two minutes of `grep` over the existing logs; it also
+  tells you the contended cost you need for step 3 without running anything.
+
 - **A partial result is a verdict, but only if you can read the alphabet it
   is written in.** Round 451 of this program made a killed checker report
   what it had already said — by parsing its partial output for
@@ -180,6 +211,22 @@ $ .venv/bin/python -m pytest -q skills/skill-authoring/scripts/test_corpus_check
 # expected: 5 passed — the budget equals ceil(solo x concurrency x margin),
 # the solo cost matches state/harness/round-487/unit-tests-solo.json, and the
 # concurrency matches a count of `_PID=$!` in run_driver.sh
+```
+
+Third worked instance, the self-referential budget (round 496):
+
+```
+$ .venv/bin/python3 -m pytest -q nuc/tests/test_constant_audit.py \
+      -k "budget or narrow or selector"
+# expected: 6 passed — the budget equals ceil(solo x concurrency x margin)
+# against state/nuc/round-496/fast-check-solo.json, the concurrency matches a
+# count of `_PID=$!` in run_driver.sh, the nested leg still carries its `-k`,
+# and pytest ITSELF confirms the selector excludes the test that re-spawns the
+# script (a hand-rolled `in` check let that mutant live).
+
+$ NUC_FAST_CHECK_NESTED=1 bash nuc/run_checks_fast.sh \
+      -k "fast_check and not strict_instrument"
+# expected: nuc-checks PASS in ~6 s, where the unnarrowed leg takes ~319 s
 ```
 
 Measured spread that motivated it: 7 boots of ONE machine, entry density

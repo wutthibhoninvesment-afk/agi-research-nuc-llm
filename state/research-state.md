@@ -27512,6 +27512,145 @@ the entry is round 493's.
   round 487's direct SOLO measurement of 183.92 s. Measured: **187.38 s**.
 - **Knowledge:** `knowledge/round-495-a-pointer-to-a-scoring-is-not-a-scoring.md`.
 
+### Round 496 — NUC-integration(E) — 2026-09-04 — the check that ran its own suite twice
+
+- **Closed the red this track owns**, `test_constant_audit.py::test_the_fast_check_runs_green_on_this_tree`
+  — red 9 rounds (487-495) plus two earlier one-round episodes (483, 485).
+  **REPRODUCED SOLO FIRST**, as the briefing demanded: the whole nested leg is
+  **319.25 s** on this box (`1139 passed, 1 skipped`, `nuc-checks PASS`) against
+  a `timeout=600`. Solo the node is GREEN with 47% of the budget unspent, so the
+  red is **contention-amplified** — the driver's four concurrent health suites on
+  `nproc` 1. Measured that factor directly rather than assuming it: four
+  concurrent copies of the leg cost 15.785/15.419/15.790/14.806 s against 5.684 s
+  solo = **2.78x**, matching the 2.6-2.8x implied by the health logs and round
+  487's independent >=3.27x floor.
+- **Never an assertion.** All eleven reds are the same `subprocess.TimeoutExpired`,
+  `Popen returncode -9`. Rounds 483 and 485 were opened by hand (bank row P9) and
+  are identical. **There are not three episodes**: there is one defect and one
+  threshold. Reading verdict against wall time across rounds 466-495 shows the
+  whole mechanism — every PASS total < 1150 s, every FAIL total > 1100 s, and the
+  adjacent straddling pair is round 486 (1114.90 s PASS) and round 485 (1133.24 s
+  FAIL), **18.34 s apart**. No PASS total exceeds any FAIL total.
+- **THE FINDING — the constant budgeted the suite it was a member of.** The
+  script's first act is `pytest -q nuc/tests/`, and the test that shells out to
+  the script lives in `nuc/tests/`. So `timeout=600` — a bare literal, one commit
+  (`1bd242e`, round 388), unchanged for 108 rounds — budgeted a whole run of the
+  suite containing it, spent by two things the file does not control: every test
+  any round adds, and every suite the driver runs beside it. Round 388 wrote it
+  when a leg cost 30 s and it had 20x headroom.
+- **Fixed in two halves, and the budget alone would not have been a fix.**
+  (1) The budget is now `solo x driver-concurrency x margin` = `ceil(5.684 x 4 x
+  1.5)` = **35 s**, taking round 493's explicit handoff
+  (`state/harness/round-493/nuc-fastcheck-solo.json`) and following round 487's
+  `TestDerivedBudget` shape: each factor is re-derived from **outside** the file,
+  so a fifth suite in `run_driver.sh` expires the constant instead of silently
+  invalidating it. Receipt: `state/nuc/round-496/fast-check-solo.json`.
+  (2) **The doubling is over.** The nested leg re-ran all of `nuc/tests/`, so this
+  check ran the suite TWICE every round — 314 s of duplicated work on one core
+  against three competing suites — establishing nothing about the tree the outer
+  run had not already established. Narrowed with `-k "fast_check and not
+  strict_instrument"`, which `run_checks_fast.sh` already forwards via `"$@"`:
+  **319.25 s -> 5.684 s, 56x**, with EVERY LINE of the script still running.
+  Precedent is round 442's own `--collect-only -q` trade one file over.
+- **A coverage gap found by arguing the narrowing was free.** Bank row P7 claimed
+  the FAIL path was already covered. **That premise was false.** The two FAIL-path
+  tests drive the summary *fragment* (extracted with `body.index(...)`); they
+  never run the script. The script's **pytest-leg** FAIL path had no coverage at
+  all in the 108 rounds since round 388 built it — the branch the driver's quoted
+  last line depends on. Added
+  `test_the_fast_check_reports_fail_when_its_pytest_leg_fails`: a `-k` matching
+  nothing is pytest `EXIT_NOTESTSCOLLECTED` (5), so the script reports
+  `nuc-checks FAIL (pytest rc=5, audit rc=0)` and still prints the audit past the
+  dead leg. **The narrowing paid for a test the full-suite version could not
+  afford.**
+- **Mutation testing: 5 falsifiers, 1 survivor, fixed.** The survivor was
+  dropping `and not strict_instrument` from the selector — it survived because
+  the selector test **reimplemented `-k` with a Python `in`** instead of asking
+  pytest. Replaced with a real `--collect-only` run asserting the script-spawning
+  test is absent from the selection. Mutant killed. Same lesson as rounds 489 and
+  495: a checker that reimplements the thing it checks agrees with itself.
+- **Caught a cross-track red before opening it.** The header rewrite shifted
+  `nuc/constant_audit.py`'s via-pin, and round 481's live gate
+  (`test_viapin.py::TestThisTree::test_this_registry_makes_no_false_via_claim`)
+  went red in the same round that shifted it, exactly as designed — `DRIFTED
+  ... :146 -> :167`. Repaired with the tool the gate names
+  (`harness/viapin.py fix --write`, a clean one-line diff, no JSON reformat);
+  `test_viapin.py` 21 passed. This is the recurrence `harness/wiring-registry.json`
+  has diagnosed five times in prose: **a track that does not run `harness/tests/`
+  cannot see the check its own commit reddens.** Round 481's gate is the first
+  thing in the program that actually stopped it, and it stopped it here.
+- **Box DOWN, same outage.** Two tailnet SSH probes (rc 255, `Connection timed
+  out`); CLAUDE.md's two-failure rule fired and box work stopped. `tailscale`:
+  `Online false`, `LastSeen 2026-09-04T02:14:05.1Z` — **byte-identical to round
+  490's reading**, so this is the same outage continuing (~18 h), not a new one.
+  No capture possible. Missions E1-E5 remain DONE, nothing unchecked.
+- **Tests:** the check itself, run as the driver runs it on a quiet box —
+  **`nuc-checks PASS (pytest rc=0, audit rc=0)`, 1147 passed in 228.60 s,
+  script wall 232.8 s, exit 0.** First green end-to-end run of this node since
+  round 486. Previously two suite passes; now one, plus a 5.7 s nested leg.
+  `nuc/tests/` **1147 passed, 0 failed** (+7 this round, all deliberate).
+  Cross-track, checked because this round edited files their checks read:
+  `harness/tests/test_viapin.py` 21 passed, `test_wiring_audit.py` 68 passed.
+- **Predictions: 4 HIT / 2 SPLIT / 2 MISS / 1 OPEN kept / 1 pre-registered of
+  10** (`nuc/predictions-e-round496.md`, `45e11c7`). **P2 is the important
+  miss and it repeats round 495's, one round later:** I banked a 400-700 s band
+  from CONTENDED health-log totals for a receipt that already held a direct SOLO
+  measurement of 187.65 s — after reading round 495's note about making exactly
+  that error. **P8 is worse than a miss: its conclusion was wrong.** I predicted
+  growth would make the red permanent (~60 rounds to cross 600 s solo); measured
+  0.275 s/test puts it ~156 rounds out. Growth is not a live cause on any horizon
+  that matters — contention is the whole story, and §4b is justified by cost, not
+  by growth.
+- **Knowledge:** `knowledge/round-496-the-check-that-ran-its-own-suite-twice.md`.
+
+## Next steps (as of round 496)
+
+1. **P6 IS A PRE-REGISTERED EXPERIMENT AND THIS ROUND CANNOT SCORE IT.**
+   `logs/nuc_health_round_496.log` is written after this process exits — the one
+   file the round that changed the check cannot read. Predicted: the check drops
+   from the 1168-1281 s band to **under 650 s** and reports `nuc-health-check
+   PASS` for the first time since round 486. **The next E round should check that
+   log before doing anything else**, and if it is not PASS, say so first.
+   NUC-integration(E).
+2. **The other three health checks have the same self-referential shape and
+   nobody has looked.** `harness/run_tests_fast.sh`,
+   `languages/whence/run_tests_fast.sh` and `skills/run_checks_fast.sh` each run
+   a suite that may contain a test shelling back into the script. This round
+   found it in `nuc/` only because the red was assigned here. The question is one
+   grep per script — does any test in the suite it runs invoke it with a typed
+   `timeout=`? harness(A).
+3. **The two harness reds from the briefing are UNTOUCHED and still owned by
+   harness(A)** — `test_redattrib.py::TestThisTree::test_the_cli_audit_exits_zero_on_this_tree`
+   and `::test_the_registry_is_fail_closed_over_the_live_logs`, red since round
+   494, opened by language(C). This round deliberately did not touch them: they
+   are a different tree and the registry's own entry documents a ONE-ROUND LAG by
+   design in the second. Do not "fix" that lag. harness(A).
+4. **`observed_contended_leg_s` is n=1.** 15.79 s is the worst of four
+   concurrent copies in a single trial, not a distribution, and the 2.22x
+   headroom in `TestDerivedBudget` rests on it. If the budget ever flakes,
+   re-measure with repeats before raising it — raising it is what round 388 did.
+   NUC-integration(E).
+5. **Both this round's leg measurements are contended floors.** A ~66%-CPU
+   round-495 whence coverage process ran through the 319.25 s and 5.684 s
+   measurements; it had finished by the later runs, which is why the same suite
+   read 173.98 s and 226.53 s minutes apart. Every number here is labelled, and
+   nothing derived from them is tighter than the label supports — but a clean
+   idle-box baseline for `nuc/tests/` has never been taken. NUC-integration(E).
+6. **Round 490's items 1-7 stand, untouched by this round** — the
+   `state/nuc-record-union/` rebuild before any `BucketMap`, the capture-first
+   rule if the box comes up, the `%vmeff`/`pgsteal_kswapd` residual (now nine E
+   rounds), the block-shift null's 62.6% preserved clustering,
+   `test_perturbation.py` still never mutation-tested while carrying every
+   published number in this track, round 436's items 4/5/9, and the operator
+   blocks (`--cap 196`, THIRTIETH round unchanged; the E3 A/B).
+7. **Still the operator's, and re-escalated:** CLAUDE.md's `CRITICAL MISSION`
+   and `MASTER MISSION` blocks. Round 495 filed
+   `knowledge/v1_roadmap_mission.txt` as `owner: operator` because the block
+   tells every round to read a file that has never existed in this repo's
+   history. This round was told to prioritise a `b_fold()` bug in
+   `whence/interp.py` at "around line 2666" while its actual assigned track was
+   E. Both blocks remain a small deletion for the operator. operator.
+
 ## Next steps (as of round 495)
 
 1. **P8 is a PRE-REGISTERED EXPERIMENT and round 495 cannot score it.** It
