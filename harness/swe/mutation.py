@@ -453,6 +453,17 @@ def baseline_check(project_root, test_cmd, timeout_s=120.0, junit=True,
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+#: The ignore list every copy of this repo is made through. Named (round 497)
+#: rather than spelled inline, because it had grown a THIRD reader: this
+#: function, `slowtier.py`'s digest (whose own comment says "Mirrors
+#: `swe.mutation._copy_project`'s own ignore list -- the digest must"), and
+#: now `swe/linkcopy.py`, which must link exactly the tree this copies or the
+#: two sandboxes are not the same sandbox. The tuple is the authority; a
+#: reader that spells it again is a drift waiting to happen.
+COPY_IGNORE = ("__pycache__", ".pytest_cache", "*.pyc",
+               ".venv", "research-env", "*.egg-info", ".git", "node_modules")
+
+
 def _copy_project(project_root, dst):
     """Copy a project into a throwaway tree.
 
@@ -479,9 +490,8 @@ def _copy_project(project_root, dst):
     called HERE, at the one boundary where the checkout is still reachable,
     and writes the answer into the copy.
     """
-    shutil.copytree(project_root, dst, ignore=shutil.ignore_patterns(
-        "__pycache__", ".pytest_cache", "*.pyc",
-        ".venv", "research-env", "*.egg-info", ".git", "node_modules"))
+    shutil.copytree(project_root, dst,
+                    ignore=shutil.ignore_patterns(*COPY_IGNORE))
     try:
         from .fuzz import write_example_curation
     except ImportError:                      # imported as a top-level module
@@ -489,13 +499,41 @@ def _copy_project(project_root, dst):
     write_example_curation(project_root, dst)
 
 
-def run_mutant(m, project_root, test_cmd, timeout_s=120.0):
-    tmp = tempfile.mkdtemp(prefix="mut-")
+def _write_mutant(dst, m):
+    """Write a mutant's source into a sandbox, REPLACING the file.
+
+    Round 497: the unlink is not cosmetic. `open(path, "w")` truncates in
+    place, and under `swe.linkcopy` the sandbox's file is a hardlink to the
+    master tree's -- so the plain open edited the tree every later sandbox
+    is made from. Unlinking first drops this name and creates a new inode;
+    for a byte copy the result is identical, which is why this is
+    unconditional rather than a mode. Pinned by
+    `test_swe_linkcopy.py::test_writing_a_mutant_into_a_linked_sandbox_leaves_the_master_alone`.
+    """
+    path = os.path.join(dst, m.path)
+    try:
+        os.unlink(path)
+    except FileNotFoundError:
+        pass
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(m.source)
+
+
+def run_mutant(m, project_root, test_cmd, timeout_s=120.0, copier=None,
+               tmp_dir=None):
+    """Score one mutant inside a throwaway sandbox.
+
+    `copier(project_root, dst)` defaults to `_copy_project` and is the seam
+    round 497 added for `swe.linkcopy.MasterTree`, which has the same
+    signature and makes the sandbox out of hardlinks. `tmp_dir` places the
+    sandbox somewhere specific -- hardlinks cannot cross filesystems, so a
+    linked run wants its sandboxes on the master's mount.
+    """
+    tmp = tempfile.mkdtemp(prefix="mut-", dir=tmp_dir)
     try:
         dst = os.path.join(tmp, "proj")
-        _copy_project(project_root, dst)
-        with open(os.path.join(dst, m.path), "w", encoding="utf-8") as f:
-            f.write(m.source)
+        (copier or _copy_project)(project_root, dst)
+        _write_mutant(dst, m)
         r = run_capped(test_cmd, dst, timeout_s)
         m.seconds = r.seconds
         if r.timed_out:

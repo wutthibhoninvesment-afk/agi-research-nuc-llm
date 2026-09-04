@@ -26,11 +26,16 @@ NO SILENT TRUNCATION. Every report says how many mutants the budget left
 unrun, and a run that scores 89 of 1794 says 89 of 1794.
 """
 
+import argparse
 import json
 import os
+import shutil
+import sys
+import tempfile
 import time
 
 from . import coverage as CV
+from . import linkcopy as LC
 from . import mutation as MU
 from . import nodeguard as NG
 from .prioritize import MapPrioritizer
@@ -76,13 +81,27 @@ def select_mutants(root, rel, line_ranges=None, ops=None):
 
 
 def run_slice(root, rel, cov_path, base_cmd, line_ranges=None, budget_s=600.0,
-              timeout_s=180.0, ledger=LEDGER, full_cmd=None, on_result=None):
+              timeout_s=180.0, ledger=LEDGER, full_cmd=None, on_result=None,
+              linked=True, workdir=None):
     """Score as many unscored mutants as `budget_s` allows.
 
     Returns a report dict. `full_cmd` (default `base_cmd`) is what a mutant
     falls back to when its subset is poisoned or empty -- the full suite,
     which is always a sound oracle and is why a poisoned subset costs
     accuracy nothing, only time.
+
+    `linked` (round 497, default ON) puts every sandbox on `swe.linkcopy`:
+    ONE byte copy of the project, then a hardlink tree per mutant. Round 491
+    measured the copy at 4.87 s of every 12.78 s mutant and named it as the
+    next lever; measured here it is 2.4 s of copy + 0.6 s of rmtree against
+    0.19 s of link + 0.06 s of rmtree.
+
+    The master is checked for drift after EVERY mutant (0.1 s) and deeply,
+    by content digest, at both ends of the slice (1.9 s). A suite that writes
+    into the tree it runs in would reach through the links; that is reported
+    as `master["n_drift_events"]`, the master is re-staged, and the mutants
+    scored since the last clean check are named in the report rather than
+    quietly kept. `linked=False` restores round 491's byte copy exactly.
     """
     cov = CV.load(cov_path)
     if not CV.is_by_test(cov):
@@ -97,30 +116,57 @@ def run_slice(root, rel, cov_path, base_cmd, line_ranges=None, budget_s=600.0,
     done = load_ledger(ledger)
     todo = [m for m in mutants if (m.id, digest) not in done]
 
-    t0 = time.time()
-    ran, out_of_budget = [], 0
-    for i, m in enumerate(todo):
-        if time.time() - t0 > budget_s:
-            out_of_budget = len(todo) - i
-            break
-        units, basis = prio.files_for(m)
-        if basis == "subset" and guard.is_clean(units):
-            cmd, oracle = guard.cmd_for(units), "subset"
-        else:
-            cmd, oracle = full_cmd, "full"
-        t1 = time.time()
-        MU.run_mutant(m, root, cmd, timeout_s=timeout_s)
-        rec = {"id": m.id, "path": m.path, "line": m.lineno, "op": m.op,
-               "description": m.description, "status": m.status,
-               "seconds": round(time.time() - t1, 2), "oracle": oracle,
-               "n_units": len(units), "subject_digest": digest,
-               "detail": m.detail[:400]}
-        append_ledger(ledger, rec)
-        ran.append(rec)
-        if on_result:
-            on_result(rec)
+    master, tmp_dir, own_wd = None, None, None
+    if linked:
+        own_wd = workdir or tempfile.mkdtemp(prefix="nodecampaign-")
+        master = LC.MasterTree(root, workdir=own_wd, deep_witness=True)
+        master.stage()
+        tmp_dir = own_wd
 
-    return report(ran, mutants, todo, out_of_budget, guard, prio, time.time() - t0)
+    t0 = time.time()
+    ran, out_of_budget, suspect = [], 0, []
+    try:
+        for i, m in enumerate(todo):
+            if time.time() - t0 > budget_s:
+                out_of_budget = len(todo) - i
+                break
+            units, basis = prio.files_for(m)
+            if basis == "subset" and guard.is_clean(units):
+                cmd, oracle = guard.cmd_for(units), "subset"
+            else:
+                cmd, oracle = full_cmd, "full"
+            t1 = time.time()
+            MU.run_mutant(m, root, cmd, timeout_s=timeout_s, copier=master,
+                          tmp_dir=tmp_dir)
+            rec = {"id": m.id, "path": m.path, "line": m.lineno, "op": m.op,
+                   "description": m.description, "status": m.status,
+                   "seconds": round(time.time() - t1, 2), "oracle": oracle,
+                   "n_units": len(units), "subject_digest": digest,
+                   "detail": m.detail[:400]}
+            if master is not None and master.check(label=m.id):
+                # The suite wrote through a link. This mutant's own verdict
+                # was produced against a tree that is no longer the project,
+                # so it is NAMED, not dropped and not silently kept.
+                rec["master_drift"] = True
+                suspect.append(m.id)
+            append_ledger(ledger, rec)
+            ran.append(rec)
+            if on_result:
+                on_result(rec)
+    finally:
+        if master is not None:
+            master.check(label="after the last mutant", deep=True,
+                         restage_on_drift=False)
+            master.close()
+            if workdir is None and own_wd:
+                shutil.rmtree(own_wd, ignore_errors=True)
+
+    rep = report(ran, mutants, todo, out_of_budget, guard, prio,
+                 time.time() - t0)
+    rep["linked"] = bool(linked)
+    rep["master"] = master.as_dict() if master is not None else None
+    rep["mutants_scored_against_a_drifted_master"] = suspect
+    return rep
 
 
 def report(ran, mutants, todo, out_of_budget, guard, prio, seconds):
@@ -155,3 +201,101 @@ def _median(xs):
     xs = sorted(xs)
     n = len(xs)
     return xs[n // 2] if n % 2 else (xs[n // 2 - 1] + xs[n // 2]) / 2.0
+
+
+# --------------------------------------------------------------------------
+# CLI (round 497)
+#
+# Round 491's next step #5: "`nodecampaign.py` has no CLI, unlike every other
+# runner in `swe/`". A slice is a 10-40 minute job on this box and a round
+# that can only start one from an inline `python3 -c` cannot background it,
+# cannot re-run it with one flag changed, and cannot hand the exact command
+# to the next round. Every default here is the one round 491 ran with.
+
+#: The three regions of `nuc/perturbation.py` that carry published numbers:
+#: `classify_bucket`, the hypergeometric/power block, and `verdict_floor`.
+R491_RANGES = "556-634,1573-1662,2232-2301"
+
+
+def parse_ranges(text):
+    """`"556-634,1573-1662"` -> `[(556, 634), (1573, 1662)]`. A bare number
+    is a one-line range. Empty/None means the whole file."""
+    if not text:
+        return None
+    out = []
+    for part in text.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if "-" in part:
+            lo, hi = part.split("-", 1)
+            out.append((int(lo), int(hi)))
+        else:
+            out.append((int(part), int(part)))
+    return out or None
+
+
+def build_parser():
+    p = argparse.ArgumentParser(
+        prog="python3 -m swe.nodecampaign",
+        description="Budgeted, resumable nodeid-subset mutation campaign.")
+    p.add_argument("--root", default=".", help="project root (default: cwd)")
+    p.add_argument("--rel", default=os.path.join("nuc", "perturbation.py"),
+                   help="subject file, relative to --root")
+    p.add_argument("--cov", default=os.path.join("state", "swe",
+                                                 "perturbation-cov-by-test.json"),
+                   help="by-test coverage map (coverage.collect(by_test=True))")
+    p.add_argument("--tests", default=os.path.join("nuc", "tests",
+                                                   "test_perturbation.py"),
+                   help="suite target; the last argument of the pytest command")
+    p.add_argument("--python", default=sys.executable)
+    p.add_argument("--lines", default=R491_RANGES,
+                   help="line ranges to scope the mutants to, or 'all'")
+    p.add_argument("--budget", type=float, default=600.0,
+                   help="wall-clock seconds for scoring mutants")
+    p.add_argument("--timeout", type=float, default=180.0,
+                   help="per-mutant cap")
+    p.add_argument("--ledger", default=LEDGER)
+    p.add_argument("--out", default=None, help="write the report JSON here")
+    p.add_argument("--no-linked", dest="linked", action="store_false",
+                   help="round 491's byte copy per mutant instead of "
+                        "swe.linkcopy's hardlinked sandboxes")
+    p.add_argument("--workdir", default=None,
+                   help="where the master and the sandboxes live; must be on "
+                        "the same filesystem or every link falls back to a copy")
+    p.set_defaults(linked=True)
+    return p
+
+
+def main(argv=None):
+    a = build_parser().parse_args(argv)
+    root = os.path.abspath(a.root)
+    base_cmd = [a.python, "-m", "pytest", "-x", "-q", a.tests]
+    ranges = None if a.lines.strip().lower() == "all" else parse_ranges(a.lines)
+    t0 = time.time()
+
+    def echo(rec):
+        print("  %-34s %-9s %6.2fs %s" % (rec["id"], rec["status"],
+                                          rec["seconds"],
+                                          "DRIFT" if rec.get("master_drift") else ""),
+              flush=True)
+
+    rep = run_slice(root, a.rel, os.path.join(root, a.cov), base_cmd,
+                    line_ranges=ranges, budget_s=a.budget,
+                    timeout_s=a.timeout, ledger=os.path.join(root, a.ledger),
+                    on_result=echo, linked=a.linked, workdir=a.workdir)
+    rep["argv"] = list(argv if argv is not None else sys.argv[1:])
+    rep["wall_seconds"] = round(time.time() - t0, 1)
+    text = json.dumps(rep, indent=1, sort_keys=True)
+    if a.out:
+        d = os.path.dirname(os.path.join(root, a.out))
+        if d:
+            os.makedirs(d, exist_ok=True)
+        with open(os.path.join(root, a.out), "w", encoding="utf-8") as fh:
+            fh.write(text + "\n")
+    print(text)
+    return 0
+
+
+if __name__ == "__main__":                     # pragma: no cover
+    raise SystemExit(main())
