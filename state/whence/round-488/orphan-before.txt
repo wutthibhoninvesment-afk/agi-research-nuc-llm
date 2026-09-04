@@ -1,0 +1,5 @@
+orphan PID 3741051 — coverage-instrumented pytest in /tmp/camp-o6cng33a/whence
+started Fri Sep  4 07:34:58 2026 (round 487 slowtier-slice window), PPID 1 (orphaned)
+observed alive at 08:17:29 with %CPU 68.6 %MEM 12.5 TIME 00:29:18 ELAPSED 2563 on an nproc=1 box
+exited on its own by 08:18:5x — NOT killed by this round
+load average while alive: 2.81 3.10 2.84
