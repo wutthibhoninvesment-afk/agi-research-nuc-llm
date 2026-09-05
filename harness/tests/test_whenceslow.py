@@ -530,10 +530,22 @@ def test_the_real_tree_yields_the_units_round_469_measured():
     measured is why that did not help: `harness/readset-map.json` has 315
     recorded keys and 314 of them are in `harness/tests/`, so blast covers ONE
     of the four trees the four health checks run, and it named 24 files for
-    round 506's diff to catch this one. Recall 1, precision 1/24."""
+    round 506's diff to catch this one. Recall 1, precision 1/24.
+
+    Round 510 (language C) added `tests/test_branchlive.py` -- the suite for
+    that round's `branchlive.py` guest-BRANCH census, TWO marked tests --
+    taking the tier 31 -> 32 units and 120 -> 122 marked nodes. SIXTH
+    occurrence, and the FIRST that the opening round re-pinned in its own
+    commit rather than being told by `reddebt` a round later. Round 510 got
+    there by running `readset.py blast` on its own new file BEFORE
+    committing, and the measurement is the argument for round 509's `merge`:
+    blast against the freshly recorded WHENCE map named three
+    `languages/whence/tests/` files and did NOT name this one, because that
+    map has no `harness/tests/` rows. The tree that predicts a red is not
+    the tree the diff is in."""
     units = W.slow_tier_units()
-    assert len(units) == 31
-    assert sum(len(u["tests"]) for u in units) == 120
+    assert len(units) == 32
+    assert sum(len(u["tests"]) for u in units) == 122
     assert not [u for u in units if u["registry_error"]]
     by = dict((u["id"], u) for u in units)
     assert len(by["test_testcorpus_suite_census.py"]["tests"]) == 12

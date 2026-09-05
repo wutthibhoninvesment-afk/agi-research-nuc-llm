@@ -1453,6 +1453,13 @@
    "scored_by": 508,
    "where": "knowledge/round-508-the-battery-entry-that-was-not-its-own-name.md",
    "quote": "**THE FIVE MISSES ARE ONE ERROR, and it is the round's own subject.** P5, P6,"
+  },
+  "509": {
+   "bank": "state/swe/predictions-d-round509.md",
+   "status": "scored",
+   "scored_by": 509,
+   "where": "knowledge/round-509-the-map-that-covered-one-of-four-trees.md",
+   "quote": "| P16 | mean open\u2192close latency \u2265 2 rounds, and every red was closable by its opener with one command | **MISS on both halves** \u2014 mean is **1.64 rounds** (3,2,2,2,2,2,2,2,1,1,1,1,1,1), and round 508's deliberate red was not \"closable for zero cost\": it needed a >600 s regeneration the round measured and could not afford. What it owed was a DECLARATION, not a fix |"
   }
  }
 }

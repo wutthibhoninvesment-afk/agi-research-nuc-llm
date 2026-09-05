@@ -28770,6 +28770,165 @@ the authority on its reasoning; this entry records only what landed.*
   implied:** the full `nuc/tests` suite, the before/after impact audit, and
   any mutation testing of this round's own code.
 
+### Round 509 — SWE-loop(D) — 2026-09-05 — the map that covered one of four trees
+
+*RECONSTRUCTED BY ROUND 510 (language C) from first-hand sources only — round
+509's own committed knowledge file, its committed prediction bank, and the
+diff round 510 verified and landed. Round 509 died at `max_turns` with no
+entry here; nothing below is inferred from intentions.*
+
+- **Closed 10 of 14 red nodes across 7 suite files**, 13 of them opened by a
+  track that does not run the reddened suite. Five causes, not fourteen: two
+  unguarded repo-root escapes round 507 wrote into `specstale.py`, one COSTLY
+  assert shadow, five undeclared nodes in the fail-closed cross-track
+  registry, and one tier re-pin. All fourteen reproduced SOLO on the first
+  attempt — its P12 predicted at least one would be contention and none was.
+- **MEASURED WHY THE INSTRUMENT BUILT TO REACH THE OPENER DID NOT.**
+  `harness/readset-map.json` had **315 keys and 314 of them in
+  `harness/tests/`**; the four health checks run four suites in four trees.
+  Against the three openers' real diffs: file-level precision 2/50 = 4.0 %,
+  recall 2/6 = 33 %. On the one tree it covers it works.
+- **Three defects stood between the map and the other trees**, each now
+  pinned by a test: node keys were pytest-ROOTDIR-relative rather than
+  root-relative (so a whence node and a harness node could key on the same
+  string, and `blast` prints the key's file as *a path to run*); the recorder
+  put `harness/` on `sys.path`, and `harness/tests/__init__.py` made a bare
+  `import tests` in the SUBJECT tree bind to the instrument's package **in
+  any path position**, aborting collection of the whence suite; and `record`
+  printed a cheerful summary over a map recorded from a collection that had
+  aborted 0.6 s in, because its only refusal was "no file was written".
+- **`readset.py merge` added**, because `record` instruments exactly one
+  pytest process by design and the four checks are four processes with three
+  rootdirs. Union of `nodes` and `roster`; `head` kept only if every input
+  agrees.
+- **`own-suite`'s VISIBILITY clause is false at the background rate.** Over
+  689 commits / 294 attributable rounds: 122 (47.5 %) wrote into a suite
+  directory their own track does not run; excluding the protocol-mandated
+  `skills/` writes, **24 (9.3 %)** wrote a file into another track's code or
+  test tree. Round 507 is one of the 24.
+- **Round 508's next-step #1 named a `state/swe/` path that has never existed
+  in this repo.** Following the shipped instruction would have written a new
+  file at a path nothing reads and left the node red. Round 509's first
+  repair quoted the bad path verbatim and re-created the very dangling
+  citation it was closing.
+- **18 predictions banked at `1c95967` before measuring; 11 HIT, 1 PARTIAL,
+  5 MISS.** All five misses have one shape: *it assumed the newest round was
+  the cause*. Four of five registry errors and all three skills errors were
+  round 507's, one round older.
+- **NOT DONE, and left uncommitted when the round died:** the whence and nuc
+  maps were recorded (367.8 s / 120.5 s) and **never merged into the shipped
+  map**, which is why `test_the_shipped_map_covers_every_tree_the_health_checks_run`
+  and `test_round_507s_diff_now_implicates_the_whence_nodes_it_reddened` went
+  red. `blast` is still unranked (4 % precision) and `run_driver.sh` still
+  invokes `readset.py` nowhere.
+- **LANDED BY ROUND 510** as `b38051d` after verification: `37 passed,
+  2 failed` on `harness/tests/test_readset.py`, the two failures being exactly
+  the two nodes the RED DEBT block reports, both asserting on the shipped map.
+  Round 509's bank was also missing from `state/prediction-bank-ledger.json`,
+  which is what `corpus_check.py::carryforward` had been red for;
+  `carryforward_check.py --enter 509 --write` closed it (185 banks, 181
+  scored, 0 errors).
+
+### Round 510 — language(C) — 2026-09-05 — the branch nothing takes, and the corpus that isn't nested
+
+- **`languages/whence/branchlive.py` (634 lines) + `tests/test_branchlive.py`
+  (21 fast nodes, 2 `whence_slow`), all green.** The fourth level of this
+  program's liveness question: 503 asked whether the Python def is referenced,
+  504 whether the guest name is called in source, 506 whether the builtin runs,
+  and 510 whether the guest AST BRANCH is taken. Pays round 506's next-step #1,
+  unpaid for four rounds.
+- **THE HOOK IS THE PROVENANCE CONSTRUCTOR, NOT A DISPATCH SLOT.** An `if`
+  decision is made at SIX sites in `interp.py` and two of them are closures the
+  compiler builds (`f_if`, `d_if`), which no monkeypatch can reach. All six
+  materialise the decision as a node whose `op` is `"if"`. In a provenance-first
+  language the record of a decision is a value, so instrumenting the evidence
+  reaches paths that instrumenting the code cannot.
+- **`MergedProv.__init__` DOES NOT CALL `Prov.__init__`** — it re-inlines the
+  six slot stores (a v0.10 speed change, "one frame, not two"). A census hooking
+  only the base class misses every `if … ×N` run a tail loop merged, i.e. the
+  branches that ran the MOST times. Measured: **6 decisions (standalone) and 4
+  (corpus) were seen only through the subclass.** Both are hooked and the
+  difference is reported.
+- **THE HEADLINE IS A PREDICTION MISS. The two corpora that drive the
+  self-evaluator are COMPLEMENTARY, NOT NESTED.** 478 `if` nodes / 940 written
+  arms in `self_eval.lang`. `run.py` standalone reaches 671 arms (71.4 %); the
+  Python suite's 133-case corpus reaches 587 (62.4 %); the UNION is 719
+  (76.5 %). On `apply_builtin`: **71 vs 71, five arms each way, 22 unreached by
+  both.** I predicted the corpus would reach ≥20 more. The file's own
+  in-language self-tests are as strong an exerciser as the whole test corpus.
+- **Round 506's branch, named exactly and measured:** the `propagated` guard at
+  `self_eval.lang:3555` and `:3559`, `then` 0 against `else` 98 and 0 against 83.
+  Its two "same shape" cases are NOT the same shape — `abs` (3618) and
+  `shapeof` (3745) are both reached, **by the corpus only**.
+- **`steps` and `at` have a guest implementation nothing has ever run.**
+  `apply_builtin:3460-3461` never take their then-branch, so `guest_steps`
+  (8/8 arms) and `guest_at` (6/6) are entirely unexercised — two builtins whose
+  guest implementation has never been compared against the host's.
+- **15 predictions banked at `a4f6982` before measuring: 9 HIT, 1 HALF, 5 MISS.**
+  The misses have one shape — each assumed a thing's shipped description was its
+  behaviour (that an else-less `if` exists; that a bigger corpus is a superset;
+  that a dispatch chain is bigger than it is; that a reachability census
+  measures reachability). P4 is the opposite error: I priced a Python wrapper on
+  the hottest constructor at up to 2.5× and it is **1.19×**.
+- **THIS ROUND USED ROUND 509'S INSTRUMENT ON ITS OWN DIFF AND RE-PINNED IN THE
+  SAME COMMIT.** `blast` against the freshly recorded whence map named three
+  `languages/whence/tests/` files — a tree the shipped map has zero rows for —
+  and did NOT name `harness/tests/test_whenceslow.py`, which the diff really
+  does redden. `whenceslow status` said `32 units / 122 marked` against pins of
+  31/120, so round 510 re-pinned them in the commit that opened the red: the
+  SIXTH occurrence of that cross-track red and the FIRST closed by its opener.
+- **NOT DONE:** the three-tree readset merge. All three recordings must be at
+  ONE commit or `merge` drops the `head` and a third test goes red in exchange;
+  the whence leg finished (2960 passed, rc 0, 367.8 s, 350 keys) and the harness
+  leg was still running at the 3300 s wall clock. **The two `test_readset.py`
+  nodes are still red and the reason is wall clock, not a defect** — the exact
+  four commands are in the round file's §7 item 1. Also not done: mutation
+  testing of this round's own code, `self_host.lang`, and the two language(C)
+  prediction banks (rounds 486, 492) still unscored at 24 and 18 rounds owed.
+
+## Next steps (as of round 510)
+
+1. **FINISH THE READSET MERGE — three commands, and it turns two red nodes
+   green.** All three recordings must be at ONE commit or `merge` drops the
+   shared `head` and `test_the_shipped_map_covers_the_harness_fast_tier`
+   (which asserts a truthy head) goes red in exchange. Commands and budgets
+   in `knowledge/round-510-the-branch-nothing-takes.md` §7 item 1: whence
+   368 s, nuc ~120 s, harness >900 s under the hook. Plan it as the round's
+   long pole, FIRST. harness(A).
+2. **`steps` and `at` have a guest implementation nothing has ever run.**
+   `self_eval.lang:3460-3461` never take their then-branch. Two cases in
+   `test_self_eval.py`'s `CORPUS` would give both builtins their first
+   host-vs-guest differential. language(C).
+3. **The two self-evaluator corpora are complementary, not nested** — 132
+   arms reached only by the standalone run, 48 only by the Python corpus.
+   Every coverage statement about the self-evaluator today is made from one
+   of the two. Grow `CORPUS` by the 48, or union both in the suite.
+   language(C).
+4. **"Unreachable" vs "unexercised" is still open and `branchlive` cannot
+   answer it.** That needs the guest's CONDITION, not its outcome.
+   `quote_body` (12/12 arms unexercised) is the cheapest place to start.
+   language(C).
+5. **`branchlive file` has been run on exactly one program.** The 34
+   `examples/*.lang` are one loop away and would give the language its first
+   whole-corpus branch number. language(C).
+6. **Round 486's and round 492's prediction banks are STILL unscored**, 24
+   and 18 rounds owed, both owned by language(C), both scorable from
+   committed artefacts. Three language(C) rounds in a row have now read the
+   ledger and not paid them. language(C).
+7. **Round 509's own carry-forward stands, none of it re-derived here:**
+   `blast` is unranked at 4 % file-level precision; `run_driver.sh` invokes
+   `readset.py` nowhere; `skills/` still has no readset rows because its
+   check is a script, not a pytest selection; and `own-suite`'s visibility
+   clause is false 9.3 % of the time. harness(A) or SWE-loop(D).
+8. **`nproc` is 1**, and this round still lost its last item to a background
+   recording it launched first. Serialise, and price the long pole before
+   starting anything else.
+9. **Standing and untouched:** the NUC `retention --strict` deadline;
+   `case_coverage`'s disagreeing verdicts; `claim_check` executing 0 of its
+   commands; round 507's next-steps #1-#5; and CLAUDE.md's `CRITICAL MISSION`
+   and `MASTER MISSION` blocks, still a one-block deletion for the operator.
+   `languages/whence/SECURITY.md` remains the operator's decision.
+
 ## Next steps (as of round 508)
 
 1. **One test is red on purpose and it is mechanical.**
