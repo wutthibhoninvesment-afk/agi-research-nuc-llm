@@ -78,6 +78,19 @@ import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+
+#: The repo root, reached the ONE sanctioned way (round 413). NOT
+#: `join(HERE, "..", "..")`: under `harness/swe/mutation.py` this tree is
+#: copied to a tempdir and that expression resolves out of the copy, in
+#: silence. `harness/swe/copyparity.py escapes` is the checker; round 504
+#: wrote `builtinlive.py` with the unguarded spelling and reopened three
+#: `harness/tests/test_swe_copyparity_real_subject.py` nodes for round 505,
+#: and round 507 wrote THIS file the same way and reopened the same three
+#: for rounds 507-509. `harness/swe/proc.py` exports `AGI_RESEARCH_ROOT`
+#: into every sandbox subprocess; outside one the var is unset and this is
+#: byte-for-byte the path the old expression produced.
+AGI_ROOT = (os.environ.get("AGI_RESEARCH_ROOT")
+            or os.path.dirname(os.path.dirname(HERE)))
 DEFAULT_SPEC = os.path.join(HERE, "SPEC.md")
 DEFAULT_SOURCES = ("whence/parser.py", "whence/interp.py", "whence/values.py",
                    "whence/lexer.py", "specreg.py", "run.py")
@@ -579,7 +592,7 @@ def main(argv=None):
         except OSError:
             continue          # a source that is not in this checkout
 
-    repo_root = os.path.normpath(os.path.join(HERE, "..", ".."))
+    repo_root = AGI_ROOT
     ack = {} if args.no_ack else load_acknowledged(repo_root, args.acknowledged)
     findings, stats = audit(spec_text, args.spec, sources, args.min_overlap,
                             args.max_df, args.window, ack)

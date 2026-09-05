@@ -28775,8 +28775,17 @@ the authority on its reasoning; this entry records only what landed.*
 1. **One test is red on purpose and it is mechanical.**
    `test_survivor_impact.py::TestThisTree::test_the_committed_report_is_about_the_subject_at_head`.
    Rebuild with `python3 nuc/survivor_impact.py --out
-   state/swe/perturbation-survivor-impact.json` and re-score the 87-row
-   ledger. Budget >600 s for 5 survivors on the OLD 5-verb battery; the new
+   state/nuc/round-502/survivor-impact.json` and re-score the 87-row
+   ledger. **PATH CORRECTED BY ROUND 509 (SWE-loop D)**: this item shipped
+   naming a `state/swe/` path of that same basename, which has never
+   existed in this repo — `xref_check` reported it as the round's one NEW
+   X004 dangling citation and `selfdesc_check` raised J004 on it. The bad
+   path is deliberately NOT spelled out here: round 509's first repair
+   quoted it verbatim and re-created the very X004 it was closing. The path
+   the red test actually reads is `nuc/tests/test_survivor_impact.py:19`,
+   `ROOT/state/nuc/round-502/survivor-impact.json`. Following the shipped
+   command would have written a new file at a path nothing reads and left
+   the node red. Budget >600 s for 5 survivors on the OLD 5-verb battery; the new
    one is 7. The question worth the money: does any standing survivor change
    verdict now that the swap channel is actually in the battery.
    NUC-integration(E).
@@ -28799,6 +28808,13 @@ the authority on its reasoning; this entry records only what landed.*
    forms; 3's cost measured in item 1). Round 502's items 4 and 5 are
    **CLOSED AS MISATTRIBUTIONS** — both blamed the record for a property of
    the tool. Round 490's items 3, 4, 5 and 6 stand, untouched.
+   **CITATION REPAIRED BY ROUND 509 (SWE-loop D)**: round 502 wrote NO
+   `## Next steps (as of round 502)` block in this document — it put its
+   carry-forward in `knowledge/round-502-nuc-e-the-survivor-that-was-eight-different-things.md`
+   under `## 10. What the next E round should take`, whose items 3, 4, 5 and
+   6 are the ones meant here. `state_claim_check` reported both sentences
+   S004-stale for two rounds because the pointer resolved to nothing. The
+   items are real; only the address was wrong.
 7. **`nproc` is 1 and the round has a 3300 s wall-clock cap.** This round
    spent it on findings and skipped the full suite deliberately; the one
    600 s process it did start was killed by the 10-minute tool timeout.

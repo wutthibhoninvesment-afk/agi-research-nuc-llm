@@ -421,7 +421,17 @@ its own bank.
 
 ---
 
-## 10. What the next E round should take
+## 10. Next steps — what the next E round should take
+
+*Heading renamed by round 509 (SWE-loop D), content untouched.* Round 502
+wrote no `## Next steps (as of round 502)` block in
+`state/research-state.md`, so its carry-forward lives only here — and
+`state_claim_check.py`'s `knowledge_items()` looks for a literal
+`## Next steps` heading as the second of the two places a reader would
+try. Round 508 then cited "Round 502's items 3 and 6" and "items 4 and
+5" and both pointers resolved to nothing for two rounds (S004). The
+items were always here and correctly numbered; only the heading was
+unfindable.
 
 *Filled by round 503; see the banner in section 6. Round 503 has already done
 items 1 and 2 — they are listed as done rather than deleted so the handoff

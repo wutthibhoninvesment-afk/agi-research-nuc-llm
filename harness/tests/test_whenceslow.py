@@ -517,10 +517,23 @@ def test_the_real_tree_yields_the_units_round_469_measured():
     still cannot do is reach the OPENER -- round 504 could not have seen this
     at any price, because the check that fails runs after its process exits.
     `harness/readset.py` (round 505) is the other half: it answers the same
-    question from the diff, before the commit."""
+    question from the diff, before the commit.
+
+    Round 506 (language C) added `tests/test_runlive.py` -- the suite for that
+    round's `runlive.py` example-runtime census, TWO marked tests -- taking the
+    tier 30 -> 31 units and 118 -> 120 marked nodes. Re-pinned by round 509
+    (SWE-loop D). FIFTH occurrence, and the SECOND that a round was TOLD about
+    by `reddebt` rather than finding. It is also the first with a MEASUREMENT
+    of the other half: round 509 ran `readset.py blast` against round 506's
+    exact 22-path diff and it DID name this file (2 keys, read+scan) -- so the
+    instrument that reaches the opener works on this node. What round 509 also
+    measured is why that did not help: `harness/readset-map.json` has 315
+    recorded keys and 314 of them are in `harness/tests/`, so blast covers ONE
+    of the four trees the four health checks run, and it named 24 files for
+    round 506's diff to catch this one. Recall 1, precision 1/24."""
     units = W.slow_tier_units()
-    assert len(units) == 30
-    assert sum(len(u["tests"]) for u in units) == 118
+    assert len(units) == 31
+    assert sum(len(u["tests"]) for u in units) == 120
     assert not [u for u in units if u["registry_error"]]
     by = dict((u["id"], u) for u in units)
     assert len(by["test_testcorpus_suite_census.py"]["tests"]) == 12

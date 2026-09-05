@@ -36,7 +36,13 @@ import specstale as SS                # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 WHENCE = os.path.dirname(HERE)
-REPO = os.path.normpath(os.path.join(WHENCE, "..", ".."))
+#: Same guard as `specstale.AGI_ROOT`, and for the same reason: an
+#: unguarded `join(WHENCE, "..", "..")` here resolves OUT of a
+#: `harness/swe/mutation.py` copy and is what
+#: `harness/swe/copyparity.py escapes` flags. Round 507 wrote both
+#: spellings; round 509 guarded both.
+REPO = (os.environ.get("AGI_RESEARCH_ROOT")
+        or os.path.dirname(os.path.dirname(WHENCE)))
 SPEC = os.path.join(WHENCE, "SPEC.md")
 
 
@@ -200,8 +206,13 @@ class TestWindow:
     def test_a_window_with_no_section_is_reported_as_a_blind_spot(self):
         findings, stats = SS.audit("## v0.9 (r)\n`x`\n", "s.md",
                                    [("f.py", "# v0.4-v0.6 `x` was different\n")])
-        assert stats["blind"] == 1
-        assert [f.code for f in findings] == ["T002"]
+        # ONE compare, not two: `assert stats["blind"] == 1` followed by an
+        # assert on `findings` is a magnitude claim shadowing a shape claim
+        # about a DIFFERENT object -- `assertshadow.py --check` calls that
+        # COSTLY, and round 507 landed it undeclared, reddening four nodes in
+        # two suites nothing that round ran. Round 509 took the remedy rather
+        # than the declaration: the ratchet stays at 2.
+        assert (stats["blind"], [f.code for f in findings]) == (1, ["T002"])
 
 
 class TestAcknowledgement:
