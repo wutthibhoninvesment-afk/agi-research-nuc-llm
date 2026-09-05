@@ -1503,6 +1503,14 @@
    "where": "knowledge/round-513-the-absence-that-was-a-fact-about-the-filter.md",
    "quote": "| P11 | **MISS** | predicted case_coverage warnings stay at 31. They went to 32 \u2014 I forgot my own new skill enters the corpus it is counting \u2014 and then to 30 once both P004s were acknowledged. Two errors in one line |",
    "note": "Twelve banked in state/round-513-predictions.md before any measurement, scored in section 9 of the cited file: 8 HIT, 4 MISS. The bank earned its keep by being WRONG: P6 and P7 predicted that harness/readset.py blast WOULD implicate the skills suites that carried this round's reds, on the assumption that the instrument existed and had merely not been run. It implicated nothing, because harness/readset-map.json contained ZERO nodes under skills/ -- a different and larger repair (record the suite, re-merge from the three ORIGINAL round-510 source maps rather than from the previous merge output, which collapses provenance) that a correct prediction would not have produced. P11 is the instructive miss: it predicted case_coverage's warning count would be unchanged, scoping the prediction to the EDIT while the instrument counts the ROUND -- this round's own new skill is in the corpus it is counting. P8 missed low (36.4 s against a 40-150 s band) on a wrong premise as well as a wrong number: corpus_check.py --precommit already existed and already caught all three of this round's ERRORs."
+  },
+  "515": {
+   "bank": "state/swe/predictions-d-round515.md",
+   "status": "scored",
+   "scored_by": 515,
+   "where": "knowledge/round-515-the-instrument-that-was-opt-in.md",
+   "quote": "## 6. Prediction scoring (D-013) \u2014 6 kept, 2 refuted, 1 discarded",
+   "note": "9 banked (P1-P9): 6 KEPT, 2 REFUTED, 1 DISCARDED-not-scored. The two refutations share one cause and it is the rule this bank earned: BOTH predicted an ABSENCE that was present and documented. P2 said round 512 left no evidence it ran `harness/readset.py blast`; the commit carries 33 mentions and a section heading, so round 512 ran it, measured it at 20% precision, and DECLINED the fix on tree-ownership grounds. P6 said there was no author-side gate; `.git/hooks/pre-commit` has carried three steps since round 501, two of them built for this exact failure mode with comments saying so. Each miss cost one grep, and each would have reframed the round from its first turn. Predicting an absence is the cheapest prediction to make and the most expensive to be wrong about, because a wrong absence sends you to rebuild a thing that already exists -- which is what this round nearly did to the hook. P8 is DISCARDED rather than scored: its baseline suite was launched pristine and then edited under, so the number is not a baseline and is not reported."
   }
  }
 }

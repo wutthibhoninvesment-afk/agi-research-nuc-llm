@@ -259,6 +259,42 @@ def test_hook_script_carries_the_marker_and_calls_check():
     assert body.startswith("#!/bin/sh")
 
 
+def test_the_hook_carries_all_four_advisory_steps_in_order():
+    """Rounds 475 / 499 / 501 / 515. The hook is the ONLY place the author of
+    a defect is still present -- the four health checks run after the agent
+    process exits and write to `logs/`, which is not in git.
+
+    Pinned as a LIST so that deleting a step is a test failure rather than a
+    silently shorter hook. Round 515's step is the escapes check: three
+    `test_swe_copyparity_real_subject.py` nodes have been reddened four
+    times by rounds that could not run the suite that asserts them.
+    """
+    body = eg.hook_script()
+    steps = ["escalationguard.py\" check",
+             "wiring_audit.py\" undeclared --staged --quiet",
+             "carryforward_check.py\" --staged-check --quiet",
+             "copyparity.py\" escapes --staged"]
+    at = [body.index(x) for x in steps]      # raises if any is missing
+    assert at == sorted(at), "hook steps out of order: %r" % (at,)
+
+
+def test_only_the_first_hook_step_can_refuse_a_commit():
+    """The three advisory steps end in `|| true` on purpose. A gate here can
+    refuse the commit of a round with no turns left to debug it, and losing a
+    round's whole uncommitted diff is strictly worse than one more round of a
+    red check -- this program has already lost 32 sessions to the turn cap.
+    """
+    body = eg.hook_script()
+    blocking = [ln for ln in body.splitlines()
+                if "|| exit 1" in ln]
+    assert len(blocking) == 1 and "escalationguard.py" in blocking[0]
+    for advisory in ("wiring_audit.py", "carryforward_check.py",
+                     "copyparity.py"):
+        line = [ln for ln in body.splitlines()
+                if advisory in ln and ln.strip().startswith("python")]
+        assert line and line[0].rstrip().endswith("|| true"), advisory
+
+
 def test_hooks_dir_honours_core_hookspath(repo, tmp_path):
     alt = tmp_path / "myhooks"
     alt.mkdir()

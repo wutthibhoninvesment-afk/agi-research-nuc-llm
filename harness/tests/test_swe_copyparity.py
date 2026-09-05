@@ -10,6 +10,7 @@ the read fails.
 """
 import json
 import os
+import subprocess
 import sys
 
 import pytest
@@ -17,8 +18,10 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from swe.copyparity import (Report, compare, escapes_summary, main,   # noqa: E402
-                            parse_collect, parse_junit, scan_escapes,
-                            strip_exitfirst)
+                            head_reader, parse_collect, parse_junit,
+                            scan_escapes, scan_escapes_paths,
+                            split_staged_findings, staged_escapes_summary,
+                            staged_paths, staged_reader, strip_exitfirst)
 
 PYTEST_CMD = [sys.executable, "-m", "pytest", "-q", "-x", "-p", "no:cacheprovider", "tests"]
 
@@ -335,3 +338,243 @@ def test_pardir_and_pathlib_parents_carry_a_floor(tmp_path):
         tmp_path, "os.path.join(HERE, os.path.pardir, os.path.pardir, 'state')")
     findings, _ = scan_escapes(root)
     assert findings and findings[0]["floor"] == -2 and findings[0]["level"] == -1
+
+
+# ---------------------------------------------------------------------------
+# `escapes --staged` — round 515 (SWE-loop D). The AUTHOR-side half.
+#
+# Everything below builds a real throwaway git repo on tmp_path, because the
+# whole point of the mode is what `git` reports as staged and what the blob
+# at HEAD says. Faking either would test the fake.
+# ---------------------------------------------------------------------------
+
+def _git_repo(tmp_path):
+    """An initialised repo with one commit, `sub/` as the copy subject."""
+    root = tmp_path / "repo"
+    (root / "sub").mkdir(parents=True)
+    (root / "sub" / "keep.py").write_text("X = 1\n", encoding="utf-8")
+    for args in (["init", "-q"],
+                 ["config", "user.email", "t@example.com"],
+                 ["config", "user.name", "t"],
+                 ["add", "-A"],
+                 ["commit", "-q", "-m", "base"]):
+        subprocess.run(["git"] + args, cwd=str(root), check=True,
+                       capture_output=True)
+    return root
+
+
+def _stage(root, rel, text):
+    p = root / rel
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(text, encoding="utf-8")
+    subprocess.run(["git", "add", rel], cwd=str(root), check=True,
+                   capture_output=True)
+
+
+_UNGUARDED = ("import os\n"
+              "HERE = os.path.dirname(os.path.abspath(__file__))\n"
+              "ROOT = os.path.dirname(os.path.dirname(HERE))\n")
+_GUARDED = ("import os\n"
+            "HERE = os.path.dirname(os.path.abspath(__file__))\n"
+            "ROOT = (os.environ.get('AGI_RESEARCH_ROOT')\n"
+            "        or os.path.dirname(os.path.dirname(HERE)))\n")
+
+
+def test_staged_scan_sees_only_the_staged_paths(tmp_path):
+    """An escape sitting UNSTAGED in the tree is not this commit's problem."""
+    root = _git_repo(tmp_path)
+    (root / "sub" / "loose.py").write_text(_UNGUARDED, encoding="utf-8")   # not added
+    _stage(root, "sub/clean.py", "Y = 2\n")
+    paths = [os.path.join(str(root), p) for p in staged_paths(str(root))]
+    assert [os.path.basename(p) for p in paths] == ["clean.py"]
+    findings, stats = scan_escapes_paths(paths, root=str(root / "sub"),
+                                         read=staged_reader(str(root)))
+    assert stats["n_findings"] == 0
+    assert staged_escapes_summary(findings, stats) == ""
+
+
+def test_staged_scan_reads_the_staged_blob_not_the_worktree(tmp_path):
+    """Stage the defect, then fix the worktree without staging the fix.
+
+    What lands is the staged blob, so that is what has to be scanned. A
+    worktree read here would report copy_safe on a commit that breaks.
+    """
+    root = _git_repo(tmp_path)
+    _stage(root, "sub/new.py", _UNGUARDED)
+    (root / "sub" / "new.py").write_text(_GUARDED, encoding="utf-8")
+    paths = [os.path.join(str(root), p) for p in staged_paths(str(root))]
+    findings, stats = scan_escapes_paths(paths, root=str(root / "sub"),
+                                         read=staged_reader(str(root)))
+    assert stats["n_findings"] == 1, stats
+    assert "new.py" in staged_escapes_summary(findings, stats)
+
+
+def test_paths_outside_the_subject_root_are_dropped(tmp_path):
+    """The hook hands over everything the commit staged, including the 90%
+    of it that has nothing to do with the copy subject."""
+    root = _git_repo(tmp_path)
+    _stage(root, "elsewhere/tool.py", _UNGUARDED)
+    paths = [os.path.join(str(root), p) for p in staged_paths(str(root))]
+    findings, stats = scan_escapes_paths(paths, root=str(root / "sub"),
+                                         read=staged_reader(str(root)))
+    assert stats["n_files"] == 0 and stats["n_findings"] == 0
+
+
+def test_a_scan_of_zero_files_is_silent_and_green_unlike_the_walk_mode(tmp_path):
+    """The walk mode exits 2 on an empty scan (round 419's blind-scan rule).
+
+    `--staged` must NOT: most commits touch nothing under the subject, and a
+    hook that speaks on every unrelated commit is a hook that gets deleted.
+    """
+    findings, stats = scan_escapes_paths([], root=str(tmp_path))
+    assert stats["n_files"] == 0
+    assert staged_escapes_summary(findings, stats) == ""
+
+
+def test_an_env_guarded_escape_is_not_reported(tmp_path):
+    root = _git_repo(tmp_path)
+    _stage(root, "sub/new.py", _GUARDED)
+    paths = [os.path.join(str(root), p) for p in staged_paths(str(root))]
+    findings, stats = scan_escapes_paths(paths, root=str(root / "sub"),
+                                         read=staged_reader(str(root)))
+    assert stats["n_findings"] == 0 and stats["n_env_guarded"] == 1
+
+
+def test_head_differencing_attributes_only_what_this_commit_wrote(tmp_path):
+    """The measured reason this exists: over the 137 commits that ever
+    touched a `*.py` under `languages/whence`, a whole-file staged scan
+    fires on 25 and EIGHT of those introduce no escape at all — they edited
+    one line of a file that already had one."""
+    root = _git_repo(tmp_path)
+    _stage(root, "sub/old.py", _UNGUARDED)
+    subprocess.run(["git", "commit", "-q", "-m", "the escape lands"],
+                   cwd=str(root), check=True, capture_output=True)
+    # Now touch that file without adding an escape.
+    _stage(root, "sub/old.py", _UNGUARDED + "Z = 3\n")
+    paths = [os.path.join(str(root), p) for p in staged_paths(str(root))]
+    sub = str(root / "sub")
+    staged, _ = scan_escapes_paths(paths, root=sub,
+                                   read=staged_reader(str(root)))
+    head, _ = scan_escapes_paths(paths, root=sub, read=head_reader(str(root)))
+    new, inherited = split_staged_findings(staged, head)
+    assert len(new) == 0 and len(inherited) == 1
+
+
+def test_head_differencing_still_catches_an_added_file(tmp_path):
+    """An ADDED file is absent at HEAD, so it inherits nothing and every one
+    of its escapes is new. This is the shape of all three real episodes
+    (504 builtinlive, 507 specstale, 512 corpusledger)."""
+    root = _git_repo(tmp_path)
+    _stage(root, "sub/added.py", _UNGUARDED)
+    paths = [os.path.join(str(root), p) for p in staged_paths(str(root))]
+    sub = str(root / "sub")
+    staged, _ = scan_escapes_paths(paths, root=sub,
+                                   read=staged_reader(str(root)))
+    head, _ = scan_escapes_paths(paths, root=sub, read=head_reader(str(root)))
+    new, inherited = split_staged_findings(staged, head)
+    assert len(new) == 1 and inherited == []
+
+
+def test_a_new_escape_in_an_old_file_is_still_new(tmp_path):
+    """The other half of the differencing: inherit one, add one, report one."""
+    root = _git_repo(tmp_path)
+    _stage(root, "sub/old.py", _UNGUARDED)
+    subprocess.run(["git", "commit", "-q", "-m", "base escape"],
+                   cwd=str(root), check=True, capture_output=True)
+    _stage(root, "sub/old.py",
+           _UNGUARDED + "OTHER = os.path.join(HERE, '..', '..', 'x')\n")
+    paths = [os.path.join(str(root), p) for p in staged_paths(str(root))]
+    sub = str(root / "sub")
+    staged, _ = scan_escapes_paths(paths, root=sub,
+                                   read=staged_reader(str(root)))
+    head, _ = scan_escapes_paths(paths, root=sub, read=head_reader(str(root)))
+    new, inherited = split_staged_findings(staged, head)
+    assert len(new) == 1 and len(inherited) == 1
+    assert "'..'" in new[0]["expr"] or ".." in new[0]["expr"]
+
+
+def test_the_finding_key_survives_a_line_shift(tmp_path):
+    """Adding an import above an escape moves its line. If line number were
+    in the identity, every such edit would report an inherited escape as
+    new — which is the noise this mode exists to remove."""
+    root = _git_repo(tmp_path)
+    _stage(root, "sub/old.py", _UNGUARDED)
+    subprocess.run(["git", "commit", "-q", "-m", "base"], cwd=str(root),
+                   check=True, capture_output=True)
+    _stage(root, "sub/old.py", "import json\nimport sys\n" + _UNGUARDED)
+    paths = [os.path.join(str(root), p) for p in staged_paths(str(root))]
+    sub = str(root / "sub")
+    staged, _ = scan_escapes_paths(paths, root=sub,
+                                   read=staged_reader(str(root)))
+    head, _ = scan_escapes_paths(paths, root=sub, read=head_reader(str(root)))
+    new, inherited = split_staged_findings(staged, head)
+    assert new == [] and len(inherited) == 1
+
+
+def test_the_staged_and_walk_modes_agree_on_the_same_file(tmp_path):
+    """One arithmetic site or the check lies. `_scan_source` is shared; this
+    pins that they cannot drift apart."""
+    root = tmp_path / "sub"
+    (root / "pkg").mkdir(parents=True)
+    (root / "pkg" / "m.py").write_text(_UNGUARDED, encoding="utf-8")
+    walk_f, walk_s = scan_escapes(root=str(root))
+    path_f, path_s = scan_escapes_paths([str(root / "pkg" / "m.py")],
+                                        root=str(root))
+    assert walk_s["n_findings"] == path_s["n_findings"] == 1
+    assert [(f["file"], f["line"], f["expr"], f["floor"]) for f in walk_f] \
+        == [(f["file"], f["line"], f["expr"], f["floor"]) for f in path_f]
+
+
+def test_the_summary_names_the_suite_the_author_does_not_run(tmp_path):
+    """The message has to close the loop the four written warnings did not:
+    the author's own suite will stay green."""
+    root = tmp_path / "sub"
+    root.mkdir()
+    (root / "m.py").write_text(_UNGUARDED, encoding="utf-8")
+    findings, stats = scan_escapes_paths([str(root / "m.py")], root=str(root))
+    text = staged_escapes_summary(findings, stats)
+    assert "test_swe_copyparity_real_subject.py" in text
+    assert "AGI_RESEARCH_ROOT" in text
+    assert "m.py:3" in text
+
+
+def test_the_real_episodes_replay_as_findings():
+    """Not a toy: the three commits that actually reddened the three nodes,
+    replayed from git through the staged scanner. Recall 3/3."""
+    repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    repo = os.path.dirname(repo)
+    if not os.path.isdir(os.path.join(repo, ".git")):
+        pytest.skip("not a git checkout")
+    whence = os.path.join(repo, "languages", "whence")
+    episodes = [("8fca380", "languages/whence/builtinlive.py"),
+                ("eeb8549", "languages/whence/specstale.py"),
+                ("5fdfc5b", "languages/whence/corpusledger.py")]
+    for sha, rel in episodes:
+        blob = subprocess.run(["git", "show", "%s:%s" % (sha, rel)],
+                              cwd=repo, capture_output=True, text=True)
+        if blob.returncode != 0:
+            pytest.skip("history rewritten: %s missing" % sha)
+        findings, stats = scan_escapes_paths(
+            [os.path.join(repo, rel)], root=whence,
+            read=lambda _f, b=blob.stdout: b)
+        assert stats["n_findings"] >= 1, (sha, rel, stats)
+
+
+def test_the_two_files_written_guarded_are_not_flagged():
+    """The controls. Rounds 506 and 510 wrote files into the same tree with
+    the guard in place; a check that fired on those would be crying wolf."""
+    repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    repo = os.path.dirname(repo)
+    if not os.path.isdir(os.path.join(repo, ".git")):
+        pytest.skip("not a git checkout")
+    whence = os.path.join(repo, "languages", "whence")
+    for sha, rel in [("29c4f34", "languages/whence/runlive.py"),
+                     ("7b61384", "languages/whence/branchlive.py")]:
+        blob = subprocess.run(["git", "show", "%s:%s" % (sha, rel)],
+                              cwd=repo, capture_output=True, text=True)
+        if blob.returncode != 0:
+            pytest.skip("history rewritten: %s missing" % sha)
+        _f, stats = scan_escapes_paths([os.path.join(repo, rel)], root=whence,
+                                       read=lambda _x, b=blob.stdout: b)
+        assert stats["n_findings"] == 0, (sha, rel, stats)
+        assert stats["n_env_guarded"] >= 1, (sha, rel, stats)

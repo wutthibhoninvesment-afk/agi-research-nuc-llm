@@ -369,6 +369,7 @@ def hook_script(python=None, script_rel=None):
     wiring_rel = os.path.join("harness", "wiring_audit.py")
     carry_rel = os.path.join("skills", "skill-authoring", "scripts",
                              "carryforward_check.py")
+    copyp_rel = os.path.join("harness", "swe", "copyparity.py")
     return """#!/bin/sh
 %s
 # Refuses a commit that would land a path listed in
@@ -427,10 +428,42 @@ fi
 if [ -f "$top/%s" ]; then
   %s "$top/%s" --staged-check --quiet 2>/dev/null || true
 fi
+
+# Round 515 (SWE-loop D): the FOURTH advisory step, and the one with the
+# longest paper trail. `harness/swe/copyparity.py escapes` finds a path
+# expression in languages/whence that reaches ABOVE the subtree, which
+# breaks the moment `swe/proc.py` copies the tree into a sandbox. Three
+# nodes in harness/tests/test_swe_copyparity_real_subject.py assert its
+# verdict on the real tree, and they have been reddened FOUR times by four
+# rounds writing the same expression into a NEW file after round 413
+# sanctioned the guard -- 464 specreg, 504 builtinlive, 507 specstale, 512
+# corpusledger -- each closed by a SWE-loop(D) round (467, 505, 509, 515).
+#
+# Not one of those authors could have seen it. The assertion is in
+# harness/tests/; languages/whence/run_tests_fast.sh -- the suite a
+# language(C) round runs -- covers languages/whence/tests/ only. Round 506
+# wrote a comment naming the defect, the file and the exact three nodes;
+# rounds 507 and 512 wrote it anyway. Round 512 went further: it ran
+# harness/readset.py blast, measured its precision at 20%%, and wrote the
+# unguarded expression in the same commit. `blast` names 18 suites for that
+# file; this names the file and the line.
+#
+# `--staged` scans only this commit's staged *.py under the subtree and
+# subtracts what is already at HEAD, so it attributes only what the author
+# wrote: over all 137 commits that ever touched a *.py there, the whole-file
+# scan fires on 25 and 8 of those carry no new escape, while the HEAD-
+# differenced version fires on 17 and keeps all 3 real episodes
+# (state/swe/round-515/escapes-staged-new-vs-inherited.json). ~0.2 s, and
+# silent when there is nothing to say. WARNS, NEVER BLOCKS, fails open --
+# round 499's reason above applies unchanged.
+if [ -f "$top/%s" ]; then
+  %s "$top/%s" escapes --staged 2>/dev/null || true
+fi
 exit 0
 """ % (HOOK_MARKER, script_rel, python, script_rel,
        wiring_rel, python, wiring_rel,
-       carry_rel, python, carry_rel)
+       carry_rel, python, carry_rel,
+       copyp_rel, python, copyp_rel)
 
 
 def hooks_dir(repo=REPO_ROOT):

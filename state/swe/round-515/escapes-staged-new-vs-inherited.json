@@ -1,0 +1,321 @@
+[
+ {
+  "sha": "e376750",
+  "subject": "AUTO-COMMIT v4: Research rounds up to latest. Adds 9 knowledge files, 45 skill",
+  "n_staged": 11,
+  "n_findings": 3,
+  "files": [
+   "bench/ref_diff.py",
+   "bench/reserve_probe.py"
+  ],
+  "guarded": 0,
+  "n_new": 3,
+  "n_inherited": 0
+ },
+ {
+  "sha": "8d92ff9",
+  "subject": "Round 144 (language C): reconcile v0.12/v0.13 backlog, close time-travel debug",
+  "n_staged": 10,
+  "n_findings": 3,
+  "files": [
+   "bench/ref_diff.py",
+   "tests/test_v10.py"
+  ],
+  "guarded": 0,
+  "n_new": 1,
+  "n_inherited": 2
+ },
+ {
+  "sha": "5969ded",
+  "subject": "Round 360 (language C): Whence v0.24 \u2014 guest columns and the parse-error diffe",
+  "n_staged": 10,
+  "n_findings": 2,
+  "files": [
+   "tests/test_v24.py"
+  ],
+  "guarded": 0,
+  "n_new": 2,
+  "n_inherited": 0
+ },
+ {
+  "sha": "b36a751",
+  "subject": "Round 380 (language C): the precondition that was a grep",
+  "n_staged": 2,
+  "n_findings": 1,
+  "files": [
+   "tests/test_v31.py"
+  ],
+  "guarded": 0,
+  "n_new": 1,
+  "n_inherited": 0
+ },
+ {
+  "sha": "dbf1042",
+  "subject": "Round 380 (language C): Whence v0.31 \u2014 E4 is retired, diverge/contrast answer ",
+  "n_staged": 3,
+  "n_findings": 3,
+  "files": [
+   "tests/test_v24.py",
+   "tests/test_v31.py"
+  ],
+  "guarded": 0,
+  "n_new": 0,
+  "n_inherited": 3
+ },
+ {
+  "sha": "4db91cd",
+  "subject": "Round 384 (language C): the cure that was never rendered \u2014 landed by round 385",
+  "n_staged": 7,
+  "n_findings": 4,
+  "files": [
+   "tests/test_v24.py",
+   "tests/test_v31.py",
+   "tests/test_v32.py"
+  ],
+  "guarded": 0,
+  "n_new": 1,
+  "n_inherited": 3
+ },
+ {
+  "sha": "4c05cf4",
+  "subject": "Round 387 (skills B): the replay that could not see the failures \u2014 and round 3",
+  "n_staged": 6,
+  "n_findings": 3,
+  "files": [
+   "tests/test_v31.py",
+   "tests/test_v33.py"
+  ],
+  "guarded": 0,
+  "n_new": 2,
+  "n_inherited": 1
+ },
+ {
+  "sha": "54a74c7",
+  "subject": "Round 390 (language C): the clause that shipped on one side (landed by round 3",
+  "n_staged": 3,
+  "n_findings": 3,
+  "files": [
+   "tests/test_v31.py",
+   "tests/test_v33.py"
+  ],
+  "guarded": 0,
+  "n_new": 0,
+  "n_inherited": 3
+ },
+ {
+  "sha": "1b18b2c",
+  "subject": "Round 392 (language C): the errors that named no cure (landed by round 393)",
+  "n_staged": 7,
+  "n_findings": 3,
+  "files": [
+   "tests/test_v33.py",
+   "tests/test_v34.py"
+  ],
+  "guarded": 1,
+  "n_new": 1,
+  "n_inherited": 2
+ },
+ {
+  "sha": "9a34b3c",
+  "subject": "Round 395 (SWE-loop D): the command nobody ran, and the suite nobody read",
+  "n_staged": 5,
+  "n_findings": 5,
+  "files": [
+   "curecheck.py",
+   "tests/test_v24.py"
+  ],
+  "guarded": 4,
+  "n_new": 3,
+  "n_inherited": 2
+ },
+ {
+  "sha": "a7f2add",
+  "subject": "Round 396 (language C): v0.35 / decision 44 \u2014 the sentence that was three dive",
+  "n_staged": 8,
+  "n_findings": 5,
+  "files": [
+   "curecheck.py",
+   "tests/test_v24.py"
+  ],
+  "guarded": 0,
+  "n_new": 0,
+  "n_inherited": 5
+ },
+ {
+  "sha": "b2bd97c",
+  "subject": "Round 403: a second round-402 regression, found by the same arithmetic",
+  "n_staged": 1,
+  "n_findings": 4,
+  "files": [
+   "tests/test_v24.py"
+  ],
+  "guarded": 0,
+  "n_new": 1,
+  "n_inherited": 3
+ },
+ {
+  "sha": "826c641",
+  "subject": "Round 404 (language C): v0.38 / decision 47 \u2014 the fact that looked like noise",
+  "n_staged": 16,
+  "n_findings": 4,
+  "files": [
+   "tests/test_v31.py",
+   "tests/test_v33.py",
+   "tests/test_v34.py"
+  ],
+  "guarded": 0,
+  "n_new": 0,
+  "n_inherited": 4
+ },
+ {
+  "sha": "d71d7cd",
+  "subject": "Round 408 (language C): the got slot that spoke Python",
+  "n_staged": 10,
+  "n_findings": 4,
+  "files": [
+   "tests/test_v24.py"
+  ],
+  "guarded": 0,
+  "n_new": 0,
+  "n_inherited": 4
+ },
+ {
+  "sha": "50c7bb3",
+  "subject": "Round 409 (harness A): the differential that could not tell its two trees apar",
+  "n_staged": 3,
+  "n_findings": 6,
+  "files": [
+   "curecheck.py",
+   "tests/test_v24.py"
+  ],
+  "guarded": 0,
+  "n_new": 0,
+  "n_inherited": 6
+ },
+ {
+  "sha": "619c38e",
+  "subject": "Round 410 (language C): two doors for one piece of numeric text",
+  "n_staged": 18,
+  "n_findings": 6,
+  "files": [
+   "curecheck.py",
+   "tests/test_v24.py",
+   "tests/test_v33.py"
+  ],
+  "guarded": 0,
+  "n_new": 0,
+  "n_inherited": 6
+ },
+ {
+  "sha": "4c82315",
+  "subject": "Round 413 (SWE-loop D): the guardian that was named, not measured",
+  "n_staged": 8,
+  "n_findings": 2,
+  "files": [
+   "tests/test_v24.py",
+   "tests/test_v31.py"
+  ],
+  "guarded": 1,
+  "n_new": 0,
+  "n_inherited": 2
+ },
+ {
+  "sha": "5e1a06a",
+  "subject": "Round 414 (language C): the probe that agreed with both rules",
+  "n_staged": 5,
+  "n_findings": 2,
+  "files": [
+   "tests/test_checkpin.py"
+  ],
+  "guarded": 0,
+  "n_new": 2,
+  "n_inherited": 0
+ },
+ {
+  "sha": "d559846",
+  "subject": "Round 416 (language C): the direction nobody mutated",
+  "n_staged": 6,
+  "n_findings": 7,
+  "files": [
+   "tests/test_checkpin.py",
+   "tests/test_v22.py",
+   "tests/test_v31.py"
+  ],
+  "guarded": 0,
+  "n_new": 4,
+  "n_inherited": 3
+ },
+ {
+  "sha": "02b6ef0",
+  "subject": "Round 426 leftovers, landed by round 427: the precondition that was a sentence",
+  "n_staged": 2,
+  "n_findings": 15,
+  "files": [
+   "tests/test_polarity.py"
+  ],
+  "guarded": 0,
+  "n_new": 15,
+  "n_inherited": 0
+ },
+ {
+  "sha": "4b2c48f",
+  "subject": "Round 428 (language C): the decider that answered a different question",
+  "n_staged": 2,
+  "n_findings": 27,
+  "files": [
+   "tests/test_polarity.py"
+  ],
+  "guarded": 0,
+  "n_new": 4,
+  "n_inherited": 23
+ },
+ {
+  "sha": "f834859",
+  "subject": "Round 464 (language C), part 1: the decision the registry never got",
+  "n_staged": 2,
+  "n_findings": 1,
+  "files": [
+   "specreg.py"
+  ],
+  "guarded": 0,
+  "n_new": 1,
+  "n_inherited": 0
+ },
+ {
+  "sha": "8fca380",
+  "subject": "round 504 (language C): the orphan that was the whole language",
+  "n_staged": 2,
+  "n_findings": 1,
+  "files": [
+   "builtinlive.py"
+  ],
+  "guarded": 0,
+  "n_new": 1,
+  "n_inherited": 0
+ },
+ {
+  "sha": "eeb8549",
+  "subject": "round 507 (skills B): specstale.py \u2014 four more bullets described a mechanism v",
+  "n_staged": 2,
+  "n_findings": 2,
+  "files": [
+   "specstale.py",
+   "tests/test_specstale.py"
+  ],
+  "guarded": 0,
+  "n_new": 2,
+  "n_inherited": 0
+ },
+ {
+  "sha": "5fdfc5b",
+  "subject": "round 512 (language C): a ledger is as fresh as its gate's predicate is total",
+  "n_staged": 3,
+  "n_findings": 4,
+  "files": [
+   "corpusledger.py"
+  ],
+  "guarded": 0,
+  "n_new": 4,
+  "n_inherited": 0
+ }
+]

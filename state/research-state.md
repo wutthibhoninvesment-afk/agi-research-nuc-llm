@@ -28975,6 +28975,127 @@ entry here; nothing below is inferred from intentions.*
   0 warnings.
 
 
+### Round 515 — SWE-loop(D) — 2026-09-05 — the instrument that was opt-in
+
+- **The RED DEBT's 3 nodes CLOSED, and its recurrence count is wrong — low,
+  by half.** `harness/tests/test_swe_copyparity_real_subject.py` ×3, red since
+  round 512. Cause: `languages/whence/corpusledger.py` (added by round 512,
+  `5fdfc5b`, language C) carried `ROOT = os.path.dirname(os.path.dirname(
+  HERE))`, which produced all four escaping expressions the check reported.
+  One guard on that one line → `copy_safe — 116 file(s) scanned, 0 escaping
+  expression(s), 14 env-guarded`; suite `12 passed in 11.11s`. The prompt
+  said `RECURRENT — 2 earlier episode(s)`. Git says **four**, all after round
+  413 sanctioned the guard: 464 `specreg.py`, 504 `builtinlive.py`, 507
+  `specstale.py`, 512 `corpusledger.py` — opened by language(C)×3 and
+  skills(B)×1, and closed by **SWE-loop(D) every single time** (467, 505,
+  509, 515). Round 467's own commit subject is "eight red nodes, two files,
+  neither author's suite". The RED DEBT block reads retained `logs/`, which
+  roll over; the history does not.
+- **Why it recurred is NOT that the instrument was missing.** Round 512 ran
+  `harness/readset.py blast` **in the commit that broke this**: 33 mentions
+  in `5fdfc5b`, 13 in its knowledge file, under a heading "The counterfactual:
+  `blast` had the signal and it was not usable". It measured blast at 20%
+  precision, derived a refinement to 67% at full recall, and declined to land
+  it — "offered as a measurement, not a patch — it lives in `harness/`, which
+  is not this track's tree". `blast` on `corpusledger.py` names **18 suites,
+  1 goes red — 5.6% precision**. Not ignorance; a **declined fix**, which no
+  amount of better reporting reaches.
+- **Built: `copyparity.py escapes --staged`, wired as the FOURTH step of
+  `.git/hooks/pre-commit`.** The hook is the only place the author is still
+  present, and it already carried two steps built on exactly that reasoning
+  (round 499's W001, round 501's K001) — the escapes defect, with four
+  episodes and a millisecond-cost static check, was not one of them.
+  `--staged` reads the STAGED BLOB (`git show :path`), shares one arithmetic
+  site with the walk mode (`_scan_source`), is silent+green on a zero-file
+  scan (unlike the walk mode's round-419 exit-2), and WARNS/NEVER BLOCKS/
+  fails open. The step went into `escalationguard.py::hook_script()` — the
+  TRACKED generator — not into `.git/hooks/`, which is not in git.
+- **The design was decided by a measurement, not a preference.** Replay over
+  **all 137** commits that ever added or modified a `*.py` under
+  `languages/whence`: a whole-touched-file staged scan fires on **25**, but
+  **72 of its 120 findings are inherited** and **8 of the 25 commits
+  introduce no escape at all**. Subtracting HEAD → 17 firings, 48 findings,
+  **0** noise-only commits, and **4/4 real episodes kept** (every one an
+  added file, so it inherits nothing). `_finding_key` excludes the line
+  number on purpose: an import added above an escape shifts its line, and a
+  line-keyed identity would re-manufacture the noise. Artefacts:
+  `state/swe/round-515/escapes-staged-history.json`,
+  `…/escapes-staged-new-vs-inherited.json`.
+- **Tests +15, all green.** `test_swe_copyparity.py` 23→**36** (13 new, each
+  on a real throwaway `git init` repo — staged-blob-vs-worktree, path
+  filtering, zero-file silence, HEAD-differencing both ways, line-shift
+  identity, walk/staged agreement, recall on the 3 replayed episodes AND
+  0/2 on rounds 506/510 which wrote the same tree correctly).
+  `test_escalationguard.py` 39→**41**: the four hook steps pinned as an
+  ordered list, and `test_only_the_first_hook_step_can_refuse_a_commit` so a
+  later "strengthen this into a gate" fails a test and has to read why.
+- **Full tiers:** `harness/run_tests_fast.sh` → **1680 passed, 0 failed**,
+  562 deselected, 462.25s. `wiring_audit undeclared --staged` → no undeclared
+  entry point in 7 paths (no new W001).
+- **Predictions (`state/swe/predictions-d-round515.md`, banked at `0e6458d`):
+  6 kept, 2 refuted, 1 discarded.** Both refutations were the same error —
+  I predicted an ABSENCE that was present and documented. P2 ("round 512 left
+  no evidence it ran blast") and P6 ("there is no gate"). Each cost one
+  `grep` and each would have reframed the round from turn one. **The rule
+  D-013 does not yet carry: before predicting a mechanism is missing, grep
+  for it** — a wrong absence sends you to build a thing that already exists.
+- **Discarded, not scored: P8.** I launched the whence fast tier at HEAD as a
+  baseline and then edited `corpusledger.py` while it was still running, so
+  it measured a tree that changed under it. Killed and not reported. This is
+  exactly `[[feedback_baseline_suite_needs_a_pristine_worktree]]`, made
+  anyway.
+- **New skill `skills/gate-attributes-what-the-change-introduced/SKILL.md`** —
+  moving a whole-artefact check to authoring time requires an attribution
+  measurement first, or the gate blames the author for inherited lines and
+  gets ignored. 3 positive trigger cases + 1 negative control appended to
+  `skills/trigger-cases.json` (26 insertions, 0 deletions — written with the
+  file's own `indent=1`/ASCII escaping so the append is not a reformat).
+
+## Next steps (as of round 515)
+
+1. **Round 512's §2b `blast` refinement is measured and still unlanded, and
+   the round that measured it did not own the tree — SWE-loop(D) does.**
+   File-level scan plus "any node in the file reads a `state/**.json`": 4/4
+   recall at 67% precision against blast's shipped 20%. `blast --strict` is
+   still wired into nothing. This round argued a precise static check beats a
+   better read-set report *for this defect*; that argument does NOT extend to
+   the defects blast is actually for. Do not let the measurement die with the
+   round. harness(A) or SWE-loop(D).
+2. **Nothing checks that the INSTALLED hook matches its tracked generator.**
+   The two new `test_escalationguard.py` nodes pin `hook_script()`. A
+   checkout where nobody ran `install-hook` has a stale hook and both tests
+   still pass — which is the round-475/499/501/515 design failing exactly the
+   way this round's whole subject failed. `hook_status()` already returns
+   `ours`/`foreign`/`absent`; it needs `stale`, and the fast tier needs to
+   read it. harness(A).
+3. **`escapes --staged` covers ONE tree** (`swe.fuzz.WHENCE_ROOT`) — exactly
+   what the reddened assertion covers, no more. If a second copy subject is
+   ever added the step is silent about it and nothing says so. Whoever adds
+   one owns this. any track.
+4. **HEAD-differencing has a hole I did not close.** An escape *moved*
+   between files in one commit — deleted from A, added verbatim to B —
+   matches at HEAD by expression text and scores inherited, so the hook stays
+   quiet while the walk mode goes red. `_finding_key` includes the file, so
+   it needs an identical expression string; there is no instance in the
+   137-commit history. Named, not fixed. SWE-loop(D).
+5. **The RED DEBT block under-counts recurrence and the fix is cheap.** It
+   reads retained `logs/`; this round's git replay found 4 episodes where the
+   block said 2. A `RECURRENT` line that quotes a low number invites the
+   reader to treat a chronic defect as an accident. `harness/reddebt.py`
+   could cross-check against `git log -S` for the defect's own spelling where
+   one is recorded. harness(A).
+6. **Round 514's items stand, UNCHECKED by this round** — nothing here
+   touched the NUC track. Re-derive before quoting.
+7. **Standing and untouched:** the operator-blocked `--cap 196`; CLAUDE.md's
+   `CRITICAL MISSION` / `MISSION #476` blocks, still one-line deletions for
+   the operator (the `b_fold` "BLOCKING" mission has now outlived ~39 rounds
+   without a D round finding a live `b_fold` defect — this round did not look
+   either, and says so rather than carrying it silently as done);
+   `case_coverage`'s disagreeing verdicts; `claim_check` executing 0 of its
+   commands. `languages/whence/SECURITY.md` is still the operator's decision
+   — do not copy a carry count for it from this file.
+
+
 ### Round 514 — NUC-integration(E) — 2026-09-05 — the report that was stale in its own commit
 
 - **Box DOWN** (`ssh jab@100.78.44.111` → `Connection timed out`, 10 s connect

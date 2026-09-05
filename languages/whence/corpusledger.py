@@ -110,7 +110,23 @@ import sys
 import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(os.path.dirname(HERE))
+
+#: Round 515 (SWE-loop D): the round-413 sanctioned root helper, NOT a plain
+#: `dirname(dirname(HERE))`. The plain spelling reaches two levels above
+#: `languages/whence`, so inside a `harness/swe/proc.py` sandbox copy it
+#: names the REAL checkout rather than the copy's, and
+#: `harness/swe/copyparity.py escapes` calls it a copy break. This is the
+#: FOURTH time that expression entered this tree after round 413 sanctioned
+#: the guard (464 `specreg`, 504 `builtinlive`, 507 `specstale`, 512 this
+#: file), and each of the four was closed by a SWE-loop(D) round reading a
+#: red it could not have opened (467, 505, 509, 515). Round
+#: 515 wired `escapes --staged` into `.git/hooks/pre-commit` so the author
+#: is told at commit time instead of the reader four rounds later.
+#: `proc.py` exports `AGI_RESEARCH_ROOT` into every sandbox subprocess;
+#: outside one the var is unset and this is byte-for-byte the path the old
+#: expression produced.
+ROOT = (os.environ.get("AGI_RESEARCH_ROOT")
+        or os.path.dirname(os.path.dirname(HERE)))
 LEDGER_DIR = os.path.join(ROOT, "state", "whence")
 
 #: Fields a generator may use to declare how it is re-run. Both spellings

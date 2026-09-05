@@ -112,11 +112,13 @@ defect. The relationship between the three is not redundancy:
 
 import argparse
 import ast
+import collections
 import io
 import json
 import os
 import shlex
 import shutil
+import subprocess
 import sys
 import tempfile
 import xml.etree.ElementTree as ET
@@ -675,6 +677,88 @@ def _has_guarded_ancestor(node, guarded):
     return False
 
 
+def _scan_source(rel, src, filename=None):
+    """The per-file half of the scan. ONE implementation, deliberately.
+
+    Returns `(findings, error_or_None)`. `rel` is the path RELATIVE TO THE
+    SUBTREE ROOT and nothing else -- `file_level` is derived from its
+    component count, so handing this a repo-relative path shifts every level
+    by the depth of the root and the check silently answers a different
+    question.
+
+    Round 515 (SWE-loop D) factored this out of `scan_escapes` so the walk
+    mode and `--staged` cannot drift. A commit-time check that disagrees
+    with the check in the test suite is worse than no commit-time check: it
+    trains the author to ignore it.
+    """
+    try:
+        tree = ast.parse(src, filename=filename or rel)
+    except (SyntaxError, UnicodeDecodeError, ValueError) as exc:
+        return [], str(exc)[:200]
+    file_level = len(rel.replace(os.sep, "/").split("/"))
+    v = _Escapes(rel, file_level, _guarded_nodes(tree))
+    v.visit(tree)
+    return [v.findings[k] for k in sorted(v.findings)], None
+
+
+def _finish_escapes(findings, root, n_files, unreadable):
+    """`(findings, stats)` from a collected scan. Shared by both modes."""
+    findings.sort(key=lambda f: (f["file"], f["line"]))
+    real = [f for f in findings if not f["env_guarded"]]
+    return findings, {
+        "root": root,
+        "n_files": n_files,
+        "n_findings": len(real),
+        "n_env_guarded": len(findings) - len(real),
+        "n_import_time": sum(1 for f in real if f["kind"] == "import_time"),
+        "n_runtime": sum(1 for f in real if f["kind"] == "runtime"),
+        "files_with_findings": sorted({f["file"] for f in real}),
+        "unreadable": unreadable,
+    }
+
+
+def scan_escapes_paths(paths, root=WHENCE_ROOT, read=None):
+    """`scan_escapes` restricted to an explicit file list.
+
+    `paths` are absolute or repo-relative; anything not a `*.py` UNDER `root`
+    is dropped silently, because the caller is a commit hook handing over
+    whatever the commit staged. `read(full) -> str` overrides how a file's
+    text is obtained -- the hook passes a reader that returns the STAGED
+    blob, which is what would actually land, not the worktree copy.
+
+    A scan of zero files returns `n_files: 0`, and unlike the walk mode that
+    is NOT an error here: most commits touch nothing under `root`, and a
+    hook that shouts on every unrelated commit gets removed.
+    """
+    root = os.path.abspath(root)
+    reader = read or (lambda full: io.open(full, encoding="utf-8").read())
+    findings, n_files, unreadable, seen = [], 0, [], set()
+    for p in paths:
+        full = os.path.abspath(p)
+        if not full.endswith(".py"):
+            continue
+        rel = os.path.relpath(full, root)
+        parts = rel.replace(os.sep, "/").split("/")
+        if parts[0] == ".." or os.path.isabs(rel):
+            continue                       # outside the subtree
+        if set(parts[:-1]) & COPY_IGNORED_DIRS:
+            continue                       # not copied, cannot break there
+        if rel in seen:
+            continue
+        seen.add(rel)
+        n_files += 1
+        try:
+            src = reader(full)
+        except (OSError, UnicodeDecodeError) as exc:
+            unreadable.append({"file": rel, "error": str(exc)[:200]})
+            continue
+        got, err = _scan_source(rel, src, filename=full)
+        if err:
+            unreadable.append({"file": rel, "error": err})
+        findings.extend(got)
+    return _finish_escapes(findings, root, n_files, unreadable)
+
+
 def scan_escapes(root=WHENCE_ROOT):
     """Every path expression in `root`'s `*.py` files that reaches outside it.
 
@@ -693,27 +777,14 @@ def scan_escapes(root=WHENCE_ROOT):
             n_files += 1
             try:
                 src = io.open(full, encoding="utf-8").read()
-                tree = ast.parse(src, filename=full)
-            except (SyntaxError, UnicodeDecodeError, OSError) as exc:
+            except (UnicodeDecodeError, OSError) as exc:
                 unreadable.append({"file": rel, "error": str(exc)[:200]})
                 continue
-            file_level = len(rel.replace(os.sep, "/").split("/"))
-            v = _Escapes(rel, file_level, _guarded_nodes(tree))
-            v.visit(tree)
-            findings.extend(v.findings[k] for k in sorted(v.findings))
-    findings.sort(key=lambda f: (f["file"], f["line"]))
-    real = [f for f in findings if not f["env_guarded"]]
-    stats = {
-        "root": root,
-        "n_files": n_files,
-        "n_findings": len(real),
-        "n_env_guarded": len(findings) - len(real),
-        "n_import_time": sum(1 for f in real if f["kind"] == "import_time"),
-        "n_runtime": sum(1 for f in real if f["kind"] == "runtime"),
-        "files_with_findings": sorted({f["file"] for f in real}),
-        "unreadable": unreadable,
-    }
-    return findings, stats
+            got, err = _scan_source(rel, src, filename=full)
+            if err:
+                unreadable.append({"file": rel, "error": err})
+            findings.extend(got)
+    return _finish_escapes(findings, root, n_files, unreadable)
 
 
 def escapes_summary(findings, stats):
@@ -748,6 +819,157 @@ def escapes_summary(findings, stats):
     return "\n".join(lines)
 
 
+# ---------------------------------------------------------------------------
+# `escapes --staged` -- the AUTHOR-side half. Round 515 (SWE-loop D).
+#
+# WHY THIS EXISTS, measured rather than asserted. The three
+# `harness/tests/test_swe_copyparity_real_subject.py` nodes that assert this
+# module's verdict on the real whence tree have been reddened FOUR times by
+# four different rounds writing the same expression into a new file after
+# round 413 sanctioned the guard: 464 `specreg.py`, 504 `builtinlive.py`,
+# 507 `specstale.py`, 512 `corpusledger.py`. Every one was closed by a
+# SWE-loop(D) round reading a red it could not have opened -- 467, 505, 509,
+# 515 -- and 506 `runlive.py` carries a comment naming the defect, the file
+# and the exact three nodes, which did not stop 507 or 512.
+#
+# None of those authors could have seen it. The assertion lives in
+# `harness/tests/`; `languages/whence/run_tests_fast.sh`, the check a
+# language(C) round runs, is `pytest -c pytest.ini -m "not whence_slow"
+# tests/` and covers `languages/whence/tests/` only. The four health checks
+# that would have caught it run AFTER the agent process exits.
+#
+# Round 512 is the proof that a better REPORT is not the fix. It ran
+# `harness/readset.py blast`, measured its precision at 20%, wrote two
+# sections on why that is not actionable, proposed a refinement -- and wrote
+# the unguarded expression in the same commit. `blast` on that file names 18
+# suites; exactly one goes red. This check names the file and the line.
+#
+# `.git/hooks/pre-commit` is where the author is still present. It already
+# carries two steps built on exactly this reasoning (round 499's wiring
+# audit, round 501's carryforward check) and their comments say so. This is
+# the third, on the same contract: WARNS, NEVER BLOCKS, fails open, silent
+# when there is nothing to say.
+# ---------------------------------------------------------------------------
+
+def staged_paths(repo_root):
+    """Repo-relative paths this commit would land. `[]` on any git trouble.
+
+    `--diff-filter=ACMR`: added / copied / modified / renamed. Deletions are
+    excluded on purpose -- a deleted file cannot carry a finding, and asking
+    git to `show` its staged blob fails.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR",
+             "-z"],
+            cwd=repo_root, capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return []
+    if out.returncode != 0:
+        return []
+    return [x for x in out.stdout.split("\0") if x]
+
+
+def staged_reader(repo_root):
+    """Read a path's STAGED blob, not the worktree copy.
+
+    These differ exactly when the author staged one version and kept editing,
+    and the staged one is what would land. Falls back to the worktree read so
+    a caller outside a git checkout still gets an answer.
+    """
+    def read(full):
+        rel = os.path.relpath(full, repo_root)
+        try:
+            out = subprocess.run(["git", "show", ":" + rel],
+                                 cwd=repo_root, capture_output=True,
+                                 text=True, timeout=30)
+            if out.returncode == 0:
+                return out.stdout
+        except (OSError, subprocess.SubprocessError):
+            pass
+        return io.open(full, encoding="utf-8").read()
+    return read
+
+
+def head_reader(repo_root):
+    """Read a path's content at HEAD. Raises `OSError` if it is not there.
+
+    Used to subtract the escapes the author INHERITED from the ones the
+    author WROTE. Measured over all 137 commits that ever added or modified
+    a `*.py` under `languages/whence` (`state/swe/round-515/
+    escapes-staged-new-vs-inherited.json`): scanning the whole staged file
+    fires on 25 of them, but **72 of the 120 findings are pre-existing
+    lines** and **8 of the 25 commits carry no new escape at all** -- they
+    edited one line of a file that already had one. A hook that is wrong
+    about who wrote the line a third of the times it speaks is a hook that
+    gets ignored, which is the exact fate of the four written warnings that
+    preceded this one.
+
+    Subtracting HEAD drops those 8 and keeps all three episodes that
+    actually reddened the suite (504 `new=1`, 507 `new=2`, 512 `new=4`, all
+    `inherited=0`) -- recall 3/3 unchanged, false-positive commits 8 -> 0.
+    """
+    def read(full):
+        rel = os.path.relpath(full, repo_root)
+        out = subprocess.run(["git", "show", "HEAD:" + rel],
+                             cwd=repo_root, capture_output=True, text=True,
+                             timeout=30)
+        if out.returncode != 0:
+            raise OSError("not at HEAD: %s" % rel)
+        return out.stdout
+    return read
+
+
+def _finding_key(f):
+    """Identity of a finding ACROSS an edit. Line number is deliberately not
+
+    in it: adding an import above an escape shifts its line and would make
+    an inherited finding look new. The expression text plus the file is what
+    the author either wrote or did not.
+    """
+    return (f["file"], f["expr"], f["kind"])
+
+
+def split_staged_findings(staged, head):
+    """`(new, inherited)` -- staged findings partitioned by presence at HEAD."""
+    at_head = collections.Counter(_finding_key(f) for f in head
+                                  if not f["env_guarded"])
+    new, inherited = [], []
+    for f in staged:
+        if f["env_guarded"]:
+            continue
+        k = _finding_key(f)
+        if at_head[k] > 0:
+            at_head[k] -= 1
+            inherited.append(f)
+        else:
+            new.append(f)
+    return new, inherited
+
+
+def staged_escapes_summary(findings, stats, inherited=()):
+    """Hook-facing text. Empty string means "say nothing"."""
+    real = [f for f in findings if not f["env_guarded"]]
+    if not real:
+        return ""
+    root = os.path.basename(stats["root"].rstrip(os.sep))
+    lines = ["copyparity(escapes --staged): %d staged file(s) under %s carry "
+             "%d expression(s) that leave the subtree —"
+             % (len(stats["files_with_findings"]), root, len(real))]
+    for f in real:
+        lines.append("  ESCAPES  %s:%d  [%s]  %s"
+                     % (f["file"], f["line"], f["kind"], f["expr"]))
+    lines.append("  This reddens harness/tests/test_swe_copyparity_real_"
+                 "subject.py, which your track's suite does not run.")
+    lines.append("  Fix: ROOT = (os.environ.get(%r) or <the old expression>)"
+                 % ROOT_ENV_VAR)
+    if inherited:
+        lines.append("  (%d further expression(s) in the staged files are "
+                     "already at HEAD and are not attributed to this commit)"
+                     % len(inherited))
+    return "\n".join(lines)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("mode", choices=["collect", "run", "escapes"])
@@ -756,7 +978,46 @@ def main(argv=None):
                     help="replace DEFAULT_TEST_CMD's pytest args, e.g. '-q tests/test_v01.py'")
     ap.add_argument("--timeout", type=float, default=2400.0)
     ap.add_argument("--json", default=None)
+    ap.add_argument("--staged", action="store_true",
+                    help="escapes: scan only this commit's STAGED *.py files "
+                         "under --root, and stay silent when there is nothing "
+                         "to report (for .git/hooks/pre-commit)")
+    ap.add_argument("--include-inherited", action="store_true",
+                    help="escapes --staged: also report escapes that are "
+                         "already at HEAD (default: attribute only what this "
+                         "commit introduces)")
     a = ap.parse_args(argv)
+    if a.mode == "escapes" and a.staged:
+        repo_root = os.path.dirname(os.path.dirname(
+            os.path.dirname(os.path.abspath(__file__))))
+        paths = [os.path.join(repo_root, p) for p in staged_paths(repo_root)]
+        findings, stats = scan_escapes_paths(
+            paths, root=a.root, read=staged_reader(repo_root))
+        inherited = []
+        if not a.include_inherited:
+            # A file absent at HEAD raises in `head_reader`; `scan_escapes_
+            # paths` records that as `unreadable` and contributes no
+            # findings, which is exactly right -- an ADDED file inherits
+            # nothing, so every one of its escapes is new.
+            head_findings, _ = scan_escapes_paths(
+                paths, root=a.root, read=head_reader(repo_root))
+            findings, inherited = split_staged_findings(findings,
+                                                        head_findings)
+            stats = dict(stats, n_findings=len(findings),
+                         n_inherited=len(inherited),
+                         files_with_findings=sorted({f["file"]
+                                                     for f in findings}))
+        text = staged_escapes_summary(findings, stats, inherited)
+        if text:
+            print(text)
+        if a.json:
+            with open(a.json, "w", encoding="utf-8") as f:
+                json.dump({"mode": "escapes", "staged": True, "stats": stats,
+                           "findings": findings, "inherited": inherited},
+                          f, indent=1)
+        # NOT the walk mode's exit-2-on-empty rule: zero staged files under
+        # the subtree is the normal case for most commits, not a blind scan.
+        return 0 if stats["n_findings"] == 0 else 1
     if a.mode == "escapes":
         findings, stats = scan_escapes(root=a.root)
         print(escapes_summary(findings, stats))

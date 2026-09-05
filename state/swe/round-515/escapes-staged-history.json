@@ -1,0 +1,1174 @@
+{
+ "_comment": "Round 515 (SWE-loop D): replay of `copyparity escapes --staged` against every commit that added or modified a *.py under languages/whence/. Answers: how often would the round-515 pre-commit step have spoken, and was it right each time?",
+ "_regenerate": "see knowledge/round-515-*.md \u00a73 for the exact heredoc",
+ "root": "languages/whence",
+ "n_commits_replayed": 137,
+ "n_would_have_fired": 25,
+ "rows": [
+  {
+   "sha": "ee30654",
+   "subject": "Initial clean commit v3. All large binaries removed (.venv, torch libs, model ",
+   "n_staged": 29,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "e376750",
+   "subject": "AUTO-COMMIT v4: Research rounds up to latest. Adds 9 knowledge files, 45 skill",
+   "n_staged": 11,
+   "n_findings": 3,
+   "files": [
+    "bench/ref_diff.py",
+    "bench/reserve_probe.py"
+   ],
+   "guarded": 0
+  },
+  {
+   "sha": "8637795",
+   "subject": "Time-Travel Debugger v0.7 complete! SPEC v0.11.",
+   "n_staged": 6,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "8d92ff9",
+   "subject": "Round 144 (language C): reconcile v0.12/v0.13 backlog, close time-travel debug",
+   "n_staged": 10,
+   "n_findings": 3,
+   "files": [
+    "bench/ref_diff.py",
+    "tests/test_v10.py"
+   ],
+   "guarded": 0
+  },
+  {
+   "sha": "c768d90",
+   "subject": "checkpoint: sync from Mac backup \u2014 Whence v0.6 work, harness fixes, SWE rounds",
+   "n_staged": 7,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 3
+  },
+  {
+   "sha": "6f56fcc",
+   "subject": "Round 164 (language C, reconciled by round 168): effects guest parity + retroa",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "a94e5c0",
+   "subject": "Round 174 (language C): reconcile round 168's v0.15 guess/confidence feature, ",
+   "n_staged": 4,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "76ea27f",
+   "subject": "Round 188 (language C): reconcile round 176's v0.15 guest-parity work, correct",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "46de4a7",
+   "subject": "Round 198 (language C): reconcile rounds 192/194's self-hosting round 6 work, ",
+   "n_staged": 3,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "23d6380",
+   "subject": "Round 200 (language C): close self-hosting round 7, quantify + root-cause gues",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "53113dc",
+   "subject": "Round 204 (language C): v0.16 persistent records (PMap), closing round 200's O",
+   "n_staged": 4,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "b7fe532",
+   "subject": "Round 206 (language C): v0.16.1 guest parity for steps in self_eval.lang",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "434c844",
+   "subject": "Round 210 (language C, landed by round 212): close both standing guest-parity ",
+   "n_staged": 2,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "02f9e9e",
+   "subject": "Round 216 (language C, landed by round 217): quantify steps() guest-parity mem",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "7c81ae5",
+   "subject": "Round 218 (language C): v0.16.4 \u2014 guest parity for at/blame/diverge/contrast",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "8c6aeeb",
+   "subject": "Round 222 (language C, landed by round 223): box steps/blame/diverge list elem",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "58a9f8c",
+   "subject": "Round 224 (language C, landed by round 227): guest parity for matches/shapeof",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "8da13c4",
+   "subject": "Round 228 (language C): root-cause and fix test_self_hosting.py's steps() cost",
+   "n_staged": 2,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "740fccf",
+   "subject": "Round 233 (SWE-loop D): PMap mutation campaign finds AVL shape-blindness gap, ",
+   "n_staged": 2,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "4743f73",
+   "subject": "Round 234 (language C): close round 194's sure() guest-parity gap, fix stale S",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "95c6be0",
+   "subject": "Round 236 (language C): guest WHY_VOCAB gap for guess/is_guess/confidence/sure",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "5970dad",
+   "subject": "Round 240 (language C): fix guest matches() structural-spec host crash",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "9ad4b80",
+   "subject": "Round 242 (language C): fast/slow test tiering for languages/whence/tests",
+   "n_staged": 11,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 1
+  },
+  {
+   "sha": "dbf3ae7",
+   "subject": "Round 246 (language C): close matches/shapeof/typed guest why-vocab gap",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "7c59470",
+   "subject": "Round 252 (language C): close guess()-vs-comparison why-shape gap, sibling una",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "a4ea6e2",
+   "subject": "Round 254 (language C): safe reusable steps()-cost repro tool, guess/miss pari",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "8cf33d0",
+   "subject": "Round 258 (language C): steps-repro-ab shows dispatch-parity growth isn't the ",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "ad1f295",
+   "subject": "Round 260 (language C): steps-repro-ab bisects round 206's steps builtin as th",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "dab7050",
+   "subject": "Round 263 (SWE-loop D, landed by round 264): triage and kill round 245's lexer",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "8f3fe64",
+   "subject": "Round 264 (language C, landed by round 265): v0.14.1 nested-fn effect inherita",
+   "n_staged": 2,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "261473b",
+   "subject": "Round 266 (language C, landed by round 267): v0.14.2 direct-alias effect track",
+   "n_staged": 4,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "50dc869",
+   "subject": "Round 270 (language C): Whence v0.14.3 \u2014 effect-system return-value tracking",
+   "n_staged": 5,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "0a2420e",
+   "subject": "Round 272 (language C): Whence v0.14.4 \u2014 effect-system container-field trackin",
+   "n_staged": 4,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "f8896ba",
+   "subject": "Round 276 (language C): Whence v0.14.5 \u2014 effect-system if/else-tail return tra",
+   "n_staged": 2,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "1e5c402",
+   "subject": "Round 282 (language C): Whence v0.14.6 \u2014 effect-system field-return chain",
+   "n_staged": 2,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "3facc15",
+   "subject": "Round 288 (language C): Whence v0.14.7 \u2014 effect-system nested-record field cha",
+   "n_staged": 2,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "6ba2506",
+   "subject": "Round 294 (language C, reconciled by round 295): Whence v0.14.8 \u2014 rand(), the ",
+   "n_staged": 6,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "884ff0d",
+   "subject": "Round 296 (language C): Whence guest parity for rand()",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "67fc895",
+   "subject": "Round 300 (language C): Whence v0.14.9 \u2014 NAMED-fn slice of effect flow through",
+   "n_staged": 4,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "b9b2db9",
+   "subject": "Round 302 (language C): Whence v0.14.10 \u2014 let-bound anonymous-fn slice of effe",
+   "n_staged": 5,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "fcb69f9",
+   "subject": "Round 306 (language C): Whence v0.14.11 \u2014 param renamed in-body, then called t",
+   "n_staged": 4,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "9fcbb49",
+   "subject": "Round 308 (language C): Whence v0.14.12 \u2014 effect flow across a return boundary",
+   "n_staged": 5,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "35b0a4c",
+   "subject": "Round 312 (language C): Whence v0.14.13 \u2014 an argument forwarded through a seco",
+   "n_staged": 4,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "e9ee08b",
+   "subject": "Round 318 (language C): Whence v0.17 \u2014 trunc closes the 24-round rand(lo, hi) ",
+   "n_staged": 5,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "3dfde91",
+   "subject": "Round 320 (language C): host-vs-guest parser differential tool finds and fixes",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "7b3afcb",
+   "subject": "Round 323 (SWE-loop D): trunc arity closes fuzz gap; exponent-literal lexer bu",
+   "n_staged": 4,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "b7cb49a",
+   "subject": "Round 325 (record-gap reconciliation): land round 324's own uncommitted fuzzer",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 1
+  },
+  {
+   "sha": "9a166b2",
+   "subject": "Round 326 (language C): Whence v0.13 guest parity fix \u2014 return-type guard labe",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "bc58c24",
+   "subject": "Round 330 reconciliation (language C): land uncommitted call-label anonymous-f",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "6344e68",
+   "subject": "Round 332 (language C): guest lexer parity fix for exponent-literal numbers",
+   "n_staged": 4,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 1
+  },
+  {
+   "sha": "c592b5a",
+   "subject": "Round 335 (SWE-loop D) reconciliation: land the unfuzzed-builtin work",
+   "n_staged": 4,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "645560a",
+   "subject": "Round 336 (language C) reconciliation: land the tail-position blame-order work",
+   "n_staged": 3,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "ddec87e",
+   "subject": "Round 338 (language C): `shape` in the self-hosted parser and evaluator",
+   "n_staged": 4,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 1
+  },
+  {
+   "sha": "4af6963",
+   "subject": "Round 342 (language C) reconciliation: land Whence v0.18 shape-scope parity",
+   "n_staged": 5,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "6132f1f",
+   "subject": "Round 344 (language C) reconciliation: land Whence v0.19 parameter contracts",
+   "n_staged": 10,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 1
+  },
+  {
+   "sha": "4309fdd",
+   "subject": "Round 347 (SWE-loop D): the generator fork, and shapes the fuzzer could never ",
+   "n_staged": 3,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 1
+  },
+  {
+   "sha": "76e0e9a",
+   "subject": "Round 348 (language C) reconciliation: land Whence v0.20 typed-miss field nami",
+   "n_staged": 6,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 1
+  },
+  {
+   "sha": "fde750b",
+   "subject": "Round 349 (harness A): a suite that cannot run is not a suite that passes",
+   "n_staged": 2,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "3ed4391",
+   "subject": "Round 350 (language C), landed by round 351: Whence v0.21 host/guest lexer dif",
+   "n_staged": 7,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "4ae1ac7",
+   "subject": "Round 354 (language C): Whence v0.22 \u2014 an error that can name the fix, names i",
+   "n_staged": 4,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "fd7d91a",
+   "subject": "Round 355 (harness A): the suite was only ever green HERE",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "2e3193f",
+   "subject": "Round 355 (harness A): the checker's first run found a round-354 regression",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "80bcf4f",
+   "subject": "Round 356 (language C): Whence v0.23 \u2014 a line break is the only separator",
+   "n_staged": 9,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "e7df524",
+   "subject": "Round 359 (SWE-loop D): the param_erasure oracle, and the exemption that was r",
+   "n_staged": 2,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "5969ded",
+   "subject": "Round 360 (language C): Whence v0.24 \u2014 guest columns and the parse-error diffe",
+   "n_staged": 10,
+   "n_findings": 2,
+   "files": [
+    "tests/test_v24.py"
+   ],
+   "guarded": 0
+  },
+  {
+   "sha": "9d198b8",
+   "subject": "Round 362 (language C) reconciliation, landed by round 363: Whence v0.25, the ",
+   "n_staged": 3,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "48b8967",
+   "subject": "Round 366 (language C), verified and landed by round 367: a runaway tail loop ",
+   "n_staged": 7,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 1
+  },
+  {
+   "sha": "f568a79",
+   "subject": "Round 368 (language C), verified and landed by round 369: a value's SIZE is a ",
+   "n_staged": 5,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "98258f0",
+   "subject": "Round 372 (language C): Whence v0.28 \u2014 a miss message names the kind, and says",
+   "n_staged": 3,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "10acd1f",
+   "subject": "Round 374 (language C), verified and landed by round 375: Whence v0.29 \u2014 the o",
+   "n_staged": 5,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "4b63752",
+   "subject": "Round 378 (language C): Whence v0.30 \u2014 the provenance-query family answers fro",
+   "n_staged": 2,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "b36a751",
+   "subject": "Round 380 (language C): the precondition that was a grep",
+   "n_staged": 2,
+   "n_findings": 1,
+   "files": [
+    "tests/test_v31.py"
+   ],
+   "guarded": 0
+  },
+  {
+   "sha": "dbf1042",
+   "subject": "Round 380 (language C): Whence v0.31 \u2014 E4 is retired, diverge/contrast answer ",
+   "n_staged": 3,
+   "n_findings": 3,
+   "files": [
+    "tests/test_v24.py",
+    "tests/test_v31.py"
+   ],
+   "guarded": 0
+  },
+  {
+   "sha": "4db91cd",
+   "subject": "Round 384 (language C): the cure that was never rendered \u2014 landed by round 385",
+   "n_staged": 7,
+   "n_findings": 4,
+   "files": [
+    "tests/test_v24.py",
+    "tests/test_v31.py",
+    "tests/test_v32.py"
+   ],
+   "guarded": 0
+  },
+  {
+   "sha": "4c05cf4",
+   "subject": "Round 387 (skills B): the replay that could not see the failures \u2014 and round 3",
+   "n_staged": 6,
+   "n_findings": 3,
+   "files": [
+    "tests/test_v31.py",
+    "tests/test_v33.py"
+   ],
+   "guarded": 0
+  },
+  {
+   "sha": "54a74c7",
+   "subject": "Round 390 (language C): the clause that shipped on one side (landed by round 3",
+   "n_staged": 3,
+   "n_findings": 3,
+   "files": [
+    "tests/test_v31.py",
+    "tests/test_v33.py"
+   ],
+   "guarded": 0
+  },
+  {
+   "sha": "1b18b2c",
+   "subject": "Round 392 (language C): the errors that named no cure (landed by round 393)",
+   "n_staged": 7,
+   "n_findings": 3,
+   "files": [
+    "tests/test_v33.py",
+    "tests/test_v34.py"
+   ],
+   "guarded": 1
+  },
+  {
+   "sha": "49969fb",
+   "subject": "Round 393 (skills B): the repeats that were one draw",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "9a34b3c",
+   "subject": "Round 395 (SWE-loop D): the command nobody ran, and the suite nobody read",
+   "n_staged": 5,
+   "n_findings": 5,
+   "files": [
+    "curecheck.py",
+    "tests/test_v24.py"
+   ],
+   "guarded": 4
+  },
+  {
+   "sha": "a7f2add",
+   "subject": "Round 396 (language C): v0.35 / decision 44 \u2014 the sentence that was three dive",
+   "n_staged": 8,
+   "n_findings": 5,
+   "files": [
+    "curecheck.py",
+    "tests/test_v24.py"
+   ],
+   "guarded": 0
+  },
+  {
+   "sha": "7f626a9",
+   "subject": "Round 398 (language C): v0.36 / decision 45 \u2014 the half of the sentence the gue",
+   "n_staged": 7,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "adedede",
+   "subject": "Round 398 follow-up: the slow tier's five failures, one of them 38 rounds old",
+   "n_staged": 2,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "768954b",
+   "subject": "Round 402 (language C): v0.37 / decision 46 \u2014 the binding table that knew whet",
+   "n_staged": 8,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "69065b9",
+   "subject": "Round 403 (harness A): the suite that finished after the round ended",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "b2bd97c",
+   "subject": "Round 403: a second round-402 regression, found by the same arithmetic",
+   "n_staged": 1,
+   "n_findings": 4,
+   "files": [
+    "tests/test_v24.py"
+   ],
+   "guarded": 0
+  },
+  {
+   "sha": "826c641",
+   "subject": "Round 404 (language C): v0.38 / decision 47 \u2014 the fact that looked like noise",
+   "n_staged": 16,
+   "n_findings": 4,
+   "files": [
+    "tests/test_v31.py",
+    "tests/test_v33.py",
+    "tests/test_v34.py"
+   ],
+   "guarded": 0
+  },
+  {
+   "sha": "d71d7cd",
+   "subject": "Round 408 (language C): the got slot that spoke Python",
+   "n_staged": 10,
+   "n_findings": 4,
+   "files": [
+    "tests/test_v24.py"
+   ],
+   "guarded": 0
+  },
+  {
+   "sha": "50c7bb3",
+   "subject": "Round 409 (harness A): the differential that could not tell its two trees apar",
+   "n_staged": 3,
+   "n_findings": 6,
+   "files": [
+    "curecheck.py",
+    "tests/test_v24.py"
+   ],
+   "guarded": 0
+  },
+  {
+   "sha": "619c38e",
+   "subject": "Round 410 (language C): two doors for one piece of numeric text",
+   "n_staged": 18,
+   "n_findings": 6,
+   "files": [
+    "curecheck.py",
+    "tests/test_v24.py",
+    "tests/test_v33.py"
+   ],
+   "guarded": 0
+  },
+  {
+   "sha": "4c82315",
+   "subject": "Round 413 (SWE-loop D): the guardian that was named, not measured",
+   "n_staged": 8,
+   "n_findings": 2,
+   "files": [
+    "tests/test_v24.py",
+    "tests/test_v31.py"
+   ],
+   "guarded": 1
+  },
+  {
+   "sha": "5e1a06a",
+   "subject": "Round 414 (language C): the probe that agreed with both rules",
+   "n_staged": 5,
+   "n_findings": 2,
+   "files": [
+    "tests/test_checkpin.py"
+   ],
+   "guarded": 0
+  },
+  {
+   "sha": "d559846",
+   "subject": "Round 416 (language C): the direction nobody mutated",
+   "n_staged": 6,
+   "n_findings": 7,
+   "files": [
+    "tests/test_checkpin.py",
+    "tests/test_v22.py",
+    "tests/test_v31.py"
+   ],
+   "guarded": 0
+  },
+  {
+   "sha": "884e854",
+   "subject": "Round 419 (SWE-loop D): the engine that stopped at the door",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "d0de770",
+   "subject": "Round 420 (language C), landed by round 421: the gaps that were mispointed pin",
+   "n_staged": 2,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "f30c471",
+   "subject": "Rounds 422/423 leftovers, landed by round 425: the diff round 424 said it had ",
+   "n_staged": 9,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "891f268",
+   "subject": "Round 425 (SWE-loop D): the instrument nobody pointed at the subject",
+   "n_staged": 2,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "02b6ef0",
+   "subject": "Round 426 leftovers, landed by round 427: the precondition that was a sentence",
+   "n_staged": 2,
+   "n_findings": 15,
+   "files": [
+    "tests/test_polarity.py"
+   ],
+   "guarded": 0
+  },
+  {
+   "sha": "4b2c48f",
+   "subject": "Round 428 (language C): the decider that answered a different question",
+   "n_staged": 2,
+   "n_findings": 27,
+   "files": [
+    "tests/test_polarity.py"
+   ],
+   "guarded": 0
+  },
+  {
+   "sha": "973c5ca",
+   "subject": "Round 431 leftovers, landed by round 432: the checker that was clean and the e",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "632b11d",
+   "subject": "Round 432 (language C): the one hop that decided one, and the law that was fal",
+   "n_staged": 4,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "750f91e",
+   "subject": "Round 434 (language C): the last precondition, and the registry that could onl",
+   "n_staged": 2,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "cfc4461",
+   "subject": "Round 435 (skills B): the prose inside the data",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "883a23a",
+   "subject": "Round 438 (language C): the criterion that passed only in the circular mode",
+   "n_staged": 2,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "2c625c2",
+   "subject": "Round 440 (language C), part 1: append_only belongs to a PAIR, not to a pin",
+   "n_staged": 2,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "2d5a32b",
+   "subject": "Round 444 (language C): the census was evidence and selector, and a 15th progr",
+   "n_staged": 4,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 1
+  },
+  {
+   "sha": "89ca04e",
+   "subject": "Round 444 (language C), part 3: CLAUDE.md's CRITICAL MISSION, executed instead",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "bcfe2f5",
+   "subject": "Round 446 (language C): Whence v0.42 \u2014 a discarded value is discarded whole",
+   "n_staged": 4,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 1
+  },
+  {
+   "sha": "fb4757b",
+   "subject": "Round 450 (language C), part 3: Whence v0.43, decision 52 \u2014 observation is wha",
+   "n_staged": 4,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "f856bae",
+   "subject": "Round 450 (language C), part 4: killerrepin \u2014 a differential re-pin for a gene",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "f1edb2e",
+   "subject": "Round 453 (skills B), part 0: land round 452's orphaned diff and backfill its ",
+   "n_staged": 8,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "ed37e19",
+   "subject": "Round 457 (harness A), part 0: land round 456's whole round \u2014 the twenty-secon",
+   "n_staged": 2,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "f778e42",
+   "subject": "Round 458 (language C), part 2: the test-corpus census, and the depth that bel",
+   "n_staged": 3,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "67b1e7c",
+   "subject": "Round 462 (language C), part 1: the residual that was not a residual",
+   "n_staged": 2,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "f834859",
+   "subject": "Round 464 (language C), part 1: the decision the registry never got",
+   "n_staged": 2,
+   "n_findings": 1,
+   "files": [
+    "specreg.py"
+   ],
+   "guarded": 0
+  },
+  {
+   "sha": "285f0ca",
+   "subject": "Round 467 (SWE-loop D), part 1: eight red nodes, two files, neither author's s",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 1
+  },
+  {
+   "sha": "2e09765",
+   "subject": "Round 468 (language C), part 1: the counter that could only be believed",
+   "n_staged": 2,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "15f5b3e",
+   "subject": "round 470 (language C): the zip refusal, refuted; the corpus 765 -> 829",
+   "n_staged": 3,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "16ef206",
+   "subject": "Round 470 (language C), part 4: the tail of the round, landed by round 471",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "dbaf51b",
+   "subject": "Round 474 (language C): the position that was not a key",
+   "n_staged": 3,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "1b4208b",
+   "subject": "round 476 (language C): the return value nobody rendered",
+   "n_staged": 3,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "750fa77",
+   "subject": "round 480 (language C): v0.46 / decision 59 \u2014 a declared kind is a contract, a",
+   "n_staged": 6,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "2445554",
+   "subject": "round 482 (language C): v0.47 / decision 60 \u2014 the sweep decision 58 asked for,",
+   "n_staged": 6,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "2a54690",
+   "subject": "round 483 (skills B): land round 482's leftover diff, de-reformatted",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "b8dff22",
+   "subject": "round 486 (language C): land the leftover diff -- specreg version registry S00",
+   "n_staged": 2,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 1
+  },
+  {
+   "sha": "902f480",
+   "subject": "round 488 (language C): v0.48 decision 62 -- derive the probe, and vary the NA",
+   "n_staged": 6,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "0aea7be",
+   "subject": "round 488 (language C): census and specreg pins, with attribution",
+   "n_staged": 2,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "ad7ff7f",
+   "subject": "round 492 (language C): reprsweep v0.49, decision 63 \u2014 landed by round 493",
+   "n_staged": 7,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "a521489",
+   "subject": "round 494 (language C): v0.50 decision 64 \u2014 size and shape may not share a tes",
+   "n_staged": 3,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "bd55eb5",
+   "subject": "round 498 (language C): the count that outranked the list",
+   "n_staged": 9,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "5f3be34",
+   "subject": "round 500 (language C): the axis that was carrying two questions",
+   "n_staged": 3,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 0
+  },
+  {
+   "sha": "8fca380",
+   "subject": "round 504 (language C): the orphan that was the whole language",
+   "n_staged": 2,
+   "n_findings": 1,
+   "files": [
+    "builtinlive.py"
+   ],
+   "guarded": 0
+  },
+  {
+   "sha": "9d691c5",
+   "subject": "round 505 (harness A): close the four reds round 504 opened",
+   "n_staged": 1,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 1
+  },
+  {
+   "sha": "29c4f34",
+   "subject": "round 506 (language C): typed was the only builtin no example ever ran",
+   "n_staged": 4,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 1
+  },
+  {
+   "sha": "eeb8549",
+   "subject": "round 507 (skills B): specstale.py \u2014 four more bullets described a mechanism v",
+   "n_staged": 2,
+   "n_findings": 2,
+   "files": [
+    "specstale.py",
+    "tests/test_specstale.py"
+   ],
+   "guarded": 0
+  },
+  {
+   "sha": "c7e6728",
+   "subject": "round 509 (SWE-loop D): close 10 of 14 reds \u2014 two unguarded repo-root escapes,",
+   "n_staged": 2,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 2
+  },
+  {
+   "sha": "7b61384",
+   "subject": "round 510 (language C): branchlive.py \u2014 a per-branch reachability census over ",
+   "n_staged": 2,
+   "n_findings": 0,
+   "files": [],
+   "guarded": 1
+  },
+  {
+   "sha": "5fdfc5b",
+   "subject": "round 512 (language C): a ledger is as fresh as its gate's predicate is total",
+   "n_staged": 3,
+   "n_findings": 4,
+   "files": [
+    "corpusledger.py"
+   ],
+   "guarded": 0
+  }
+ ]
+}

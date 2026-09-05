@@ -3318,5 +3318,31 @@
   "id": "rgati-neg-frozen-input",
   "expect": [],
   "prompt": "I generated a one-off benchmark report from a tarball of fixture data that is checksummed, immutable and archived read-only; the tarball has no writer and will never be regenerated. The report is a scratch file in my home directory, it is not committed, nothing else reads it, and I'll delete it once I've pasted the numbers into Slack. Should I write tests over it?"
+ },
+ {
+  "id": "gawci-hook-noise",
+  "expect": [
+   "gate-attributes-what-the-change-introduced"
+  ],
+  "prompt": "Our nightly lint catches a class of bug that keeps coming back \u2014 five times this year, always introduced by a change whose own tests passed. I want to move the linter into a pre-commit hook so the author hears about it. It scans a whole file at a time. Two of my teammates already ignore the one hook step we have because 'it's always complaining'. How do I wire this so it doesn't become the second ignored step?"
+ },
+ {
+  "id": "gawci-inherited-lines",
+  "expect": [
+   "gate-attributes-what-the-change-introduced"
+  ],
+  "prompt": "I added our complexity scanner to a pre-push check that runs it on every file the push touches. People are annoyed: they edit one line of a 900-line legacy module and get eight warnings about functions they never opened. I don't want to lower the threshold because the threshold is right. What's the actual fix, and how do I show it works before I re-enable it?"
+ },
+ {
+  "id": "gawci-blocking-proposal",
+  "expect": [
+   "gate-attributes-what-the-change-introduced"
+  ],
+  "prompt": "Proposal on the table: make the schema validator a blocking pre-commit gate, because the last three outages all traced to a bad schema that a later job caught. Nobody has numbers on how often it would have fired on commits that were fine. I'm the reviewer. What do I ask for before this lands, and what should the gate's exit code be?"
+ },
+ {
+  "id": "gawci-neg-new-checker",
+  "expect": [],
+  "prompt": "We have no linter at all. I want to write one from scratch for our Go services and run it in CI on the merge commit. There is no existing check, no hook, and no history of this defect class to look at yet \u2014 I just read about the bug pattern in a blog post. Where should I start?"
  }
 ]
