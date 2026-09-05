@@ -1,0 +1,91 @@
+{
+ "by_status": {
+  "moved": 5
+ },
+ "n_id_changed": 5,
+ "n_new_mutants": 1846,
+ "n_old_mutants": 1794,
+ "n_requested": 5,
+ "new_digest": "3b3923df3ee72b3f98f5bdda828a82d94b8b9971848f458d7741f4e644324b8c",
+ "new_ids": [
+  "perturbation.py:1586:cmp#162",
+  "perturbation.py:1642:arith#984",
+  "perturbation.py:1642:const#983",
+  "perturbation.py:1660:const#1547",
+  "perturbation.py:1661:const#1601"
+ ],
+ "old_digest": "8082749f713ee07f05e1f9187324280156c547673e35fa39017ef67200173ea1",
+ "pairs": [
+  {
+   "description": "LtE -> Lt",
+   "line_text": "if h <= 0:",
+   "n_new_with_key": 1,
+   "n_old_with_key": 1,
+   "new_id": "perturbation.py:1586:cmp#162",
+   "new_line": 1586,
+   "old_id": "perturbation.py:1582:cmp#161",
+   "old_line": 1582,
+   "op": "cmp",
+   "ordinal": 0,
+   "owner": "_hypergeom_atleast",
+   "status": "moved"
+  },
+  {
+   "description": "Add -> Sub",
+   "line_text": "testable = [d for d in range(1, N + 1) if best_case_p(N, K, d) <= bar]",
+   "n_new_with_key": 1,
+   "n_old_with_key": 1,
+   "new_id": "perturbation.py:1642:arith#984",
+   "new_line": 1642,
+   "old_id": "perturbation.py:1638:arith#970",
+   "old_line": 1638,
+   "op": "arith",
+   "ordinal": 0,
+   "owner": "power_floor",
+   "status": "moved"
+  },
+  {
+   "description": "1 -> 2",
+   "line_text": "testable = [d for d in range(1, N + 1) if best_case_p(N, K, d) <= bar]",
+   "n_new_with_key": 2,
+   "n_old_with_key": 2,
+   "new_id": "perturbation.py:1642:const#983",
+   "new_line": 1642,
+   "old_id": "perturbation.py:1638:const#969",
+   "old_line": 1638,
+   "op": "const",
+   "ordinal": 0,
+   "owner": "power_floor",
+   "status": "moved"
+  },
+  {
+   "description": "0 -> 1",
+   "line_text": "else f\"{len(testable)} occupancies in [{testable[0]}, \"",
+   "n_new_with_key": 1,
+   "n_old_with_key": 1,
+   "new_id": "perturbation.py:1660:const#1547",
+   "new_line": 1660,
+   "old_id": "perturbation.py:1656:const#1508",
+   "old_line": 1656,
+   "op": "const",
+   "ordinal": 0,
+   "owner": "power_floor",
+   "status": "moved"
+  },
+  {
+   "description": "1 -> 2",
+   "line_text": "f\"{testable[-1]}] can clear the bar\"),",
+   "n_new_with_key": 1,
+   "n_old_with_key": 1,
+   "new_id": "perturbation.py:1661:const#1601",
+   "new_line": 1661,
+   "old_id": "perturbation.py:1657:const#1559",
+   "old_line": 1657,
+   "op": "const",
+   "ordinal": 0,
+   "owner": "power_floor",
+   "status": "moved"
+  }
+ ],
+ "subject": "nuc/perturbation.py"
+}

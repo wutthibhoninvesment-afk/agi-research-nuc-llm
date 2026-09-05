@@ -3292,5 +3292,31 @@
   "id": "arri-neg",
   "expect": [],
   "prompt": "The staging deploy 404s on one static asset about 1 in 20 requests. The file is in the bucket and the CDN config looks right to me. Can you help me work out whether it's a cache invalidation race?"
+ },
+ {
+  "id": "rgati-near",
+  "expect": [
+   "report-gated-against-its-input"
+  ],
+  "prompt": "We commit a JSON report that summarises a mutation campaign over one source file. The only test over it asserts that the report's `subject_digest` equals sha256 of the source file it names, and it has been red for six rounds because somebody edited the source. I'm about to regenerate the report so the digest matches again. Is asserting the digest enough of a check on this artefact?"
+ },
+ {
+  "id": "rgati-mid",
+  "expect": [
+   "report-gated-against-its-input"
+  ],
+  "prompt": "Our nightly job writes report.json, which includes a `checks_run` list naming the verification commands the job executed. Someone refactored the job and the command list in the code went from five to seven, with two of the old ones replaced. Nobody regenerated the committed report and every test over it still passes. How do I test this file so a change to the job's command list can't leave the report describing a job that no longer exists?"
+ },
+ {
+  "id": "rgati-far",
+  "expect": [
+   "report-gated-against-its-input"
+  ],
+  "prompt": "Doing archaeology on a repo. One commit adds both summary.json, which says 32 open items, and thirty new lines appended to items.jsonl -- and the commit message itself says the count went to 5. The log is append-only and read last-wins, so later appends supersede earlier verdicts for the same key. The summary has never been regenerated and four tests over it are green. How did this stay green for a year, and what do I add so it can't happen again?"
+ },
+ {
+  "id": "rgati-neg-frozen-input",
+  "expect": [],
+  "prompt": "I generated a one-off benchmark report from a tarball of fixture data that is checksummed, immutable and archived read-only; the tarball has no writer and will never be regenerated. The report is a scratch file in my home directory, it is not committed, nothing else reads it, and I'll delete it once I've pasted the numbers into Slack. Should I write tests over it?"
  }
 ]

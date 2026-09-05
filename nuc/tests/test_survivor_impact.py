@@ -16,8 +16,30 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import survivor_impact as si  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
-REPORT = ROOT / "state" / "nuc" / "round-502" / "survivor-impact.json"
 SUBJECT = ROOT / "nuc" / "perturbation.py"
+LEDGER = ROOT / "state" / "swe" / "perturbation-mutation-ledger.jsonl"
+
+
+def latest_report():
+    """The NEWEST `state/nuc/round-<NNN>/survivor-impact.json`, by round.
+
+    ROUND 514. This was pinned at `round-502` and the pin is why
+    `test_the_committed_report_is_about_the_subject_at_head` stayed red for
+    six rounds: round 508 moved the subject, a report at HEAD could only be
+    written under a NEW round directory, and the test would have gone on
+    reading round 502's no matter how many fresh ones were committed.
+    Resolving the newest keeps the gate's teeth -- the newest report still
+    has to be about the subject at HEAD -- while letting the fix be a new
+    artefact rather than an overwrite of a past round's record.
+    """
+    cands = sorted(
+        (int(p.parent.name.split("-")[-1]), p)
+        for p in (ROOT / "state" / "nuc").glob("round-*/survivor-impact.json")
+        if p.parent.name.split("-")[-1].isdigit())
+    return cands[-1][1] if cands else ROOT / "state" / "nuc" / "none.json"
+
+
+REPORT = latest_report()
 
 
 def _row(mid, status="survived", line=1, digest="d0", **kw):
@@ -376,6 +398,38 @@ class TestThisTree:
                                        "function_not_entered"), r["id"]
             else:
                 assert r.get("reason") is None, r["id"]
+
+    def test_the_committed_report_names_the_battery_THAT_EXISTS_NOW(self):
+        """ROUND 514, and it would have been red the day round 508 landed.
+
+        Round 508 rewrote `BATTERY` -- it put `reclaim` and `gap` in (both had
+        been listed as unrunnable) and gave `wsweep_swap` the `--channel swap`
+        it had never passed -- and did not regenerate the report. The digest
+        gate caught the subject moving. NOTHING caught the INSTRUMENT moving,
+        so the committed report went on advertising five verbs and a
+        `battery_gap` naming two of the seven that now run.
+        """
+        rep = self._rep()
+        assert rep["battery"] == [n for n, _ in si.BATTERY]
+        assert rep["battery_gap"] == dict(si.BATTERY_GAP)
+
+    def test_the_committed_report_agrees_with_the_ledger_it_READ(self):
+        """ROUND 514's flattest finding. Round 502's report says
+        `n_survivors_standing: 32`; the commit that landed it says in its own
+        message "the ledger goes 55 killed / 32 survived -> 82 / 5", and the
+        ledger in that same commit stands at 5. The report was stale against
+        its own input BEFORE it was ever committed, for twelve rounds, and the
+        four gates over it all passed because none of them re-read the ledger.
+
+        `survivors()` is last-wins, so this is not a re-run: it is the same
+        one-line question the report answered, asked again at HEAD.
+        """
+        rep = self._rep()
+        standing = si.survivors(str(LEDGER),
+                                subject_digest=rep["subject_digest"])
+        assert rep["n_survivors_standing"] == len(standing)
+        assert sorted(r["id"] for r in rep["results"]) == sorted(
+            r["id"] for r in standing), "the report audits a different set"
 
     def test_classify_bucket_is_still_called_by_nothing_in_the_module(self):
         """The round's flattest finding, as a live gate. `classify_bucket` was

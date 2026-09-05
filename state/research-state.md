@@ -28975,6 +28975,112 @@ entry here; nothing below is inferred from intentions.*
   0 warnings.
 
 
+### Round 514 — NUC-integration(E) — 2026-09-05 — the report that was stale in its own commit
+
+- **Box DOWN** (`ssh jab@100.78.44.111` → `Connection timed out`, 10 s connect
+  timeout; LAN path not available from this host). Offline round; one attempt,
+  a timeout rather than an auth error, no second attempt per CLAUDE.md. No
+  mission in `state/nuc-missions.md` was ticked — E1-E5 are all `[x]` and the
+  two open NUC items both need a restart on a shared box and operator sign-off.
+- **The six-round red owned by this track is CLOSED, and it was the smallest
+  of three staleness axes.** `state/nuc/round-502/survivor-impact.json` was
+  stale in its `subject_digest` (the red, since round 508's +243 lines to
+  `nuc/perturbation.py`), in its `battery` (5 verbs; `survivor_impact.BATTERY`
+  has been 7 since the SAME commit), and in `n_survivors_standing` — **32 in
+  the report, 5 in the ledger at the report's own digest**.
+- **The third axis was false before it was committed.** The killing rows are
+  ledger indices 102-133 of 134, all under `suite_digest 7ac31f49`, and report
+  and ledger arrived in ONE commit `6ee44a7` whose own message says "the ledger
+  goes 55 killed / 32 survived -> 82 / 5". All ELEVEN `moves_published_number`
+  mutants — the only class `strict_fails` exits 1 on — were already dead.
+  Twelve rounds of green tests, because all four gates read only the artefact.
+- **`nuc/mutant_remap.py` + 16 tests** — re-identify a mutant across a source
+  edit by `(op, description, stripped line text, owner qualname)` + an ordinal
+  in the key bucket; `ambiguous` and NO id when the bucket changed size. Over
+  all 87 mutants the ledger has ever scored, `81d0e42^`→HEAD: **81 of 87 ids
+  changed**, 0 gone, 0 ambiguous. The `#i` component drifts +1/+14/+39/+42 down
+  one file — a remap that only re-based line numbers scores the wrong mutant.
+- **Three gates in `nuc/tests/test_survivor_impact.py`, all three red at HEAD
+  before this round's report existed** (`3 failed, 33 passed`): the digest one
+  (existed, 6 rounds), `..._names_the_battery_THAT_EXISTS_NOW` (new, would have
+  been red 6 rounds), `..._agrees_with_the_ledger_it_READ` (new, would have
+  been red **12** rounds — since round 502's own commit). `REPORT` now resolves
+  the NEWEST `state/nuc/round-*/survivor-impact.json`: the round-502 pin made
+  the red unfixable by a fresh artefact.
+- **`state/nuc/round-514/survivor-impact.json` — the report at HEAD**, `--strict`
+  exit 0, identity control clean. 5 survivors, `moves_published_number` **[]**,
+  `n_lines_executed_by_battery` **1319** (round 502: 1105). The five were
+  remapped, re-scored at HEAD against the same suite (all 5 still `survived`;
+  two fell back to the full 257-unit oracle) and re-audited. Coverage map
+  re-collected at HEAD first: 118.9 s, 257 units — without it
+  `MapPrioritizer(require_fresh=True)` would have run 87 full suites (~70 min).
+- **A measured NEGATIVE about round 508's own battery fix.** The widened
+  battery (`reclaim_all` + `gap_commit`, and `wsweep_swap` finally on the swap
+  channel) executes **214 more lines** of the subject and changes **zero**
+  verdicts: all five survivors hold exactly what round 502 gave them.
+- **Predictions: 2 HIT, 7 MISS**, `state/round-514-predictions.md`. Six of the
+  seven misses are ONE error — every one is denominated in "the 32 standing
+  survivors", a number the bank took from the committed report instead of
+  re-deriving it from the ledger. That is this round's own finding, committed
+  by me one step before I found it. **A prediction's DENOMINATOR is a carried
+  claim.**
+- **New skill `skills/report-gated-against-its-input/SKILL.md`** —
+  `skill_lint --house`: 0 errors, 0 warnings; registered unprobed with an
+  owner and a scorable prediction in `state/known-unprobed-skills.json`.
+
+## Next steps (as of round 514)
+
+1. **Re-score the other 82 remapped mutants at HEAD and RE-RUN THE AUDIT IN
+   THE SAME ROUND.** They are remapped already
+   (`state/nuc/round-514/mutant-remap-all87.json`, `new_ids`), the coverage map
+   is fresh at HEAD, and the ledger is resumable and last-wins. A mutant round
+   502's suite killed at the OLD digest may survive at HEAD — round 508 rewrote
+   243 lines — so the new report's survivor set is a **lower bound** until they
+   are scored. **The two steps are now bound together by a gate:**
+   `test_the_committed_report_agrees_with_the_ledger_it_READ` goes red the
+   moment a new survivor is appended without a re-audit. That is the gate
+   working, not a trap — but do them in one round. The command:
+   ```sh
+   .venv/bin/python -m harness.swe.nodecampaign --root . --lines all \
+       --budget 900 --only "<the 82 new_ids>" \
+       --out state/nuc/round-<NNN>/rescore-rest.json
+   .venv/bin/python nuc/survivor_impact.py --strict --quiet \
+       --out state/nuc/round-<NNN>/survivor-impact.json
+   ```
+   NUC-integration(E) or SWE-loop(D).
+2. **Apply the same three-axis question to every other snapshot report in
+   `state/`.** The generalisation is written up in
+   `skills/report-gated-against-its-input/SKILL.md` step 1: list the inputs the
+   PRODUCING FUNCTION read, not the file the report names. `survivor_impact`
+   read four (subject, ledger, capture, its own `BATTERY`) and had one gate.
+   Round 512 ran the same audit shape over `languages/whence/` generated JSON
+   and its own next-step says `harness/` and `nuc/` were never done. This is
+   that item, with a measured instance attached. harness(A) or skills(B).
+3. **`survivor_impact.audit` does not report how many of the ledger's mutants
+   are unscored at the current digest.** It reports
+   `n_survivors_at_another_digest` (0 now, because the remap moved the ids) and
+   nothing about the 82 whose verdict is a fact about a source that no longer
+   exists. A report that says "5 survivors" while 82 sites are unasked at this
+   digest is true and misleading. Add the count; `mutant_remap` already
+   computes the set. NUC-integration(E).
+4. **The three `harness/tests/test_swe_copyparity_real_subject.py` reds are
+   untouched** (owner harness(A), opened by language(C) at round 512,
+   RECURRENT — closed by themselves once at round 509). Not this track's suite.
+   Reproduce solo before patching: a node that has closed by itself may be the
+   runner on a 1-core box, not the code. harness(A).
+5. **`nproc` on this box is still 1**, and this round is a new measurement of
+   what that costs: `population --channel swap` is 26.4 s of a 29.6 s battery
+   run, and `survivor_impact.trace_battery` runs the whole battery a second
+   time IN PROCESS under `sys.settrace`, which is where most of the audit's
+   wall clock goes. Anyone widening `BATTERY` pays it twice. Plan every suite
+   as serialised.
+6. **Standing, and not touched by this round:** the NUC `retention --strict`
+   deadline; the `%vmeff` residual; `claim_check` executing 0 of its commands;
+   and CLAUDE.md's `CRITICAL MISSION` block, still a one-line deletion for the
+   operator. `languages/whence/SECURITY.md` remains the operator's decision —
+   do not copy a carry count for it from this file; the checker's own line is
+   the only source.
+
 ### Round 513 — skills(B) — 2026-09-05 — the absence that was a fact about the filter
 
 - **All four red `skills-check` nodes are CLOSED, and two of the three ERRORs
