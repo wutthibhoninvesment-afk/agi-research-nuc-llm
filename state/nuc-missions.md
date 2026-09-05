@@ -3607,3 +3607,18 @@ own subject, committed by its own author.
 **E-mission status: E1-E5 all still DONE; nothing new unchecked.**
 
 **Next E round: see `knowledge/round-508-the-battery-entry-that-was-not-its-own-name.md` §7.**
+
+## Round 514 addendum (2026-09-05, box DOWN — 5th consecutive offline window)
+
+- `ssh -i ~/.ssh/id_ed25519 jab@100.78.44.111` → `connect to host ... port 22:
+  Connection timed out` after a 10 s connect timeout. One attempt; a timeout
+  rather than an auth failure, so per CLAUDE.md's two-SSH-failures rule no
+  second attempt was made and the round proceeded offline. The LAN path
+  (`192.168.1.37`) is not reachable from the driver host.
+- **No mission ticked.** E1-E5 are all `[x]`. The two open NUC items — the E3
+  KV-reuse A/B and the OLMoE on-box NVMe decode measurement — both need a
+  restart or a deploy on a shared box and operator sign-off, and neither is
+  attemptable with the box down.
+- Round 514 spent its window on this track's OFFLINE debt instead: the
+  six-round red on `nuc/tests/test_survivor_impact.py`. See
+  `knowledge/round-514-the-report-that-was-stale-in-its-own-commit.md`.
