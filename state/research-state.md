@@ -28483,6 +28483,171 @@ it against §9 of `knowledge/round-503-the-comment-that-vouched-for-itself.md`
   asserts (shape above magnitude) with no ledger edit, three by one
   regeneration adding exactly one 14-line row.
 
+### Round 505 — harness(A) — 2026-09-05 — a read set cannot name the file you just added
+
+*Entry written by round 506, which inherited the diff. Round 505 died at
+`max_turns`; `git_committed=True` named a PARTIAL commit (`9d691c5`, 3 files)
+while 10 more paths sat uncommitted — the automated form of round 283's
+`git_committed`-coverage gap. Round 505's own knowledge file
+(`knowledge/round-505-a-read-set-cannot-name-the-file-you-just-added.md`) is
+the authority on its reasoning; this entry records only what landed.*
+
+- Closed the four reds round 504 opened, both reproduced solo first. Two
+  defects, not one: `builtinlive.py:124`'s unguarded repo-root escape (round
+  413's `AGI_RESEARCH_ROOT` form, the same fix round 467 applied to
+  `specreg.py:179`), and three new `whence_slow` nodes moving that tier
+  29 → 30 units / 115 → 118 marked.
+- **NEW `harness/readset.py` + `harness/tests/test_readset.py` (30 nodes).**
+  Records, per test node, the repo paths OPENED for reading and the
+  directories LISTED, via an audit hook; `blast` maps a working-tree diff onto
+  the nodes it can redden BEFORE the commit. The two sets are not redundant —
+  **an ADDED file cannot appear in any read set**, and its directory's scan
+  set is the only recorded evidence that some node would have read it.
+- `reddebt.note()`'s headline is now DERIVED. Round 493 had spelled its own
+  red set into the prose ("the wiring-audit trio below…"); twelve rounds were
+  handed a headline about the wrong red. The suite files, the count and the
+  invisible-open clause all come from `items` now.
+- **NOT DONE, and inherited by round 506:** the diff was uncommitted and two
+  of its own new nodes were red. Both were real defects (see round 506).
+
+### Round 506 — language(C) — 2026-09-05 — the spelling the census cannot see
+
+- **INHERITED AND LANDED ROUND 505'S 10-PATH DIFF, with both of its reds
+  closed and neither a runner artefact.** (1) `readset.Recorder.rel()`'s
+  `return "."` branch sat AFTER a `full.startswith(self.root)` guard, and
+  `self.root` carries a trailing separator — so the repo root never reached
+  the branch written to catch it. The comment was right, the code was
+  unreachable; moved ahead of the guard. (2) The gitignore pin asserted
+  `p.split("/")[0] == "logs"` under the sentence *"a map that names `logs/` is
+  carrying bytes no query can use"* — **which is false**: `.gitignore` never
+  ignores `logs/` as a whole, and `git ls-files logs` returns **23 tracked
+  files**, so 25 nodes' scan evidence was being deleted. The pin now asks
+  `git check-ignore`, with a POSITIVE CONTROL beside it. Map re-recorded
+  (526 s, 1631 nodes, 119 759 events). Both nodes declared in the fail-closed
+  `crosstrack-registry.json`; `redattrib audit` 54 ever-red / 54 declared.
+- **ROUND 504'S NEXT-STEP #1 IS CLOSED, and its premise was wrong.**
+  `SPEC.md:1508` still described v0.12's desugaring — *"`fn f(a: num, …)`
+  desugars, in the parser, to one leading `let a = typed(a, "num", …)`"* — in
+  the PRESENT TENSE, inside the section named `## v0.12`, where it is history.
+  **v0.19 (round 344) removed that desugaring**: `parser._param_contracts`
+  carries the contract on the function node and `interp._check_contract`
+  applies it in the host. `parser.py:389` and `:2072` both record the change;
+  the SPEC bullet never got the past-tense marker its neighbours got.
+  Corrected in place. **This cost the round four of its nine predictions** —
+  they were banked on a document instead of a parser.
+- **NEW `languages/whence/runlive.py` (+17 tests).** The THIRD liveness level:
+  503 asked whether the Python def is referenced, 504 whether the guest name
+  is called in source, 506 whether the **builtin is invoked**. Hook at
+  `values.Builtin.fn`, the one attribute all four dispatch paths reach
+  through — so a builtin passed as a VALUE (`map(str, xs)`: three invocations,
+  zero call sites naming it) is counted. Annotation contracts counted
+  separately at `_check_contract` and deliberately NOT added to `typed`.
+- **THE INSTRUMENT SHIPPED A CLEAN, PLAUSIBLE, ENTIRELY FALSE ANSWER FOR ONE
+  RUN:** `written_never_run` for **all 37** builtins, while 23 programs ran,
+  every check passed, and `_check_contract` was entered 515 728 times. Cause:
+  `reset_program` did `self.calls = {}` where the installed wrappers close
+  over the original dict. `.clear()`, not `= {}`. "37 of 37 never run" is
+  COHERENT — no consistency assertion catches it; only a hand-counted
+  non-zero does, and three now lead the test file.
+- **THE ANSWER: `typed` WAS THE ONLY ONE OF 37 BUILTINS NO EXAMPLE EVER RAN.**
+  The two levels disagreed on **1 of 37**, against round 504's 37 of 37 for
+  its pair. Three separate facts, and only the third is the gap: the type
+  FEATURE is demonstrated (3 examples, **100 020** contracts applied, 5
+  missing); the annotation spelling never touches the builtin; and the single
+  written `typed` site in all of `examples/` is `self_eval.lang:3253`, behind
+  `if missed(value.v) or …` — the PROPAGATION branch, which no shipped program
+  reaches. The gap was real, **one line wide**, and not where the 1-vs-47
+  ratio pointed.
+- **NEW `examples/typed.lang` — 28 checks, exit 0.** Deliberately not a second
+  `shapes.lang`: it demonstrates what only the CALL spelling can say —
+  pass-through proven by `steps()` carrying no `typed` node; propagation
+  keeping the cause (`num: cannot parse "3O"`, not a type complaint — the
+  branch `self_eval.lang` cannot reach); a spec the program CHOOSES per row
+  from a schema record, which an annotation structurally cannot express;
+  totality on a bad spec; and the two spellings' identical wording with
+  NON-equal reasons, because a `reason` embeds its own line and the two ends
+  keep different line rules on purpose. That last one was found by an `==`
+  failing between two 57-character strings that print identically.
+- **AFTER: 37 of 37 `run_and_written`, the two levels disagree on ZERO.**
+  422 321 runtime invocations against 1 239 written uses over 24 runnable
+  programs.
+- **Bank: 5 HIT, 4 MISS of 9.** All four misses are ONE error — the stale SPEC
+  sentence. The four hits are the four that came from re-deriving.
+- **NEW SKILL `skills/second-spelling-evades-the-census/`.** `skill_lint
+  --house --strict`: 1 skill, 0 errors, 0 warnings; three positive trigger
+  cases plus a negative; registered unprobed with a scorable prediction that
+  names which case it expects to MISS.
+- **Honest residuals:** 10 of 34 examples do not parse (all on documented
+  rules, all reported by name, never silently skipped) so "the demonstrated
+  surface" is 24 programs; `runlive.py --strict` is still a ratchet nothing
+  schedules, though ONE live-corpus assertion is unmarked and so is carried by
+  the fast tier; and `test_runlive.py` is a SECOND instance of round 504's
+  next-step #4 (`programs: 0` while holding ~20 literal guest programs).
+- **Tests (`.venv`, serialised):** `test_readset.py` 30 passed (was 2 failed);
+  `test_redattrib.py` 60 passed (was 2 failed); `test_runlive.py` 17 passed in
+  112.07 s; `run.py examples/typed.lang` 28 passed / 0 failed / exit 0;
+  `builtinlive.py --strict` exit 0; whence fast tier in the round file.
+
+## Next steps (as of round 506)
+
+1. **`self_eval.lang`'s `apply_builtin` has at least one branch no program
+   reaches, and nothing measures how many.** Round 506 found the `typed`
+   propagation branch by running out of other explanations; `abs` (1 run / 2
+   written) and `shapeof` (5/6) are the same shape and were not chased. A
+   per-BRANCH reachability census over the self-evaluator is the obvious next
+   instrument, and `runlive.py`'s hook is the wrong level for it — this needs
+   the guest AST, not the host dispatch slot. language(C).
+2. **Round 504's next-step #4 now has TWO instances and still no decision.**
+   `test_builtinlive.py` and `test_runlive.py` both contribute `programs: 0`
+   to `state/whence/testcorpus-contributions.json` while holding literal guest
+   programs, because their runner is an imported-module attribute (round 470
+   excluded those on purpose). Either widen `runners_in` to follow a sibling
+   module's runners, or make `_what` say it counts IN-FILE runners only. **Do
+   not just bump the total.** language(C).
+3. **10 of 34 examples do not parse, and no round has ever owned them.** Every
+   failure is on a documented rule (unbraced blocks, `if` without `else`,
+   prefix `rescue`, `{}` for `@{}`), which means they are mechanically
+   fixable, and every one is machine-written. Decide: fix them, move them out
+   of `examples/`, or write down that `examples/` is allowed to hold
+   non-running files — the third is defensible (`curecheck.py` depends on
+   some) but nobody has said it. Until then every "demonstrated surface"
+   number in this file has a silent denominator of 24, not 34. language(C).
+4. **Sweep `SPEC.md` for the OTHER present-tense sentences in
+   version-named sections.** Round 506 corrected exactly one, found by having
+   a prediction refuted by it. The file has ~50 version sections and this
+   round has no evidence its bullet was the only stale one — it is the only
+   one anybody tripped over. A mechanical pass (a bullet in `## vN` describing
+   behaviour that `## vM > N` changed) is a real instrument, not a read.
+   language(C) or skills(B).
+5. **`runlive.py --strict` and `builtinlive.py --strict` are two ratchets no
+   tier schedules**, which is round 504's next-step #2 still open in the half
+   it named. `runlive` closed the other half (an unmarked live-corpus
+   assertion in the fast tier). Wire the ratchets into a tier or say which
+   tier owns them; the same sentence has now been written by three rounds.
+   language(C) or harness(A).
+6. **A hook-and-count instrument needs a hand-counted non-zero pin, and this
+   is now the second round in two to prove it.** Round 504's census reported
+   23 examples `UNPARSEABLE`; round 506's reported 37 of 37 builtins never
+   run. Both were coherent, both were the instrument. The rule belongs beside
+   round 433's command-banking rule in `skills/prediction-banking/SKILL.md` if
+   it is not already there. skills(B).
+7. **Round 504's next-steps #3 and #5 stand, untouched.** #1 is CLOSED IN FULL
+   by this round, and closed as a REFUTATION of its own premise. #2 is half
+   closed (see #5 above). #4 is #2 above, now with a second instance.
+8. **`nproc` is 1 and the box is NOT idle.** This round ran the whence fast
+   tier concurrently with its own editing and got a result that named a file
+   created DURING the run. Launch suites from the start, and treat any tier
+   result whose tree moved under it as provisional.
+9. **Standing and untouched:** the NUC `retention --strict` deadline;
+   `case_coverage`'s disagreeing verdicts; `claim_check` executing 0 of its
+   commands; the operator-blocked probe batch (this round added one, with a
+   scorable prediction); and CLAUDE.md's `CRITICAL MISSION` and `MASTER
+   MISSION` blocks, still a one-block deletion for the operator. Round 504's
+   measurement that `CRITICAL MISSION #476`'s premise is false stands
+   unchallenged — `b_fold` is not at line 2666 and `fold` runs 321 times
+   across the examples in this round's own runtime census, all passing.
+   `languages/whence/SECURITY.md` remains the operator's decision.
+
 ## Next steps (as of round 504)
 
 1. **`typed` is the one measured gap in the language's demonstrated
