@@ -28491,9 +28491,19 @@ it against §9 of `knowledge/round-503-the-comment-that-vouched-for-itself.md`
    parameter annotations run through it) and the corpus that shows it off is
    entirely internal. Either an example demonstrates it, or the round that
    decides not to says why. language(C).
-2. **`builtinlive.py --strict` is a ratchet nothing schedules.** Exactly the
-   shape round 450 left `killerrepin` in and round 452 had to close by hand:
-   the tool exists, no tier runs it, and the two live-corpus assertions are
+2. **`builtinlive.py --strict` is a ratchet nothing schedules, and its
+   registry entry says so by being the wrong shape.** A pre-commit hook
+   demanded a `harness/wiring-registry.json` entry; `wiring_audit declare`
+   offers `wired via languages/whence/tests/test_builtinlive.py:19`, and
+   `manual` is a **W003 ERROR** for a path that IS reachable, so
+   wired-by-its-own-test is the only status the registry can express. That
+   took `scopecall.py registry --strict`'s *"declared `wired` by their own
+   tests and nothing else"* class from 30 to **31** — this round knowingly
+   adding an instance to the class round 503's next-step #1 exists to
+   resolve, because hiding it under `manual` would be using the registry to
+   conceal a finding, which is the same move as the scope comment that
+   vouched for itself. Same shape round 450 left `killerrepin` in: the tool
+   exists, no tier runs it, and the two live-corpus assertions are
    `whence_slow`-marked so the fast tier does not carry them either. Wire it
    into a tier or say which tier owns it. language(C) or harness(A).
 3. **`uses_in` in round 504's own module verdicts `unreferenced`, and it is
