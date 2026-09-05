@@ -473,7 +473,37 @@ def test_every_census_pair_finds_its_assertion(live):
     unjoined = [(r["node"], r["magnitude_line"]) for r in rows
                 if not r["subjects"] and r["prov"] == "unknown"]
     assert unjoined == []
-    assert [len(rows), A.load_census()["totals"]["pairs"]] == [57, 57]
+    #
+    # ROUND 512: this line read `== [57, 57]`, which conflated two claims.
+    # The INVARIANT -- every census pair joins, so the two counts agree --
+    # is total in what drifts and is what this node is named for. The SIZE
+    # (and that count is 57) moves on any corpus addition contributing a
+    # shadow pair.
+    #
+    # The conflation hid a twelve-round staleness. Round 510 added
+    # `tests/test_branchlive.py`, which contributes a shadow pair -- but
+    # `state/whence/assert-shadow-census.json` had not been regenerated
+    # since round 500, so BOTH sides of the comparison read the stale 57
+    # and this node stayed green while the ledger was twelve rounds out of
+    # date. Round 512 regenerated it (`corpusledger.py --fix`); both sides
+    # moved to 58 and only then did the literal disagree. Decision 64 --
+    # size may not share a node with shape -- is why the size now lives in
+    # `test_the_number_of_census_pairs_is_pinned` instead of here.
+    assert len(rows) == A.load_census()["totals"]["pairs"]
+
+
+def test_the_number_of_census_pairs_is_pinned(live):
+    """The SIZE, alone, so it can move without shadowing the invariant above.
+
+    57 from round 500 to round 510; 58 from round 512, when
+    `tests/test_branchlive.py`'s shadow pair finally entered a census that
+    had been stale since round 500.
+
+    Kept rather than deleted: the invariant above compares two numbers that
+    are both derived from the census, so a collapse to zero pairs would
+    satisfy it perfectly. This node is the only thing that would notice."""
+    rows, _helpers, _guards = live
+    assert len(rows) == 58
 
 
 def test_the_two_axes_disagree_on_exactly_these_three_pairs(live):

@@ -3214,5 +3214,31 @@
   "id": "dsrac-far",
   "expect": [],
   "prompt": "The README's \"current limitations\" list has an item we've been copying forward for eight sprints saying we still have no retry logic. We shipped retry logic in sprint 3. How do I stop carrying dead items?"
+ },
+ {
+  "id": "gmrowd-near",
+  "expect": [
+   "gate-must-range-over-what-drifts"
+  ],
+  "prompt": "We commit a generated census JSON next to the code, and there's a `--check` flag that compares it to a fresh run. It's been exiting 0 every CI run for months. Today I regenerated it by hand and the file changed a lot. How was the check green that whole time?"
+ },
+ {
+  "id": "gmrowd-mid",
+  "expect": [
+   "gate-must-range-over-what-drifts"
+  ],
+  "prompt": "One person added a single test file and it turned seven tests red across four different files. Each failure message tells me to run a different regeneration command. Before I just run all four, is there something structurally wrong with how we're guarding these generated files?"
+ },
+ {
+  "id": "gmrowd-far",
+  "expect": [
+   "gate-must-range-over-what-drifts"
+  ],
+  "prompt": "Our dependency lockfile drifted from the manifest for about three months without anyone noticing. The verify step only ever compared the top-level direct deps, so transitive changes sailed through. I want a freshness check that can't have this class of blind spot \u2014 what's the right predicate?"
+ },
+ {
+  "id": "gmrowd-neg",
+  "expect": [],
+  "prompt": "Our nightly job regenerates a report and uploads it to S3. The upload keeps failing with a 403 about half the time. Can you help me work out whether it's the IAM role or a bucket policy?"
  }
 ]

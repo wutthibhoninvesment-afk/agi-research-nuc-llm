@@ -1,0 +1,15 @@
+{
+  "_what": "Round 512 (language C), banked BEFORE measuring, per D-013.",
+  "_subject": "Why round 510 -- the OWNER track, which runs the whence fast tier -- added languages/whence/tests/test_branchlive.py and reddened 7 nodes in 4 suite files, when harness/readset.py blast (round 505) exists precisely to catch the ADDED file via its `scans` set.",
+  "_reproduced_first": "7 failed, 142 passed in 36.06s, solo, nproc=1, on this tree at HEAD 61dafe9. Deterministic; the RECURRENT warning is discharged -- this is a stale ledger, not the runner.",
+  "predictions": [
+    {"id": "P1", "claim": "The merged map harness/readset-map.json has node keys for all four reddened suite files (test_assertshadow.py, test_subjprov.py, test_testcorpus_census.py, test_testcorpus_contributions.py).", "basis": "The map's sources include /tmp/r510-whence.json with 350 keys and roster 2963; the whence fast tier collects ~3000 nodes."},
+    {"id": "P2", "claim": "Those keys' `scans` sets contain the directory 'languages/whence/tests'.", "basis": "All four suites harvest the tests/ tree with os.walk/glob-shaped listing (dc.harvest_tests, A.census over tests/)."},
+    {"id": "P3", "claim": "Running `blast` against a working tree whose only change is ADDING languages/whence/tests/test_branchlive.py names all four suite files with reason 'scan'.", "basis": "P1 and P2 together; implicated() emits reason 'scan' when dirname(path) is in scans."},
+    {"id": "P4", "claim": "Therefore round 510's miss was NOT a detector gap. The instrument would have named the four files; it was not run against the final diff.", "basis": "Conditional on P3."},
+    {"id": "P5", "claim": "blast prints NO staleness warning on this tree, because the merged map's `head` is the empty string rather than a commit, so staleness() cannot compare.", "basis": "Read the map's metadata: head == ''. sources each carry a real head (b38051d, 7b61384, ...)."},
+    {"id": "P6", "claim": "Regenerating exactly two ledgers -- state/whence/assert-shadow-census.json via `assertshadow.py --history --json`, and state/whence/testcorpus-contributions.json via `depthcensus.py --by-file --json` -- closes all 7 red nodes with no source edit to any test.", "basis": "The failure messages name those two commands; test_testcorpus_census compares live stats against the ledger, and test_subjprov gate 3 shells out to assertshadow --check."},
+    {"id": "P7", "claim": "No OTHER file in state/whence/ is stale against this tree; the other four ledgers (builtin-liveness, builtin-runtime, specstale-acknowledged, subject-provenance) are already green.", "basis": "Only 7 nodes are red and all 7 are attributable to the two ledgers above."},
+    {"id": "P8", "claim": "blast run against round 510's ACTUAL full diff would have produced a long list in which the four ledger suites are not distinguishable from ordinary noise -- i.e. even a round that ran it might not have acted on it.", "basis": "The module's own docstring concedes over-approximation: scan_escapes reads all 108 *.py under languages/whence. NOTE: this is the one prediction here I have the weakest basis for."}
+  ]
+}

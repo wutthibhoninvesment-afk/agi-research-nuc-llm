@@ -3,34 +3,34 @@
   "_regenerate": "cd languages/whence && python3 assertshadow.py --history --json <this file>",
   "_headline_predicate": "is_magnitude (widened) x is_shape (non-empty display), branch-compatible, magnitude strictly first",
   "totals": {
-    "files": 72,
-    "test_functions": 1935,
-    "asserts": 3908,
+    "files": 77,
+    "test_functions": 2046,
+    "asserts": 4154,
     "assert_kinds": {
-      "other": 2532,
-      "shape": 527,
-      "shape_empty": 153,
-      "magnitude": 696
+      "other": 2667,
+      "shape": 568,
+      "shape_empty": 168,
+      "magnitude": 751
     },
-    "functions_with_magnitude": 472,
-    "functions_with_shape": 405,
-    "candidates": 37,
-    "pairs": 57,
-    "pairs_strict": 57,
+    "functions_with_magnitude": 510,
+    "functions_with_shape": 436,
+    "candidates": 38,
+    "pairs": 58,
+    "pairs_strict": 58,
     "pairs_widened_only": 0,
     "pairs_conditional": 11,
     "pairs_count_implied": 4,
     "remedies": {
-      "reorder": 42,
+      "reorder": 43,
       "delete_count": 4,
       "split": 11
     },
     "pairs_costly": 7,
     "candidates_costly": 2,
-    "pairs_independent": 28,
-    "candidates_independent": 15,
-    "shadowed_shape_asserts": 44,
-    "pairs_with_history": 57,
+    "pairs_independent": 29,
+    "candidates_independent": 16,
+    "shadowed_shape_asserts": 45,
+    "pairs_with_history": 58,
     "literal_edits": 5,
     "repins": 0,
     "pairs_with_a_repin": 0
@@ -59,6 +59,10 @@
     {
       "file": "test_v15.py",
       "candidates": 2
+    },
+    {
+      "file": "test_branchlive.py",
+      "candidates": 1
     },
     {
       "file": "test_depthcensus.py",
@@ -138,6 +142,29 @@
     "test_v30.py::test_the_guest_never_merges_a_tail_loop"
   ],
   "nodes": {
+    "test_branchlive.py::test_the_walk_finds_ifs_inside_named_and_anonymous_functions": {
+      "lineno": 155,
+      "pairs": [
+        {
+          "magnitude_line": 162,
+          "magnitude": "len(nodes) == 2",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 163,
+          "shape": "fns == ['fn@2', 'outer']",
+          "count_implied": false,
+          "independent": true,
+          "shared_subjects": [],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
     "test_checkpin.py::test_a_named_guardian_that_goes_red_is_guarded": {
       "lineno": 191,
       "pairs": [

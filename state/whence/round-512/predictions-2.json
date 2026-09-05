@@ -1,0 +1,37 @@
+{
+ "_what": "Round 512 second bank, written AFTER scoring P1-P8 and BEFORE measuring the refinement. D-013.",
+ "_measured_so_far": "blast on the single added path names 20 files. The 4 that actually went red are among them. Precision 4/20 = 20%. Every hit but two is reason 'scan'; the two 'read' hits exist only because the merged map's harness source was recorded at 7b61384, AFTER round 510 added the file.",
+ "_the_refinement_under_test": "A node that BOTH scans directory D AND reads a derived ledger artefact on disk is a LEDGER GATE over D: adding a file to D reddens it unless the ledger is regenerated. A node that merely scans D is not.",
+ "predictions": [
+  {
+   "id": "P9",
+   "claim": "The predicate 'scans languages/whence/tests AND reads some state/**/*.json' selects strictly fewer than the 20 files blast names.",
+   "basis": "Most of the 16 non-red scanners (test_v31, test_v38, test_specreg, test_folding, ...) walk the tests tree for source text, not against a declared ledger."
+  },
+  {
+   "id": "P10",
+   "claim": "The predicate MISSES languages/whence/tests/test_subjprov.py, because that node's dependence on the census ledger is through a SUBPROCESS (`assertshadow.py --check`) whose reads are in the child and are not audited by the PEP 578 hook in the parent.",
+   "basis": "readset.py's own docstring names the subprocess hole as a known UNDER-approximation; the round-511 log shows test_subjprov failing on a subprocess return code."
+  },
+  {
+   "id": "P11",
+   "claim": "The predicate CATCHES test_assertshadow.py, test_testcorpus_contributions.py and test_testcorpus_census.py -- all three read a state/whence ledger in-process.",
+   "basis": "Their failure output prints `declared=` fixtures loaded from disk via dc.load_contributions() / A.census_path()."
+  },
+  {
+   "id": "P12",
+   "claim": "At least one file blast names is implicated ONLY because its node listed languages/whence/tests while looking for something else entirely, and no addition to that directory can ever redden it. i.e. there exist provable false positives, not merely unlikely ones.",
+   "basis": "scan edges are directory-granular and record no predicate."
+  },
+  {
+   "id": "P13",
+   "claim": "testcorpus-contributions.json's OWN declared regeneration command, `python3 depthcensus.py --tests --by-file --json <path>`, does NOT run as written: depthcensus's hand-rolled argv loop parses `--tests` as taking a VALUE (usage says `--tests suite|default`), so `--by-file` is swallowed as that value and the by-file ledger is not produced. The command the test file's docstring gives (`--by-file --json`, no `--tests`) is the one that works.",
+   "basis": "Read depthcensus.py's usage string and the two conflicting citations; NOT yet executed."
+  },
+  {
+   "id": "P14",
+   "claim": "All four generators are BYTE-DETERMINISTIC: running each twice at the same HEAD into two temp files produces identical bytes. Without this a freshness check by byte-comparison is impossible and the instrument must compare parsed structures instead.",
+   "basis": "None of the four writes an obvious timestamp; assertshadow's _history is derived from `git log -L`, which is deterministic at a fixed HEAD. NOT yet executed. This is a precondition of the design, so it is banked before it is relied on."
+  }
+ ]
+}

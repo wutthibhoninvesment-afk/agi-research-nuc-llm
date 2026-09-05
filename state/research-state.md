@@ -28975,6 +28975,156 @@ entry here; nothing below is inferred from intentions.*
   0 warnings.
 
 
+### Round 512 — language(C) — 2026-09-05 — a ledger is as fresh as its gate's predicate is total
+
+- **`languages/whence/corpusledger.py` (531 lines) + `tests/test_corpusledger.py`
+  (17 nodes, 90 s), all green. The seven red nodes round 510 opened are CLOSED.**
+  Assignment was those seven. Re-deriving rather than quoting found they
+  **under-report by two more ledgers**.
+- **REPRODUCED SOLO FIRST, as the red-debt block instructs.** `7 failed, 142
+  passed in 36.06s`, one core, nothing else running — same seven nodes, same
+  messages as `logs/whence_health_round_511.log`. The four RECURRENT flags are
+  **discharged: a stale artefact, not the runner.** The earlier episodes closed
+  because earlier rounds happened to regenerate the ledger for other reasons.
+- **THE FINDING: three of five generated ledgers were stale, and they were
+  caught to three different degrees by three different predicates.** Same tree,
+  same track, rounds 500-510, same generators. The variable is **what the
+  gate's predicate ranges over**:
+  - `testcorpus-contributions.json` (round 507) — gate compares the **file
+    set**, a TOTAL function of what drifts. Every addition trips it. It was the
+    only one whose staleness the fast tier reported.
+  - `assert-shadow-census.json` (round 500) — gate compares the **shadow-node
+    set**, a proper SUBSET. Rounds 502/504/506 added files contributing no
+    shadow pair and it drifted silently; round 510's happened to contribute
+    one. **Its headline totals had drifted 72→76 files, 1935→2029 test
+    functions, 3908→4122 asserts, and nothing compares those numbers to
+    anything** — `assertshadow.py`'s CLI printed them for twelve rounds.
+  - `subject-provenance.json` (round 500) — **stale with NO red at all.**
+    `subjprov.py --check` prints `0 finding(s)` and exits 0 while the ledger on
+    disk is missing `test_specstale.py`. A self-check blind to the staleness it
+    exists to detect is worse than none, because it gets quoted as evidence.
+  - The two `builtin-*` ledgers are FRESH and are the **control**: keyed
+    per-builtin, and the builtin set does not move when a test file is added.
+    They rule out "this program is undisciplined" as the explanation.
+- **THE REMEDY IS THE ONE PREDICATE THAT IS TOTAL BY CONSTRUCTION:** a ledger is
+  fresh iff re-running **its own declared generator** reproduces it **byte for
+  byte**. 36 s for a full check, 48 s for `--fix`. Three design decisions: the
+  registry is read OUT of the artefacts (3 of 5 self-declare via
+  `_regenerate`/`_generated_by`; a hand-typed table would be the sixth stale
+  artefact); a declared command is **sandboxed or refused** — `subject-
+  provenance`'s names its own real path, so running it verbatim to "check"
+  would overwrite the subject and report fresh every time; and `--check` is not
+  a blocking gate by default (round 493's rule).
+- **PRECONDITION BANKED BEFORE IT WAS RELIED ON (P14):** all five generators are
+  byte-deterministic across two runs at fixed HEAD. Without that the whole
+  design is impossible.
+- **THE COUNTERFACTUAL: `blast` HAD the signal and it was not usable.**
+  `blast languages/whence/tests/test_branchlive.py` names **all four** reddened
+  suites — and sixteen others. **Precision 4/20 = 20%**, and the four are
+  indistinguishable from the sixteen. Structural: for an ADDED path every hit
+  is a `scan` hit, because no read-set can name a file that did not exist.
+  A refinement measured from the map — *file scans D **and** any node in the
+  file reads a `state/**.json`* — gives **recall 4/4, precision 4/6**. Offered
+  as a measurement; it lives in `harness/`, not this track's tree.
+- **AN EIGHTH NODE, GREEN FOR THE WRONG REASON.** Un-staling the census moved
+  `totals.pairs` 57→58 and reddened
+  `test_subjprov.py::test_every_census_pair_finds_its_assertion`, which asserted
+  `[len(rows), census_pairs] == [57, 57]`. **It was green throughout the
+  twelve-round staleness because both sides are derived from the same census, so
+  a stale census made them agree at the stale value.** Split per decision 64
+  into the invariant (total in what drifts) and a separately pinned size.
+- **14 predictions banked before measuring: 11 kept, 3 missed**
+  (`state/whence/round-512/predictions*.json`, scored in `scored.md`).
+  **I predicted the opposite of the round's main finding** — P7 said no other
+  ledger was stale; three of five were. All three misses are one error:
+  predicting an instrument's behaviour from its **stated purpose** rather than
+  its **predicate** (P7/P10/P11), and once from a usage string rather than the
+  parser (P13 — `depthcensus --tests --by-file` works fine; `--tests` takes an
+  *optional* value guarded by a membership test). That is the round's own
+  finding one level up.
+- **My first synthetic control was wrong in exactly the way the real tree is
+  wrong** — the fake generator wrote a hardcoded `_generated_by` while the
+  fixture rewrote it, so a genuinely fresh ledger read as STALE. Kept as a
+  comment in the fixture. `_summarise` also could not name what changed inside
+  a list-valued key; found by the control, not by inspection.
+- **New skill `skills/gate-must-range-over-what-drifts/SKILL.md`** —
+  `skill_lint --house`: 0 errors, 0 warnings; 4 trigger cases registered
+  (`gmrowd-near/mid/far` + negative); registered unprobed with an owner in
+  `state/known-unprobed-skills.json`, so `case_coverage` reports neither P001
+  nor P004 for it.
+- **NOT DONE:** the `readset` precision refinement is a measurement, not a
+  patch; `blast --strict` is still wired into nothing; the two `builtin-*`
+  generators still cannot self-declare; `subjprov --check` still returns 0 on a
+  stale ledger (now caught from outside, but the verb still lies); and the same
+  audit has not been run on `harness/` or `nuc/` generated JSON.
+
+## Next steps (as of round 512)
+
+1. **`harness/readset-map.json` has `head: ""` and `staleness()` never reads
+   `sources`.** Round 510 made this trade deliberately and its commit message
+   argues it correctly — `sources` "carries each leg's head, which is strictly
+   more information than one head". The gap is that **nothing consumes it**:
+   `staleness()` reads only `mp["head"]`, so every `blast` prints "no git HEAD
+   available on one side; cannot compare". Round 512 measured the cost of the
+   unread field — the map holds `read` edges to `test_branchlive.py`, which can
+   only exist because one leg was recorded AFTER that file appeared, so `blast`
+   answers about a tree that existed at no commit. The fix needs no
+   re-recording: have `staleness()` fall back to `sources` and print "recorded
+   across 3 commits". **harness(A) or SWE-loop(D).**
+2. **`blast`'s precision on an ADDED path is 20% and the fix is measured, not
+   speculative.** Adding "…and the file reads a generated artefact keyed on
+   that directory" takes it to 4/6 at full recall on the real instance. The
+   numbers and the query are in §2b of the round file. **harness(A).**
+3. **Teach `builtinlive._write` and `runlive._write` to emit `_regenerate`.**
+   That moves the last two ledgers from `undeclared` to `self` and takes
+   `corpusledger`'s hand-maintained surface to zero. **language(C).**
+4. **`subjprov.py --check` returns 0 on a demonstrably stale ledger.** It is
+   now caught from outside, but the verb still lies to anyone who runs it
+   directly, and this round found it quoted as evidence. Fix the predicate or
+   make it defer to `corpusledger`. **language(C).**
+5. **Run the same audit on `harness/` and `nuc/` generated JSON.**
+   `corpusledger.py --dir` takes any directory and the registry logic is not
+   whence-specific. This round only measured `state/whence/`. **any track.**
+6. **`assertshadow.py`'s CLI prints headline totals that nothing checks.** They
+   were wrong for twelve rounds and were the number a reader would quote.
+   Either compare them or stop printing them as if they were pinned.
+   **language(C).**
+7. **`harness/crosstrack-registry.json`'s `why` for four of these nodes
+   describes ROUND 507's episode, not round 510's.** All seven reddened nodes
+   are already registered (`own-suite`, `evidence: subject`), and the prose for
+   the `assertshadow`/`subjprov` four says round 507's `test_specstale.py` added
+   an undeclared COSTLY shadow. True of that episode; the one round 512 closed
+   has a different cause (`test_branchlive.py`) and a different shape — a ledger
+   stale since round 500 whose gate saw only one kind of drift. **A round 513
+   reader will take the recorded sentence as the explanation of the red it
+   inherits**, which is exactly how round 494 was burned quoting round 493's
+   entry. NOT edited by this round: `harness/` is not this track's tree and the
+   entry is not wrong about the episode it describes, only silent about being
+   scoped to one. Add the episode; do not overwrite the sentence.
+   **harness(A), or language(C) with harness(A)'s suites run.**
+8. **Sweep for the other instances of the round-512 shape: an assertion whose
+   two sides are both derived from the same artefact.** `test_subjprov.py`'s
+   was green for twelve rounds for that reason alone. Nothing has looked for
+   siblings, and the query is mechanical. **language(C) or SWE-loop(D).**
+9. **Carried, UNTOUCHED and not re-derived by this round** (round 511's list
+   stands on its own terms): the two language(C) prediction banks from rounds
+   486 and 492, still unscored at 26 and 20 rounds owed; mutation testing of
+   rounds 510's and 512's own code; `self_host.lang`. **language(C).**
+10. **Standing, and untouched:** `case_coverage`'s disagreeing verdicts;
+   `claim_check` executing 0 of its commands; the NUC `--cap 196` escalation;
+   and CLAUDE.md's two `fold` mission blocks — which this round **RE-DERIVED
+   AND REFUTED, with run evidence** (round file §7). `b_fold` is at
+   `interp.py:3773`, not "around line 2666", and returns `acc.payload`; there
+   is no `Env` on the path. The older block's "inline lambdas or external
+   functions return `Miss`" is false for all four forms tested (named fn 10,
+   inline lambda 15, string accumulator `abc`, empty list 0), each with a full
+   provenance trail, and `tests/test_folding.py` is green in this round's full
+   fast tier. **They are stale text, not open defects.** Still the operator's
+   deletion — but the next round to carry them should carry this, not the
+   claim. Nineteen rounds of re-escalation against three commands to check. `languages/whence/SECURITY.md` is still
+   uncommitted and still the operator's decision — **do not copy a carry count
+   for it from this file**; the checker's own line is the only source.
+
 ## Next steps (as of round 511)
 
 1. **125 of 447 red observations are UNREADABLE, and the fix is a few lines in

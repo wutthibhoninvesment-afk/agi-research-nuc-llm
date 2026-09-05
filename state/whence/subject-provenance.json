@@ -14,17 +14,17 @@
   ],
   "_assumption": "arguments dominate: an opaque call propagates the join of its arguments; same-file helpers are analysed instead of assumed; _helpers_ignoring_arguments is the measured size of the remaining guess.",
   "totals": {
-    "pairs": 57,
+    "pairs": 58,
     "prov_kinds": {
       "handed": 3,
-      "local": 30,
+      "local": 31,
       "scratch": 7,
       "tree": 12,
       "unknown": 5
     },
     "heuristic_derived": 14,
     "dataflow_derived": 15,
-    "agree": 54,
+    "agree": 55,
     "disagree": 3,
     "heuristic_only": 1,
     "dataflow_only": 2,
@@ -86,6 +86,14 @@
       [
         "library_source",
         []
+      ]
+    ],
+    "test_corpusledger.py": [
+      [
+        "fake",
+        [
+          "tmp_path"
+        ]
       ]
     ],
     "test_critical_mission_claims.py": [
@@ -342,6 +350,14 @@
           "tmp_path",
           "spec_text",
           "files"
+        ]
+      ]
+    ],
+    "test_specstale.py": [
+      [
+        "audit_founding",
+        [
+          "kw"
         ]
       ]
     ],
@@ -604,6 +620,20 @@
     "test_v44.py::test_the_deepest_value_in_the_corpus_is_a_self_hosted_ast_14_deep"
   ],
   "pairs": [
+    {
+      "node": "test_branchlive.py::test_the_walk_finds_ifs_inside_named_and_anonymous_functions",
+      "magnitude_line": 162,
+      "shape_line": 163,
+      "magnitude": "len(nodes) == 2",
+      "independent": true,
+      "heuristic": false,
+      "prov": "local",
+      "derived": false,
+      "guards_a_use": false,
+      "subjects": {
+        "nodes": "local"
+      }
+    },
     {
       "node": "test_checkpin.py::test_a_named_guardian_that_goes_red_is_guarded",
       "magnitude_line": 196,
