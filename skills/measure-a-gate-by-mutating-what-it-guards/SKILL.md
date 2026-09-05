@@ -93,6 +93,18 @@ Any one of these:
    `_what` string is not thereby defective — say so rather than inflating the
    number).
 
+   **Do not reduce the two mutation kinds to one number.** Step 4 says they
+   are different questions; a headline of `SEES in verdicts.values()` puts
+   them back together with an OR, and a key the guard notices under CORRUPT
+   and misses under DELETE is then published as covered. Score three
+   things — `seen` (any kind), `total` (**SEES under every APPLICABLE
+   kind**, where a mutation the apparatus declined to make is not
+   applicable), and `partial` (the difference) — and make the strict exit
+   ask for `total`. On the tree this skill came from, `partial` was 1: a
+   residual that rebuilds the live document with *the declared document's
+   own optional-field shape* is blind to the DELETION of that shape key and
+   sees every corruption of it.
+
 8. **Replace a subset predicate with the total one, not with more of them.**
    Where the guard already computes the document it would write, the total
    comparison is one line: diff the whole document, `ignore=` the keys a more
@@ -120,6 +132,29 @@ Any one of these:
   gate reports a spurious finding on every run and gets deleted.
 * **Mutating the real artefact.** Always a copy, always in a temp directory.
   A third-party commit landing mid-sweep will capture whatever is on disk.
+* **The sweep is only valid on a QUIESCENT tree.** A guard that compares
+  the artefact against a live scan will go red because *you* edited the
+  tree while the sweep ran — and the row is then voided by its own control
+  and reads as a broken redirect. Land your edits, regenerate every
+  artefact that derives from what you touched, and sweep after. If your
+  test files are in the corpus the artefact measures, adding the tests for
+  the repair invalidates the artefact the repair is measured against.
+* **A test-node guard cannot reach the CRASH class by default.** `CRASH` is
+  usually detected by looking for the interpreter's traceback header, and a
+  test runner prints its own traceback style instead — so a node that
+  RAISED scores as SEES, which is the one verdict step 6 says it must not
+  get. Run the node with the runner's native-traceback flag
+  (`pytest --tb=native`) or say in the report that the class is unreachable
+  for that gate kind.
+* **The instrument gets imported by the thing it measures.** Once a guard
+  adopts your total-diff helper (step 8), the module doing the grading is
+  inside the module being graded. That is safe only while the shared
+  function is PURE — if it reads the instrument's root, its ledger
+  directory or an environment variable the sweep sets, a guard can be
+  handed the mutant by its own grader. Pin it: list the attributes a
+  measured module may touch, and assert the shared function loads no
+  module-level binding whose value came from the filesystem or the
+  environment.
 * **Believing a gate table stays true.** It is a measurement of a specific
   commit. Wire the sweep, or at least the "every artefact has a gate entry"
   half of it, into the suite.
@@ -148,7 +183,7 @@ gate = os.path.join(tmp, "gate.py")
 open(gate, "w").write(
     "import json,sys\n"
     "d=json.load(open(sys.argv[1]))\n"
-    "sys.exit(0 if d.get('watched')==1 else 1)\n")
+    "sys.exit(0 if d.get('watched', 1)==1 else 1)\n")
 
 def run(obj):
     p = os.path.join(tmp, "m.json")
@@ -159,26 +194,34 @@ base = json.load(open(led))
 assert run(base) == 0, "CONTROL FAILED -- the sweep would be meaningless"
 table = {}
 for key in sorted(base):
-    verdicts = set()
     gone = dict(base); del gone[key]
-    verdicts.add("SEES" if run(gone) else "BLIND")
     bad = dict(base); bad[key] = base[key] + 1
-    verdicts.add("SEES" if run(bad) else "BLIND")
-    table[key] = "SEES" if "SEES" in verdicts else "BLIND"
-print(table)
-assert table == {"watched": "SEES", "ignored": "BLIND"}, table
-print("sees %d/%d key(s)" % (sum(v == "SEES" for v in table.values()),
-                             len(table)))
+    table[key] = {"delete": "SEES" if run(gone) else "BLIND",
+                  "corrupt": "SEES" if run(bad) else "BLIND"}
+for key, v in sorted(table.items()):
+    print(key, v)
+seen = sum(any(k == "SEES" for k in v.values()) for v in table.values())
+total = sum(all(k == "SEES" for k in v.values()) for v in table.values())
+print("sees %d/%d key(s), total over %d, partial %d"
+      % (seen, len(table), total, seen - total))
+assert table["watched"] == {"delete": "BLIND", "corrupt": "SEES"}, table
+assert (seen, total) == (1, 0), (seen, total)
 EOF
 ```
 
 Expected output:
 
 ```
-{'ignored': 'BLIND', 'watched': 'SEES'}
-sees 1/2 key(s)
+ignored {'delete': 'BLIND', 'corrupt': 'BLIND'}
+watched {'delete': 'BLIND', 'corrupt': 'SEES'}
+sees 1/2 key(s), total over 0, partial 1
 ```
 
-A run that prints `sees 2/2` means the guard is total over that artefact —
-which is the goal, and is rare enough on a first measurement that you should
-re-check the control before believing it.
+**Read that carefully — it is the point of step 7.** The guard is
+`d.get('watched', 1) == 1`, which every reviewer reads as "it checks
+`watched`". It half does: the default swallows the DELETE, so the guard
+exits 0 on an artefact that has lost the field entirely. The OR headline calls the key covered (`sees 1/2`); the
+per-kind one calls it what it is (`total over 0, partial 1`). A run that
+prints `total over N` for all N keys means the guard really is total over
+that artefact — rare enough on a first measurement that you should re-check
+the control before believing it.

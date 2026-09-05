@@ -28975,6 +28975,139 @@ entry here; nothing below is inferred from intentions.*
   0 warnings.
 
 
+### Round 518 — language(C) — 2026-09-05 — the totality that was an OR over the mutation kinds
+
+- **Round 516's next steps #2, #3 and #4 are ALL CLOSED, with the before and
+  after sweeps both run and both banked** (`state/whence/round-518/
+  checkscope-before.json`, `-after.json`). BEFORE: 22 of 32 keys seen across
+  4 scored ledgers. AFTER: **32 of 34 seen, 31 total, across 5** — the fifth
+  ledger became measurable at all. `builtin-runtime.json` 2/9 -> **9/9**,
+  `builtin-liveness.json` 1/4 -> **4/4**, both now `total gates`.
+- **#2 was two repairs, not one.** The `a is not None` guard is deleted: it
+  was written to tolerate a ledger that is BEHIND and it made `a is None` —
+  the key gone, the class gone — the one condition under which the verb says
+  nothing. And the enumeration behind it is replaced, not extended: three
+  hand-written comparisons over a NINE-key document (one over a FOUR-key
+  one) become `checkscope.document_diff(declared, ledger_view(c))`, round
+  516's own total predicate, with the keys a readable code already owns
+  excluded. **The exclusion is the part that can be wrong, so each excluded
+  key is pinned to see its own DELETION** — that is the half a hand-written
+  comparison forgets.
+- **The price was measured and it was zero where predicted and non-zero
+  where not.** `runlive.py --strict` and `builtinlive.py --strict` both
+  still exit 0 (every ledger FRESH, and freshness is what `document_diff`
+  tests). But **two existing tests had to change, and both were instances of
+  the defect**: `test_the_ledger_check_reports_a_moved_verdict` asserted that
+  a moved verdict is exactly one finding — `counts` moves with it and
+  nothing compared `counts`; and the hand-built row in
+  `test_the_report_carries_its_own_regeneration_command` had no per-kind
+  field. P13 (no existing test needs editing) REFUTED.
+- **THE FINDING NOBODY ASKED FOR: `cell["seen"] = SEES in verdicts.values()`
+  — the published headline is an OR over the two mutation kinds** that the
+  same module's design decision calls "different questions", and so is the
+  Verification block of the skill round 516 shipped. Totality is now SEES
+  under every APPLICABLE kind (a no-op mutation is not applicable), and
+  `seen` / `total` / `partial` are published side by side. **One live
+  instance, and it is the residual's own design:**
+  `assert-shadow-census.json`'s `_history` is `delete=BLIND, corrupt=SEES`,
+  because `_residual` rebuilds the live census with the DECLARED document's
+  history shape (`history="_history" in declared`) so a `--check` that does
+  not walk `git log -L` is not spuriously red. Deleting the shape key
+  changes the live side to match. Falsified directly against `_residual`,
+  not through a 90-second sweep.
+- **#4 is now a gate, not a note.** `checkscope.py --importers`: four of the
+  five gates this module measures import it; all four do so LAZILY inside a
+  function; all four touch exactly `document_diff`, which `function_reads`
+  proves loads only `_short` and `_summarise`. **The edge is NOT benign for
+  any other attribute** — `ROOT` comes from `AGI_RESEARCH_ROOT` and
+  `run_gate` SETS that to the mirror root while a pytest gate is measured,
+  so a gate reading `checkscope.LEDGER_DIR` would be handed the MUTANT
+  directory by its own grader. `SAFE_ATTRIBUTES` + `--importers --strict`.
+- **`testcorpus-contributions.json` scored for the first time, 0/2, and the
+  reading is careful.** `_generated_by` under CORRUPT is a REAL BLIND: the
+  node that reads it byte-compares the file against a re-serialisation of
+  the file's OWN parsed content — `x == f(x)`, which can only ever see the
+  ENCODING. The three CRASH cells are a WHOLE-RUN verdict (13 nodes, one
+  raises, the run scores CRASH), so they understate the gate; the repair is
+  the `.get` round 516 applied to `subjprov`.
+- **`_verdict` could not reach the CRASH class for pytest gates at all** —
+  it looks for `Traceback (most recent call last)`, which pytest never
+  prints. `--tb=native` is now in the gate argv, pinned by a subprocess run
+  over a node that raises.
+- **THE ROUND CONTAMINATED ITS OWN FIRST SWEEP.** The contributions row of
+  the BEFORE run was `UNTESTABLE` (control `2 failed, 11 passed`, `assert 55
+  == 56`) because 20 new test functions landed in `languages/whence/tests/`
+  while the sweep ran, and three of this tree's six ledgers derive from that
+  corpus. Regenerated twice (a six-line assertion fix moved
+  `asserts`/`assert_kinds` again); `corpusledger.py --check` at the end: **5
+  FRESH, 1 SKIP, 0 STALE, every generated ledger reproduces byte-for-byte.**
+- **Round 516's banked `checkscope-as-found.json` is the CONFOUNDED run and
+  nothing said so** — 32 keys / 9 seen over five ledgers, crediting
+  `testcorpus-contributions` as total, which its own round file refutes
+  (30 / 7 over four). `grep -rn as-found` over `knowledge/`,
+  `state/whence/round-516/` and the tests returns nothing. A
+  `_superseded_by` line was added to that file and **no measured value in it
+  was touched**.
+- **Tests +20** (`test_checkscope.py` 28->40, `test_runlive.py` 17->22,
+  `test_builtinlive.py` 26->29; 40/22/29 passed). Skill
+  `measure-a-gate-by-mutating-what-it-guards` UPGRADED (step 7, three new
+  pitfalls, and a Verification block that was wrong in exactly the way the
+  new step describes); `skill_lint --house --strict` 0/0.
+- **Predictions (`state/whence/round-518/predictions.md`, banked at
+  `9ebefc9`): 11 HIT, 4 REFUTED, 1 SPLIT, 1 VOID of 17.** Four of the five
+  misses share one shape — each was derived by reasoning about a measurement
+  that had not been taken, in a round whose subject is that reading a gate
+  is not measuring it.
+
+## Next steps (as of round 518)
+
+1. **`checkscope --scope --strict` still exits 1, and both reasons are
+   named rather than open.** (a) `assert-shadow-census.json`'s `_history`
+   is PARTIAL by `_residual`'s deliberate design — the fix is not obvious
+   and may not be wanted, since rebuilding with the declared shape is what
+   keeps `--check` from being spuriously red; whoever changes it owes a
+   before/after on `assertshadow.py --check` over a history census. (b) the
+   contributions row below. Do not "fix" either by weakening the predicate
+   back to the OR. language(C).
+2. **`test_the_ledger_on_disk_round_trips_through_its_own_encoding` is
+   `x == f(x)`.** It re-serialises the file's own parsed content and
+   compares it to the file, so it sees the ENCODING and nothing else — and
+   it is the only node that reads `_generated_by`, which is therefore BLIND
+   to corruption. Measured, not argued (`checkscope --scope --only
+   testcorpus-contributions.json`). Two repairs, and they are different:
+   pin `_generated_by` against the command that regenerates it, and turn
+   `declared[name]` / `obj["_generated_by"]` into `.get`s with assertions
+   so the gate REPORTS instead of raising. language(C).
+3. **`_verdict` is a WHOLE-RUN verdict and a `pytest` gate has 13 nodes.**
+   One raising node scores the entire run CRASH, so a mutation that some
+   other node reported cleanly is indistinguishable from one nothing saw.
+   The fix is per-node parsing (`--tb=native -q` already gives it) or
+   `-p no:randomly --json-report`; either way the sweep should say which
+   NODE reacted. harness(A) or language(C).
+4. **A mutation sweep is only valid on a QUIESCENT tree, and this round
+   proved it the expensive way.** Three of six ledgers derive from
+   `languages/whence/tests/`, so any round that adds a test invalidates
+   them mid-sweep. Worth a line in the round protocol: regenerate the
+   corpus-derived ledgers AFTER the last test edit, then sweep. any track.
+5. **Round 517's #1, #2, #3 and #4 stand, UNCHECKED by this round** — the
+   nine K002 entries that embed a newline (leave them), the third
+   `k002_diagnosis` kind, `hookaudit`'s step table vs `hook_script()`'s,
+   and the `blast` refinement now unlanded for a FOURTH round.
+   harness(A) / skills(B).
+6. **Round 516's #5 stands** (`--selfref` over `harness/tests/` and
+   `skills/`) — and item 2 above is an instance `--selfref` cannot see,
+   because the self-reference is inside a byte-comparison rather than in a
+   `len(rows) ==` pin. Whoever widens it has a live case to widen against.
+   harness(A) or skills(B).
+7. **Standing and untouched:** the operator-blocked `--cap 196`; CLAUDE.md's
+   `CRITICAL MISSION` / `MISSION #476` blocks, still one-line deletions for
+   the operator (round 512 re-derived and REFUTED both with run evidence —
+   carry that, not the claim); `case_coverage`'s disagreeing verdicts;
+   `claim_check` executing 0 of its commands. `languages/whence/SECURITY.md`
+   is still the operator's decision — do not copy a carry count for it from
+   this file.
+
+
 ### Round 517 — harness(A) — 2026-09-05 — the file that runs is not the file that is tested
 
 - **The RED DEBT's 2 nodes are ONE cause, reproduced SOLO and root-caused, and
