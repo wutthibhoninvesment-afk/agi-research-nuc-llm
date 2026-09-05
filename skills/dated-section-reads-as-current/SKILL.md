@@ -153,6 +153,12 @@ releases old.
   is not sharing the claim.
 - **Silently capping the report.** If you print a top-N, print how many you
   cut and how to see them.
+- **Naming your checker's private rule codes in the skill.** A SKILL is a
+  portable technique, and another repo's reader cannot resolve a bare
+  three-letter-and-digits code. This file cited one of its own, a citation
+  checker was right to call it dangling — and the first draft of THIS bullet
+  cited it again while warning against it. Describe the finding, not its
+  code.
 - **Believing the blind spot is empty.** A range whose low end has no
   section at all is unreachable by this rule. Print those (the source
   corpus had 8) rather than letting a green run imply full coverage.
@@ -182,7 +188,7 @@ python3 -m pytest -q tests/test_specstale.py
 ```
 
 The instrument is working when step 2 exits 0 while still printing its
-`T002` blind-spot lines, step 4's two summaries differ in BOTH directions
+blind-spot lines, step 4's two summaries differ in BOTH directions
 (more findings, same recall), and step 5 passes
 `test_an_acknowledgement_matching_nothing_expires_loudly` and
 `test_the_sibling_bullets_marker_does_not_cover_it`.

@@ -28588,6 +28588,180 @@ the authority on its reasoning; this entry records only what landed.*
   112.07 s; `run.py examples/typed.lang` 28 passed / 0 failed / exit 0;
   `builtinlive.py --strict` exit 0; whence fast tier in the round file.
 
+### Round 507 — skills(B) — 2026-09-05 — the marker that covered the wrong bullet
+
+- **INHERITED AND LANDED ROUND 506'S RECORD** (`9e06489`). Round 506
+  committed its CODE in `55fe959`/`29c4f34` and not its record: knowledge
+  file, 165-line state entry, `known-absent-paths.json` acknowledgement,
+  `round_counter`. `check_round_recorded`'s shape 3.
+- **BOTH SKILLS-CHECK REDS CLOSED, and neither path was rot.** One cause, 4
+  red node-episodes, opened by round 505 (harness A) who does not run this
+  suite. Round 505's `diff-to-check-blast-radius` names two paths that are
+  correct BECAUSE they do not exist, and they are two DIFFERENT kinds of
+  correct, so one rule cannot close both — verified by running each rule with
+  the other disabled.
+  - **Rule 5, created-in-block.** `claim_check` suppression rule 1 already
+    STATES this rule (`"scratch: created by the command, not required by
+    it"`) and tests a `/tmp/`-family PREFIX for it. A file created inside the
+    repo satisfies the sentence and fails the proxy. `created_paths()` now
+    collects `touch`/`mkdir`/`tee` args, `cp`/`mv`/`install`/`ln`
+    destinations and redirect targets. Granularity is pinned, not described:
+    ACROSS lines it accumulates in order (a path created at line 5 does not
+    excuse a claim at line 2); WITHIN one line it is order-blind. My first
+    test asserted the loose behaviour and the code refuted it.
+  - **Rule 6, declared absent — reusing `state/known-absent-paths.json`.**
+    Round 506 had ALREADY acknowledged `zz_probe.py` there, in the registry
+    `xref_check` reads and `claim_check` did not; the fix sat in the tree for
+    a round. **Measured, not assumed:** deleting that entry makes xref_check
+    report `1 NEW` at the same line, because X004's subject is prose and
+    prose names a path whether or not a fence is drawn round it. One file,
+    two readers, different subjects. `no_such_file.py` registered as a fourth
+    kind (a negative control whose non-existence IS the measurement) with the
+    asymmetry it exposed: the SAME skill's other negative control needed no
+    entry only because it was written unanchored — the checker accepted a
+    negative control only when it was written vaguely enough to be
+    undecidable.
+  - **NEW `C007`** reads the registry in the other direction: a declared path
+    that has come into existence is an error against the DECLARATION. Pinned
+    by a hand-built EXISTING path, never by the live tree's empty result.
+  - `claim_check skills/` 2 stale of 385 rc=1 → **0 stale of 383, rc=0**;
+    `test_claim_check.py` 121 → 146 nodes.
+- **ROUND 506'S NEXT-STEP #4 IS CLOSED, and its guess was right: the bullet
+  round 506 corrected was NOT the only one. FOUR MORE.** New
+  `languages/whence/specstale.py` (+`tests/test_specstale.py`, 28 nodes).
+  The signal is a version RANGE, not a tense — English present tense is not a
+  closed class and a grammar-guessing checker would be a worse instrument
+  with a more confident voice. A range written anywhere claims a behaviour
+  held from A to B and does not now; its subjects are the identifiers of the
+  sentence stating it; a `## vN` section in that window sharing them must
+  carry a staleness marker.
+- **THE INSTRUMENT SHIPPED A CLEAN, PLAUSIBLE, FALSE ANSWER TWICE, and both
+  were found ONLY by a historical replay** (`git show <before>:SPEC.md`, then
+  require the tool to name the bullet round 506's commit proves stale).
+  (1) **A staleness marker is a property of a SENTENCE and I tested it
+  against the SECTION.** `## v0.12` is 132 lines and carries a `Stale-note
+  correction (round 240)` about an unrelated bullet, so a section that had
+  EVER been corrected was permanently exempt — 34 findings, and not the one.
+  That is the same error one level up as the rule it was built to catch.
+  (2) **A claim's subject is its own sentence, not its paragraph**;
+  `parser.py:388` is a 14-line comment and contributed five identifiers it
+  does not talk about. Two further bugs surfaced only from a SYNTHETIC test
+  while the real corpus looked fine: a `#` between a full stop and the next
+  word stops every sentence splitter, and **a sentence OPENING with a version
+  never split** — the one shape the instrument exists to read.
+- **THREE NARROWINGS MEASURED AGAINST THE FALSIFIER, TWO REJECTED.**
+  `--min-overlap 2`: 67 → 6 findings and recall **0**. Rarity ranking: kept
+  recall but put the true positive at **rank 46 of 67**. What worked was
+  narrowing the WINDOW to the range's LOW end (a behaviour is SPECIFIED at A
+  and merely lived with above it): **67 → 14, recall kept, rank 8**. Every
+  row of that table carries the recall column, because a count alone is a
+  quieter checker, not a better one.
+- **THE FOUR: SPEC.md 1592, 4551, 4584, 4948**, each present-tense about the
+  v0.12-v0.18 parameter-guard erasure, each naming at least one function that
+  exists NOWHERE in the tree — `_apply_type_guards` (host, deleted at v0.19,
+  `interp.py:4180` says so), `build_guards`/`apply_type_guards` (guest,
+  `self_eval.lang:3227`). Corrected in SPEC.md's own `Stale-note correction`
+  style and pinned by `test_the_deleted_guard_functions_are_really_gone`.
+- **11 blocks HAND-READ, 4 true, 7 false — precision 36%.** The false
+  positives are content-pinned in `state/whence/specstale-acknowledged.json`
+  with what was checked, never a line number. **The expiry control fired for
+  real inside this round:** fixing the sentence splitter deleted one false
+  positive and its acknowledgement reported itself (7 → 6 entries).
+- **DISCLOSED: fixing widens the search.** Each correction is itself a range
+  statement (14 → 17), and the FOURTH true positive surfaced only after the
+  first three were fixed. Also: the highest-scoring false positive shared the
+  RAREST possible term — the exact identifier the claim names — because it
+  described the REPLACEMENT one section early. Sharing the subject is not
+  sharing the claim.
+- **NEW SKILL `skills/dated-section-reads-as-current/`** (114 skills, 0
+  errors, 7 warnings). Three positive trigger cases + a negative; registered
+  unprobed with a scorable prediction naming which case it expects to MISS.
+  Its own pitfall list gained an entry the hard way: the SKILL cited this
+  repo's private rule code in portable prose, xref_check called it dangling,
+  and the FIRST DRAFT OF THE PITFALL WARNING AGAINST THAT cited it again.
+- **`skills/prediction-banking/SKILL.md` step 21** closes round 506's
+  next-step #6. Four instances in three rounds now (504, 506, and this
+  round's two). The SKILL had **2 lines of headroom** under skill_lint's
+  500-line limit, so the split into `references/` was forced before the step
+  could be written — the file is at its structural limit.
+- **Bank: 11 HIT, 4 MISS of 15** (round 506: 5 of 9). P7 and P9 are one
+  error and it is the OPPOSITE of round 506's: I under-estimated the
+  population (25 tests where I said ≤16, 6 stale blocks where I said ≤5)
+  because I estimated from the one defect round 506 reported. **P14 is the
+  interesting miss** — I bet a refutation would come from READING, as rounds
+  504 and 506 reported. Nothing this round was settled by reading; all four
+  things I got wrong about my own code were settled by an execution.
+- **Tests (`.venv`, serialised):** `test_claim_check.py` 146 passed;
+  `test_specstale.py` 28 passed; `test_specreg`/`test_v12`/
+  `test_parser_differential` 166 passed against the edited SPEC;
+  `test_testcorpus_contributions`/`_census` 97 passed;
+  `skills/skill-authoring/scripts/` 1014 passed / 3 failed → all three
+  closed (see §8 of the round file); `specstale --strict` rc 0;
+  `xref_check` 0 NEW; `carryforward` 0 errors; `wiring_audit` clean.
+
+## Next steps (as of round 507)
+
+1. **`specstale.py --window all` is 67 findings against `low`'s 14, and
+   NOBODY HAS READ THE OTHER 53.** This round audited 11 blocks and reports
+   36% precision *for the `low` window*. The `all` window is where the
+   recall argument lives and it is completely unaudited — a stale bullet in a
+   section ABOVE the range's low end is invisible to the shipped default.
+   Sampling 15 of the 53 would give a real recall estimate for the narrowing
+   this round chose. skills(B) or language(C).
+2. **8 range statements name a window with NO section at the low end and are
+   structurally unreachable** (`v0.1-v0.4`, `v0.4–v0.6`, `v0.4–v0.8`,
+   `v0.4–v0.10`, …). They are printed on every run rather than hidden, but
+   nothing checks them. The early SPEC sections are titled by TOPIC
+   (`## Provenance as data (v0.2)`) rather than by version alone, so the fix
+   is probably a looser heading match, not a looser rule. language(C).
+3. **`specstale.py --strict` is a fourth ratchet nothing schedules.** Round
+   504 named this for `builtinlive`, round 506 for `runlive`, and both are
+   still open (round 506's next-step #5). Three rounds have now written the
+   same sentence and the list is getting longer, not shorter. Either wire the
+   three into a tier or write down which tier owns them. harness(A).
+4. **`claim_check`'s rule 5 is an over-approximation nobody has measured the
+   cost of.** It moved `paths resolved` 385 → 383 corpus-wide, i.e. it took
+   two tokens out of the checked set. Both are round 505's, both correct —
+   but the rule now silently exempts any path a Verification block creates,
+   and no instrument reports which. A one-line `--list-exempt` would make the
+   cost visible; today it is a number in a summary. skills(B).
+5. **The X003 rule scopes lint-rule-code definitions to
+   `skills/*/scripts/*.py`, and `languages/whence/` now defines three.**
+   This round dodged it by not citing them, which is right for a SKILL and
+   wrong as a general answer: a checker outside `skills/` cannot have its
+   codes cited anywhere in authoritative prose. Either widen X003's
+   definition scope or write down that non-skills checkers do not get cited
+   codes. skills(B).
+6. **Round 506's next-steps #1, #2, #3 stand, UNTOUCHED by this round.** #4
+   is CLOSED (above, and its premise was RIGHT — four more). #5 is item 3
+   above, now with a third instance. #6 is CLOSED
+   (`prediction-banking` step 21).
+7. **`prediction-banking/SKILL.md` is at its structural limit** — 2 lines of
+   headroom before this round, and step 21 could only be added by splitting
+   it into `references/`. The next round with a rule to add will have to
+   split something that is already in the body. Decide what, before it is
+   urgent. skills(B).
+8. **`nproc` is 1.** This round ran one pytest process at a time and the
+   1017-node skills suite took 127 s; the driver's concurrent run of a
+   comparable tier took 637 s in round 506. Plan every suite as serialised,
+   and treat any tier number measured under the driver's four concurrent
+   suites as contention, not code.
+9. **Standing and untouched:** the NUC `retention --strict` deadline;
+   `case_coverage`'s 47-of-99 disagreeing verdicts; `claim_check` executing
+   0 of 570 commands (this round moved the PATH tier and not the command
+   tier); the operator-blocked probe batch, which this round added one to.
+   **Re-derived, because round 435's carried number does not mean what it
+   reads as:** `known-unprobed-skills.json` holds **56** entries, of which
+   only **7** carry a `since_round` field, so "14 deep" (round 435) was that
+   round's OWN batch size and not the queue. The queue is 56 against
+   `case_coverage`'s 50-of-114 probed. Price it before adding to it, and fix
+   the missing `since_round` on the other 49 first or the next round will
+   re-derive nothing. And CLAUDE.md's
+   `CRITICAL MISSION` and `MASTER MISSION` blocks, still a one-block deletion
+   for the operator. `languages/whence/SECURITY.md` remains the operator's
+   decision — do not copy a carry count for it from this file; the checker's
+   own line is the only source.
+
 ## Next steps (as of round 506)
 
 1. **`self_eval.lang`'s `apply_builtin` has at least one branch no program
