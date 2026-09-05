@@ -1446,6 +1446,13 @@
    "scored_by": 507,
    "where": "knowledge/round-507-the-marker-that-covered-the-wrong-bullet.md",
    "quote": "| P14 | at least one prediction is refuted by READING source rather than running anything | **MISS** \u2014 every refutation this round came from RUNNING something (the replay, the X004 deletion, the rule-isolation run). \u00a77.1 |"
+  },
+  "508": {
+   "bank": "nuc/predictions-e-round508.md",
+   "status": "scored",
+   "scored_by": 508,
+   "where": "knowledge/round-508-the-battery-entry-that-was-not-its-own-name.md",
+   "quote": "**THE FIVE MISSES ARE ONE ERROR, and it is the round's own subject.** P5, P6,"
   }
  }
 }
