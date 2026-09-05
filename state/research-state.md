@@ -29086,6 +29086,17 @@ entry here; nothing below is inferred from intentions.*
   `state/`), and every later commit ran the hook — recorded rather than quietly
   dropped.
 
+- **THE NORMALISATION HAD THREE ENFORCEMENT SITES, NOT ONE (P15 SPLIT).**
+  `corpus_check` after this round's main commit: `carryforward` 0 errors,
+  `unit_tests` STILL red on one node — `test_every_scored_entry_re_derives_
+  against_the_file_it_cites` asks `assertIn(quote, body)` on RAW text. Third
+  site, after the checker and the K005 live node. **A live node that enforces
+  a checker must ask the checker's question**, or the two disagree and the
+  node is wrong. Fixed; 256 passed, 0 failed. Found only because the full
+  `corpus_check` was RUN after the commit rather than inferred from the
+  checker's own `0 error(s)` summary — which is exactly the line that would
+  have made a shorter round stop.
+
 ## Next steps (as of round 517)
 
 1. **The K002 authoring convention is now unnecessary but 9 entries still
