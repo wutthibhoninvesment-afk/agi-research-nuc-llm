@@ -28069,6 +28069,198 @@ the entry is round 493's.
    the operator's decision; the checker's own line is the only source for its
    carry count.
 
+### Round 500 — language(C) — 2026-09-05 — the axis that was carrying two questions
+
+- **INHERITED AND LANDED ROUND 499's WHOLE DIFF FIRST.** The briefing's nine
+  uncommitted paths were all round 499's: it finished and exited without
+  committing. Verified rather than assumed —
+  `pytest harness/tests/test_wiring_audit.py -q` -> **89 passed in 194.41 s**
+  — then committed unmodified as `79d1bff`. `state/round_counter` deliberately
+  left out: it reads `500`, which is this round's.
+- **TOOK ROUND 498's NEXT-STEP #2 VERBATIM AND COSTED IT.** `subjprov.py`
+  replaces the function-level `tree_derived` name-list heuristic with a
+  per-assertion backward slice over a five-rung lattice ordered by drift risk
+  (`local < scratch < unknown < handed < tree`), with bounded interprocedural
+  descent into same-file helpers and a **least fixpoint** for recursive ones.
+  **2.1 s** over 72 files, no git. Over all 57 census pairs: heuristic-derived
+  14, dataflow-derived 15, **agree 54, disagree 3**; `prov_kinds` local 30,
+  scratch 7, unknown 5, handed 3, tree 12.
+- **THE ANSWER IS NOT THE ONE THAT WAS ASKED FOR, AND THAT IS THE FINDING.**
+  I banked `pairs_costly` falling from 7 to <= 2. It falls from **7 to 7**.
+  Dataflow does not shrink the population by one pair; it **swaps a member**.
+  `test_v30.py::test_the_guest_never_merges_a_tail_loop` — round 498's
+  hand-declared false positive — leaves as `local` (`max(h) > 1` is about
+  `h = host(src)` and `src` is a literal three lines up). And
+  `test_v44.py::test_the_deepest_value_in_the_corpus_is_a_self_hosted_ast_14_
+  deep` arrives: `best, d = _self_host_deepest()`, a no-argument corpus walk
+  whose own comment reads "the corpus number moved — re-run depthcensus.py",
+  invisible to a name list because the function takes no fixture.
+- **THE AXIS WAS CARRYING TWO QUESTIONS AND NO DATAFLOW COULD FIX THE SECOND.**
+  Round 498's other declared false positive, `test_v10.py::test_ref_diff_...`,
+  is **not** a provenance error: all six of its pairs are correctly `tree` (a
+  subprocess over `ROOT/bench/ref_diff.py`, and `open(p).read()` of a copy of
+  `interp.py`). It is a false positive of a DIFFERENT question — *is this a
+  precondition?* — and that question IS measurable: **a precondition guards a
+  USE.** `guards_a_use` asks whether the magnitude's subject is read by
+  non-assert code strictly between the two asserts. Round 494's instance is
+  `False`; `test_v10.py`'s six are all `True`. **7 costly pairs -> 6 guarding
+  -> 1 left**, and the one left is the node dataflow had just found. Two
+  orthogonal axes, both needed, neither filtering the census.
+- **ROUND 498's CENSUS LEDGER WAS FIVE PAIRS OUT OF DATE AND ITS OWN GATE
+  COULD NOT SEE IT.** Found by a join failure that first looked like a
+  residual. Five pairs across four `test_testcorpus_census.py` nodes at a
+  uniform **+9** offset, **identical assertion text**, against a file
+  `git diff bd55eb5` shows is byte-identical to round 498's own commit — the
+  ledger describes a working tree that no commit ever contained. `--check`
+  printed `ledger agrees` throughout, correctly: `check_census` diffs node-id
+  SETS, `check_costly` diffs costly-node SETS, and **nothing looked inside a
+  node**. Round 498 is titled "the count that outranked the list" and wrote
+  its own gate to compare only the list. The missing pin is round 494's
+  location pin one level up. **Fixed:** `assertshadow.check_coordinates`
+  (matched on assertion TEXT, so an insertion that reorders a node's pair
+  list is not mistaken for a move), seen red on the real drift and green
+  after regeneration. Two more gaps closed in the same read: **`check_costly`
+  had never been called by the CLI** at all (test-only since round 498), and
+  `--check` compares no total — `literal_edits` was 3 in the ledger and is 5
+  at HEAD, unreported.
+- **ROUND 499's PRE-REGISTERED EXPERIMENT: ANSWERED, YES.** Its next-step #1
+  asked the next round to build an entry point to say explicitly whether the
+  hook reached it. `subjprov.py` is **instance 8** of the W001 recurrence,
+  opened deliberately. The advisory pre-commit step **printed the finding and
+  the exact `declare` command in this round's own `git commit` output, and
+  the commit succeeded**. `declare --write` then closed it: `wiring_audit
+  check` -> **142 entry point(s), 122 in closure, 0 error(s), 0 warning(s)**,
+  registry edit **6 insertions / 0 deletions** (round 499's `_insert_entries`
+  and `ensure_ascii=False` both held), `test_wiring_audit.py` **89 passed**.
+  **Latency 0 rounds** against 1-3 for instances 1-7. Had the step been a
+  gate rather than a warning, it would have refused this round's 3,624-line
+  diff over a five-line registry addition — the failure mode round 499 named
+  when it chose `|| true`.
+- **THREE DEFECTS THIS ROUND PUT INTO ITS OWN WORK, plus two caught before
+  publication.** (a) **A REAL NON-DETERMINISM**, caught by the ledger it had
+  just written: `--json` wrote `unknown: 7` and `--check` seconds later said
+  `tree says 5`. The three per-function caches were module-level dicts keyed
+  by `id(fn)` while the AST trees are local to `analyse_file`/`guard_rows`;
+  CPython reuses an `id` once the object is collected, so one file's
+  bindings were returned for another's. Fixed by storing `(node, value)` so
+  the node cannot be collected; `test_the_answer_is_the_same_in_two_processes`
+  is round 481's rule applied to a new module, catching a real one on its
+  first outing. (b) **A literal path is not local data** — the
+  argument-sensitive reader rule returned the join of its arguments when
+  clean, so `open("corpus.txt")` read as clean; only `scratch` is clean.
+  (c) **`guards_a_use` counted an assertion as a use**: it skipped `ast.Assert`
+  nodes but not their `Name` children, turning stacked magnitudes into
+  preconditions — in the direction that hides work. Also caught pre-publication:
+  `--helpers` reported **316** because it was counting test functions (real
+  number **89**), and an imported module name was being resolved as an
+  assertion SUBJECT, which cost five of the first eleven residuals.
+- **THE ASSUMPTION IS STATED AND ITS EXPOSURE IS MEASURED.** "Arguments
+  dominate" — an opaque call propagates the join of its arguments. For
+  helpers the module CAN see it does not guess, it re-analyses them;
+  `--helpers` reports **89** in-file helpers for which the assumption would
+  have been wrong, which is the measured size of the remaining guess rather
+  than a hope. The sharpest single result: `dc.harvest_tests()` is `tree` and
+  `dc.harvest_tests(str(a))` with `a` under `tmp_path` is `scratch` — **same
+  reader, opposite verdicts, decided by the argument**, and round 494's own
+  provably-undriftable node is reached from the code rather than from a
+  short-circuit.
+- **Predictions (D-013, `state/round-500/predictions.md`, banked before any
+  code): P3, P6, P7, P8, P10 HIT; P5 SPLIT (both directions right, magnitude
+  badly wrong — predicted >=15 disagreements, actual 3); P1, P2, P4 MISS;
+  P9 MISS ON ITS PREMISE** (it assumed two new files land in `tests/`; only
+  one does, `subjprov.py` sits at the package root). **Five of ten
+  substantially wrong, all the same way**: every miss predicted that dataflow
+  would SHRINK the costly population. It shrank it by nothing, and what
+  shrank it was an axis not planned when banking — visible only *because*
+  the dataflow version refused to reproduce round 498's second declared false
+  positive.
+- **Verification.** `test_subjprov.py` + `test_assertshadow.py` +
+  `test_testcorpus_contributions.py` -> **65 passed in 49.33 s**;
+  `test_wiring_audit.py` -> **89 passed in 378.44 s**; the four-file census
+  suite -> **4 failed, 124 passed in 188.67 s**, all four being the expected
+  corpus-moved failures, closed by a 5.30 s regeneration of round 494's
+  contributions ledger (**exactly one row**: `test_subjprov.py
+  {module_calls: 3}`, no residual; whole-tree `module_calls` 49 -> 52) and
+  re-run to **14 passed**. **33 tests added.** Same 89-test wiring suite took
+  194 s for round 499 and 378 s here, both solo: `nproc` is 1 and the box is
+  not idle.
+- **Knowledge:** `knowledge/round-500-the-axis-that-was-carrying-two-questions.md`.
+
+## Next steps (as of round 500)
+
+1. **Round 498's next-step #2 is CLOSED, and the population it was supposed
+   to shrink did not shrink.** `subjprov.py` is the dataflow version, its
+   ledger is `state/whence/subject-provenance.json`, and
+   `tests/test_subjprov.py` is the ratchet. The open part is a DECISION, not
+   more analysis: `assertshadow.tree_derived` is still what the census
+   publishes as `COSTLY`, and it is now known to be wrong on one of its two
+   nodes and to miss one the dataflow finds. Either repoint the census's
+   `costly` derivation at `subjprov`, or write down why two disagreeing
+   axes both stay. Do not leave it implicit. language(C).
+2. **ONE unguarded costly pair is left in the whole tree and it wants a
+   decision rather than a reorder.** `test_v44.py::test_the_deepest_value_
+   in_the_corpus_is_a_self_hosted_ast_14_deep`, `assert d == 14` above
+   `assert depthcensus.spine_of(best)[:3] == [...]`. Its own message says
+   "the corpus number moved — re-run depthcensus.py", so the count is a
+   deliberate corpus pin and moving it below the spine assertion changes
+   which failure a reader sees first. Whoever takes it should say whether
+   the pin belongs in that node at all. language(C).
+3. **`guards_a_use` is one round old and has never been falsified against an
+   INCIDENTAL use.** It reports True whenever the magnitude's subject is
+   read by non-assert code between the two asserts, which is a guard only if
+   the read depends on the assertion being true. A `print(r.stdout)` between
+   them would score the same as `s.replace(old, new)`. Nobody has looked for
+   a case where they differ; the honest sharpening is whether the use is on
+   the path the assertion protects. language(C).
+4. **`subjprov.py` has only ever been run over `languages/whence/tests/`.**
+   It takes `--tests <dir>` and costs ~2 s. This is round 498's next-step #1
+   arriving for a second instrument — `harness/tests/`, `nuc/tests/` and
+   `skills/` have now never been swept by EITHER axis, and round 499 named
+   the same gap and did not run it. harness(A), NUC(E) or skills(B).
+5. **The `unknown` residual is 5 pairs in four named nodes and is not a
+   mystery.** `test_folding.py:233` (`sig`), `test_timetravel.py:70,71`
+   (`ttd`), `test_v35.py:143` (`c`), `test_v43.py:353` (`expr`). Each is an
+   opaque construction this module chose not to guess at. Whoever wants
+   them below 5 should resolve them one at a time and say what rule did it;
+   widening the reader list to make the number smaller is the move round 498
+   explicitly warned against. language(C).
+6. **`assertshadow --check` still compares no TOTAL.** Round 500 added the
+   coordinate gate and wired in `check_costly`, but `literal_edits` 3 -> 5
+   went unreported and would again. It is a one-line addition to the CLI and
+   was left out deliberately: history totals move whenever a commit lands,
+   so gating on them makes the check red on every round unless the ledger is
+   regenerated every round. Say which of those two costs is smaller before
+   adding it. language(C).
+7. **Round 499's next-steps #2, #3, #4, #5 and #6 stand.** #1 is CLOSED by
+   this round with a positive result (see the entry above). In particular
+   `viapin fix --fill`'s 82 unpinned `via`s are still unrun and still
+   harness(A)'s; the three skills-check reds (`corpus_check.py::carryforward`,
+   `::selfdesc_check`, `::unit_tests`, opened round 498, owner skills(B), all
+   RECURRENT) were **not** touched by this round either, for round 499's
+   reason — this track cannot reproduce them and a drive-by fix is how a red
+   gets patched instead of understood. skills(B).
+8. **Round 498's next-steps #3, #5, #6, #7 and #11 stand.** #1 is still open
+   for the other three trees (see #4 above); #2 is closed by this round.
+   Specifically: `test_v46.py`'s docstring/`==` disagreement still wants a
+   decision rather than a reconciliation; the four `remedy: delete_count`
+   pairs are still the cheapest unclaimed item in the census; and the
+   `git log -L` realised-shadow floor is still a floor (now **5** literal
+   edits, 0 re-pins, up from 3 because round 498's own commit entered the
+   history — which is itself a reminder that the number is a property of the
+   history, not of the tree). language(C).
+9. **`nproc` is 1 and the box is NOT idle.** The identical 89-test wiring
+   suite took 194 s for round 499 and 378 s for round 500, both solo, with
+   unrelated long-running processes resident throughout. Any wall-clock
+   number in this file is a measurement of this box on that day. Budget
+   accordingly and launch suites in the background from the start.
+10. **Standing and untouched:** the operator-blocked `--cap 196`;
+   `case_coverage`'s 49-of-103 disagreeing verdicts; `claim_check` executing
+   0 of its commands; the NUC `retention --strict` deadline; and CLAUDE.md's
+   `CRITICAL MISSION` block plus the `MASTER MISSION` block — re-escalated
+   and still a deletion for the operator. `languages/whence/SECURITY.md`
+   remains the operator's decision; the checker's own line is the only source
+   for its carry count.
+
 ## Next steps (as of round 497)
 
 1. **The 55 stale ledger rows are now a NAMED, budgeted job.** All of them
