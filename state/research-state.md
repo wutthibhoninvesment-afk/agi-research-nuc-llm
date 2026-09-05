@@ -28975,6 +28975,129 @@ entry here; nothing below is inferred from intentions.*
   0 warnings.
 
 
+### Round 516 — language(C) — 2026-09-05 — the check that ranged over a fragment of its own document
+
+- **Assignment: round 512's next steps #3, #4, #6 and #8 — all four CLOSED.**
+  Round 512 measured ledger FRESHNESS from outside. This round measured the
+  ledgers' own `--check` VERBS from outside, by mutation:
+  `languages/whence/checkscope.py` perturbs one top-level key, points the
+  gate at the mutant and records SEES / BLIND / CRASH.
+- **THE NUMBER: 30 keys across four self-checking ledgers, 7 SEEN — 23.3%,
+  and NO gate is total over its own document.** `assertshadow --check` 2/8
+  (blind to its own printed headline `totals` and to `by_file`);
+  `builtinlive --strict` 1/3; `runlive --strict` 2/8; `subjprov --check`
+  2/11. Twelve of the 23 blind keys are prose and are labelled, which still
+  leaves eleven blind keys that are claims about the language.
+- **WHY NOBODY HAD MEASURED IT: two of the five gates could not be aimed.**
+  `subjprov.main` called `load_ledger()` with no argument, `assertshadow.
+  main` called `load_census()` with no argument, so the only way to run
+  either against a candidate was to overwrite the real ledger — in the repo
+  where a third-party commit swept round 515's staged file into itself.
+  `--ledger` / `--census` were added FIRST, before anything was measured.
+- **`by_verdict` is SEES in `builtinlive` and BLIND in `runlive`, and the
+  difference is one defensive idiom.** `a = old.get("by_verdict", {}).get(v)
+  ... if a is not None and a != b` — the guard written to tolerate an OLD
+  ledger makes a CORRUPT one unobservable. Predicted 3 keys for that gate;
+  it sees 2 (P5, the bank's one structural miss). **Named, measured and
+  LEFT STANDING** — the fix changes what `--strict` reddens on, which is a
+  decision with a cost, not a typo.
+- **THE APPARATUS LIED TWICE, AND BOTH ARE NOW TESTS.** (a) A NO-OP mutation
+  reads exactly like a blind gate: dropping `sorted(v)[0]` from a mapping
+  hit an empty verdict class, so a gate was scored BLIND for noticing
+  nothing. (b) A gate reacting to the file's ENCODING scores as TOTAL: the
+  first completed sweep called `testcorpus-contributions.json` the one total
+  gate in the tree — it has a node byte-comparing the file against
+  `json.dumps(indent=1, sort_keys=True)`, so every re-serialised mutant
+  failed it whichever key moved. Mutants are now written in the ledger's own
+  encoding (searched until it reproduces the file byte-for-byte; all five do)
+  and every sweep runs a SECOND control on a re-serialised copy. **A
+  byte-identical control cannot catch (b) — that was the control it had.**
+- **#4 closed with the total predicate, not a twelfth comparison.**
+  `subjprov.check_ledger` gained `S003` = `document_diff(declared,
+  build_ledger(...), ignore=("totals", "costly_dataflow"))`; `helpers` is now
+  REQUIRED so there is no partial mode. Also fixed: `declared["totals"]` was
+  a SUBSCRIPT (CRASH under delete, and a crash is not a detection), and S001
+  iterated the LIVE totals alone so a total that vanished from the tree was
+  invisible.
+- **#6 closed.** `assertshadow._residual` compares the whole document,
+  excluding `nodes`/`costly_nodes` (already reported readably) and the four
+  history-only totals, which `--check` does not compute. That exclusion was
+  found by the residual going RED on its first real run, exactly as its own
+  docstring predicted; the exclusion is named in the output, not silent.
+- **#3 closed, and the reason it carried was WRONG rather than obsolete.**
+  `corpusledger.UNDECLARED`'s "a `_regenerate` key would not survive its own
+  regeneration" is false — `ledger_view` is a pure function of the census.
+  Round 512's next-step named `_write`, which is the wrong function (shared
+  with `--json`, which dumps the full census). `UNDECLARED` is now `{}`:
+  **5 self-declaring, 0 declared here, 1 not generated, 0 UNCLASSIFIED, every
+  generated ledger reproduces byte-for-byte.** Order of operations bit once —
+  emptying the table before the artefacts carry the key makes them
+  UNCLASSIFIED and `--fix` skips them.
+- **#8 closed, and it found a live one.** `checkscope --selfref` reports an
+  assert whose truth is a function of the declared document alone. The hard
+  class is the JOIN: `compare_with_census` reads the census for its pair
+  list, so `len(rows)` counts CENSUS pairs; and the fixture handing it over
+  returns `(JOIN, opaque, LIVE)` in one tuple, so origins are bound
+  ELEMENT-WISE through the fixture body and the unpack. Positive control =
+  round 512's own gate, rebuilt from its shape. **THE LIVE FINDING: the half
+  round 512 kept when it split that assertion does not test the invariant its
+  comment names.** `compare_with_census` emits one row per census pair
+  UNCONDITIONALLY, so `len(rows) == census["totals"]["pairs"]` cannot see a
+  join failure; `unjoined == []` two lines above is the line that fires.
+  Falsified by `test_the_pair_count_identity_cannot_see_a_join_failure`. What
+  survives is a real but DIFFERENT claim — and until this round it was the
+  only thing in the tree comparing that census's `totals` to its `nodes`,
+  because `assertshadow --check` was blind to `totals`.
+- **Tests +31** (`tests/test_checkscope.py`), all six ledgers FRESH,
+  `corpusledger --check` green. **The full `run_tests_fast.sh` tier was NOT
+  run to completion inside this round's wall clock** — the eight affected
+  files were run directly (`232 passed`, then three reds all caused by the
+  history-only totals above, fixed and both CLIs re-run green by hand). The
+  tier is the next round's first job and is reported as UNRUN, not green.
+- **New skill `skills/measure-a-gate-by-mutating-what-it-guards/SKILL.md`** —
+  `skill_lint --house --strict`: 0 errors, 0 warnings; 3 positive trigger
+  cases + 1 negative control appended to `skills/trigger-cases.json` with the
+  file's own `indent=1` encoding (26 insertions, 0 deletions).
+- **Predictions (`state/whence/round-516/predictions.md`, banked at
+  `463c99d`): P1-P4 and P8-P13 kept, P5 refuted (see above), P6/P7's "no gate
+  is total" half kept and its "contributions is not total either" half was
+  measured wrong by the apparatus before the encoding fix.** P14/P15: P15
+  kept (+31 nodes), P14 UNSCORED — the tier did not run.
+
+## Next steps (as of round 516)
+
+1. **RUN `languages/whence/run_tests_fast.sh` TO COMPLETION FIRST.** This
+   round left it unrun. Eight affected files pass (`232 passed`) and both
+   repaired CLIs are green by hand, but the tier is the signal and it has not
+   been taken. language(C) or harness(A).
+2. **`runlive.check`'s `a is not None` makes `by_verdict` unobservable.**
+   Measured, named, not fixed — deleting the guard changes what `--strict`
+   reddens on. Whoever fixes it should re-run `checkscope --scope --only
+   builtin-runtime.json` and publish the before/after. language(C).
+3. **Re-run the full `checkscope --scope` after the repairs and publish the
+   before/after table.** This round has the as-found table (§3 of the round
+   file) and green CLIs, but the post-repair sweep was cut by wall clock.
+   `--strict` exits 1 unless every gate is total; nothing runs it yet.
+   language(C).
+4. **`checkscope` is now imported by `subjprov` and `assertshadow`, two of
+   the gates it measures.** Benign — the differ knows nothing about either
+   document — but it is a real edge and nothing tests for it. any track.
+5. **The `--selfref` analysis has been run on `languages/whence/tests/`
+   only.** `harness/tests/` and `skills/` have ledger-shaped artefacts and
+   the query is mechanical. harness(A) or skills(B).
+6. **Round 515's items 1-5 stand, UNCHECKED by this round** — the `blast`
+   refinement still unlanded, the installed-hook-vs-generator gap, `escapes
+   --staged` covering one tree, the HEAD-differencing hole, and the RED DEBT
+   block's under-count. Re-derive before quoting.
+7. **Standing and untouched:** the operator-blocked `--cap 196`; CLAUDE.md's
+   `CRITICAL MISSION` / `MISSION #476` blocks, still one-line deletions for
+   the operator (round 512 re-derived and REFUTED both with run evidence —
+   carry that, not the claim); `case_coverage`'s disagreeing verdicts;
+   `claim_check` executing 0 of its commands. `languages/whence/SECURITY.md`
+   is still the operator's decision — do not copy a carry count for it from
+   this file.
+
+
 ### Round 515 — SWE-loop(D) — 2026-09-05 — the instrument that was opt-in
 
 - **The RED DEBT's 3 nodes CLOSED, and its recurrence count is wrong — low,
