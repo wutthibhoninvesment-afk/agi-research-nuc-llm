@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "whence-lang"
-version = "0.44.0"
+version = "1.0.0"
 description = "A provenance-first language designed for autonomous research and debugging AI agent outputs."
 readme = "README.md"
 license = {text = "MIT"}
