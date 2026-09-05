@@ -76,30 +76,55 @@ DEFAULT_CAPTURE = os.path.join("state", "nuc-record-union")
 #: `cost_ledger -> attribution_evidence -> power_floor -> verdict_floor` chain
 #: (rounds 430, 472, 478, 484, 490) and `wsweep` re-runs the gates at every
 #: costly threshold (round 412's "a verdict that is really a setting").
+#: ROUND 508: every entry names its channel EXPLICITLY, and the reason is a
+#: measured defect, not tidiness. `wsweep`'s `--channel` defaults to `steal`
+#: -- alone among the twelve `perturbation.py` subcommands that take one, ten
+#: of which default to `swap` -- so the entry written as
+#: `["wsweep", "--capture", "{capture}"]` and NAMED `wsweep_swap` ran the
+#: STEAL channel. Its output was byte-identical to `wsweep_steal`'s, 35 703
+#: bytes and md5 31b8b34f8e9d, on `state/nuc-record-union`. The battery
+#: advertised five published verbs and ran four, with one channel counted
+#: twice and the swap channel -- the only one with a derived threshold, and
+#: the one every published number in this track uses -- never run at all.
+#: `test_no_two_battery_entries_are_the_same_command` is the falsifier.
 BATTERY = (
-    ("window_swap", ["window", "--capture", "{capture}", "--strict"]),
-    ("wsweep_swap", ["wsweep", "--capture", "{capture}"]),
+    ("window_swap", ["window", "--capture", "{capture}", "--channel", "swap",
+                     "--strict"]),
+    ("wsweep_swap", ["wsweep", "--capture", "{capture}", "--channel", "swap"]),
     ("wsweep_commit", ["wsweep", "--capture", "{capture}", "--channel", "commit"]),
     ("wsweep_steal", ["wsweep", "--capture", "{capture}", "--channel", "steal"]),
-    ("population_swap", ["population", "--capture", "{capture}"]),
+    ("population_swap", ["population", "--capture", "{capture}",
+                         "--channel", "swap"]),
+    ("reclaim_all", ["reclaim", "--capture", "{capture}"]),
+    ("gap_commit", ["gap", "--capture", "{capture}", "--channel", "commit"]),
 )
 
 #: Verbs deliberately NOT in the battery, and why -- because a survivor the
 #: battery never reaches must not be reported as if the record had been asked.
 #: Measured on `state/nuc-record-union` at round 502:
-#:   `window --channel commit|steal` -> rc 1, "no derived costly-threshold on
-#:       this record"; only `swap` has one, so `wsweep` carries the other two.
-#:   `reclaim`/`gap` take a SINGLE sar table (`--sar-b`), and the union's
-#:       `sar-all.txt` is 120 sections: rc 1, "header changed mid-table". Two
-#:       of this module's published verbs cannot read round 490's union at all.
+#:   `window --channel commit|steal` -> rc 1. ROUND 508 CORRECTED THE SUBJECT:
+#:       this is NOT a fact about the record. `CHANNEL_MIN_BYTES` is a module
+#:       constant with `None` for both channels and the raise never reads the
+#:       record at all, so no record can satisfy it; `window --channel commit
+#:       --min-bytes 4825718` exits 0 on this very union. The entries stay --
+#:       a threshold nobody derived must not be quoted as if somebody had --
+#:       but they are a DESIGN REFUSAL plus an unpassed flag, and `wsweep`
+#:       (which sweeps thresholds) is the right verb for those channels.
+#:   `reclaim`/`gap` USED to take a SINGLE hand-extracted sar table only, and
+#:       round 502 recorded their failure as a property of the union ("120
+#:       sections"). ROUND 508 MEASURED IT: the identical `header changed
+#:       mid-table` raise comes from `nuc-capture-r424`, r400, r478 and r484
+#:       as well -- 0 of 5 records in this repo could be fed to them. It was
+#:       never about the union. Both now take `--capture` and are IN the
+#:       battery above.
 #:   `oom`/`stability`/`engine`/`place` need a user/engine journal the union
 #:       does not carry; `exclusion` draws random shifts and is not
 #:       byte-reproducible, which an output-digest oracle requires.
 BATTERY_GAP = {
-    "window_commit": "rc 1 on this record: no derived costly-threshold",
-    "window_steal": "rc 1 on this record: no derived costly-threshold",
-    "reclaim": "needs one sar table; the union's sar-all.txt is 120 sections",
-    "gap": "needs one sar table; the union's sar-all.txt is 120 sections",
+    "window_commit": "rc 1: CHANNEL_MIN_BYTES['commit'] is None -- a module "
+                     "constant, not a property of any record; wsweep sweeps it",
+    "window_steal": "rc 1: CHANNEL_MIN_BYTES['steal'] is None -- a module "
+                    "constant, not a property of any record; wsweep sweeps it",
     "oom": "needs a journal the union does not carry",
     "stability": "needs an engine journal the union does not carry",
     "engine": "needs an engine journal the union does not carry",

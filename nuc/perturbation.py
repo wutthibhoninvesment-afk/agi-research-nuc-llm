@@ -1417,9 +1417,13 @@ def cost_ledger(fires: Iterable, swap_table: SarTable, date: str,
         min_bytes = CHANNEL_MIN_BYTES.get(channel.name)
         if min_bytes is None:
             raise PerturbationError(
-                f"channel {channel.name!r} has no derived costly-threshold on "
-                f"this record (see CHANNEL_MIN_BYTES); pass min_bytes "
-                f"explicitly and report it, or use channel_sweep")
+                f"channel {channel.name!r} has no derived costly-threshold in "
+                f"CHANNEL_MIN_BYTES, which is a MODULE CONSTANT and not a "
+                f"property of the record you passed -- this raise never read "
+                f"it, and no record can satisfy it; pass min_bytes explicitly "
+                f"and report it, or use channel_sweep. (Round 508: the old "
+                f"wording said 'on this record' and round 502 recorded the "
+                f"rc-1 as a fact about round 490's union.)")
     if min_bytes < 0:
         raise PerturbationError("min_bytes must be >= 0")
     excluded = set(exclude_units or ())
@@ -1980,6 +1984,119 @@ def sar_banner_date(section_text: str) -> str:
         "its banner cannot be dated and must not be pooled")
 
 
+def capture_day_tables(sar_text: str, prefix: str) -> list:
+    """Every `prefix*` section of a capture's `sar-all.txt`, parsed and dated.
+
+    Round 508. `parse_sar` reads ONE table; a capture's `sar-all.txt` is a
+    concatenation of ten section KINDS across every day-file the sweep has not
+    yet deleted, so feeding the whole file to `parse_sar` raises `header
+    changed mid-table`. `window_frame` has known how to walk the sections since
+    round 430; `reclaim` and `gap` never learned, and round 502 recorded their
+    failure as a property of round 490's UNION record. It is not: the same call
+    fails on every capture in this repo, including `nuc-capture-r424`, the one
+    every published number in this track was computed from.
+
+    The day-of-month cross-check is `window_frame`'s, kept because a section
+    named `SAR_B_SA31` whose banner says the 30th is a mis-assembled capture
+    and pooling it would date real buckets wrong.
+
+    Returns `[(date, section_name, SarTable), ...]` sorted by (date, section).
+    """
+    secs = sar_sections(sar_text)
+    out = []
+    for name in sorted(s for s in secs if s.startswith(prefix)):
+        body = secs[name]
+        date = sar_banner_date(body)
+        dm = _SECTION_DAY.match(name)
+        if dm and int(dm.group(1)) != int(date[8:10]):
+            raise PerturbationError(
+                f"section {name} banners {date}: the file name says day "
+                f"{dm.group(1)} and the table says day {date[8:10]}")
+        out.append((date, name, parse_sar(body)))
+    out.sort(key=lambda t: (t[0], t[1]))
+    return out
+
+
+def reclaim_pooled(summaries: Iterable) -> dict:
+    """Pool per-day `reclaim_summary` dicts, keeping every denominator.
+
+    Round 418 ran `reclaim` on two hand-extracted day files and quoted
+    `sa30: 139 buckets, 4 reclaim` / `sa31: 79 buckets, 3 reclaim`. Pooling is
+    the same arithmetic over every day a capture holds -- but a pooled rate
+    with no per-day rows is round 417's finding in a new column, so the rows
+    ride along and `days_with_no_reclaim` is named rather than averaged away.
+
+    `largest_bucket` carries the DATE it came from. Without it the biggest
+    bucket in a 12-day union is a time of day with no day attached, which is
+    how a reboot bucket gets quoted as a routine one.
+    """
+    days = list(summaries)
+    by_kind: dict = {}
+    for d in days:
+        for k, v in (d.get("by_kind") or {}).items():
+            by_kind[k] = by_kind.get(k, 0) + v
+    n_buckets = sum(d["n_buckets"] for d in days)
+    n_loud = sum(d["n_reclaim_buckets"] for d in days)
+    biggest, biggest_date = None, None
+    for d in days:
+        lb = d.get("largest_bucket")
+        if lb is None:
+            continue
+        if biggest is None or lb["stolen_bytes"] > biggest["stolen_bytes"]:
+            biggest, biggest_date = lb, d.get("date")
+    return {
+        "n_days": len(days),
+        "dates": [d.get("date") for d in days],
+        "n_buckets": n_buckets,
+        "n_reclaim_buckets": n_loud,
+        "reclaim_bucket_fraction": (n_loud / n_buckets) if n_buckets else None,
+        "by_kind": by_kind,
+        "n_direct_reclaim_buckets": (by_kind.get("direct", 0)
+                                     + by_kind.get("mixed", 0)),
+        "total_scanned_pages": sum(d["total_scanned_pages"] for d in days),
+        "total_stolen_pages": sum(d["total_stolen_pages"] for d in days),
+        "total_stolen_bytes": sum(d["total_stolen_bytes"] for d in days),
+        "total_paged_in_kb": sum(d["total_paged_in_kb"] for d in days),
+        "total_paged_out_kb": sum(d["total_paged_out_kb"] for d in days),
+        "n_steal_exceeds_scan": sum(d["n_steal_exceeds_scan"] for d in days),
+        "n_scan_free_steal": sum(d["n_scan_free_steal"] for d in days),
+        "days_with_no_reclaim": [d.get("date") for d in days
+                                 if d["n_reclaim_buckets"] == 0],
+        "largest_bucket": biggest,
+        "largest_bucket_date": biggest_date,
+    }
+
+
+def eviction_gap_pooled(rows: Iterable) -> dict:
+    """Summarise `eviction_gap` rows, counting the blindness explicitly.
+
+    Round 418 read three rows by eye and concluded the level channel is blind
+    rather than coarse. Over a 12-day record the same claim needs a
+    denominator: `n_level_zero` against `n_rows`, with `n_level_undefined`
+    (first bucket of a table, or a row after `LINUX RESTART`) kept OUT of both
+    numerator and denominator of `fraction_level_zero`, because a cost that is
+    unknown is not a cost of zero -- `cost_ledger`'s own rule.
+    """
+    rows = list(rows)
+    undefined = [r for r in rows if r.get("level_bytes") is None]
+    defined = [r for r in rows if r.get("level_bytes") is not None]
+    zero = [r for r in defined if r["level_bytes"] == 0]
+    ratios = sorted(r["ratio"] for r in defined if r.get("ratio") is not None)
+    return {
+        "n_rows": len(rows),
+        "n_level_undefined": len(undefined),
+        "n_level_defined": len(defined),
+        "n_level_zero": len(zero),
+        "fraction_level_zero": (len(zero) / len(defined)) if defined else None,
+        "n_ratios": len(ratios),
+        "median_ratio": (None if not ratios else
+                         ratios[len(ratios) // 2] if len(ratios) % 2
+                         else (ratios[len(ratios) // 2 - 1]
+                               + ratios[len(ratios) // 2]) / 2),
+        "max_ratio": (max(ratios) if ratios else None),
+    }
+
+
 @dataclass(frozen=True)
 class WindowDay:
     """One day-file's place in the window, and whether it may be pooled."""
@@ -2016,6 +2133,10 @@ def window_frame(sar_text: str, journal_text: str,
     secs = sar_sections(sar_text)
     fires = parse_unit_starts(journal_text)
     excluded = tuple(exclude_units)
+    # Round 508: the section walk lives in `capture_day_tables` so that
+    # `reclaim`/`gap` reach the same days by the same rules. Byte-identical
+    # output on `state/nuc-record-union` is pinned by
+    # `test_window_frame_is_unchanged_by_the_shared_section_walker`.
 
     per_date_fires: dict = {}
     per_date_excluded: dict = {}
@@ -2028,15 +2149,7 @@ def window_frame(sar_text: str, journal_text: str,
 
     days = []
     seen_dates = set()
-    for name in sorted(s for s in secs if s.startswith(prefix)):
-        body = secs[name]
-        date = sar_banner_date(body)
-        dm = _SECTION_DAY.match(name)
-        if dm and int(dm.group(1)) != int(date[8:10]):
-            raise PerturbationError(
-                f"section {name} banners {date}: the file name says day "
-                f"{dm.group(1)} and the table says day {date[8:10]}")
-        table = parse_sar(body)
+    for date, name, table in capture_day_tables(sar_text, prefix):
         n_fires = per_date_fires.get(date, 0)
         n_exc = per_date_excluded.get(date, 0)
         if n_fires > 0:
@@ -4749,6 +4862,27 @@ def _fisher_2x2(a: int, b: int, c: int, d: int) -> float:
     return min(1.0, tot)
 
 
+def _capture_days(capture: str, prefix: str, date: str = "") -> list:
+    """`capture_day_tables` over a capture DIRECTORY (or its sar-all.txt).
+
+    Round 508. `window`/`wsweep`/`population` already accept a directory; the
+    two verbs that could not read a capture at all are the two that took a
+    single hand-extracted table. Selecting a date that the capture does not
+    hold is an ERROR naming what it does hold, because an empty result would
+    read as "this day had no reclaim"."""
+    sar_path = (capture if capture.endswith(".txt")
+                else os.path.join(capture, "sar-all.txt"))
+    days = capture_day_tables(_load(sar_path), prefix)
+    if date:
+        picked = [d for d in days if d[0] == date]
+        if not picked:
+            raise SystemExit(
+                "%s holds no %s* section for %s; it holds %s"
+                % (sar_path, prefix, date, ", ".join(d[0] for d in days)))
+        return picked
+    return days
+
+
 def _load(path: str) -> str:
     if path == "-":
         return sys.stdin.read()
@@ -4862,16 +4996,30 @@ def main(argv=None) -> int:
         help="round 418: what the page-reclaim path did (sar -B). Answers "
              "\"what touched already-committed pages\" -- the question left "
              "when the commit channel says nothing was allocated")
-    sr.add_argument("--sar-b", required=True, help="`sar -B` text")
-    sr.add_argument("--date", default="")
+    sr.add_argument("--sar-b", default=None,
+                    help="one hand-extracted `sar -B` table")
+    sr.add_argument("--capture", default=None,
+                    help="round 508: a state/nuc-capture-* directory or its "
+                         "sar-all.txt, or state/nuc-record-union. The SAR_B_* "
+                         "sections are walked and dated by their own banners; "
+                         "--sar-b cannot read a capture and never could")
+    sr.add_argument("--date", default="",
+                    help="with --capture: the one YYYY-MM-DD to report. "
+                         "Omitted, every day is reported plus a pooled total")
     sr.add_argument("--interval-s", type=int, default=SAR_INTERVAL_S)
 
     sy = sub.add_parser(
         "gap",
         help="round 418: per reclaim bucket, what the LEVEL channel said "
              "about it -- the eviction-vs-allocation blindness, as a ratio")
-    sy.add_argument("--sar-b", required=True)
-    sy.add_argument("--sar-r", required=True, help="the same day's `sar -r`")
+    sy.add_argument("--sar-b", default=None)
+    sy.add_argument("--sar-r", default=None, help="the same day's `sar -r`")
+    sy.add_argument("--capture", default=None,
+                    help="round 508: pair the SAR_B_* and level sections of a "
+                         "capture by DATE, instead of trusting two file names "
+                         "to be the same day")
+    sy.add_argument("--date", default="",
+                    help="with --capture: the one YYYY-MM-DD to report")
     sy.add_argument("--channel", default="commit", choices=sorted(CHANNELS))
     sy.add_argument("--interval-s", type=int, default=SAR_INTERVAL_S)
     sy.add_argument("--stitch-prev", default=None, metavar="FILE:DATE",
@@ -5068,16 +5216,61 @@ def main(argv=None) -> int:
             stitch=_stitch_arg(args.stitch_prev, table, args.date,
                                args.interval_s)), indent=2))
     elif args.mode == "reclaim":
-        print(json.dumps(reclaim_summary(
-            parse_sar(_load(args.sar_b)), args.date, args.interval_s),
-            indent=2))
+        if args.capture and args.sar_b:
+            raise SystemExit("reclaim: --capture and --sar-b are exclusive")
+        if args.capture:
+            days = _capture_days(args.capture, CHANNEL_SECTION_PREFIX["steal"],
+                                 args.date)
+            summaries = [reclaim_summary(t, date, args.interval_s)
+                         for date, _n, t in days]
+            print(json.dumps({
+                "capture": args.capture,
+                "section_prefix": CHANNEL_SECTION_PREFIX["steal"],
+                "pooled": reclaim_pooled(summaries),
+                "days": summaries}, indent=2))
+        elif args.sar_b:
+            print(json.dumps(reclaim_summary(
+                parse_sar(_load(args.sar_b)), args.date, args.interval_s),
+                indent=2))
+        else:
+            raise SystemExit("reclaim: need --capture DIR or --sar-b FILE")
     elif args.mode == "gap":
-        level = parse_sar(_load(args.sar_r))
-        print(json.dumps(eviction_gap(
-            parse_sar(_load(args.sar_b)), level,
-            channel=CHANNELS[args.channel], interval_s=args.interval_s,
-            stitch=_stitch_arg(args.stitch_prev, level, "", args.interval_s)),
-            indent=2))
+        if args.capture and (args.sar_b or args.sar_r):
+            raise SystemExit("gap: --capture and --sar-b/--sar-r are exclusive")
+        chan = CHANNELS[args.channel]
+        if args.capture:
+            b_days = _capture_days(args.capture,
+                                   CHANNEL_SECTION_PREFIX["steal"], args.date)
+            lvl = {date: t for date, _n, t in
+                   _capture_days(args.capture,
+                                 CHANNEL_SECTION_PREFIX[chan.name], "")}
+            rows, missing = [], []
+            for date, _n, btab in b_days:
+                if date not in lvl:
+                    missing.append(date)
+                    continue
+                for row in eviction_gap(btab, lvl[date], channel=chan,
+                                        interval_s=args.interval_s):
+                    row["date"] = date
+                    rows.append(row)
+            print(json.dumps({
+                "capture": args.capture,
+                "channel": chan.name,
+                "n_days_paired": len({r["date"] for r in rows}),
+                "dates_without_a_level_table": missing,
+                "summary": eviction_gap_pooled(rows),
+                "rows": rows}, indent=2))
+        elif args.sar_b and args.sar_r:
+            level = parse_sar(_load(args.sar_r))
+            print(json.dumps(eviction_gap(
+                parse_sar(_load(args.sar_b)), level,
+                channel=chan, interval_s=args.interval_s,
+                stitch=_stitch_arg(args.stitch_prev, level, "",
+                                   args.interval_s)),
+                indent=2))
+        else:
+            raise SystemExit("gap: need --capture DIR, or both --sar-b and "
+                             "--sar-r")
     elif args.mode == "power":
         print(json.dumps(power_floor(
             args.n_buckets, args.n_costly_buckets, args.n_units_tested,

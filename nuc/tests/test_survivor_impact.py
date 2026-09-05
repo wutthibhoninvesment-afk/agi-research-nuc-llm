@@ -312,12 +312,18 @@ def test_settrace_resolves_individual_lines_of_a_multi_line_expression():
     Twelve of this subject's survivors live in ONE four-line f-string, and a
     statement-granular tracer would call all four executed whichever branch
     ran. Pinned against `power_floor`, whose `why` has two branches:
-    `testable` non-empty takes 1653-1655, empty takes 1651."""
+    `testable` non-empty takes 1657-1659, empty takes 1655.
+
+    ROUND 508: these are LINE PINS in a subject that other rounds edit, and
+    they moved by +4 when round 508 rewrote the `CHANNEL_MIN_BYTES` refusal
+    message 236 lines above them. That is the pin doing its job -- a tracer
+    test that silently kept passing against different lines would be worse --
+    but a round that shifts `perturbation.py` must expect to re-pin here."""
     sys.path.insert(0, str(ROOT / "nuc"))
     import perturbation as pt
     target = str(SUBJECT)
-    for args, want_in, want_out in (((1145, 31, 16), 1654, 1651),
-                                    ((218, 1, 16), 1651, 1654)):
+    for args, want_in, want_out in (((1145, 31, 16), 1658, 1655),
+                                    ((218, 1, 16), 1655, 1658)):
         seen = set()
 
         def tr(frame, event, arg):
