@@ -504,14 +504,28 @@ def test_the_real_tree_yields_the_units_round_469_measured():
     ran the whence suite and not the harness one, so the only run that could
     see this assertion belonged to a different track. THIRD occurrence of that
     shape (474 and 482 as openers, 475 and 485 as readers) -- the pin works,
-    and what it keeps catching is the rotation, not the language."""
+    and what it keeps catching is the rotation, not the language.
+
+    Round 504 (language C) added `tests/test_builtinlive.py` -- the suite for
+    that round's `builtinlive.py` builtin-liveness census, THREE marked tests
+    -- taking the tier 29 -> 30 units and 115 -> 118 marked nodes. Re-pinned
+    by round 505 (harness A). FOURTH occurrence, and the first one a round
+    was TOLD about rather than finding: `harness/reddebt.py` (round 493) put
+    this node in round 505's prompt with its opener, its owner and the word
+    RECURRENT, which is the whole reason the latency was one round instead of
+    the three that motivated `reddebt` in the first place. What `reddebt`
+    still cannot do is reach the OPENER -- round 504 could not have seen this
+    at any price, because the check that fails runs after its process exits.
+    `harness/readset.py` (round 505) is the other half: it answers the same
+    question from the diff, before the commit."""
     units = W.slow_tier_units()
-    assert len(units) == 29
-    assert sum(len(u["tests"]) for u in units) == 115
+    assert len(units) == 30
+    assert sum(len(u["tests"]) for u in units) == 118
     assert not [u for u in units if u["registry_error"]]
     by = dict((u["id"], u) for u in units)
     assert len(by["test_testcorpus_suite_census.py"]["tests"]) == 12
     assert len(by["test_v47.py"]["tests"]) == 1
+    assert len(by["test_builtinlive.py"]["tests"]) == 3
 
 
 def test_a_module_level_pytestmark_is_discovered(tmp_path):

@@ -120,9 +120,24 @@ from whence import interp as I             # noqa: E402
 from whence import parser as P             # noqa: E402
 
 EXAMPLES = os.path.join(ROOT, "examples")
+
+#: The repo root, reached the ONE sanctioned way. `dirname(dirname(ROOT))`
+#: is the repo root only while this file sits in the checkout; under
+#: `harness/swe/mutation.py` the whole `languages/whence` tree is copied to a
+#: tempdir and the same expression resolves to `/tmp`, silently. Round 149
+#: found that as 7 of 78 false mutant "kills"; round 413 gave the tree one
+#: home for the root; round 467 fixed the last unguarded site
+#: (`specreg.py:179`) and closed the three
+#: `harness/tests/test_swe_copyparity_real_subject.py` nodes it had kept red
+#: for rounds 464-466. This file was written in round 504 with the
+#: pre-413 spelling and reopened the same three nodes for round 505.
+#: `harness/swe/proc.py` exports `AGI_RESEARCH_ROOT` into every sandbox
+#: subprocess; outside one the var is unset and this is byte-for-byte the
+#: path the old expression produced.
+AGI_ROOT = (os.environ.get("AGI_RESEARCH_ROOT")
+            or os.path.dirname(os.path.dirname(ROOT)))
 #: Where `--write` puts the ledger `--strict` ratchets against.
-LEDGER = os.path.join(os.path.dirname(os.path.dirname(ROOT)),
-                      "state", "whence", "builtin-liveness.json")
+LEDGER = os.path.join(AGI_ROOT, "state", "whence", "builtin-liveness.json")
 
 USE_CALL = "call"
 USE_REF = "ref"
