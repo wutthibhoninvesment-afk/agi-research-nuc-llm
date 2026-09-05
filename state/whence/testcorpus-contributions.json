@@ -62,7 +62,7 @@
    "calls": 0,
    "dup_cross_file": 0,
    "forwarded_args": 0,
-   "module_calls": 1,
+   "module_calls": 2,
    "nonconstant_programs": 0,
    "programs": 0,
    "residual": 0,

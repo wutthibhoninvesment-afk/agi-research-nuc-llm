@@ -56,6 +56,14 @@
         []
       ]
     ],
+    "test_builtinlive.py": [
+      [
+        "_b_pinned",
+        [
+          "tmp_path"
+        ]
+      ]
+    ],
     "test_checkpin.py": [
       [
         "_registry",
@@ -295,6 +303,23 @@
         [
           "runfile",
           "pid"
+        ]
+      ]
+    ],
+    "test_runlive.py": [
+      [
+        "_edit",
+        [
+          "path",
+          "json",
+          "fn"
+        ]
+      ],
+      [
+        "_pinned",
+        [
+          "tmp_path",
+          "src"
         ]
       ]
     ],

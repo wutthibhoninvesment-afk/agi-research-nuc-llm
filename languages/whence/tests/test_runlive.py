@@ -293,3 +293,93 @@ def test_the_two_levels_now_agree_on_every_builtin():
     assert c["disagree"] == [], c["disagree"]
     assert c["counts"][RL.WRITTEN_NEVER_RUN] == 0
     assert c["counts"][RL.RUN_AND_WRITTEN] == c["n_builtins"]
+
+
+# --------------------------------------------------- the ledger GATE (518) --
+#
+# Round 516 measured this verb at 2 of its ledger's 9 top-level keys and
+# named the guard that costs it a third. These pin the repair: the three
+# readable comparisons still own their keys, the residual owns everything
+# else, and neither reports the other's drift.
+
+def _pinned(tmp_path, src='let a = str(1)\n'):
+    """A census and a ledger written from it -- the state `--strict` is
+    green on, so every finding below is caused by exactly one edit."""
+    import json                                       # noqa: PLC0415
+    c = RL.census(programs=[prog("v.lang", src)])
+    path = str(tmp_path / "ledger.json")
+    RL._write(path, RL.ledger_view(c))
+    ok, lines = RL.check(c, path)
+    assert (ok, lines) == (True, ["  ledger matches"])
+    return c, path, json
+
+
+def _edit(path, json, fn):
+    doc = json.load(open(path, encoding="utf-8"))
+    fn(doc)
+    RL._write(path, doc)
+
+
+def test_a_deleted_verdict_set_is_no_longer_swallowed_by_the_none_guard(
+        tmp_path):
+    """ROUND 516's NEXT-STEP #2, as a falsification.
+
+    `if a is not None and a != b` was written to tolerate a ledger that
+    predates a verdict class. `a` is None in exactly the two cases the
+    gate exists to catch -- the key deleted, and the class dropped -- so
+    the guard made the whole key unobservable and `--strict` exited 0 on
+    a `builtin-runtime.json` with no `by_verdict` at all."""
+    c, path, json = _pinned(tmp_path)
+    _edit(path, json, lambda d: d.pop("by_verdict"))
+    ok, lines = RL.check(c, path)
+    assert not ok
+    assert [l for l in lines if "VERDICT SET MOVED" in l], lines
+    assert not [l for l in lines if "RESIDUAL" in l], (
+        "by_verdict is owned by its own readable line, not by the residual")
+
+
+def test_a_dropped_verdict_class_is_a_finding_and_not_a_tolerated_shape(
+        tmp_path):
+    c, path, json = _pinned(tmp_path)
+    _edit(path, json, lambda d: d["by_verdict"].pop(sorted(d["by_verdict"])[0]))
+    ok, lines = RL.check(c, path)
+    assert not ok and any("VERDICT SET MOVED" in l for l in lines), lines
+
+
+def test_the_residual_sees_every_key_the_three_comparisons_do_not(tmp_path):
+    """The other half of 2/9: six keys nothing compared."""
+    c, path, json = _pinned(tmp_path)
+    blind = ["_regenerate", "_what", "contract_checks", "counts",
+             "n_builtins", "n_ran"]
+    seen = []
+    for key in blind:
+        _edit(path, json, lambda d, k=key: d.pop(k))
+        ok, lines = RL.check(c, path)
+        if not ok and any(("RESIDUAL  %s:" % key) in l for l in lines):
+            seen.append(key)
+        _edit(path, json, lambda d, k=key: d.update(RL.ledger_view(c)))
+    assert seen == blind
+
+
+def test_the_three_excluded_keys_are_each_seen_by_their_own_comparison(
+        tmp_path):
+    """WHY THE EXCLUSION IS SAFE. `_OWNED_BY_A_READABLE_LINE` keeps three
+    keys out of the residual so a moved count is reported per builtin
+    rather than as an unreadable whole-key diff. That is only sound if
+    each of the three comparisons sees its key DELETED, not merely
+    changed -- the half a hand-written comparison usually forgets."""
+    for key in RL._OWNED_BY_A_READABLE_LINE:
+        c, path, json = _pinned(tmp_path)
+        _edit(path, json, lambda d, k=key: d.pop(k))
+        ok, lines = RL.check(c, path)
+        assert not ok, "deleting %s exits 0" % key
+        assert not any("RESIDUAL" in l for l in lines), (key, lines)
+
+
+def test_the_residual_does_not_repeat_a_drift_a_readable_line_reports(
+        tmp_path):
+    c, path, json = _pinned(tmp_path)
+    _edit(path, json, lambda d: d["runtime"].update({"str": 99}))
+    ok, lines = RL.check(c, path)
+    assert not ok
+    assert [l.strip().split()[0] for l in lines] == ["MOVED"], lines

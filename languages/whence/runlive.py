@@ -407,8 +407,39 @@ def ledger_view(c):
     }
 
 
+#: Keys of `ledger_view` whose drift the three READABLE comparisons above
+#: already report, per builtin / per verdict class / as a count -- so the
+#: total residual excludes them rather than reporting the same drift twice
+#: as an unreadable whole-key diff. Every one of the three sees a DELETION
+#: of its key as well as a change to it, which is what makes the exclusion
+#: safe and is pinned by `test_the_three_excluded_keys_are_each_seen_by_
+#: their_own_comparison`.
+_OWNED_BY_A_READABLE_LINE = ("runtime", "by_verdict", "n_errors")
+
+
 def check(c, ledger_path=None):
-    """Compare against the pinned ledger. Returns (ok, lines)."""
+    """Compare against the pinned ledger. Returns (ok, lines).
+
+    ROUND 518 (round 516's next-step #2), and it is two repairs, not one.
+
+    THE GUARD. `a = old.get("by_verdict", {}).get(v)` followed by `if a is
+    not None and a != b` was written to tolerate an OLD ledger that
+    predates a verdict class. What it actually does is make the whole
+    `by_verdict` key unobservable: round 516's mutation sweep deleted it
+    and corrupted it and this verb exited 0 both times, because `a` is
+    `None` in exactly the two cases the gate exists to catch. A guard
+    written for a ledger that is BEHIND cannot tell that ledger from one
+    that is WRONG. It is gone; a ledger whose shape predates a verdict
+    class is now a finding, which is the right answer -- rewrite it.
+
+    THE ENUMERATION. Three comparisons over a NINE-key document, measured
+    at 2/9 by `checkscope.py --scope`. The fix is round 516's own move,
+    the one it made for `subjprov` (S003) and `assertshadow` (`_residual`)
+    and did not reach these two files with: stop enumerating what to
+    compare. `ledger_view` is a pure function of the census, so "the
+    document I would write right now" is a predicate that is TOTAL by
+    construction and cannot fall behind the document the way a hand-typed
+    list of three keys did."""
     path = ledger_path or LEDGER
     if not os.path.exists(path):
         return False, ["no ledger at %s -- run with --write first" % path]
@@ -424,11 +455,15 @@ def check(c, ledger_path=None):
     for v in VERDICTS:
         a = old.get("by_verdict", {}).get(v)
         b = new["by_verdict"][v]
-        if a is not None and a != b:
+        if a != b:
             lines.append("  VERDICT SET MOVED  %s: %s -> %s" % (v, a, b))
     if c["n_errors"] != old.get("n_errors"):
         lines.append("  ERROR COUNT MOVED  %s -> %s"
                      % (old.get("n_errors"), c["n_errors"]))
+    import checkscope                                  # noqa: PLC0415
+    for key, why in checkscope.document_diff(
+            old, new, ignore=_OWNED_BY_A_READABLE_LINE):
+        lines.append("  RESIDUAL  %s: %s" % (key, why))
     return (not lines), (lines or ["  ledger matches"])
 
 

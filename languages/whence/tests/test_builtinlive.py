@@ -231,8 +231,13 @@ def test_the_ledger_check_reports_a_moved_verdict(tmp_path):
                   "src": "let n = len([1])"})
     c2 = BL.census(programs=progs)
     findings, _ = BL.check(c2, path)
-    assert findings == [("B001", "len",
-                         "verdict moved unused -> used_by_test_only")]
+    # ROUND 518: `counts` moves with the verdict, and until this round
+    # NOTHING compared it -- this assertion is the one that had to change
+    # when B002 landed, which is itself the finding. B001 stays first and
+    # keeps naming the builtin.
+    assert findings == [
+        ("B001", "len", "verdict moved unused -> used_by_test_only"),
+        ("B002", "counts", "2 value(s) moved (unused, used_by_test_only)")]
 
 
 def test_a_missing_ledger_is_a_finding_not_a_crash(tmp_path):
@@ -275,3 +280,48 @@ def test_every_unparseable_corpus_program_is_a_parse_error_on_purpose():
     for u in c["unparseable"]:
         assert u["origin"] == "example", u
         assert u["error"].startswith("ParseError:"), u
+
+
+# --------------------------------------------------- the ledger GATE (518) --
+
+def _b_pinned(tmp_path):
+    import json                                       # noqa: PLC0415
+    c = BL.census(programs=[{"origin": "example", "where": "a.lang",
+                             "src": "print(1)"}])
+    path = str(tmp_path / "ledger.json")
+    BL._write(path, BL.ledger_view(c))
+    assert BL.check(c, path)[0] == []
+    return c, path, json
+
+
+def test_b002_sees_the_three_keys_b001_does_not(tmp_path):
+    """ROUND 516 measured this verb at 1 of its ledger's 4 top-level keys.
+    B001 reads `by_verdict`; nothing read `counts`, `n_builtins` or the
+    `_regenerate` command the artefact declares about itself."""
+    c, path, json = _b_pinned(tmp_path)
+    for key in ("counts", "n_builtins", "_regenerate"):
+        doc = json.load(open(path, encoding="utf-8"))
+        doc.pop(key)
+        BL._write(path, doc)
+        findings, _rec = BL.check(c, path)
+        assert [(code, subj) for code, subj, _w in findings] == \
+            [("B002", key)], (key, findings)
+        BL._write(path, BL.ledger_view(c))
+
+
+def test_b001_still_owns_by_verdict_and_b002_does_not_repeat_it(tmp_path):
+    """The exclusion is safe because B001 sees the key DELETED: an empty
+    `was` map reports every builtin as `None -> <verdict>`."""
+    c, path, json = _b_pinned(tmp_path)
+    doc = json.load(open(path, encoding="utf-8"))
+    doc.pop("by_verdict")
+    BL._write(path, doc)
+    findings, _rec = BL.check(c, path)
+    codes = set(code for code, _s, _w in findings)
+    assert codes == {"B001"}, findings
+    assert len(findings) == c["n_builtins"]
+
+
+def test_a_ledger_with_no_findings_has_no_residual_either(tmp_path):
+    c, path, _json = _b_pinned(tmp_path)
+    assert BL.check(c, path)[0] == []

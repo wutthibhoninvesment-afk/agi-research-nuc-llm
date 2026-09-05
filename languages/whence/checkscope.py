@@ -380,8 +380,14 @@ def run_gate(name, gate, mutant_path, timeout=900):
         tmp = tempfile.mkdtemp(prefix="checkscope-root-")
         root = _mirror_root(os.path.join(tmp, "root"), name, mutant_path)
         env["AGI_RESEARCH_ROOT"] = root
+        # `--tb=native` -- ROUND 518. `_verdict` calls a run a CRASH by
+        # looking for the CPython traceback header, and pytest's own
+        # traceback style never prints it: a gate node that raises
+        # `KeyError` was scored SEES, indistinguishable from one that
+        # reported the drift. The native style prints the real header, so
+        # the CRASH class means the same thing for both gate kinds.
         argv = [sys.executable, "-m", "pytest", "-c", "pytest.ini", "-q",
-                gate["node"]]
+                "--tb=native", gate["node"]]
         cwd = HERE
     try:
         p = subprocess.run(argv, cwd=cwd, env=env, capture_output=True,
@@ -460,7 +466,22 @@ def scope_one(name, gate, ledger_dir=None, timeout=900, progress=None):
                 if progress:
                     progress("    %-34s %-8s %s"
                              % (key, kind, cell["verdicts"][kind]))
+            # ROUND 518. `seen` is an OR over the mutation kinds and
+            # that is what the published headline counted -- so a key the
+            # gate notices under CORRUPT and misses under DELETE was
+            # reported as covered. `assert-shadow-census.json`'s
+            # `_history` is the live instance: the residual rebuilds the
+            # census with the DECLARED document's own history shape, so
+            # deleting the shape key makes both sides agree about it.
+            # `total` is the honest predicate -- SEES under every
+            # APPLICABLE kind, where a no-op mutation is not applicable.
+            applicable = sorted(k for k, v in cell["verdicts"].items()
+                                if v != "n/a")
             cell["seen"] = SEES in cell["verdicts"].values()
+            cell["applicable"] = applicable
+            cell["total"] = bool(applicable) and all(
+                cell["verdicts"][k] == SEES for k in applicable)
+            cell["partial"] = cell["seen"] and not cell["total"]
             row["keys"].append(cell)
         return row
     finally:
@@ -468,18 +489,24 @@ def scope_one(name, gate, ledger_dir=None, timeout=900, progress=None):
 
 
 def coverage(rows):
-    """`(n_keys, n_seen, n_crash, n_blind)` over the scored rows."""
-    keys = seen = crash = 0
+    """Counts over the scored rows.
+
+    `seen` is the OR over mutation kinds that round 516 published; `total`
+    is SEES under every applicable kind. They differ by `partial`, and the
+    difference is not zero on this tree -- see the note in `scope_one`."""
+    out = {"keys": 0, "seen": 0, "total": 0, "partial": 0, "crash": 0,
+           "blind": 0}
     for r in rows:
         if r.get("status") != "ok":
             continue
         for c in r["keys"]:
-            keys += 1
-            if c["seen"]:
-                seen += 1
-            if CRASH in c["verdicts"].values():
-                crash += 1
-    return keys, seen, crash, keys - seen
+            out["keys"] += 1
+            out["seen"] += bool(c["seen"])
+            out["total"] += bool(c.get("total"))
+            out["partial"] += bool(c.get("partial"))
+            out["crash"] += CRASH in c["verdicts"].values()
+    out["blind"] = out["keys"] - out["seen"]
+    return out
 
 
 def gate_gaps(ledger_dir=None):
@@ -779,6 +806,189 @@ def render_selfref(rows):
     return "\n".join(out)
 
 
+# ------------------------------------------- who else uses this instrument
+
+#: Attributes of THIS module that a MEASURED GATE may reach for.
+#: ROUND 516's next-step #4: `checkscope` is imported by `subjprov` and
+#: `assertshadow`, two of the five gates it measures, and by round 518 also
+#: by `runlive` and `builtinlive`. That is benign for exactly one reason,
+#: and the reason is a property of the function rather than of the callers:
+#: `document_diff` is pure in its two arguments. It is NOT benign for the
+#: module's other names. `ROOT` is read from `AGI_RESEARCH_ROOT` at import
+#: and `LEDGER_DIR` is derived from it -- and `run_gate` SETS that variable
+#: to the mirror root while a pytest gate is being measured. A gate that
+#: read `checkscope.LEDGER_DIR` would therefore be reading the MUTANT
+#: directory, handed to it by the instrument that is grading it.
+SAFE_ATTRIBUTES = ("document_diff", "DECLARED", "LIVE", "JOIN", "OTHER")
+
+#: Module-level bindings whose value expression mentions one of these is
+#: STATE -- it depends on the filesystem, the environment or the cwd -- and
+#: a pure function may not read one.
+STATEFUL_CALLS = ("environ", "getenv", "dirname", "abspath", "join",
+                  "getcwd", "listdir", "open", "expanduser", "realpath",
+                  "mkdtemp", "gettempdir")
+
+
+def _module_bindings(tree):
+    """`{name: kind}` for every module-level binding: function / class /
+    module / path / constant. `path` is the one that matters -- a binding
+    whose value is computed from the environment or the filesystem."""
+    out = {}
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            out[node.name] = "function"
+        elif isinstance(node, ast.ClassDef):
+            out[node.name] = "class"
+        elif isinstance(node, (ast.Import, ast.ImportFrom)):
+            for a in node.names:
+                out[(a.asname or a.name).split(".")[0]] = "module"
+        elif isinstance(node, (ast.Assign, ast.AnnAssign)):
+            targets = (node.targets if isinstance(node, ast.Assign)
+                       else [node.target])
+            names, calls = (_names_and_calls(node.value)
+                            if node.value is not None else (set(), set()))
+            attrs = set()
+            if node.value is not None:
+                for n in ast.walk(node.value):
+                    if isinstance(n, ast.Attribute):
+                        attrs.add(n.attr)
+            kind = ("path" if (calls | attrs | names) & set(STATEFUL_CALLS)
+                    else "constant")
+            for t in targets:
+                for n in ast.walk(t):
+                    if isinstance(n, ast.Name):
+                        out[n.id] = kind
+    return out
+
+
+def _locally_bound(fn):
+    """Every name the function binds itself -- so a global READ is not
+    confused with a local write of the same name."""
+    bound = set(a.arg for a in fn.args.args + fn.args.kwonlyargs
+                + fn.args.posonlyargs)
+    if fn.args.vararg:
+        bound.add(fn.args.vararg.arg)
+    if fn.args.kwarg:
+        bound.add(fn.args.kwarg.arg)
+    for n in ast.walk(fn):
+        if isinstance(n, ast.Name) and isinstance(n.ctx, (ast.Store,
+                                                          ast.Del)):
+            bound.add(n.id)
+        elif isinstance(n, (ast.Import, ast.ImportFrom)):
+            for a in n.names:
+                bound.add((a.asname or a.name).split(".")[0])
+        elif isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            bound.add(n.name)
+        elif isinstance(n, ast.ExceptHandler) and n.name:
+            bound.add(n.name)
+    return bound
+
+
+def function_reads(name, path=None):
+    """`{module-level name: kind}` that `name`'s body READS.
+
+    The evidence for "benign", stated so it can be falsified rather than
+    asserted. A function that reads only other functions and literals
+    cannot be affected by the instrument's own root, its ledger directory
+    or its gate table -- which is the entire argument for letting a gate
+    import the module that grades it."""
+    path = path or os.path.join(HERE, "checkscope.py")
+    with open(path, encoding="utf-8") as fh:
+        tree = ast.parse(fh.read())
+    bindings = _module_bindings(tree)
+    for fn in ast.walk(tree):
+        if isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)) \
+                and fn.name == name:
+            local = _locally_bound(fn)
+            out = {}
+            for n in ast.walk(fn):
+                if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load) \
+                        and n.id not in local and n.id in bindings:
+                    out[n.id] = bindings[n.id]
+            return out
+    raise KeyError("no module-level function %r in %s" % (name, path))
+
+
+def importers(directory=None, module="checkscope"):
+    """`[{module, imports, scope, attributes, unsafe}]` -- every module in
+    `directory` that imports `module`, and what it reaches for.
+
+    ROUND 516's next-step #4 turned from a note into a runnable gate. The
+    edge is real: four of the five gates this module measures now import
+    it. What makes it benign is not the count, it is that every one of
+    them touches only `SAFE_ATTRIBUTES`. `unsafe` is the list that breaks
+    that, and `--importers --strict` exits 1 on it."""
+    directory = directory or HERE
+    out = []
+    for fname in sorted(os.listdir(directory)):
+        if not fname.endswith(".py") or fname == module + ".py":
+            continue
+        with open(os.path.join(directory, fname), encoding="utf-8") as fh:
+            src = fh.read()
+        try:
+            tree = ast.parse(src)
+        except SyntaxError:                     # pragma: no cover
+            continue
+        # Which import statements name the module, and at what scope.
+        inner = set()
+        for fn in ast.walk(tree):
+            if isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                for n in ast.walk(fn):
+                    inner.add(id(n))
+        sites, attrs, alias = [], set(), set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for a in node.names:
+                    if a.name == module:
+                        alias.add(a.asname or a.name)
+                        sites.append((node.lineno,
+                                      "function" if id(node) in inner
+                                      else "module"))
+            elif isinstance(node, ast.ImportFrom) and node.module == module:
+                for a in node.names:
+                    attrs.add(a.name)
+                sites.append((node.lineno,
+                              "function" if id(node) in inner else "module"))
+        if not sites:
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Attribute) \
+                    and isinstance(node.value, ast.Name) \
+                    and node.value.id in alias:
+                attrs.add(node.attr)
+        out.append({
+            "module": fname,
+            "lines": sorted(l for l, _s in sites),
+            "scope": ("module" if any(s == "module" for _l, s in sites)
+                      else "function"),
+            "attributes": sorted(attrs),
+            "unsafe": sorted(a for a in attrs if a not in SAFE_ATTRIBUTES),
+        })
+    return out
+
+
+def render_importers(rows, path=None):
+    reads = function_reads("document_diff", path)
+    stateful = sorted(k for k, v in reads.items() if v == "path")
+    out = ["%d module(s) here import checkscope" % len(rows)]
+    for r in rows:
+        out.append("  %-22s %-8s line(s) %s   %s%s"
+                   % (r["module"], r["scope"],
+                      ", ".join(map(str, r["lines"])),
+                      ", ".join(r["attributes"]) or "-",
+                      "   UNSAFE: " + ", ".join(r["unsafe"])
+                      if r["unsafe"] else ""))
+    out.append("  document_diff reads %d module-level name(s): %s"
+               % (len(reads), ", ".join("%s(%s)" % (k, v)
+                                        for k, v in sorted(reads.items()))
+                  or "none"))
+    out.append("  %s"
+               % ("REACHES MODULE STATE: " + ", ".join(stateful) if stateful
+                  else "no path- or environment-derived state -- the import "
+                       "edge is benign for this attribute"))
+    return "\n".join(out)
+
+
 # ------------------------------------------------------------------- rendering
 
 def render_list(ledger_dir=None):
@@ -809,28 +1019,33 @@ def render_scope(rows):
                           if r["control"]["output"].strip() else ""))
             continue
         seen = sum(1 for c in r["keys"] if c["seen"])
-        out.append("%s  -- %s  sees %d/%d key(s)"
-                   % (r["ledger"], r["verb"], seen, len(r["keys"])))
+        tot = sum(1 for c in r["keys"] if c.get("total"))
+        out.append("%s  -- %s  sees %d/%d key(s), total over %d"
+                   % (r["ledger"], r["verb"], seen, len(r["keys"]), tot))
         for c in r["keys"]:
-            out.append("    %-34s delete=%-10s corrupt=%-10s%s"
+            out.append("    %-34s delete=%-10s corrupt=%-10s%s%s"
                        % (c["key"], c["verdicts"][MUT_DELETE],
                           c["verdicts"][MUT_CORRUPT],
-                          "  (prose)" if c["prose"] else ""))
-    keys, seen, crash, blind = coverage(rows)
+                          "  (prose)" if c["prose"] else "",
+                          "  PARTIAL" if c.get("partial") else ""))
+    cov = coverage(rows)
     out.append("")
-    out.append("%d key(s) across %d scored ledger(s): %d seen, %d blind, "
-               "%d reachable only as a CRASH"
-               % (keys, sum(1 for r in rows if r.get("status") == "ok"),
-                  seen, blind, crash))
+    out.append("%d key(s) across %d scored ledger(s): %d seen under some "
+               "mutation, %d under EVERY applicable one, %d partial, "
+               "%d blind, %d reachable only as a CRASH"
+               % (cov["keys"], sum(1 for r in rows
+                                   if r.get("status") == "ok"),
+                  cov["seen"], cov["total"], cov["partial"], cov["blind"],
+                  cov["crash"]))
     total = [r["ledger"] for r in rows
              if r.get("status") == "ok"
-             and all(c["seen"] for c in r["keys"])]
+             and r["keys"] and all(c.get("total") for c in r["keys"])]
     out.append("total gates: %s" % (", ".join(total) if total else "NONE"))
     return "\n".join(out)
 
 
 def build_report(rows):
-    keys, seen, crash, blind = coverage(rows)
+    cov = coverage(rows)
     return {
         "_what": "which top-level keys of each generated ledger under "
                  "state/whence its OWN --check verb can see, measured by "
@@ -843,8 +1058,10 @@ def build_report(rows):
                    "the mutant; a non-zero exit is SEES, exit 0 is BLIND, "
                    "a traceback is CRASH. Every ledger's sweep starts from "
                    "an unmutated control that must exit 0.",
-        "totals": {"keys": keys, "seen": seen, "blind": blind,
-                   "crash_only": crash},
+        "totals": {"keys": cov["keys"], "seen": cov["seen"],
+                   "seen_under_every_applicable_mutation": cov["total"],
+                   "partial": cov["partial"], "blind": cov["blind"],
+                   "crash_only": cov["crash"]},
         "ledgers": rows,
     }
 
@@ -853,6 +1070,11 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--list", action="store_true")
     ap.add_argument("--scope", action="store_true")
+    ap.add_argument("--importers", action="store_true",
+                    help="every module that imports this one and what it "
+                         "reaches for (round 516's next-step #4)")
+    ap.add_argument("--src", default=None,
+                    help="a directory of modules for --importers")
     ap.add_argument("--selfref", action="store_true",
                     help="assertions whose two sides both come from the "
                          "declared document (round 512's next-step #8)")
@@ -866,15 +1088,20 @@ def main(argv=None):
                     help="exit 1 unless every gate is total over its own "
                          "document")
     args = ap.parse_args(argv)
-    if not (args.list or args.scope or args.selfref):
+    if not (args.list or args.scope or args.selfref or args.importers):
         args.list = True
     if args.list:
         print(render_list(args.dir))
+    imp_bad = []
+    if args.importers:
+        imps = importers(args.src)
+        print(render_importers(imps))
+        imp_bad = [r for r in imps if r["unsafe"]]
     if args.selfref:
         sref = selfref_asserts(args.tests)
         print(render_selfref(sref))
     if not args.scope:
-        return 0
+        return 1 if (imp_bad and args.strict) else 0
 
     names = sorted(GATES) if args.only is None else [args.only]
     rows = []
@@ -896,7 +1123,7 @@ def main(argv=None):
     if args.strict:
         bad = [r for r in rows
                if r.get("status") != "ok"
-               or not all(c["seen"] for c in r["keys"])]
+               or not all(c.get("total") for c in r["keys"])]
         return 1 if bad else 0
     return 0
 

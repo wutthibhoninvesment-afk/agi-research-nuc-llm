@@ -226,16 +226,20 @@ def test_every_generated_ledger_has_a_gate_and_no_gate_is_an_orphan():
 
 def test_the_report_carries_its_own_regeneration_command():
     rows = [{"ledger": "x", "status": "ok", "verb": "v",
-             "keys": [{"key": "a", "seen": True, "prose": False,
+             "keys": [{"key": "a", "seen": True, "total": True,
+                       "partial": False, "prose": False,
                        "verdicts": {C.MUT_DELETE: C.SEES,
                                     C.MUT_CORRUPT: C.SEES}},
-                      {"key": "b", "seen": False, "prose": False,
+                      {"key": "b", "seen": False, "total": False,
+                       "partial": False, "prose": False,
                        "verdicts": {C.MUT_DELETE: C.BLIND,
                                     C.MUT_CORRUPT: C.BLIND}}]}]
     rep = C.build_report(rows)
-    assert rep["totals"] == {"keys": 2, "seen": 1, "blind": 1, "crash_only": 0}
+    assert rep["totals"] == {
+        "keys": 2, "seen": 1, "seen_under_every_applicable_mutation": 1,
+        "partial": 0, "blind": 1, "crash_only": 0}
     assert rep["_regenerate"].endswith("--scope --json <this file>")
-    assert "sees 1/2 key(s)" in C.render_scope(rows)
+    assert "sees 1/2 key(s), total over 1" in C.render_scope(rows)
 
 
 # ---------------------------------------------------------------------------
@@ -453,3 +457,171 @@ def test_each_check_verb_can_be_pointed_at_a_candidate_file(verb, flag,
                        cwd=os.path.dirname(HERE), capture_output=True,
                        text=True, timeout=600)
     assert r.returncode == 0, (r.stdout + r.stderr)[-3000:]
+
+
+# ---------------------------------------------------------------------------
+# 6. round 518 -- the headline was an OR, and the module's own import edge
+# ---------------------------------------------------------------------------
+
+def test_a_key_seen_under_only_one_mutation_kind_is_partial_not_total(
+        tmp_path):
+    """`seen` is an OR over `delete` and `corrupt`, and round 516's
+    published coverage counted it. A gate that notices a key CHANGE and
+    not a key VANISH has a hole, and the OR reports it as covered."""
+    gate = _gate_script(tmp_path,
+                        "sys.exit(0 if d.get('k') in (1, None) else 1)")
+    ledgers = _ledger(tmp_path, {"k": 1})
+    row = C.scope_one("synthetic.json", gate, ledgers)
+    cell = row["keys"][0]
+    assert [cell["verdicts"][C.MUT_DELETE],
+            cell["verdicts"][C.MUT_CORRUPT]] == [C.BLIND, C.SEES]
+    assert [cell["seen"], cell["total"], cell["partial"]] == \
+        [True, False, True]
+    cov = C.coverage([row])
+    assert [cov["keys"], cov["seen"], cov["total"], cov["partial"]] == \
+        [1, 1, 0, 1]
+
+
+def test_a_no_op_mutation_is_not_an_applicable_kind(tmp_path):
+    """Totality is over the APPLICABLE kinds. An empty list cannot be
+    corrupted, so a gate that sees its deletion is total over it -- the
+    alternative punishes a gate for a mutation the apparatus declined to
+    make."""
+    gate = _gate_script(tmp_path, "sys.exit(0 if 'k' in d else 1)")
+    ledgers = _ledger(tmp_path, {"k": []})
+    row = C.scope_one("synthetic.json", gate, ledgers)
+    cell = row["keys"][0]
+    assert cell["verdicts"][C.MUT_CORRUPT] == "n/a"
+    assert [cell["applicable"], cell["total"], cell["partial"]] == \
+        [[C.MUT_DELETE], True, False]
+
+
+def test_the_report_publishes_both_numbers_and_marks_the_partial_cell(
+        tmp_path):
+    gate = _gate_script(tmp_path,
+                        "sys.exit(0 if d.get('k') in (1, None) else 1)")
+    ledgers = _ledger(tmp_path, {"k": 1})
+    row = C.scope_one("synthetic.json", gate, ledgers)
+    text = C.render_scope([row])
+    assert "sees 1/1 key(s), total over 0" in text
+    assert "PARTIAL" in text and "total gates: NONE" in text
+    rep = C.build_report([row])
+    assert rep["totals"]["seen"] == 1
+    assert rep["totals"]["seen_under_every_applicable_mutation"] == 0
+    assert rep["totals"]["partial"] == 1
+
+
+def test_the_live_partial_cell_is_the_assertshadow_history_shape_key():
+    """THE ONE ON THIS TREE, and it is the residual's own design.
+
+    `assertshadow._residual` rebuilds the census with the DECLARED
+    document's history shape (`history="_history" in declared`) so that a
+    `--check` run, which does not walk `git log -L`, does not report
+    `_history` as drift on every invocation. The cost is that DELETING
+    `_history` changes the shape of the live document to match, and the
+    two agree about a key that is gone."""
+    import assertshadow as A                          # noqa: PLC0415
+    funcs = []
+    declared = A.build_census(funcs, history=True)
+    assert "_history" in declared
+    without = dict(declared)
+    del without["_history"]
+    assert A._residual(without, funcs) == [], (
+        "deleting the shape key is invisible -- the live side loses it too")
+    corrupted, _why = C.mutate(declared, "_history", C.MUT_CORRUPT)
+    assert [k for k, _w in A._residual(corrupted, funcs)] == ["_history"]
+
+
+# --- who else imports this module (round 516's next-step #4) ----------------
+
+def test_every_module_that_imports_checkscope_touches_only_the_pure_differ():
+    """ROUND 516's NEXT-STEP #4 -- "benign, but a real edge and nothing
+    tests for it". Four of the five gates this module MEASURES now import
+    it. That is safe for exactly one attribute, and this is what says so."""
+    rows = C.importers()
+    got = dict((r["module"], r) for r in rows)
+    assert set(got) >= {"assertshadow.py", "builtinlive.py", "runlive.py",
+                        "subjprov.py"}, sorted(got)
+    for name, r in sorted(got.items()):
+        assert r["unsafe"] == [], (name, r)
+        assert r["attributes"] == ["document_diff"], (name, r)
+        assert r["scope"] == "function", (
+            "%s imports the instrument at module scope; an instrument a "
+            "gate needs at import time is a dependency, not a helper"
+            % name)
+
+
+def test_the_differ_reads_no_path_or_environment_derived_state():
+    """WHY the edge is benign, stated so it can be falsified. If
+    `document_diff` ever reads `LEDGER_DIR`, a gate importing it would
+    read whatever directory the sweep pointed the module at."""
+    reads = C.function_reads("document_diff")
+    assert sorted(reads) == ["_short", "_summarise"], reads
+    assert set(reads.values()) == {"function"}
+
+
+def test_the_module_state_a_gate_must_not_reach_for_is_named_not_assumed():
+    """AND IT IS NOT HYPOTHETICAL: `run_gate` SETS `AGI_RESEARCH_ROOT` to
+    the mirror root while a pytest gate is measured, and `ROOT` /
+    `LEDGER_DIR` are computed from it at import. A gate reading
+    `checkscope.LEDGER_DIR` would be handed the MUTANT directory by the
+    instrument grading it."""
+    import ast                                        # noqa: PLC0415
+    with open(os.path.join(os.path.dirname(HERE), "checkscope.py"),
+              encoding="utf-8") as fh:
+        bindings = C._module_bindings(ast.parse(fh.read()))
+    assert [bindings["ROOT"], bindings["LEDGER_DIR"]] == ["path", "path"]
+    assert "LEDGER_DIR" not in C.SAFE_ATTRIBUTES
+    import inspect                                    # noqa: PLC0415
+    assert "AGI_RESEARCH_ROOT" in inspect.getsource(C.run_gate)
+
+
+def test_an_importer_that_reaches_past_the_differ_is_reported_unsafe(
+        tmp_path):
+    (tmp_path / "g.py").write_text(
+        "import checkscope\n\n\ndef f():\n    return checkscope.LEDGER_DIR\n",
+        encoding="utf-8")
+    rows = C.importers(str(tmp_path))
+    assert [rows[0]["module"], rows[0]["scope"], rows[0]["unsafe"]] == \
+        ["g.py", "module", ["LEDGER_DIR"]]
+    assert C.main(["--importers", "--strict", "--src", str(tmp_path)]) == 1
+    assert C.main(["--importers", "--src", str(tmp_path)]) == 0
+
+
+def test_a_lazy_import_inside_a_function_body_is_still_an_importer(tmp_path):
+    (tmp_path / "g.py").write_text(
+        "def f(a, b):\n"
+        "    import checkscope\n"
+        "    return checkscope.document_diff(a, b)\n", encoding="utf-8")
+    rows = C.importers(str(tmp_path))
+    assert [rows[0]["scope"], rows[0]["attributes"], rows[0]["unsafe"]] == \
+        ["function", ["document_diff"], []]
+
+
+def test_a_from_import_names_the_attribute_without_an_alias(tmp_path):
+    (tmp_path / "g.py").write_text(
+        "from checkscope import document_diff, LEDGER_DIR\n", encoding="utf-8")
+    rows = C.importers(str(tmp_path))
+    assert [rows[0]["attributes"], rows[0]["unsafe"]] == \
+        [["LEDGER_DIR", "document_diff"], ["LEDGER_DIR"]]
+
+
+def test_a_pytest_gate_can_reach_the_crash_class_at_all(tmp_path):
+    """`_verdict` calls a run a CRASH by looking for the CPython traceback
+    header. pytest's own traceback styles never print it, so for the one
+    `pytest`-kind gate in the table a node that RAISED was scored SEES --
+    indistinguishable from one that reported the drift. `--tb=native`
+    prints the real header and the class means the same thing for both
+    gate kinds."""
+    t = tmp_path / "test_boom.py"
+    t.write_text("def test_boom():\n    raise KeyError('gone')\n",
+                 encoding="utf-8")
+    def run(*extra):
+        p = subprocess.run([sys.executable, "-m", "pytest", "-q",
+                            "-p", "no:cacheprovider"] + list(extra) + [str(t)],
+                           cwd=str(tmp_path), capture_output=True, text=True)
+        return C._verdict(p.returncode, (p.stdout or "") + (p.stderr or ""))
+    assert run() == C.SEES
+    assert run("--tb=native") == C.CRASH
+    import inspect                                    # noqa: PLC0415
+    assert "--tb=native" in inspect.getsource(C.run_gate)

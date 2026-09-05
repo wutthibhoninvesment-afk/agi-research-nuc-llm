@@ -569,8 +569,26 @@ def ledger_view(c):
     }
 
 
+#: The one key B001 reports per BUILTIN, in a form a reader can act on.
+#: Excluded from B002 so a moved verdict is one finding rather than two.
+#: B001 sees a DELETION of it too -- `rec.get("by_verdict", {})` empties
+#: `was`, so every builtin reports `None -> <verdict>`.
+_OWNED_BY_B001 = ("by_verdict",)
+
+
 def check(c, ledger_path=None):
-    """`(findings, recorded)` — B001 per builtin whose verdict has moved."""
+    """`(findings, recorded)` — B001 per builtin whose verdict has moved,
+    B002 for every other top-level key of the document that has drifted.
+
+    ROUND 518 (round 516's next-step #2). B001 ranged over ONE of this
+    ledger's four top-level keys; `checkscope.py --scope` measured the
+    verb at 1/4, blind to `counts`, to `n_builtins` and to its own
+    `_regenerate` command. B002 is round 516's total predicate, the one
+    `subjprov.check_ledger` calls S003 and `assertshadow._residual` calls
+    the residual: `ledger_view` is a pure function of the census, so the
+    document this run would WRITE is the only comparison that cannot fall
+    behind the document on disk. B001 survives because its message names
+    the builtin, which a whole-key diff of `by_verdict` does not."""
     path = LEDGER if ledger_path is None else ledger_path
     if not os.path.exists(path):
         return [("B000", path, "no ledger on disk; run `--write` first")], None
@@ -589,6 +607,10 @@ def check(c, ledger_path=None):
         a, b = was.get(n), now.get(n)
         if a != b:
             findings.append(("B001", n, "verdict moved %s -> %s" % (a, b)))
+    import checkscope                                  # noqa: PLC0415
+    for key, why in checkscope.document_diff(rec, ledger_view(c),
+                                             ignore=_OWNED_BY_B001):
+        findings.append(("B002", key, why))
     return findings, rec
 
 
