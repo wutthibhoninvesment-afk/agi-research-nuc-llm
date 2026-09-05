@@ -1531,6 +1531,14 @@
    "where": "knowledge/round-517-the-file-that-runs-is-not-the-file-that-is-tested.md",
    "quote": "Banked in `state/harness/round-517/PREDICTIONS.md` at `57bf4bd`.\n**10 HIT, 3 REFUTED, 2 SPLIT, 1 VOID of 16.**",
    "note": "Section 7, one table row per banked item, all sixteen scored -- no remainder. Banked at 57bf4bd after the RED DEBT was REPRODUCED (the run is in the bank's own `ALREADY OBSERVED` section, stated as fact rather than scored as a hit) and before a line of harness/hookaudit.py existed. THE THREE REFUTATIONS SHARE ONE SHAPE and it is round 516's own scored miss: P3 (no ledger quote embeds a newline -- nine do), P4 (<25 quotes exceed the wrap column -- 51 do) and P6 (normalising whitespace moves one verdict -- it moves three) were each derived by REASONING ABOUT a corpus rather than counting it, while every prediction made from something already read at HEAD landed. P6 is the expensive one: it priced a change the round was about to ship, in the direction that would have shipped a red check, and the two K006 errors it uncovered are genuine -- rounds 455 and 462, whose anchors a LATER round pasted with a different line wrap, so K006 had a wrap-shaped recall hole of 2 in 189. Both were repaired here with round 465's repair and carry quote_was/quote_fixed_by. P12 is VOID rather than scored because the DESIGN changed after banking: `stale` went into a new module and harness/escalationguard.py was not edited at all, which also cost P16 its first clause. This entry was written by hand rather than by `--enter`, whose longest surviving candidate was the P16 table row rather than the aggregate scoring line."
+  },
+  "518": {
+   "bank": "state/whence/round-518/predictions.md",
+   "status": "scored",
+   "scored_by": 518,
+   "where": "knowledge/round-518-the-totality-that-was-an-or.md",
+   "quote": "**Five misses, and four of them share the shape this program keeps scoring:** P4, P6, P11 and P12 were each derived by *reasoning about a measurement that had not been taken*, in a round whose subject is that reading a gate is not measuring it.",
+   "note": "Section 9, one table row per banked item, all eighteen carry a verdict. P6b is VOID because its premise (contributions scoring 2/2) did not happen. The four refutations and the one split are the entry: P4 (assert-shadow total under BOTH mutation kinds), P6 (the contributions row is ok and 2/2), P11 (--scope --strict exits 0 after the repair) and P12 (34 of 34 keys seen) were each reasoned from a table that had not been measured, and each was refuted by the sweep the round then ran. P13 is the one miss made WITH the evidence in hand -- the existing test_the_ledger_check_reports_a_moved_verdict assertion was quoted in this round's notes before the prediction that no existing test would need editing was written; it needed editing, and so did one more."
   }
  }
 }

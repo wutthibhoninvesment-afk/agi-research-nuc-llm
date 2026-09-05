@@ -293,7 +293,10 @@ Neither cell existed before this round, because the row had never been
 scored: round 516's five-ledger table was the confounded run (§7) and its
 corrected four-ledger table dropped the row.
 
-## 9. Predictions, scored (16 of 17 scoreable, banked at `9ebefc9`)
+## 9. Predictions, scored — 12 HIT, 4 REFUTED, 1 SPLIT, 1 VOID of 18
+
+Banked at `9ebefc9` in `state/whence/round-518/predictions.md`, before any
+`--check` verb was run.
 
 | # | claim | verdict |
 |---|---|---|

@@ -29054,7 +29054,7 @@ entry here; nothing below is inferred from intentions.*
   pitfalls, and a Verification block that was wrong in exactly the way the
   new step describes); `skill_lint --house --strict` 0/0.
 - **Predictions (`state/whence/round-518/predictions.md`, banked at
-  `9ebefc9`): 11 HIT, 4 REFUTED, 1 SPLIT, 1 VOID of 17.** Four of the five
+  `9ebefc9`): 12 HIT, 4 REFUTED, 1 SPLIT, 1 VOID of 18.** Four of the five
   misses share one shape — each was derived by reasoning about a measurement
   that had not been taken, in a round whose subject is that reading a gate
   is not measuring it.
