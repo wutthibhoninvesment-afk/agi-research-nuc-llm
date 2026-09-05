@@ -38,6 +38,7 @@ from . import coverage as CV
 from . import linkcopy as LC
 from . import mutation as MU
 from . import nodeguard as NG
+from . import scopecall as SK
 from .prioritize import MapPrioritizer
 
 LEDGER = os.path.join("state", "swe", "perturbation-mutation-ledger.jsonl")
@@ -80,6 +81,12 @@ def select_mutants(root, rel, line_ranges=None, ops=None):
     return ms, CV._file_hash(os.path.join(root, rel)) if hasattr(CV, "_file_hash") else None
 
 
+def _live_suite_hashes(root, base_cmd):
+    """The same `{path: sha256}` shape `coverage._suite_hashes` records, for
+    the suite this slice is actually about to run."""
+    return CV._suite_hashes(root, [a for a in base_cmd[2:]])
+
+
 def suite_digest(root, base_cmd):
     """Digest of the suite target `base_cmd` ends with, or None.
 
@@ -105,7 +112,8 @@ def suite_digest(root, base_cmd):
 
 def run_slice(root, rel, cov_path, base_cmd, line_ranges=None, budget_s=600.0,
               timeout_s=180.0, ledger=LEDGER, full_cmd=None, on_result=None,
-              linked=True, workdir=None):
+              linked=True, workdir=None, only_ids=None, rescore=False,
+              stale_survivors_only=False):
     """Score as many unscored mutants as `budget_s` allows.
 
     Returns a report dict. `full_cmd` (default `base_cmd`) is what a mutant
@@ -132,17 +140,62 @@ def run_slice(root, rel, cov_path, base_cmd, line_ranges=None, budget_s=600.0,
                          "(collect with by_test=True)" % cov_path)
     prio = MapPrioritizer(cov, CV.test_units(cov), subset=True, root=root,
                           require_fresh=True)
+
+    # ROUND 502 -- FAIL CLOSED ON A STALE MAP.
+    #
+    # `require_fresh` above checks the SUBJECT's digest. The map is a map of
+    # test NODEIDS, so a map collected before a test existed can never select
+    # it -- and campaigns add tests precisely to kill the survivors they just
+    # found. Round 502 re-scored 15 survivors against a 233-unit map while the
+    # suite held 245 and got 0 killed, with the six tests round 491 wrote to
+    # kill them sitting unselectable in the file.
+    #
+    # A subset the map cannot populate is not a cheaper oracle, it is a
+    # WEAKER one, and it fails toward `survived`. So when the map does not
+    # know the current suite, every mutant runs the full suite instead. That
+    # is slow and sound; the alternative was fast and wrong.
+    map_suite = dict((cov.get("_meta") or {}).get("suite_hashes") or {})
+    live_suite = _live_suite_hashes(root, base_cmd)
+    map_is_stale = (not map_suite) or map_suite != live_suite
     full_cmd = list(full_cmd or base_cmd)
     guard = NG.SubsetBaseline(root, base_cmd, timeout_s=timeout_s)
 
     mutants, digest = select_mutants(root, rel, line_ranges)
     suite = suite_digest(root, base_cmd)
     done = load_ledger(ledger)
-    todo = [m for m in mutants if (m.id, digest) not in done]
     stale = [r for r in done.values()
              if r.get("suite_digest") not in (suite, None)
              or "suite_digest" not in r]
     stale_survivors = sorted(r["id"] for r in stale if r.get("status") == "survived")
+
+    # ROUND 502 -- the three selections, and why the last two exist.
+    #
+    # Round 497 recorded `suite_digest` per row and counted the rows scored
+    # under another one, "which makes the staleness visible instead of
+    # silent". It stayed visible for five rounds. A SURVIVED verdict is
+    # exactly the one a stronger suite overturns, and round 491 added six
+    # tests immediately AFTER its own slice specifically to kill eight of its
+    # own survivors -- so the ledger has been over-reporting survivors, in
+    # the direction that looks like bad news, ever since. Nothing could
+    # re-score them, because the resume key made every scored mutant
+    # permanently skipped.
+    #
+    # `--stale` is the payment: score exactly the survivors whose grading
+    # suite no longer exists. `--only`/`--rescore` is the general form.
+    # Neither edits the ledger: `load_ledger` is LAST-WINS, so a re-score is
+    # an append and the file keeps its own history.
+    if stale_survivors_only:
+        want = set(stale_survivors)
+        todo = [m for m in mutants if m.id in want]
+        selection = "stale-survivors"
+    elif only_ids:
+        want = set(only_ids)
+        todo = [m for m in mutants
+                if m.id in want and (rescore or (m.id, digest) not in done)]
+        selection = "only%s" % ("-rescore" if rescore else "")
+    else:
+        todo = [m for m in mutants if (m.id, digest) not in done]
+        selection = "unscored"
 
     master, tmp_dir, own_wd = None, None, None
     if linked:
@@ -159,6 +212,8 @@ def run_slice(root, rel, cov_path, base_cmd, line_ranges=None, budget_s=600.0,
                 out_of_budget = len(todo) - i
                 break
             units, basis = prio.files_for(m)
+            if map_is_stale:
+                units, basis = [], "stale-map"
             if basis == "subset" and guard.is_clean(units):
                 cmd, oracle = guard.cmd_for(units), "subset"
             else:
@@ -192,6 +247,45 @@ def run_slice(root, rel, cov_path, base_cmd, line_ranges=None, budget_s=600.0,
     rep = report(ran, mutants, todo, out_of_budget, guard, prio,
                  time.time() - t0)
     rep["linked"] = bool(linked)
+    rep["selection"] = selection
+    rep["map_is_stale"] = bool(map_is_stale)
+    rep["map_suite_hashes"] = map_suite
+    rep["live_suite_hashes"] = live_suite
+    if map_is_stale:
+        rep["stale_map_note"] = (
+            "the coverage map does not know this suite, so every mutant ran "
+            "the FULL suite: a subset the map cannot populate fails toward "
+            "`survived`. Re-collect with coverage.collect(by_test=True).")
+    rep["n_selected"] = len(todo)
+    if selection != "unscored":
+        rep["verdict_changes"] = [
+            {"id": r["id"],
+             "was": done.get((r["id"], digest), {}).get("status"),
+             "now": r["status"]}
+            for r in ran
+            if done.get((r["id"], digest), {}).get("status") != r["status"]]
+    # ROUND 503 -- NO POOLED RATE WITHOUT ITS STRATA.
+    #
+    # A kill rate over a scope that mixes code the product reaches with code
+    # only the tests reach is not one measurement, it is two averaged. The
+    # `test_only` half is graded by tests written directly against it and by
+    # nothing else, which is the easiest grading problem there is: on this
+    # subject it scores 21 of 21 against 61 of 66 for the live half, and
+    # pooling it in moves the headline UP. Cheap (pure `ast`, no subprocess),
+    # so it runs unconditionally rather than behind a flag nobody sets.
+    try:
+        scope_rep = SK.audit(root, rel, line_ranges=line_ranges)
+        rep["scope_strata"] = SK.stratify(
+            scope_rep, list(load_ledger(ledger).values()),
+            subject_digest=digest)
+        rep["scope_verdicts"] = dict(
+            (r["qualname"], r["verdict"]) for r in scope_rep["defs"]
+            if r["in_scope"])
+        rep["scope_not_live"] = scope_rep["scoped_not_live"]
+    except SK.ScopeError as exc:
+        rep["scope_strata"] = None
+        rep["scope_error"] = "%s: %s" % (type(exc).__name__, exc)
+
     rep["suite_digest"] = suite
     rep["n_ledger_rows_scored_under_another_suite"] = len(stale)
     rep["survivors_scored_under_another_suite"] = stale_survivors
@@ -243,8 +337,25 @@ def _median(xs):
 # cannot re-run it with one flag changed, and cannot hand the exact command
 # to the next round. Every default here is the one round 491 ran with.
 
-#: The three regions of `nuc/perturbation.py` that carry published numbers:
-#: `classify_bucket`, the hypergeometric/power block, and `verdict_floor`.
+#: The three regions of `nuc/perturbation.py` round 491 scoped, and what they
+#: turned out to be. The sentence that stood here until round 503 --
+#: "the three regions that carry published numbers: `classify_bucket`, the
+#: hypergeometric/power block, and `verdict_floor`" -- was FALSE in its first
+#: third and stayed false for 12 rounds.
+#:
+#: Round 502 established by hand that `classify_bucket` (556-596) has never
+#: had a caller outside `nuc/tests/test_perturbation.py`; round 503 made that
+#: a runnable verdict (`swe/scopecall.py`) and found the comment above was
+#: itself the ONLY non-test mention of the function in the whole repo. The
+#: claim was vouching for itself.
+#:
+#: The range is deliberately NOT narrowed. Those mutants are real test gaps
+#: and closing them is worth doing -- 21 of 21 are killed today. What changed
+#: is that every report now carries `scope_strata`, so the kill rate says
+#: which part of it is a fact about the subject and which part is the suite
+#: agreeing with itself. Re-derive, do not copy:
+#:   python3 -m swe.scopecall audit --rel nuc/perturbation.py \
+#:       --ranges 556-634,1573-1662,2232-2301
 R491_RANGES = "556-634,1573-1662,2232-2301"
 
 
@@ -294,6 +405,17 @@ def build_parser():
     p.add_argument("--workdir", default=None,
                    help="where the master and the sandboxes live; must be on "
                         "the same filesystem or every link falls back to a copy")
+    p.add_argument("--only", default=None,
+                   help="comma-separated mutant ids to score instead of every "
+                        "unscored one")
+    p.add_argument("--rescore", action="store_true",
+                   help="with --only: score them even though the ledger "
+                        "already has a row (the ledger is last-wins, so this "
+                        "appends rather than edits)")
+    p.add_argument("--stale", action="store_true",
+                   help="score exactly the SURVIVORS whose `suite_digest` is "
+                        "not the current suite's -- the verdicts a suite that "
+                        "no longer exists produced (round 497's finding)")
     p.set_defaults(linked=True)
     return p
 
@@ -311,10 +433,13 @@ def main(argv=None):
                                           "DRIFT" if rec.get("master_drift") else ""),
               flush=True)
 
+    only = [x.strip() for x in a.only.split(",")] if a.only else None
     rep = run_slice(root, a.rel, os.path.join(root, a.cov), base_cmd,
                     line_ranges=ranges, budget_s=a.budget,
                     timeout_s=a.timeout, ledger=os.path.join(root, a.ledger),
-                    on_result=echo, linked=a.linked, workdir=a.workdir)
+                    on_result=echo, linked=a.linked, workdir=a.workdir,
+                    only_ids=only, rescore=a.rescore,
+                    stale_survivors_only=a.stale)
     rep["argv"] = list(argv if argv is not None else sys.argv[1:])
     rep["wall_seconds"] = round(time.time() - t0, 1)
     text = json.dumps(rep, indent=1, sort_keys=True)

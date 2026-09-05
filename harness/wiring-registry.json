@@ -202,6 +202,11 @@
       "via": "harness/tests/test_round101.py:-",
       "via_kind": "import"
     },
+    "harness/swe/scopecall.py": {
+      "status": "wired",
+      "via": "harness/tests/test_swe_scopecall.py:21",
+      "via_kind": "import"
+    },
     "harness/swe/scoreaudit.py": {
       "status": "wired",
       "via": "harness/tests/test_swe_scoreaudit.py:-",
@@ -524,6 +529,11 @@
       "status": "wired",
       "via": "run_driver.sh:587",
       "via_kind": "path"
+    },
+    "nuc/survivor_impact.py": {
+      "status": "wired",
+      "via": "nuc/tests/test_survivor_impact.py:16",
+      "via_kind": "import"
     },
     "nuc/swap_analysis.py": {
       "status": "wired",

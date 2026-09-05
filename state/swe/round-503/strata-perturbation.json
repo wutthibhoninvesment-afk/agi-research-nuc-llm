@@ -1,0 +1,3918 @@
+{
+ "audit": {
+  "counts": {
+   "live": 125,
+   "test_only": 15,
+   "unreferenced": 0
+  },
+  "defs": [
+   {
+    "def_line": 88,
+    "first_line": 88,
+    "in_scope": true,
+    "inert_kinds": [
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "class",
+    "last_line": 89,
+    "live_because": {
+     "kind": "call",
+     "line": 482,
+     "path": "nuc/dose_response.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 1,
+    "n_nontest_refs": 79,
+    "n_test_refs": 55,
+    "name": "PerturbationError",
+    "nontest_kinds": [
+     "call",
+     "name"
+    ],
+    "qualname": "PerturbationError",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 92,
+    "first_line": 92,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "class",
+    "last_line": 95,
+    "live_because": {
+     "kind": "call",
+     "line": 98,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 1,
+    "n_test_refs": 0,
+    "name": "_Unset",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "_Unset",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 94,
+    "first_line": 94,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 95,
+    "live_because": {
+     "kind": "string",
+     "line": 329,
+     "path": "languages/whence/reprsweep.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 41,
+    "n_nontest_refs": 67,
+    "n_test_refs": 11,
+    "name": "__repr__",
+    "nontest_kinds": [
+     "name",
+     "string"
+    ],
+    "qualname": "_Unset.__repr__",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 109,
+    "first_line": 108,
+    "in_scope": true,
+    "inert_kinds": [
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "class",
+    "last_line": 129,
+    "live_because": {
+     "kind": "name",
+     "line": 140,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 1,
+    "n_nontest_refs": 3,
+    "n_test_refs": 0,
+    "name": "SarRow",
+    "nontest_kinds": [
+     "call",
+     "name"
+    ],
+    "qualname": "SarRow",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 125,
+    "first_line": 125,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 129,
+    "live_because": {
+     "kind": "call",
+     "line": 56,
+     "path": "harness/agentloop/adapters.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 180,
+    "n_nontest_refs": 3116,
+    "n_test_refs": 876,
+    "name": "get",
+    "nontest_kinds": [
+     "call",
+     "name",
+     "string"
+    ],
+    "qualname": "SarRow.get",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 133,
+    "first_line": 132,
+    "in_scope": true,
+    "inert_kinds": [
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "class",
+    "last_line": 144,
+    "live_because": {
+     "kind": "name",
+     "line": 147,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 1,
+    "n_nontest_refs": 14,
+    "n_test_refs": 0,
+    "name": "SarTable",
+    "nontest_kinds": [
+     "call",
+     "name"
+    ],
+    "qualname": "SarTable",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 137,
+    "first_line": 137,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 138,
+    "live_because": {
+     "kind": "string",
+     "line": 829,
+     "path": "harness/swe/ledgerreplay.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 163,
+    "n_nontest_refs": 40,
+    "n_test_refs": 6,
+    "name": "column",
+    "nontest_kinds": [
+     "call",
+     "name",
+     "string"
+    ],
+    "qualname": "SarTable.column",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 140,
+    "first_line": 140,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 144,
+    "live_because": {
+     "kind": "name",
+     "line": 294,
+     "path": "harness/agentloop/context.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 2840,
+    "n_nontest_refs": 437,
+    "n_test_refs": 247,
+    "name": "at",
+    "nontest_kinds": [
+     "call",
+     "name",
+     "string"
+    ],
+    "qualname": "SarTable.at",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 147,
+    "first_line": 147,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 200,
+    "live_because": {
+     "kind": "call",
+     "line": 150,
+     "path": "nuc/sysstat_archive.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 6,
+    "n_nontest_refs": 17,
+    "n_test_refs": 71,
+    "name": "parse_sar",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "parse_sar",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 203,
+    "first_line": 203,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 209,
+    "live_because": {
+     "kind": "call",
+     "line": 182,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 1,
+    "n_test_refs": 0,
+    "name": "_looks_like_header",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "_looks_like_header",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 239,
+    "first_line": 238,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "class",
+    "last_line": 256,
+    "live_because": {
+     "kind": "call",
+     "line": 263,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 3,
+    "n_nontest_refs": 19,
+    "n_test_refs": 4,
+    "name": "Channel",
+    "nontest_kinds": [
+     "call",
+     "name"
+    ],
+    "qualname": "Channel",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 247,
+    "first_line": 247,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 256,
+    "live_because": {
+     "kind": "enclosing-class-is-live",
+     "line": 238,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 0,
+    "n_test_refs": 0,
+    "name": "__post_init__",
+    "nontest_kinds": [],
+    "qualname": "Channel.__post_init__",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 317,
+    "first_line": 316,
+    "in_scope": true,
+    "inert_kinds": [
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "class",
+    "last_line": 330,
+    "live_because": {
+     "kind": "string",
+     "line": 392,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 2,
+    "n_nontest_refs": 10,
+    "n_test_refs": 2,
+    "name": "Stitch",
+    "nontest_kinds": [
+     "call",
+     "name",
+     "string"
+    ],
+    "qualname": "Stitch",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 326,
+    "first_line": 326,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 330,
+    "live_because": {
+     "kind": "call",
+     "line": 214,
+     "path": "harness/agentloop/agent.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 5,
+    "n_nontest_refs": 87,
+    "n_test_refs": 40,
+    "name": "as_dict",
+    "nontest_kinds": [
+     "call",
+     "string"
+    ],
+    "qualname": "Stitch.as_dict",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 333,
+    "first_line": 333,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 340,
+    "live_because": {
+     "kind": "call",
+     "line": 4773,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 4,
+    "n_test_refs": 0,
+    "name": "_date_ordinal",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "_date_ordinal",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 343,
+    "first_line": 343,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 387,
+    "live_because": {
+     "kind": "call",
+     "line": 4775,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 2,
+    "n_nontest_refs": 2,
+    "n_test_refs": 7,
+    "name": "stitch_from",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "stitch_from",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 390,
+    "first_line": 390,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 440,
+    "live_because": {
+     "kind": "call",
+     "line": 1426,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 1,
+    "n_nontest_refs": 3,
+    "n_test_refs": 8,
+    "name": "bucket_costs",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "bucket_costs",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 443,
+    "first_line": 443,
+    "in_scope": true,
+    "inert_kinds": [
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 449,
+    "live_because": {
+     "kind": "call",
+     "line": 416,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 1,
+    "n_nontest_refs": 3,
+    "n_test_refs": 1,
+    "name": "stitch_applies",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "stitch_applies",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 452,
+    "first_line": 452,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 464,
+    "live_because": {
+     "kind": "call",
+     "line": 1427,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 1,
+    "n_test_refs": 0,
+    "name": "bucket_spans",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "bucket_spans",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 468,
+    "first_line": 467,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "class",
+    "last_line": 480,
+    "live_because": {
+     "kind": "call",
+     "line": 516,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 1,
+    "n_test_refs": 0,
+    "name": "CommitStep",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "CommitStep",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 477,
+    "first_line": 477,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 480,
+    "live_because": {
+     "kind": "call",
+     "line": 214,
+     "path": "harness/agentloop/agent.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 5,
+    "n_nontest_refs": 87,
+    "n_test_refs": 40,
+    "name": "as_dict",
+    "nontest_kinds": [
+     "call",
+     "string"
+    ],
+    "qualname": "CommitStep.as_dict",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 483,
+    "first_line": 483,
+    "in_scope": true,
+    "inert_kinds": [
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 520,
+    "live_because": {
+     "kind": "string",
+     "line": 82,
+     "path": "nuc/capture_manifest.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 2,
+    "n_nontest_refs": 2,
+    "n_test_refs": 8,
+    "name": "commit_steps",
+    "nontest_kinds": [
+     "call",
+     "string"
+    ],
+    "qualname": "commit_steps",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 524,
+    "first_line": 523,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "class",
+    "last_line": 531,
+    "live_because": {
+     "kind": "call",
+     "line": 551,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 1,
+    "n_test_refs": 0,
+    "name": "SwapExcursion",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "SwapExcursion",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 530,
+    "first_line": 530,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 531,
+    "live_because": {
+     "kind": "call",
+     "line": 214,
+     "path": "harness/agentloop/agent.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 5,
+    "n_nontest_refs": 87,
+    "n_test_refs": 40,
+    "name": "as_dict",
+    "nontest_kinds": [
+     "call",
+     "string"
+    ],
+    "qualname": "SwapExcursion.as_dict",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 534,
+    "first_line": 534,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 553,
+    "live_because": {
+     "kind": "string",
+     "line": 83,
+     "path": "nuc/capture_manifest.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 2,
+    "n_test_refs": 5,
+    "name": "swap_excursions",
+    "nontest_kinds": [
+     "call",
+     "string"
+    ],
+    "qualname": "swap_excursions",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 556,
+    "first_line": 556,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [
+     {
+      "kind": "comment",
+      "line": 318,
+      "path": "harness/swe/nodecampaign.py"
+     },
+     {
+      "kind": "docstring",
+      "line": 8,
+      "path": "harness/swe/scopecall.py"
+     },
+     {
+      "kind": "docstring",
+      "line": 10,
+      "path": "harness/swe/scopecall.py"
+     },
+     {
+      "kind": "docstring",
+      "line": 11,
+      "path": "harness/swe/scopecall.py"
+     },
+     {
+      "kind": "docstring",
+      "line": 12,
+      "path": "harness/swe/scopecall.py"
+     },
+     {
+      "kind": "docstring",
+      "line": 52,
+      "path": "harness/swe/scopecall.py"
+     },
+     {
+      "kind": "comment",
+      "line": 2898,
+      "path": "nuc/tests/test_perturbation.py"
+     },
+     {
+      "kind": "docstring",
+      "line": 3045,
+      "path": "nuc/tests/test_perturbation.py"
+     },
+     {
+      "kind": "comment",
+      "line": 3136,
+      "path": "nuc/tests/test_perturbation.py"
+     },
+     {
+      "kind": "comment",
+      "line": 3302,
+      "path": "nuc/tests/test_perturbation.py"
+     },
+     {
+      "kind": "comment",
+      "line": 3306,
+      "path": "nuc/tests/test_perturbation.py"
+     },
+     {
+      "kind": "docstring",
+      "line": 375,
+      "path": "nuc/tests/test_survivor_impact.py"
+     },
+     {
+      "kind": "docstring",
+      "line": 376,
+      "path": "nuc/tests/test_survivor_impact.py"
+     }
+    ],
+    "kind": "def",
+    "last_line": 596,
+    "live_because": null,
+    "live_only_via_string": false,
+    "n_inert_refs": 13,
+    "n_nontest_refs": 0,
+    "n_test_refs": 29,
+    "name": "classify_bucket",
+    "nontest_kinds": [],
+    "qualname": "classify_bucket",
+    "test_only_kind": "direct",
+    "verdict": "test_only"
+   },
+   {
+    "def_line": 634,
+    "first_line": 633,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "class",
+    "last_line": 672,
+    "live_because": {
+     "kind": "call",
+     "line": 719,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 2,
+    "n_nontest_refs": 1,
+    "n_test_refs": 2,
+    "name": "ReclaimEvent",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "ReclaimEvent",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 671,
+    "first_line": 671,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 672,
+    "live_because": {
+     "kind": "call",
+     "line": 214,
+     "path": "harness/agentloop/agent.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 5,
+    "n_nontest_refs": 87,
+    "n_test_refs": 40,
+    "name": "as_dict",
+    "nontest_kinds": [
+     "call",
+     "string"
+    ],
+    "qualname": "ReclaimEvent.as_dict",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 675,
+    "first_line": 675,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 676,
+    "live_because": {
+     "kind": "call",
+     "line": 724,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 4,
+    "n_test_refs": 0,
+    "name": "_opt",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "_opt",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 679,
+    "first_line": 679,
+    "in_scope": true,
+    "inert_kinds": [
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 739,
+    "live_because": {
+     "kind": "call",
+     "line": 1092,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 1,
+    "n_nontest_refs": 2,
+    "n_test_refs": 14,
+    "name": "reclaim_events",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "reclaim_events",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 813,
+    "first_line": 813,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment"
+    ],
+    "inert_only_mentions": [
+     {
+      "kind": "comment",
+      "line": 424,
+      "path": "harness/swe/scopecall.py"
+     }
+    ],
+    "kind": "def",
+    "last_line": 828,
+    "live_because": null,
+    "live_only_via_string": false,
+    "n_inert_refs": 1,
+    "n_nontest_refs": 2,
+    "n_test_refs": 0,
+    "name": "sadc_reclaim_literals",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "sadc_reclaim_literals",
+    "test_only_kind": "transitive",
+    "verdict": "test_only"
+   },
+   {
+    "def_line": 831,
+    "first_line": 831,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 841,
+    "live_because": null,
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 2,
+    "n_test_refs": 1,
+    "name": "parse_vmstat_fields",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "parse_vmstat_fields",
+    "test_only_kind": "direct",
+    "verdict": "test_only"
+   },
+   {
+    "def_line": 844,
+    "first_line": 844,
+    "in_scope": true,
+    "inert_kinds": [
+     "docstring"
+    ],
+    "inert_only_mentions": [
+     {
+      "kind": "docstring",
+      "line": 819,
+      "path": "nuc/perturbation.py"
+     },
+     {
+      "kind": "docstring",
+      "line": 980,
+      "path": "nuc/perturbation.py"
+     }
+    ],
+    "kind": "def",
+    "last_line": 928,
+    "live_because": null,
+    "live_only_via_string": false,
+    "n_inert_refs": 2,
+    "n_nontest_refs": 0,
+    "n_test_refs": 7,
+    "name": "steal_double_count_evidence",
+    "nontest_kinds": [],
+    "qualname": "steal_double_count_evidence",
+    "test_only_kind": "direct",
+    "verdict": "test_only"
+   },
+   {
+    "def_line": 857,
+    "first_line": 857,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 858,
+    "live_because": {
+     "kind": "call",
+     "line": 864,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 3,
+    "n_test_refs": 0,
+    "name": "_over",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "steal_double_count_evidence._over",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 863,
+    "first_line": 863,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 864,
+    "live_because": {
+     "kind": "name",
+     "line": 103,
+     "path": "harness/agentloop/delegate.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 14,
+    "n_test_refs": 10,
+    "name": "_n",
+    "nontest_kinds": [
+     "call",
+     "name",
+     "string"
+    ],
+    "qualname": "steal_double_count_evidence._n",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 977,
+    "first_line": 977,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 1022,
+    "live_because": null,
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 0,
+    "n_test_refs": 3,
+    "name": "scan_undercount_evidence",
+    "nontest_kinds": [],
+    "qualname": "scan_undercount_evidence",
+    "test_only_kind": "direct",
+    "verdict": "test_only"
+   },
+   {
+    "def_line": 1025,
+    "first_line": 1025,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 1082,
+    "live_because": {
+     "kind": "call",
+     "line": 1114,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 1,
+    "n_nontest_refs": 1,
+    "n_test_refs": 6,
+    "name": "reclaim_double_count_check",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "reclaim_double_count_check",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 1085,
+    "first_line": 1085,
+    "in_scope": true,
+    "inert_kinds": [
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 1116,
+    "live_because": {
+     "kind": "call",
+     "line": 5071,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 1,
+    "n_nontest_refs": 1,
+    "n_test_refs": 4,
+    "name": "reclaim_summary",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "reclaim_summary",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 1119,
+    "first_line": 1119,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 1155,
+    "live_because": {
+     "kind": "call",
+     "line": 5076,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 1,
+    "n_test_refs": 1,
+    "name": "eviction_gap",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "eviction_gap",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 1162,
+    "first_line": 1161,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "class",
+    "last_line": 1196,
+    "live_because": {
+     "kind": "call",
+     "line": 1203,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 12,
+    "n_test_refs": 4,
+    "name": "Timer",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "Timer",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 1169,
+    "first_line": 1169,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 1173,
+    "live_because": {
+     "kind": "enclosing-class-is-live",
+     "line": 1161,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 0,
+    "n_test_refs": 0,
+    "name": "__post_init__",
+    "nontest_kinds": [],
+    "qualname": "Timer.__post_init__",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 1176,
+    "first_line": 1175,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 1186,
+    "live_because": {
+     "kind": "name",
+     "line": 5333,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 5,
+    "n_test_refs": 3,
+    "name": "avoidable",
+    "nontest_kinds": [
+     "name",
+     "string"
+    ],
+    "qualname": "Timer.avoidable",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 1188,
+    "first_line": 1188,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 1196,
+    "live_because": {
+     "kind": "call",
+     "line": 1243,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 3,
+    "n_test_refs": 3,
+    "name": "p_fire_in_window",
+    "nontest_kinds": [
+     "call",
+     "string"
+    ],
+    "qualname": "Timer.p_fire_in_window",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 1229,
+    "first_line": 1229,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 1256,
+    "live_because": {
+     "kind": "call",
+     "line": 5058,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 1,
+    "n_test_refs": 3,
+    "name": "window_guard",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "window_guard",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 1263,
+    "first_line": 1262,
+    "in_scope": true,
+    "inert_kinds": [
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "class",
+    "last_line": 1267,
+    "live_because": {
+     "kind": "call",
+     "line": 2733,
+     "path": "nuc/fast_lane/colibri-c/openai_server.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 4,
+    "n_nontest_refs": 11,
+    "n_test_refs": 24,
+    "name": "Event",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "Event",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 1270,
+    "first_line": 1270,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 1292,
+    "live_because": {
+     "kind": "string",
+     "line": 1024,
+     "path": "harness/pristine_check.py"
+    },
+    "live_only_via_string": true,
+    "n_inert_refs": 70,
+    "n_nontest_refs": 5,
+    "n_test_refs": 10,
+    "name": "attribute",
+    "nontest_kinds": [
+     "string"
+    ],
+    "qualname": "attribute",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 1296,
+    "first_line": 1295,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "class",
+    "last_line": 1319,
+    "live_because": {
+     "kind": "call",
+     "line": 1479,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 1,
+    "n_test_refs": 0,
+    "name": "LedgerEntry",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "LedgerEntry",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 1318,
+    "first_line": 1318,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 1319,
+    "live_because": {
+     "kind": "call",
+     "line": 214,
+     "path": "harness/agentloop/agent.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 5,
+    "n_nontest_refs": 87,
+    "n_test_refs": 40,
+    "name": "as_dict",
+    "nontest_kinds": [
+     "call",
+     "string"
+    ],
+    "qualname": "LedgerEntry.as_dict",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 1375,
+    "first_line": 1375,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 1526,
+    "live_because": {
+     "kind": "string",
+     "line": 83,
+     "path": "nuc/capture_manifest.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 18,
+    "n_nontest_refs": 12,
+    "n_test_refs": 35,
+    "name": "cost_ledger",
+    "nontest_kinds": [
+     "call",
+     "string"
+    ],
+    "qualname": "cost_ledger",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 1573,
+    "first_line": 1573,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 1588,
+    "live_because": {
+     "kind": "call",
+     "line": 1738,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 2,
+    "n_test_refs": 15,
+    "name": "_hypergeom_atleast",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "_hypergeom_atleast",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 1591,
+    "first_line": 1591,
+    "in_scope": true,
+    "inert_kinds": [
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 1599,
+    "live_because": {
+     "kind": "call",
+     "line": 1638,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 5,
+    "n_nontest_refs": 3,
+    "n_test_refs": 10,
+    "name": "best_case_p",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "best_case_p",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 1602,
+    "first_line": 1602,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 1658,
+    "live_because": {
+     "kind": "call",
+     "line": 5082,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 10,
+    "n_nontest_refs": 2,
+    "n_test_refs": 9,
+    "name": "power_floor",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "power_floor",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 1662,
+    "first_line": 1661,
+    "in_scope": true,
+    "inert_kinds": [
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "class",
+    "last_line": 1685,
+    "live_because": {
+     "kind": "call",
+     "line": 1777,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 1,
+    "n_nontest_refs": 1,
+    "n_test_refs": 2,
+    "name": "AttributionEvidence",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "AttributionEvidence",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 1684,
+    "first_line": 1684,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 1685,
+    "live_because": {
+     "kind": "call",
+     "line": 214,
+     "path": "harness/agentloop/agent.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 5,
+    "n_nontest_refs": 87,
+    "n_test_refs": 40,
+    "name": "as_dict",
+    "nontest_kinds": [
+     "call",
+     "string"
+    ],
+    "qualname": "AttributionEvidence.as_dict",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 1688,
+    "first_line": 1688,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 1811,
+    "live_because": {
+     "kind": "call",
+     "line": 5101,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 12,
+    "n_nontest_refs": 6,
+    "n_test_refs": 24,
+    "name": "attribution_evidence",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "attribution_evidence",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 1814,
+    "first_line": 1814,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 1829,
+    "live_because": {
+     "kind": "call",
+     "line": 1850,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 1,
+    "n_nontest_refs": 3,
+    "n_test_refs": 1,
+    "name": "auto_stitches",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "auto_stitches",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 1832,
+    "first_line": 1832,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 1880,
+    "live_because": {
+     "kind": "string",
+     "line": 1420,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 4,
+    "n_nontest_refs": 2,
+    "n_test_refs": 5,
+    "name": "channel_sweep",
+    "nontest_kinds": [
+     "call",
+     "string"
+    ],
+    "qualname": "channel_sweep",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 1883,
+    "first_line": 1883,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 1898,
+    "live_because": {
+     "kind": "string",
+     "line": 99,
+     "path": "nuc/capture_manifest.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 14,
+    "n_nontest_refs": 15,
+    "n_test_refs": 20,
+    "name": "parse_unit_starts",
+    "nontest_kinds": [
+     "call",
+     "string"
+    ],
+    "qualname": "parse_unit_starts",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 1901,
+    "first_line": 1901,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 1903,
+    "live_because": {
+     "kind": "call",
+     "line": 1280,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 18,
+    "n_test_refs": 0,
+    "name": "_hms_to_s",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "_hms_to_s",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 1946,
+    "first_line": 1946,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 1962,
+    "live_because": {
+     "kind": "call",
+     "line": 230,
+     "path": "nuc/record_union.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 3,
+    "n_nontest_refs": 8,
+    "n_test_refs": 9,
+    "name": "sar_sections",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "sar_sections",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 1965,
+    "first_line": 1965,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 1980,
+    "live_because": {
+     "kind": "call",
+     "line": 255,
+     "path": "nuc/record_union.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 5,
+    "n_test_refs": 3,
+    "name": "sar_banner_date",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "sar_banner_date",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 1984,
+    "first_line": 1983,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "class",
+    "last_line": 1998,
+    "live_because": {
+     "kind": "call",
+     "line": 2052,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 2,
+    "n_test_refs": 0,
+    "name": "WindowDay",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "WindowDay",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 1997,
+    "first_line": 1997,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 1998,
+    "live_because": {
+     "kind": "call",
+     "line": 214,
+     "path": "harness/agentloop/agent.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 5,
+    "n_nontest_refs": 87,
+    "n_test_refs": 40,
+    "name": "as_dict",
+    "nontest_kinds": [
+     "call",
+     "string"
+    ],
+    "qualname": "WindowDay.as_dict",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 2001,
+    "first_line": 2001,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 2094,
+    "live_because": {
+     "kind": "call",
+     "line": 480,
+     "path": "nuc/record_union.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 5,
+    "n_nontest_refs": 6,
+    "n_test_refs": 5,
+    "name": "window_frame",
+    "nontest_kinds": [
+     "call",
+     "string"
+    ],
+    "qualname": "window_frame",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 2097,
+    "first_line": 2097,
+    "in_scope": true,
+    "inert_kinds": [
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 2156,
+    "live_because": {
+     "kind": "call",
+     "line": 5129,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 1,
+    "n_nontest_refs": 4,
+    "n_test_refs": 9,
+    "name": "window_attribution",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "window_attribution",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 2159,
+    "first_line": 2159,
+    "in_scope": true,
+    "inert_kinds": [
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 2198,
+    "live_because": {
+     "kind": "call",
+     "line": 5123,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 1,
+    "n_nontest_refs": 1,
+    "n_test_refs": 1,
+    "name": "unpaired_inflation",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "unpaired_inflation",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 2232,
+    "first_line": 2232,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 2298,
+    "live_because": {
+     "kind": "call",
+     "line": 2143,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 7,
+    "n_nontest_refs": 2,
+    "n_test_refs": 7,
+    "name": "verdict_floor",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "verdict_floor",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 2244,
+    "first_line": 2244,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 2252,
+    "live_because": {
+     "kind": "string",
+     "line": 1065,
+     "path": "harness/pristine_check.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 159,
+    "n_nontest_refs": 5,
+    "n_test_refs": 4,
+    "name": "passes",
+    "nontest_kinds": [
+     "call",
+     "string"
+    ],
+    "qualname": "verdict_floor.passes",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 2301,
+    "first_line": 2301,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 2306,
+    "live_because": {
+     "kind": "call",
+     "line": 394,
+     "path": "harness/swe/exemptaudit.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 7,
+    "n_test_refs": 0,
+    "name": "_hist",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "_hist",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 2309,
+    "first_line": 2309,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 2371,
+    "live_because": {
+     "kind": "call",
+     "line": 2144,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 3,
+    "n_test_refs": 3,
+    "name": "costly_bucket_cofires",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "costly_bucket_cofires",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 2399,
+    "first_line": 2399,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 2448,
+    "live_because": {
+     "kind": "call",
+     "line": 2456,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 1,
+    "n_nontest_refs": 1,
+    "n_test_refs": 2,
+    "name": "inseparable_classes",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "inseparable_classes",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 2451,
+    "first_line": 2451,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 2486,
+    "live_because": {
+     "kind": "call",
+     "line": 2145,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 2,
+    "n_nontest_refs": 1,
+    "n_test_refs": 0,
+    "name": "cluster_evidence",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "cluster_evidence",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 2535,
+    "first_line": 2535,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 2553,
+    "live_because": {
+     "kind": "call",
+     "line": 2590,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 1,
+    "n_nontest_refs": 1,
+    "n_test_refs": 2,
+    "name": "journal_sections",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "journal_sections",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 2556,
+    "first_line": 2556,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 2559,
+    "live_because": {
+     "kind": "call",
+     "line": 2593,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 4,
+    "n_test_refs": 0,
+    "name": "_record_lines",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "_record_lines",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 2562,
+    "first_line": 2562,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 2580,
+    "live_because": {
+     "kind": "call",
+     "line": 2591,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 1,
+    "n_nontest_refs": 2,
+    "n_test_refs": 5,
+    "name": "redundant_sections",
+    "nontest_kinds": [
+     "call",
+     "string"
+    ],
+    "qualname": "redundant_sections",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 2583,
+    "first_line": 2583,
+    "in_scope": true,
+    "inert_kinds": [
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 2613,
+    "live_because": {
+     "kind": "call",
+     "line": 5144,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 1,
+    "n_nontest_refs": 5,
+    "n_test_refs": 2,
+    "name": "dedupe_journal",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "dedupe_journal",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 2616,
+    "first_line": 2616,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 2617,
+    "live_because": {
+     "kind": "call",
+     "line": 2601,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 1,
+    "n_test_refs": 0,
+    "name": "names_of",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "names_of",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 2627,
+    "first_line": 2627,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 2646,
+    "live_because": {
+     "kind": "call",
+     "line": 5146,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 1,
+    "n_nontest_refs": 4,
+    "n_test_refs": 3,
+    "name": "parse_user_unit_starts",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "parse_user_unit_starts",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 2699,
+    "first_line": 2698,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "class",
+    "last_line": 2708,
+    "live_because": {
+     "kind": "call",
+     "line": 2746,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 3,
+    "n_test_refs": 0,
+    "name": "EngineEvent",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "EngineEvent",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 2707,
+    "first_line": 2707,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 2708,
+    "live_because": {
+     "kind": "call",
+     "line": 214,
+     "path": "harness/agentloop/agent.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 5,
+    "n_nontest_refs": 87,
+    "n_test_refs": 40,
+    "name": "as_dict",
+    "nontest_kinds": [
+     "call",
+     "string"
+    ],
+    "qualname": "EngineEvent.as_dict",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 2711,
+    "first_line": 2711,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 2723,
+    "live_because": {
+     "kind": "call",
+     "line": 2747,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 2,
+    "n_test_refs": 0,
+    "name": "_shift_utc",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "_shift_utc",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 2726,
+    "first_line": 2726,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 2776,
+    "live_because": {
+     "kind": "call",
+     "line": 5151,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 7,
+    "n_test_refs": 9,
+    "name": "parse_engine_events",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "parse_engine_events",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 2779,
+    "first_line": 2779,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 2795,
+    "live_because": {
+     "kind": "call",
+     "line": 5151,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 3,
+    "n_test_refs": 3,
+    "name": "engine_event_summary",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "engine_event_summary",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 2798,
+    "first_line": 2798,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 2855,
+    "live_because": {
+     "kind": "call",
+     "line": 5198,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 1,
+    "n_nontest_refs": 1,
+    "n_test_refs": 0,
+    "name": "engine_placement_sensitivity",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "engine_placement_sensitivity",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 2898,
+    "first_line": 2898,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 2902,
+    "live_because": {
+     "kind": "call",
+     "line": 2960,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 2,
+    "n_test_refs": 7,
+    "name": "parse_size",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "parse_size",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 2905,
+    "first_line": 2905,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 2912,
+    "live_because": {
+     "kind": "call",
+     "line": 2959,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 1,
+    "n_test_refs": 3,
+    "name": "_parse_cpu",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "_parse_cpu",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 2916,
+    "first_line": 2915,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "class",
+    "last_line": 2930,
+    "live_because": {
+     "kind": "call",
+     "line": 2956,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 1,
+    "n_test_refs": 0,
+    "name": "ResourceAccounting",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "ResourceAccounting",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 2926,
+    "first_line": 2925,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 2927,
+    "live_because": {
+     "kind": "name",
+     "line": 2930,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 4,
+    "n_test_refs": 0,
+    "name": "has_memory",
+    "nontest_kinds": [
+     "name",
+     "string"
+    ],
+    "qualname": "ResourceAccounting.has_memory",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 2929,
+    "first_line": 2929,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 2930,
+    "live_because": {
+     "kind": "call",
+     "line": 214,
+     "path": "harness/agentloop/agent.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 5,
+    "n_nontest_refs": 87,
+    "n_test_refs": 40,
+    "name": "as_dict",
+    "nontest_kinds": [
+     "call",
+     "string"
+    ],
+    "qualname": "ResourceAccounting.as_dict",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 2933,
+    "first_line": 2933,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 2963,
+    "live_because": {
+     "kind": "call",
+     "line": 5289,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 1,
+    "n_test_refs": 7,
+    "name": "parse_resource_accounting",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "parse_resource_accounting",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 2966,
+    "first_line": 2966,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 3004,
+    "live_because": {
+     "kind": "call",
+     "line": 5290,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 2,
+    "n_test_refs": 3,
+    "name": "direct_cost_table",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "direct_cost_table",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 3007,
+    "first_line": 3007,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 3060,
+    "live_because": {
+     "kind": "call",
+     "line": 5302,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 1,
+    "n_test_refs": 2,
+    "name": "direct_vs_inferred",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "direct_vs_inferred",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 3084,
+    "first_line": 3084,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 3107,
+    "live_because": {
+     "kind": "call",
+     "line": 5292,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 2,
+    "n_test_refs": 2,
+    "name": "unit_start_verb_audit",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "unit_start_verb_audit",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 3110,
+    "first_line": 3110,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 3127,
+    "live_because": {
+     "kind": "call",
+     "line": 5236,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 3,
+    "n_nontest_refs": 1,
+    "n_test_refs": 5,
+    "name": "parse_unit_starts_complete",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "parse_unit_starts_complete",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 3130,
+    "first_line": 3130,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 3203,
+    "live_because": {
+     "kind": "call",
+     "line": 5314,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 1,
+    "n_test_refs": 4,
+    "name": "engine_verdict_stability",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "engine_verdict_stability",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 3233,
+    "first_line": 3232,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "class",
+    "last_line": 3240,
+    "live_because": {
+     "kind": "call",
+     "line": 3259,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 1,
+    "n_test_refs": 0,
+    "name": "OomEvent",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "OomEvent",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 3239,
+    "first_line": 3239,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 3240,
+    "live_because": {
+     "kind": "call",
+     "line": 214,
+     "path": "harness/agentloop/agent.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 5,
+    "n_nontest_refs": 87,
+    "n_test_refs": 40,
+    "name": "as_dict",
+    "nontest_kinds": [
+     "call",
+     "string"
+    ],
+    "qualname": "OomEvent.as_dict",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 3243,
+    "first_line": 3243,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 3265,
+    "live_because": {
+     "kind": "call",
+     "line": 5320,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 1,
+    "n_test_refs": 6,
+    "name": "parse_oom_kills",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "parse_oom_kills",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 3271,
+    "first_line": 3271,
+    "in_scope": true,
+    "inert_kinds": [
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 3305,
+    "live_because": {
+     "kind": "call",
+     "line": 5321,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 1,
+    "n_nontest_refs": 1,
+    "n_test_refs": 6,
+    "name": "oom_episodes",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "oom_episodes",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 3308,
+    "first_line": 3308,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 3376,
+    "live_because": {
+     "kind": "call",
+     "line": 5328,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 1,
+    "n_test_refs": 4,
+    "name": "oom_cost_context",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "oom_cost_context",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 3381,
+    "first_line": 3381,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 3465,
+    "live_because": {
+     "kind": "call",
+     "line": 5218,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 1,
+    "n_test_refs": 3,
+    "name": "window_sweep",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "window_sweep",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 3544,
+    "first_line": 3544,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 3587,
+    "live_because": {
+     "kind": "call",
+     "line": 5273,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 1,
+    "n_test_refs": 2,
+    "name": "unit_kind_census",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "unit_kind_census",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 3590,
+    "first_line": 3590,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 3634,
+    "live_because": {
+     "kind": "call",
+     "line": 766,
+     "path": "nuc/dose_response.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 1,
+    "n_nontest_refs": 8,
+    "n_test_refs": 17,
+    "name": "parse_unit_starts_any_kind",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "parse_unit_starts_any_kind",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 3637,
+    "first_line": 3637,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "class",
+    "last_line": 3832,
+    "live_because": {
+     "kind": "name",
+     "line": 377,
+     "path": "nuc/dose_response.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 5,
+    "n_nontest_refs": 20,
+    "n_test_refs": 5,
+    "name": "BucketMap",
+    "nontest_kinds": [
+     "call",
+     "name",
+     "string"
+    ],
+    "qualname": "BucketMap",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 3650,
+    "first_line": 3650,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 3700,
+    "live_because": {
+     "kind": "call",
+     "line": 55,
+     "path": "harness/agentloop/llm.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 32,
+    "n_nontest_refs": 46,
+    "n_test_refs": 28,
+    "name": "__init__",
+    "nontest_kinds": [
+     "call",
+     "name",
+     "string"
+    ],
+    "qualname": "BucketMap.__init__",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 3703,
+    "first_line": 3703,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 3723,
+    "live_because": {
+     "kind": "call",
+     "line": 3700,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 1,
+    "n_test_refs": 0,
+    "name": "_build_runs",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "BucketMap._build_runs",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 3725,
+    "first_line": 3725,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 3733,
+    "live_because": {
+     "kind": "call",
+     "line": 3801,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 3,
+    "n_test_refs": 0,
+    "name": "_runs_in",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "BucketMap._runs_in",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 3735,
+    "first_line": 3735,
+    "in_scope": true,
+    "inert_kinds": [
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 3752,
+    "live_because": {
+     "kind": "enclosing-class-is-live",
+     "line": 3637,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 1,
+    "n_nontest_refs": 0,
+    "n_test_refs": 1,
+    "name": "verify_runs",
+    "nontest_kinds": [],
+    "qualname": "BucketMap.verify_runs",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 3755,
+    "first_line": 3755,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 3765,
+    "live_because": {
+     "kind": "name",
+     "line": 36,
+     "path": "harness/swe/bench_prioritize.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 135,
+    "n_nontest_refs": 291,
+    "n_test_refs": 87,
+    "name": "seconds",
+    "nontest_kinds": [
+     "call",
+     "name",
+     "string"
+    ],
+    "qualname": "BucketMap.seconds",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 3767,
+    "first_line": 3767,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 3774,
+    "live_because": {
+     "kind": "name",
+     "line": 407,
+     "path": "harness/swe/oracles.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 94,
+    "n_nontest_refs": 9,
+    "n_test_refs": 3,
+    "name": "cover",
+    "nontest_kinds": [
+     "call",
+     "name",
+     "string"
+    ],
+    "qualname": "BucketMap.cover",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 3777,
+    "first_line": 3777,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 3786,
+    "live_because": {
+     "kind": "call",
+     "line": 397,
+     "path": "nuc/dose_response.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 1,
+    "n_test_refs": 4,
+    "name": "abs_second",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "BucketMap.abs_second",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 3788,
+    "first_line": 3788,
+    "in_scope": true,
+    "inert_kinds": [
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 3804,
+    "live_because": {
+     "kind": "call",
+     "line": 412,
+     "path": "nuc/dose_response.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 1,
+    "n_nontest_refs": 5,
+    "n_test_refs": 6,
+    "name": "span_buckets",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "BucketMap.span_buckets",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 3806,
+    "first_line": 3806,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 3814,
+    "live_because": {
+     "kind": "enclosing-class-is-live",
+     "line": 3637,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 0,
+    "n_test_refs": 0,
+    "name": "span_bytes",
+    "nontest_kinds": [],
+    "qualname": "BucketMap.span_bytes",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 3816,
+    "first_line": 3816,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 3832,
+    "live_because": {
+     "kind": "string",
+     "line": 43,
+     "path": "harness/demo.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 31,
+    "n_nontest_refs": 51,
+    "n_test_refs": 33,
+    "name": "verify",
+    "nontest_kinds": [
+     "call",
+     "name",
+     "string"
+    ],
+    "qualname": "BucketMap.verify",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 3838,
+    "first_line": 3838,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 3904,
+    "live_because": {
+     "kind": "call",
+     "line": 4474,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 5,
+    "n_nontest_refs": 2,
+    "n_test_refs": 13,
+    "name": "shift_null",
+    "nontest_kinds": [
+     "call",
+     "string"
+    ],
+    "qualname": "shift_null",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 3907,
+    "first_line": 3907,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 4015,
+    "live_because": {
+     "kind": "call",
+     "line": 975,
+     "path": "nuc/dose_response.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 3,
+    "n_test_refs": 1,
+    "name": "shift_null_covered",
+    "nontest_kinds": [
+     "call",
+     "string"
+    ],
+    "qualname": "shift_null_covered",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 3945,
+    "first_line": 3945,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 3955,
+    "live_because": {
+     "kind": "string",
+     "line": 150,
+     "path": "harness/agentloop/adapters.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 186,
+    "n_nontest_refs": 83,
+    "n_test_refs": 43,
+    "name": "rate",
+    "nontest_kinds": [
+     "call",
+     "name",
+     "string"
+    ],
+    "qualname": "shift_null_covered.rate",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 4018,
+    "first_line": 4018,
+    "in_scope": true,
+    "inert_kinds": [
+     "docstring"
+    ],
+    "inert_only_mentions": [
+     {
+      "kind": "docstring",
+      "line": 4262,
+      "path": "nuc/perturbation.py"
+     },
+     {
+      "kind": "docstring",
+      "line": 4287,
+      "path": "nuc/perturbation.py"
+     },
+     {
+      "kind": "docstring",
+      "line": 4324,
+      "path": "nuc/perturbation.py"
+     },
+     {
+      "kind": "docstring",
+      "line": 170,
+      "path": "nuc/tests/test_lead_lag_blocks.py"
+     },
+     {
+      "kind": "docstring",
+      "line": 219,
+      "path": "nuc/tests/test_lead_lag_blocks.py"
+     }
+    ],
+    "kind": "def",
+    "last_line": 4082,
+    "live_because": null,
+    "live_only_via_string": false,
+    "n_inert_refs": 5,
+    "n_nontest_refs": 0,
+    "n_test_refs": 1,
+    "name": "lead_lag_profile",
+    "nontest_kinds": [],
+    "qualname": "lead_lag_profile",
+    "test_only_kind": "direct",
+    "verdict": "test_only"
+   },
+   {
+    "def_line": 4085,
+    "first_line": 4085,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 4089,
+    "live_because": null,
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 4,
+    "n_test_refs": 2,
+    "name": "_bucket_at",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "_bucket_at",
+    "test_only_kind": "direct",
+    "verdict": "test_only"
+   },
+   {
+    "def_line": 4092,
+    "first_line": 4092,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 4100,
+    "live_because": null,
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 3,
+    "n_test_refs": 0,
+    "name": "_block_seconds",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "_block_seconds",
+    "test_only_kind": "transitive",
+    "verdict": "test_only"
+   },
+   {
+    "def_line": 4103,
+    "first_line": 4103,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 4160,
+    "live_because": null,
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 3,
+    "n_test_refs": 4,
+    "name": "_profile_from_blocks",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "_profile_from_blocks",
+    "test_only_kind": "direct",
+    "verdict": "test_only"
+   },
+   {
+    "def_line": 4163,
+    "first_line": 4163,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 4180,
+    "live_because": null,
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 5,
+    "n_test_refs": 0,
+    "name": "_summarise_profile",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "_summarise_profile",
+    "test_only_kind": "transitive",
+    "verdict": "test_only"
+   },
+   {
+    "def_line": 4183,
+    "first_line": 4183,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [
+     {
+      "kind": "docstring",
+      "line": 5,
+      "path": "nuc/tests/test_lead_lag_blocks.py"
+     },
+     {
+      "kind": "comment",
+      "line": 139,
+      "path": "nuc/tests/test_lead_lag_blocks.py"
+     }
+    ],
+    "kind": "def",
+    "last_line": 4206,
+    "live_because": null,
+    "live_only_via_string": false,
+    "n_inert_refs": 2,
+    "n_nontest_refs": 0,
+    "n_test_refs": 7,
+    "name": "gap_blocks",
+    "nontest_kinds": [],
+    "qualname": "gap_blocks",
+    "test_only_kind": "direct",
+    "verdict": "test_only"
+   },
+   {
+    "def_line": 4209,
+    "first_line": 4209,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [
+     {
+      "kind": "docstring",
+      "line": 4,
+      "path": "nuc/tests/test_lead_lag_blocks.py"
+     },
+     {
+      "kind": "comment",
+      "line": 105,
+      "path": "nuc/tests/test_lead_lag_blocks.py"
+     }
+    ],
+    "kind": "def",
+    "last_line": 4257,
+    "live_because": null,
+    "live_only_via_string": false,
+    "n_inert_refs": 2,
+    "n_nontest_refs": 0,
+    "n_test_refs": 6,
+    "name": "effective_cells",
+    "nontest_kinds": [],
+    "qualname": "effective_cells",
+    "test_only_kind": "direct",
+    "verdict": "test_only"
+   },
+   {
+    "def_line": 4260,
+    "first_line": 4260,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [
+     {
+      "kind": "docstring",
+      "line": 4186,
+      "path": "nuc/perturbation.py"
+     },
+     {
+      "kind": "docstring",
+      "line": 4338,
+      "path": "nuc/perturbation.py"
+     },
+     {
+      "kind": "docstring",
+      "line": 4,
+      "path": "nuc/tests/test_lead_lag_blocks.py"
+     },
+     {
+      "kind": "comment",
+      "line": 165,
+      "path": "nuc/tests/test_lead_lag_blocks.py"
+     },
+     {
+      "kind": "docstring",
+      "line": 169,
+      "path": "nuc/tests/test_lead_lag_blocks.py"
+     }
+    ],
+    "kind": "def",
+    "last_line": 4314,
+    "live_because": null,
+    "live_only_via_string": false,
+    "n_inert_refs": 5,
+    "n_nontest_refs": 1,
+    "n_test_refs": 8,
+    "name": "block_lead_lag_profile",
+    "nontest_kinds": [
+     "string"
+    ],
+    "qualname": "block_lead_lag_profile",
+    "test_only_kind": "direct",
+    "verdict": "test_only"
+   },
+   {
+    "def_line": 4317,
+    "first_line": 4317,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [
+     {
+      "kind": "docstring",
+      "line": 4,
+      "path": "nuc/tests/test_lead_lag_blocks.py"
+     },
+     {
+      "kind": "comment",
+      "line": 235,
+      "path": "nuc/tests/test_lead_lag_blocks.py"
+     }
+    ],
+    "kind": "def",
+    "last_line": 4421,
+    "live_because": null,
+    "live_only_via_string": false,
+    "n_inert_refs": 2,
+    "n_nontest_refs": 0,
+    "n_test_refs": 12,
+    "name": "block_shift_null_lead_lag",
+    "nontest_kinds": [],
+    "qualname": "block_shift_null_lead_lag",
+    "test_only_kind": "direct",
+    "verdict": "test_only"
+   },
+   {
+    "def_line": 4424,
+    "first_line": 4424,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 4443,
+    "live_because": null,
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 2,
+    "n_test_refs": 0,
+    "name": "_profile_stats",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "_profile_stats",
+    "test_only_kind": "transitive",
+    "verdict": "test_only"
+   },
+   {
+    "def_line": 4430,
+    "first_line": 4430,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 4432,
+    "live_because": {
+     "kind": "name",
+     "line": 294,
+     "path": "harness/agentloop/context.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 2840,
+    "n_nontest_refs": 438,
+    "n_test_refs": 247,
+    "name": "at",
+    "nontest_kinds": [
+     "call",
+     "name",
+     "string"
+    ],
+    "qualname": "_profile_stats.at",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 4446,
+    "first_line": 4446,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 4491,
+    "live_because": {
+     "kind": "call",
+     "line": 5250,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 2,
+    "n_test_refs": 2,
+    "name": "population_coverage",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "population_coverage",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 4513,
+    "first_line": 4513,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 4550,
+    "live_because": {
+     "kind": "call",
+     "line": 5270,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 1,
+    "n_test_refs": 2,
+    "name": "session_scope_sessions",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "session_scope_sessions",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 4553,
+    "first_line": 4553,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 4556,
+    "live_because": {
+     "kind": "call",
+     "line": 767,
+     "path": "nuc/dose_response.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 16,
+    "n_test_refs": 2,
+    "name": "_iso_seconds",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "_iso_seconds",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 4559,
+    "first_line": 4559,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 4613,
+    "live_because": {
+     "kind": "call",
+     "line": 5271,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 2,
+    "n_nontest_refs": 1,
+    "n_test_refs": 2,
+    "name": "observer_trace",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "observer_trace",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 4616,
+    "first_line": 4616,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 4664,
+    "live_because": {
+     "kind": "call",
+     "line": 5281,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 1,
+    "n_test_refs": 3,
+    "name": "observer_confounding",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "observer_confounding",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 4641,
+    "first_line": 4641,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 4643,
+    "live_because": {
+     "kind": "call",
+     "line": 4647,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 4,
+    "n_test_refs": 0,
+    "name": "in_window",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "observer_confounding.in_window",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 4675,
+    "first_line": 4675,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 4676,
+    "live_because": {
+     "kind": "call",
+     "line": 4697,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 2,
+    "n_test_refs": 4,
+    "name": "is_session_scope",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "is_session_scope",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 4679,
+    "first_line": 4679,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 4731,
+    "live_because": {
+     "kind": "call",
+     "line": 5261,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 1,
+    "n_test_refs": 2,
+    "name": "session_exclusion_tables",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "session_exclusion_tables",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 4734,
+    "first_line": 4734,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 4749,
+    "live_because": {
+     "kind": "call",
+     "line": 4660,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 1,
+    "n_test_refs": 3,
+    "name": "_fisher_2x2",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "_fisher_2x2",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 4752,
+    "first_line": 4752,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 4756,
+    "live_because": {
+     "kind": "call",
+     "line": 1039,
+     "path": "nuc/dose_response.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 40,
+    "n_test_refs": 0,
+    "name": "_load",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "_load",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 4759,
+    "first_line": 4759,
+    "in_scope": true,
+    "inert_kinds": [],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 4775,
+    "live_because": {
+     "kind": "call",
+     "line": 5068,
+     "path": "nuc/perturbation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 0,
+    "n_nontest_refs": 2,
+    "n_test_refs": 0,
+    "name": "_stitch_arg",
+    "nontest_kinds": [
+     "call"
+    ],
+    "qualname": "_stitch_arg",
+    "test_only_kind": null,
+    "verdict": "live"
+   },
+   {
+    "def_line": 4778,
+    "first_line": 4778,
+    "in_scope": true,
+    "inert_kinds": [
+     "comment",
+     "docstring"
+    ],
+    "inert_only_mentions": [],
+    "kind": "def",
+    "last_line": 5335,
+    "live_because": {
+     "kind": "call",
+     "line": 289,
+     "path": "harness/bench_delegation.py"
+    },
+    "live_only_via_string": false,
+    "n_inert_refs": 69,
+    "n_nontest_refs": 192,
+    "n_test_refs": 185,
+    "name": "main",
+    "nontest_kinds": [
+     "call",
+     "string"
+    ],
+    "qualname": "main",
+    "test_only_kind": null,
+    "verdict": "live"
+   }
+  ],
+  "line_ranges": [],
+  "live_only_via_string": [
+   "attribute"
+  ],
+  "n_defs": 140,
+  "n_scoped_defs": 140,
+  "n_search_paths": 519,
+  "n_unparseable": 0,
+  "root": "/home/pgain/agi-research-nuc-llm",
+  "scoped_counts": {
+   "live": 125,
+   "test_only": 15,
+   "unreferenced": 0
+  },
+  "scoped_not_live": [
+   "_block_seconds",
+   "_bucket_at",
+   "_profile_from_blocks",
+   "_profile_stats",
+   "_summarise_profile",
+   "block_lead_lag_profile",
+   "block_shift_null_lead_lag",
+   "classify_bucket",
+   "effective_cells",
+   "gap_blocks",
+   "lead_lag_profile",
+   "parse_vmstat_fields",
+   "sadc_reclaim_literals",
+   "scan_undercount_evidence",
+   "steal_double_count_evidence"
+  ],
+  "subject": "nuc/perturbation.py",
+  "unparseable": [],
+  "wall_seconds": 11.05
+ },
+ "live_only": {
+  "graded": 66,
+  "kill_rate": 0.9242,
+  "killed": 61
+ },
+ "mutants_not_inside_any_def": [],
+ "pooled": {
+  "graded": 87,
+  "kill_rate": 0.9425,
+  "killed": 82
+ },
+ "pooled_minus_live_pp": 1.83,
+ "strata": {
+  "live": {
+   "graded": 66,
+   "kill_rate": 0.9242,
+   "killed": 61,
+   "n": 66,
+   "other": 0,
+   "owners": {
+    "AttributionEvidence": 1,
+    "ReclaimEvent": 1,
+    "_hypergeom_atleast": 21,
+    "power_floor": 29,
+    "verdict_floor": 7,
+    "verdict_floor.passes": 7
+   },
+   "survived": 5
+  },
+  "test_only": {
+   "graded": 21,
+   "kill_rate": 1.0,
+   "killed": 21,
+   "n": 21,
+   "other": 0,
+   "owners": {
+    "classify_bucket": 21
+   },
+   "survived": 0
+  }
+ },
+ "wall_seconds": 11.05
+}

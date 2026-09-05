@@ -1,0 +1,1865 @@
+{
+ "declared_wired_by_their_own_tests": [
+  "harness/swe/copyparity.py",
+  "harness/swe/equivalence.py",
+  "harness/swe/guardpin.py",
+  "harness/swe/ledgerreplay.py",
+  "harness/swe/nodecampaign.py",
+  "harness/swe/toolliveness.py",
+  "harness/viapin.py",
+  "languages/whence/assertshadow.py",
+  "languages/whence/bench/sanitisers.py",
+  "languages/whence/checkpin.py",
+  "languages/whence/orderhint.py",
+  "languages/whence/reprsweep.py",
+  "languages/whence/specreg.py",
+  "languages/whence/subjprov.py",
+  "nuc/capture_manifest.py",
+  "nuc/dose_response.py",
+  "nuc/fossil_ledger.py",
+  "nuc/kv_reuse_model.py",
+  "nuc/lane_bench.py",
+  "nuc/nuc-adapter-copy.py",
+  "nuc/reachability_backfill.py",
+  "nuc/reachability_recover.py",
+  "nuc/record_union.py",
+  "nuc/summary_fossil.py",
+  "nuc/survivor_impact.py",
+  "nuc/swap_analysis.py",
+  "nuc/swap_watch_launch.py",
+  "nuc/sysstat_archive.py",
+  "skills/derived-subject-set/scripts/pattern_vs_enum.py"
+ ],
+ "entries_not_an_existing_py_file": [
+  "claude-wrapper.sh",
+  "harness/run_slowtier_slice.sh",
+  "harness/run_tests_fast.sh",
+  "harness/run_whenceslow_slice.sh",
+  "languages/whence/run_tests_fast.sh",
+  "nuc/run_checks_fast.sh",
+  "redeploy_driver.sh",
+  "run_driver.sh",
+  "skills/run_checks_fast.sh",
+  "swap_driver.sh"
+ ],
+ "n_checked": 133,
+ "n_entries": 143,
+ "n_entries_not_an_existing_py_file": 10,
+ "n_no_committed_caller": 69,
+ "n_unparseable": 0,
+ "n_wired": 112,
+ "n_wired_via_a_test_file": 65,
+ "registry": "harness/wiring-registry.json",
+ "root": "/home/pgain/agi-research-nuc-llm",
+ "rows": [
+  {
+   "nonpy_callers": [],
+   "path": "harness/bench_delegation.py",
+   "py_callers": [],
+   "registry_status": "manual",
+   "registry_via": null,
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/bench_elision.py",
+   "py_callers": [],
+   "registry_status": "manual",
+   "registry_via": null,
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/demo.py",
+   "py_callers": [
+    "harness/wiring_audit.py",
+    "nuc/fast_lane/colibri-c/tools/residency_sim.py"
+   ],
+   "registry_status": "manual",
+   "registry_via": null,
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [
+    "harness/run_tests_fast.sh",
+    "nuc/run_checks_fast.sh",
+    "redeploy_driver.sh",
+    "run_driver.sh"
+   ],
+   "path": "harness/driver_health.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "run_driver.sh:192",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [
+    "run_driver.sh"
+   ],
+   "path": "harness/escalationguard.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "run_driver.sh:305",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/live_smoke.py",
+   "py_callers": [],
+   "registry_status": "manual",
+   "registry_via": null,
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [
+    "harness/run_tests_fast.sh",
+    "harness/run_whenceslow_slice.sh",
+    "run_driver.sh"
+   ],
+   "path": "harness/pristine_check.py",
+   "py_callers": [
+    "skills/skill-authoring/scripts/claim_check.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "harness/run_tests_fast.sh:105",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [
+    "harness/run_tests_fast.sh"
+   ],
+   "path": "harness/procreap.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "harness/run_tests_fast.sh:124",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [
+    "state/swe/round-473/run_campaigns.sh"
+   ],
+   "path": "harness/redattrib.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "harness/tests/test_redattrib.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [
+    "run_driver.sh"
+   ],
+   "path": "harness/reddebt.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "run_driver.sh:359",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/roundheadings.py",
+   "py_callers": [
+    "skills/session-inheritance-audit/scripts/check_round_recorded.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "skills/session-inheritance-audit/scripts/check_round_recorded.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/swe/bench_prioritize.py",
+   "py_callers": [],
+   "registry_status": "manual",
+   "registry_via": null,
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/swe/campaign.py",
+   "py_callers": [
+    "harness/swe/mutation.py",
+    "harness/swe/nodecampaign.py",
+    "harness/swe/scopecall.py",
+    "harness/swe/tools.py",
+    "skills/skill-authoring/scripts/claim_check.py",
+    "state/swe/round-248/run_guess_targeted_campaign.py",
+    "state/swe/round-401/apply_patches.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "harness/tests/test_swe_prioritize.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/swe/copyparity.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "harness/tests/test_swe_copyparity.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [
+    "skills/run_checks_fast.sh"
+   ],
+   "path": "harness/swe/coverage.py",
+   "py_callers": [
+    "harness/escalationguard.py",
+    "harness/pristine_check.py",
+    "harness/swe/campaign.py",
+    "harness/swe/equivalence.py",
+    "harness/swe/falsifiers.py",
+    "harness/swe/nodecampaign.py",
+    "harness/swe/prioritize.py",
+    "harness/swe/slowtier.py",
+    "harness/verb_audit.py",
+    "harness/whenceslow.py",
+    "languages/whence/orderhint.py",
+    "languages/whence/polarity.py",
+    "nuc/fast_lane/colibri-c/tools/quant_ablation.py",
+    "nuc/perturbation.py",
+    "nuc/reachability_check.py",
+    "nuc/sysstat_archive.py",
+    "skills/session-inheritance-audit/scripts/check_round_recorded.py",
+    "skills/skill-authoring/scripts/case_coverage.py",
+    "skills/skill-authoring/scripts/claim_check.py",
+    "skills/skill-authoring/scripts/corpus_check.py",
+    "skills/skill-authoring/scripts/selfdesc_check.py",
+    "skills/skill-authoring/scripts/state_claim_check.py",
+    "skills/skill-authoring/scripts/trigger_eval.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "harness/tests/test_swe_coverage.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/swe/equivalence.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "harness/tests/test_swe_equivalence.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/swe/exemptaudit.py",
+   "py_callers": [
+    "harness/swe/instrument.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "harness/tests/test_swe_exemptaudit.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/swe/exemptmap.py",
+   "py_callers": [
+    "harness/swe/instrument.py",
+    "state/swe/round-401/apply_patches.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "harness/tests/test_swe_spacewitness.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [
+    "state/swe/round-473/run_campaigns.sh"
+   ],
+   "path": "harness/swe/falsifiers.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "harness/tests/test_swe_falsifiers.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/swe/fuzz.py",
+   "py_callers": [
+    "harness/swe/exemptmap.py",
+    "harness/swe/instrument.py",
+    "harness/swe/loop.py",
+    "harness/swe/oracles.py",
+    "harness/swe/policy.py",
+    "harness/swe/tools.py",
+    "languages/whence/bench/ref_diff.py",
+    "languages/whence/bench/reserve_probe.py",
+    "skills/skill-authoring/scripts/claim_check.py",
+    "skills/skill-authoring/scripts/xref_check.py",
+    "state/skills/round-399/analyse_resurrection.py",
+    "state/swe/round-137/orig-proj/bench/ref_diff.py",
+    "state/swe/round-137/orig-proj/bench/reserve_probe.py",
+    "state/swe/round-401/apply_patches.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "harness/tests/test_swe_regiontools.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/swe/guardpin.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "harness/tests/guardpin_fixture.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/swe/guest.py",
+   "py_callers": [
+    "harness/swe/exemptaudit.py",
+    "harness/swe/instrument.py",
+    "harness/swe/oraclekill.py",
+    "harness/swe/oracles.py",
+    "harness/swe/review.py",
+    "languages/whence/bench/bindline.py",
+    "languages/whence/bench/showtok.py",
+    "languages/whence/checkpin.py",
+    "languages/whence/polarity.py",
+    "state/swe/round-371/corpus_tail.py",
+    "state/swe/round-371/tail_parity.py",
+    "state/whence/round-380/budget_sizing.py",
+    "state/whence/round-380/guest_walk_probe.py",
+    "state/whence/round-380/ins_arity_sweep.py",
+    "state/whence/round-380/steps_differential.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "harness/tests/test_swe_oracles.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/swe/instrument.py",
+   "py_callers": [
+    "harness/swe/campaign.py",
+    "harness/swe/fuzz.py",
+    "harness/swe/oraclekill.py",
+    "harness/swe/oracles.py",
+    "nuc/perturbation.py",
+    "nuc/summary_fossil.py",
+    "skills/skill-authoring/scripts/trigger_eval.py",
+    "state/skills/round-483/mutate.py",
+    "state/swe/round-401/apply_patches.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "harness/tests/test_swe_spacewitness.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/swe/killerrepin.py",
+   "py_callers": [
+    "harness/swe/killers.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "harness/tests/test_swe_killerrepin.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/swe/killers.py",
+   "py_callers": [
+    "harness/swe/campaign.py",
+    "harness/swe/killerrepin.py",
+    "harness/swe/oraclekill.py",
+    "harness/swe/policy.py",
+    "harness/swe/review.py",
+    "harness/swe/scoreaudit.py",
+    "harness/swe/tools.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "harness/tests/test_swe_killers.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/swe/ledgerreplay.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "harness/tests/test_ledgerreplay.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/swe/loop.py",
+   "py_callers": [
+    "harness/driver_health.py",
+    "harness/swe/exemptmap.py",
+    "harness/swe/policy.py",
+    "harness/swe/review.py",
+    "harness/swe/spacewitness.py",
+    "languages/whence/bench/retention.py",
+    "languages/whence/reprsweep.py",
+    "languages/whence/whence/interp.py",
+    "nuc/fast_lane/colibri-c/tools/diag_harness.py",
+    "skills/skill-authoring/scripts/claim_check.py",
+    "state/skills/round-399/analyse_resurrection.py",
+    "state/swe/round-137/orig-proj/bench/retention.py",
+    "state/swe/round-137/orig-proj/whence/interp.py",
+    "state/swe/round-137/snapshot/whence/interp.py",
+    "state/swe/round-371/corpus_tail.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "harness/tests/test_swe_loop_cli.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/swe/mutation.py",
+   "py_callers": [
+    "harness/swe/bench_prioritize.py",
+    "harness/swe/campaign.py",
+    "harness/swe/coverage.py",
+    "harness/swe/falsifiers.py",
+    "harness/swe/killerrepin.py",
+    "harness/swe/loop.py",
+    "harness/swe/nodecampaign.py",
+    "harness/swe/policy.py",
+    "harness/swe/repair.py",
+    "harness/swe/review.py",
+    "harness/swe/tools.py",
+    "nuc/survivor_impact.py",
+    "skills/skill-authoring/scripts/claim_check.py",
+    "skills/skill-authoring/scripts/xref_check.py",
+    "state/swe/round-245/run_lexer_mutation.py",
+    "state/swe/round-263/rerun_lexer_mutation.py",
+    "state/swe/round-353/rerun_r137_no_evidence.py",
+    "state/swe/round-497/replay_linked.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "harness/tests/test_swe_triage.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/swe/nodecampaign.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "harness/tests/test_swe_nodeid_selection.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/swe/oraclekill.py",
+   "py_callers": [
+    "skills/skill-authoring/scripts/claim_check.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "harness/tests/test_swe_oraclekill.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/swe/oracles.py",
+   "py_callers": [
+    "harness/swe/exemptmap.py",
+    "harness/swe/instrument.py",
+    "harness/swe/oraclekill.py",
+    "harness/swe/review.py",
+    "harness/swe/tools.py",
+    "skills/skill-authoring/scripts/claim_check.py",
+    "state/swe/round-401/apply_patches.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "harness/tests/test_swe_spacewitness.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/swe/repair.py",
+   "py_callers": [
+    "harness/escalationguard.py",
+    "harness/swe/campaign.py",
+    "harness/swe/review.py",
+    "harness/viapin.py",
+    "nuc/fast_lane/colibri-c/tools/repair_mtp_int8.py",
+    "skills/skill-authoring/scripts/corpus_history.py",
+    "skills/skill-authoring/scripts/xref_check.py",
+    "state/swe/round-161/replay_repair.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "harness/tests/test_swe_repair.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/swe/review.py",
+   "py_callers": [
+    "harness/swe/campaign.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "harness/tests/test_round101.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [
+    "state/swe/round-473/run_campaigns.sh"
+   ],
+   "path": "harness/swe/scoreaudit.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "harness/tests/test_swe_scoreaudit.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [
+    "harness/run_slowtier_slice.sh",
+    "harness/run_tests_fast.sh",
+    "harness/run_whenceslow_slice.sh"
+   ],
+   "path": "harness/swe/slowtier.py",
+   "py_callers": [
+    "harness/swe/ledgerreplay.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "harness/run_tests_fast.sh:91",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/swe/spacewitness.py",
+   "py_callers": [
+    "harness/swe/instrument.py",
+    "state/swe/round-401/apply_patches.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "harness/tests/test_swe_spacewitness.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/swe/toolliveness.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "harness/tests/test_swe_toolliveness.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/swe/triage.py",
+   "py_callers": [
+    "harness/swe/campaign.py",
+    "harness/swe/coverage.py",
+    "harness/swe/equivalence.py",
+    "skills/skill-authoring/scripts/claim_check.py",
+    "state/swe/round-263/hand_triage.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "harness/tests/test_swe_triage.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/tests/test_agent.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "harness/run_tests_fast.sh:51",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/tests/test_corpus_evidence.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "harness/run_tests_fast.sh:51",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/tests/test_evals.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "harness/run_tests_fast.sh:51",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/tests/test_memory_trace_llm.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "harness/run_tests_fast.sh:51",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [
+    "state/swe/round-473/run_campaigns.sh"
+   ],
+   "path": "harness/tests/test_redattrib.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "harness/run_tests_fast.sh:51",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/tests/test_retry.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "harness/run_tests_fast.sh:51",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/tests/test_tools.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "harness/run_tests_fast.sh:51",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/tests/test_truncate.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "harness/run_tests_fast.sh:51",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [
+    "harness/run_tests_fast.sh",
+    "state/swe/round-473/run_campaigns.sh"
+   ],
+   "path": "harness/tierbudget.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "harness/tests/test_tiering.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/verb_audit.py",
+   "py_callers": [
+    "nuc/perturbation.py",
+    "skills/skill-authoring/scripts/corpus_check.py",
+    "skills/skill-authoring/scripts/corpus_history.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "harness/tests/test_verb_audit.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "harness/viapin.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "harness/tests/test_viapin.py:34",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [
+    "harness/run_tests_fast.sh",
+    "harness/run_whenceslow_slice.sh",
+    "state/swe/round-473/run_campaigns.sh"
+   ],
+   "path": "harness/whenceslow.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "harness/run_tests_fast.sh:143",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [
+    "run_driver.sh"
+   ],
+   "path": "harness/wiring_audit.py",
+   "py_callers": [
+    "harness/escalationguard.py",
+    "skills/derived-subject-set/scripts/pattern_vs_enum.py",
+    "skills/skill-authoring/scripts/corpus_check.py",
+    "skills/skill-authoring/scripts/state_claim_check.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "harness/tests/test_wiring_audit.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "languages/whence/assertshadow.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "languages/whence/tests/test_assertshadow.py:34",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "languages/whence/bench/bindline.py",
+   "py_callers": [],
+   "registry_status": "manual",
+   "registry_via": null,
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "languages/whence/bench/expectsites.py",
+   "py_callers": [],
+   "registry_status": "manual",
+   "registry_via": null,
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "languages/whence/bench/minof.py",
+   "py_callers": [],
+   "registry_status": "manual",
+   "registry_via": null,
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "languages/whence/bench/pmap_scaling.py",
+   "py_callers": [],
+   "registry_status": "manual",
+   "registry_via": null,
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [
+    "state/whence/round-110/campaigns.sh",
+    "state/whence/round-110/campaigns2.sh"
+   ],
+   "path": "languages/whence/bench/ref_diff.py",
+   "py_callers": [
+    "harness/swe/oraclekill.py",
+    "harness/swe/toolliveness.py"
+   ],
+   "registry_status": "manual",
+   "registry_via": null,
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [
+    "state/whence/round-110/campaigns.sh",
+    "state/whence/round-110/campaigns2.sh"
+   ],
+   "path": "languages/whence/bench/reserve_probe.py",
+   "py_callers": [],
+   "registry_status": "manual",
+   "registry_via": null,
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "languages/whence/bench/runaway_cost.py",
+   "py_callers": [],
+   "registry_status": "manual",
+   "registry_via": null,
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "languages/whence/bench/sanitisers.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "languages/whence/tests/test_v38.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "languages/whence/bench/self_host_memscale.py",
+   "py_callers": [],
+   "registry_status": "manual",
+   "registry_via": null,
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "languages/whence/bench/showtok.py",
+   "py_callers": [],
+   "registry_status": "manual",
+   "registry_via": null,
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "languages/whence/bench/value_size.py",
+   "py_callers": [],
+   "registry_status": "manual",
+   "registry_via": null,
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "languages/whence/checkpin.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "languages/whence/tests/test_checkpin.py:57",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "languages/whence/curecheck.py",
+   "py_callers": [
+    "languages/whence/assertshadow.py",
+    "languages/whence/depthcensus.py",
+    "languages/whence/subjprov.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "languages/whence/tests/test_checkpin.py:58",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "languages/whence/depthcensus.py",
+   "py_callers": [
+    "languages/whence/reprsweep.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "languages/whence/tests/test_depthcensus.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "languages/whence/orderhint.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "languages/whence/tests/test_v46.py:43",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "languages/whence/polarity.py",
+   "py_callers": [
+    "harness/swe/exemptmap.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "languages/whence/tests/test_polarity.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "languages/whence/reprsweep.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "languages/whence/tests/test_v47.py:46",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [
+    "harness/run_whenceslow_slice.sh"
+   ],
+   "path": "languages/whence/run.py",
+   "py_callers": [
+    "harness/agentloop/adapters.py",
+    "harness/agentloop/agent.py",
+    "harness/agentloop/delegate.py",
+    "harness/agentloop/evals.py",
+    "harness/agentloop/guards.py",
+    "harness/agentloop/tools.py",
+    "harness/bench_delegation.py",
+    "harness/bench_elision.py",
+    "harness/demo.py",
+    "harness/driver_health.py",
+    "harness/escalationguard.py",
+    "harness/live_smoke.py",
+    "harness/pristine_check.py",
+    "harness/redattrib.py",
+    "harness/reddebt.py",
+    "harness/swe/campaign.py",
+    "harness/swe/copyparity.py",
+    "harness/swe/coverage.py",
+    "harness/swe/exemptmap.py",
+    "harness/swe/falsifiers.py",
+    "harness/swe/fuzz.py",
+    "harness/swe/guardpin.py",
+    "harness/swe/killerrepin.py",
+    "harness/swe/killers.py",
+    "harness/swe/loop.py",
+    "harness/swe/mutation.py",
+    "harness/swe/nodeguard.py",
+    "harness/swe/oraclekill.py",
+    "harness/swe/oracles.py",
+    "harness/swe/readscope.py",
+    "harness/swe/regiontools.py",
+    "harness/swe/repair.py",
+    "harness/swe/review.py",
+    "harness/swe/sandboxevidence.py",
+    "harness/swe/scoreaudit.py",
+    "harness/swe/slowtier.py",
+    "harness/swe/spacewitness.py",
+    "harness/swe/toolliveness.py",
+    "harness/swe/tools.py",
+    "harness/tierbudget.py",
+    "harness/verb_audit.py",
+    "harness/viapin.py",
+    "harness/whenceslow.py",
+    "harness/wiring_audit.py",
+    "languages/whence/assertshadow.py",
+    "languages/whence/bench/minof.py",
+    "languages/whence/bench/ref_diff.py",
+    "languages/whence/bench/reserve_probe.py",
+    "languages/whence/bench/retention.py",
+    "languages/whence/bench/runaway_cost.py",
+    "languages/whence/bench/self_host_memscale.py",
+    "languages/whence/bench/showtok.py",
+    "languages/whence/bench/v06_bench.py",
+    "languages/whence/bench/v09_bench.py",
+    "languages/whence/bench/value_size.py",
+    "languages/whence/checkpin.py",
+    "languages/whence/curecheck.py",
+    "languages/whence/depthcensus.py",
+    "languages/whence/orderhint.py",
+    "languages/whence/polarity.py",
+    "languages/whence/reprsweep.py",
+    "languages/whence/subjprov.py",
+    "languages/whence/whence/interp.py",
+    "nuc/bench.py",
+    "nuc/capture_manifest.py",
+    "nuc/dose_response.py",
+    "nuc/fast_lane.py",
+    "nuc/fast_lane/colibri-c/autotune.py",
+    "nuc/fast_lane/colibri-c/doctor.py",
+    "nuc/fast_lane/colibri-c/download_fp8.py",
+    "nuc/fast_lane/colibri-c/resource_plan.py",
+    "nuc/fast_lane/colibri-c/tools/bench_dsv4_deepgemm_real.py",
+    "nuc/fast_lane/colibri-c/tools/benchmark_cuda_fixture.py",
+    "nuc/fast_lane/colibri-c/tools/convert_fmt4_to_fmt2.py",
+    "nuc/fast_lane/colibri-c/tools/convert_fp8_to_int4.py",
+    "nuc/fast_lane/colibri-c/tools/convert_qwen36.py",
+    "nuc/fast_lane/colibri-c/tools/datapoint.py",
+    "nuc/fast_lane/colibri-c/tools/diag_harness.py",
+    "nuc/fast_lane/colibri-c/tools/efficiency.py",
+    "nuc/fast_lane/colibri-c/tools/eval_glm.py",
+    "nuc/fast_lane/colibri-c/tools/k3_ref.py",
+    "nuc/fast_lane/colibri-c/tools/k3_repack.py",
+    "nuc/fast_lane/colibri-c/tools/k3_tokenizer.py",
+    "nuc/fast_lane/colibri-c/tools/make_deepseek_v4_oracle.py",
+    "nuc/fast_lane/colibri-c/tools/placement_balance.py",
+    "nuc/fast_lane/colibri-c/tools/placement_crossval.py",
+    "nuc/fast_lane/colibri-c/tools/quant_ablation.py",
+    "nuc/fast_lane/colibri-c/tools/rans_verify.py",
+    "nuc/fast_lane/colibri-c/tools/repack_fp8_passthrough.py",
+    "nuc/fast_lane/colibri-c/tools/repack_rans.py",
+    "nuc/fast_lane/colibri-c/tools/repair_mtp_int8.py",
+    "nuc/fast_lane/colibri-c/tools/residency_sim.py",
+    "nuc/kv_reuse/make_patch.py",
+    "nuc/kv_reuse/make_server_patch.py",
+    "nuc/lane_bench.py",
+    "nuc/perturbation.py",
+    "nuc/reachability_backfill.py",
+    "nuc/reachability_check.py",
+    "nuc/summary_fossil.py",
+    "nuc/survivor_impact.py",
+    "nuc/swap_analysis.py",
+    "nuc/swap_watch_launch.py",
+    "nuc/sysstat_archive.py",
+    "nuc/taskscript/transport.py",
+    "skills/prediction-banking/scripts/bank_audit.py",
+    "skills/seed-sweep-needs-a-same-seed-control/scripts/seedsweep.py",
+    "skills/session-inheritance-audit/scripts/check_round_recorded.py",
+    "skills/skill-authoring/scripts/carryforward_check.py",
+    "skills/skill-authoring/scripts/case_coverage.py",
+    "skills/skill-authoring/scripts/claim_check.py",
+    "skills/skill-authoring/scripts/corpus_check.py",
+    "skills/skill-authoring/scripts/corpus_history.py",
+    "skills/skill-authoring/scripts/placeholder_check.py",
+    "skills/skill-authoring/scripts/state_claim_check.py",
+    "skills/skill-authoring/scripts/trigger_eval.py",
+    "skills/skill-authoring/scripts/xref_check.py",
+    "state/round-405/analyse.py",
+    "state/skills/round-483/mutate.py",
+    "state/swe/round-137/orig-proj/bench/minof.py",
+    "state/swe/round-137/orig-proj/bench/ref_diff.py",
+    "state/swe/round-137/orig-proj/bench/reserve_probe.py",
+    "state/swe/round-137/orig-proj/bench/retention.py",
+    "state/swe/round-137/orig-proj/bench/v06_bench.py",
+    "state/swe/round-137/orig-proj/bench/v09_bench.py",
+    "state/swe/round-137/orig-proj/nuc_scripting/ncs_engine.py",
+    "state/swe/round-137/orig-proj/run.py",
+    "state/swe/round-137/orig-proj/whence/interp.py",
+    "state/swe/round-137/snapshot/whence/interp.py",
+    "state/swe/round-263/hand_triage.py",
+    "state/swe/round-353/rerun_r137_no_evidence.py",
+    "state/swe/round-401/apply_patches.py",
+    "state/whence/round-380/budget_sizing.py",
+    "state/whence/round-380/guest_walk_probe.py",
+    "state/whence/round-380/ins_arity_sweep.py",
+    "state/whence/round-380/steps_differential.py",
+    "state/whence/round-440/counterfactual.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "languages/whence/tests/test_v27.py:58",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "languages/whence/specreg.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "languages/whence/tests/test_specreg.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "languages/whence/subjprov.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "languages/whence/tests/test_subjprov.py:42",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "languages/whence/tests/test_timetravel.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "languages/whence/run_tests_fast.sh:32",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "nuc/bench.py",
+   "py_callers": [
+    "harness/bench_delegation.py",
+    "harness/swe/oraclekill.py",
+    "harness/swe/toolliveness.py",
+    "languages/whence/bench/minof.py",
+    "languages/whence/bench/v06_bench.py",
+    "languages/whence/bench/v09_bench.py",
+    "nuc/calib_decode.py",
+    "nuc/decode_fix.py",
+    "nuc/fast_lane/colibri-c/tools/benchmark_kv_prefix.py",
+    "nuc/fast_lane/colibri-c/tools/diag_harness.py",
+    "nuc/fast_lane/colibri-c/tools/eval_glm.py",
+    "nuc/fast_lane/colibri-c/tools/fetch_benchmarks.py",
+    "nuc/fast_lane/colibri-c/tools/quant_ablation.py",
+    "state/swe/round-137/orig-proj/bench/minof.py",
+    "state/swe/round-137/orig-proj/bench/v06_bench.py",
+    "state/swe/round-137/orig-proj/bench/v09_bench.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "nuc/tests/test_bench.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "nuc/calib_decode.py",
+   "py_callers": [],
+   "registry_status": "manual",
+   "registry_via": null,
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "nuc/capture_manifest.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "nuc/tests/test_capture_manifest.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [
+    "nuc/run_checks_fast.sh",
+    "run_driver.sh"
+   ],
+   "path": "nuc/constant_audit.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "nuc/run_checks_fast.sh:167",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "nuc/decode_fix.py",
+   "py_callers": [],
+   "registry_status": "manual",
+   "registry_via": null,
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "nuc/dose_response.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "nuc/tests/test_dose_response.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "nuc/expert_cache.py",
+   "py_callers": [
+    "nuc/fast_lane.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "nuc/tests/test_fast_lane.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [
+    "state/nuc-swap-watch-r352/watch-r352.sh"
+   ],
+   "path": "nuc/fast_lane.py",
+   "py_callers": [
+    "nuc/swap_watch_launch.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "nuc/tests/test_fast_lane.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "nuc/fast_lane_sink.py",
+   "py_callers": [
+    "nuc/fast_lane.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "nuc/tests/test_fast_lane.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "nuc/fossil_ledger.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "nuc/tests/test_fossil_ledger.py:18",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "nuc/kv_reuse/build_scenarios.py",
+   "py_callers": [],
+   "registry_status": "manual",
+   "registry_via": null,
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "nuc/kv_reuse/make_patch.py",
+   "py_callers": [],
+   "registry_status": "manual",
+   "registry_via": null,
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "nuc/kv_reuse/make_server_patch.py",
+   "py_callers": [],
+   "registry_status": "manual",
+   "registry_via": null,
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "nuc/kv_reuse_model.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "nuc/tests/test_kv_reuse_model.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "nuc/lane_bench.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "nuc/tests/test_lane_bench.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "nuc/nuc-adapter-copy.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "nuc/tests/test_kv_reuse_model.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "nuc/nuc_mini.py",
+   "py_callers": [],
+   "registry_status": "manual",
+   "registry_via": null,
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "nuc/perturbation.py",
+   "py_callers": [
+    "harness/swe/nodecampaign.py",
+    "nuc/capture_manifest.py",
+    "nuc/survivor_impact.py",
+    "skills/seed-sweep-needs-a-same-seed-control/scripts/seedsweep.py",
+    "state/skills/round-483/mutate.py",
+    "state/swe/round-497/kill_check.py",
+    "state/swe/round-497/replay_linked.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "nuc/tests/test_perturbation.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [
+    "nuc/run_checks_fast.sh"
+   ],
+   "path": "nuc/prompt_budget.py",
+   "py_callers": [
+    "nuc/taskscript/run.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "nuc/tests/test_kv_reuse_model.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "nuc/reachability_backfill.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "nuc/tests/test_reachability_check.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [
+    "nuc/run_checks_fast.sh"
+   ],
+   "path": "nuc/reachability_check.py",
+   "py_callers": [
+    "nuc/sysstat_archive.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "nuc/tests/test_reachability_check.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "nuc/reachability_recover.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "nuc/tests/test_reachability_recover.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "nuc/record_union.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "nuc/tests/test_record_union.py:23",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "nuc/summary_fossil.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "nuc/tests/test_summary_fossil.py:20",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "nuc/survivor_impact.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "nuc/tests/test_survivor_impact.py:16",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "nuc/swap_analysis.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "nuc/tests/test_swap_analysis.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "nuc/swap_watch.py",
+   "py_callers": [
+    "nuc/swap_analysis.py",
+    "nuc/swap_watch_launch.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "nuc/tests/test_swap_analysis.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "nuc/swap_watch_launch.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "nuc/tests/test_swap_watch_launch.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "nuc/sysstat_archive.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "nuc/tests/test_sysstat_archive.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [
+    "harness/run_whenceslow_slice.sh"
+   ],
+   "path": "nuc/taskscript/run.py",
+   "py_callers": [
+    "harness/agentloop/adapters.py",
+    "harness/agentloop/agent.py",
+    "harness/agentloop/delegate.py",
+    "harness/agentloop/evals.py",
+    "harness/agentloop/guards.py",
+    "harness/agentloop/tools.py",
+    "harness/bench_delegation.py",
+    "harness/bench_elision.py",
+    "harness/demo.py",
+    "harness/driver_health.py",
+    "harness/escalationguard.py",
+    "harness/live_smoke.py",
+    "harness/pristine_check.py",
+    "harness/redattrib.py",
+    "harness/reddebt.py",
+    "harness/swe/campaign.py",
+    "harness/swe/copyparity.py",
+    "harness/swe/coverage.py",
+    "harness/swe/exemptmap.py",
+    "harness/swe/falsifiers.py",
+    "harness/swe/fuzz.py",
+    "harness/swe/guardpin.py",
+    "harness/swe/killerrepin.py",
+    "harness/swe/killers.py",
+    "harness/swe/loop.py",
+    "harness/swe/mutation.py",
+    "harness/swe/nodeguard.py",
+    "harness/swe/oraclekill.py",
+    "harness/swe/oracles.py",
+    "harness/swe/readscope.py",
+    "harness/swe/regiontools.py",
+    "harness/swe/repair.py",
+    "harness/swe/review.py",
+    "harness/swe/sandboxevidence.py",
+    "harness/swe/scoreaudit.py",
+    "harness/swe/slowtier.py",
+    "harness/swe/spacewitness.py",
+    "harness/swe/toolliveness.py",
+    "harness/swe/tools.py",
+    "harness/tierbudget.py",
+    "harness/verb_audit.py",
+    "harness/viapin.py",
+    "harness/whenceslow.py",
+    "harness/wiring_audit.py",
+    "languages/whence/assertshadow.py",
+    "languages/whence/bench/minof.py",
+    "languages/whence/bench/ref_diff.py",
+    "languages/whence/bench/reserve_probe.py",
+    "languages/whence/bench/retention.py",
+    "languages/whence/bench/runaway_cost.py",
+    "languages/whence/bench/self_host_memscale.py",
+    "languages/whence/bench/showtok.py",
+    "languages/whence/bench/v06_bench.py",
+    "languages/whence/bench/v09_bench.py",
+    "languages/whence/bench/value_size.py",
+    "languages/whence/checkpin.py",
+    "languages/whence/curecheck.py",
+    "languages/whence/depthcensus.py",
+    "languages/whence/orderhint.py",
+    "languages/whence/polarity.py",
+    "languages/whence/reprsweep.py",
+    "languages/whence/run.py",
+    "languages/whence/subjprov.py",
+    "languages/whence/whence/interp.py",
+    "nuc/bench.py",
+    "nuc/capture_manifest.py",
+    "nuc/dose_response.py",
+    "nuc/fast_lane.py",
+    "nuc/fast_lane/colibri-c/autotune.py",
+    "nuc/fast_lane/colibri-c/doctor.py",
+    "nuc/fast_lane/colibri-c/download_fp8.py",
+    "nuc/fast_lane/colibri-c/resource_plan.py",
+    "nuc/fast_lane/colibri-c/tools/bench_dsv4_deepgemm_real.py",
+    "nuc/fast_lane/colibri-c/tools/benchmark_cuda_fixture.py",
+    "nuc/fast_lane/colibri-c/tools/convert_fmt4_to_fmt2.py",
+    "nuc/fast_lane/colibri-c/tools/convert_fp8_to_int4.py",
+    "nuc/fast_lane/colibri-c/tools/convert_qwen36.py",
+    "nuc/fast_lane/colibri-c/tools/datapoint.py",
+    "nuc/fast_lane/colibri-c/tools/diag_harness.py",
+    "nuc/fast_lane/colibri-c/tools/efficiency.py",
+    "nuc/fast_lane/colibri-c/tools/eval_glm.py",
+    "nuc/fast_lane/colibri-c/tools/k3_ref.py",
+    "nuc/fast_lane/colibri-c/tools/k3_repack.py",
+    "nuc/fast_lane/colibri-c/tools/k3_tokenizer.py",
+    "nuc/fast_lane/colibri-c/tools/make_deepseek_v4_oracle.py",
+    "nuc/fast_lane/colibri-c/tools/placement_balance.py",
+    "nuc/fast_lane/colibri-c/tools/placement_crossval.py",
+    "nuc/fast_lane/colibri-c/tools/quant_ablation.py",
+    "nuc/fast_lane/colibri-c/tools/rans_verify.py",
+    "nuc/fast_lane/colibri-c/tools/repack_fp8_passthrough.py",
+    "nuc/fast_lane/colibri-c/tools/repack_rans.py",
+    "nuc/fast_lane/colibri-c/tools/repair_mtp_int8.py",
+    "nuc/fast_lane/colibri-c/tools/residency_sim.py",
+    "nuc/kv_reuse/make_patch.py",
+    "nuc/kv_reuse/make_server_patch.py",
+    "nuc/lane_bench.py",
+    "nuc/perturbation.py",
+    "nuc/reachability_backfill.py",
+    "nuc/reachability_check.py",
+    "nuc/summary_fossil.py",
+    "nuc/survivor_impact.py",
+    "nuc/swap_analysis.py",
+    "nuc/swap_watch_launch.py",
+    "nuc/sysstat_archive.py",
+    "nuc/taskscript/transport.py",
+    "skills/prediction-banking/scripts/bank_audit.py",
+    "skills/seed-sweep-needs-a-same-seed-control/scripts/seedsweep.py",
+    "skills/session-inheritance-audit/scripts/check_round_recorded.py",
+    "skills/skill-authoring/scripts/carryforward_check.py",
+    "skills/skill-authoring/scripts/case_coverage.py",
+    "skills/skill-authoring/scripts/claim_check.py",
+    "skills/skill-authoring/scripts/corpus_check.py",
+    "skills/skill-authoring/scripts/corpus_history.py",
+    "skills/skill-authoring/scripts/placeholder_check.py",
+    "skills/skill-authoring/scripts/state_claim_check.py",
+    "skills/skill-authoring/scripts/trigger_eval.py",
+    "skills/skill-authoring/scripts/xref_check.py",
+    "state/round-405/analyse.py",
+    "state/skills/round-483/mutate.py",
+    "state/swe/round-137/orig-proj/bench/minof.py",
+    "state/swe/round-137/orig-proj/bench/ref_diff.py",
+    "state/swe/round-137/orig-proj/bench/reserve_probe.py",
+    "state/swe/round-137/orig-proj/bench/retention.py",
+    "state/swe/round-137/orig-proj/bench/v06_bench.py",
+    "state/swe/round-137/orig-proj/bench/v09_bench.py",
+    "state/swe/round-137/orig-proj/nuc_scripting/ncs_engine.py",
+    "state/swe/round-137/orig-proj/run.py",
+    "state/swe/round-137/orig-proj/whence/interp.py",
+    "state/swe/round-137/snapshot/whence/interp.py",
+    "state/swe/round-263/hand_triage.py",
+    "state/swe/round-353/rerun_r137_no_evidence.py",
+    "state/swe/round-401/apply_patches.py",
+    "state/whence/round-380/budget_sizing.py",
+    "state/whence/round-380/guest_walk_probe.py",
+    "state/whence/round-380/ins_arity_sweep.py",
+    "state/whence/round-380/steps_differential.py",
+    "state/whence/round-440/counterfactual.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "nuc/tests/test_taskscript.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "skills/derived-subject-set/scripts/pattern_vs_enum.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "skills/derived-subject-set/scripts/test_pattern_vs_enum.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": true
+  },
+  {
+   "nonpy_callers": [],
+   "path": "skills/derived-subject-set/scripts/test_pattern_vs_enum.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "skills/skill-authoring/scripts/corpus_check.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "skills/prediction-banking/scripts/bank_audit.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "skills/skill-authoring/scripts/corpus_check.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "skills/seed-sweep-needs-a-same-seed-control/scripts/seedsweep.py",
+   "py_callers": [
+    "skills/seed-sweep-needs-a-same-seed-control/scripts/controls/ctl_unscrubbable.py",
+    "state/skills/round-483/mutate.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "skills/skill-authoring/scripts/corpus_check.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [
+    "run_driver.sh"
+   ],
+   "path": "skills/session-inheritance-audit/scripts/check_round_recorded.py",
+   "py_callers": [
+    "skills/skill-authoring/scripts/claim_check.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "run_driver.sh:312",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "skills/skill-authoring/scripts/carryforward_check.py",
+   "py_callers": [
+    "harness/escalationguard.py",
+    "skills/skill-authoring/scripts/claim_check.py",
+    "skills/skill-authoring/scripts/corpus_check.py",
+    "skills/skill-authoring/scripts/corpus_history.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "skills/skill-authoring/scripts/corpus_check.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [
+    "skills/run_checks_fast.sh"
+   ],
+   "path": "skills/skill-authoring/scripts/case_coverage.py",
+   "py_callers": [
+    "skills/skill-authoring/scripts/claim_check.py",
+    "skills/skill-authoring/scripts/corpus_check.py",
+    "skills/skill-authoring/scripts/corpus_history.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "skills/skill-authoring/scripts/corpus_check.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "skills/skill-authoring/scripts/claim_check.py",
+   "py_callers": [
+    "skills/skill-authoring/scripts/corpus_check.py",
+    "skills/skill-authoring/scripts/corpus_history.py",
+    "skills/skill-authoring/scripts/state_claim_check.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "skills/skill-authoring/scripts/corpus_check.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [
+    "run_driver.sh",
+    "skills/run_checks_fast.sh"
+   ],
+   "path": "skills/skill-authoring/scripts/corpus_check.py",
+   "py_callers": [
+    "harness/redattrib.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "run_driver.sh:669",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [
+    "run_driver.sh",
+    "skills/run_checks_fast.sh"
+   ],
+   "path": "skills/skill-authoring/scripts/corpus_history.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "skills/skill-authoring/scripts/corpus_check.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "skills/skill-authoring/scripts/displacement.py",
+   "py_callers": [
+    "nuc/perturbation.py",
+    "skills/skill-authoring/scripts/trigger_eval.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "skills/skill-authoring/scripts/corpus_check.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "skills/skill-authoring/scripts/placeholder_check.py",
+   "py_callers": [
+    "skills/skill-authoring/scripts/corpus_check.py",
+    "skills/skill-authoring/scripts/corpus_history.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "skills/skill-authoring/scripts/corpus_check.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "skills/skill-authoring/scripts/selfdesc_check.py",
+   "py_callers": [
+    "skills/skill-authoring/scripts/corpus_check.py",
+    "skills/skill-authoring/scripts/corpus_history.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "skills/skill-authoring/scripts/corpus_check.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "skills/skill-authoring/scripts/skill_lint.py",
+   "py_callers": [
+    "skills/skill-authoring/scripts/claim_check.py",
+    "skills/skill-authoring/scripts/corpus_check.py",
+    "skills/skill-authoring/scripts/corpus_history.py",
+    "skills/skill-authoring/scripts/state_claim_check.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "skills/skill-authoring/scripts/corpus_check.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "skills/skill-authoring/scripts/state_claim_check.py",
+   "py_callers": [
+    "skills/skill-authoring/scripts/claim_check.py",
+    "skills/skill-authoring/scripts/corpus_check.py",
+    "skills/skill-authoring/scripts/corpus_history.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "skills/skill-authoring/scripts/corpus_check.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "skills/skill-authoring/scripts/test_carryforward_check.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "skills/skill-authoring/scripts/corpus_check.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "skills/skill-authoring/scripts/test_case_coverage.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "skills/skill-authoring/scripts/corpus_check.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "skills/skill-authoring/scripts/test_claim_check.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "skills/skill-authoring/scripts/corpus_check.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "skills/skill-authoring/scripts/test_corpus_check.py",
+   "py_callers": [
+    "skills/skill-authoring/scripts/corpus_check.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "skills/skill-authoring/scripts/corpus_check.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "skills/skill-authoring/scripts/test_corpus_history.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "skills/skill-authoring/scripts/corpus_check.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "skills/skill-authoring/scripts/test_displacement.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "skills/skill-authoring/scripts/corpus_check.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "skills/skill-authoring/scripts/test_placeholder_check.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "skills/skill-authoring/scripts/corpus_check.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "skills/skill-authoring/scripts/test_pooled_estimator.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "skills/skill-authoring/scripts/corpus_check.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "skills/skill-authoring/scripts/test_selfdesc_check.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "skills/skill-authoring/scripts/corpus_check.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "skills/skill-authoring/scripts/test_skill_lint.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "skills/skill-authoring/scripts/corpus_check.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "skills/skill-authoring/scripts/test_state_claim_check.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "skills/skill-authoring/scripts/corpus_check.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "skills/skill-authoring/scripts/test_trigger_eval.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "skills/skill-authoring/scripts/corpus_check.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "skills/skill-authoring/scripts/test_xref_check.py",
+   "py_callers": [],
+   "registry_status": "wired",
+   "registry_via": "skills/skill-authoring/scripts/corpus_check.py:-",
+   "verdict": "no_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [
+    "state/round-405/run_batch.sh"
+   ],
+   "path": "skills/skill-authoring/scripts/trigger_eval.py",
+   "py_callers": [
+    "skills/skill-authoring/scripts/case_coverage.py",
+    "skills/skill-authoring/scripts/claim_check.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "skills/skill-authoring/scripts/corpus_check.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": false
+  },
+  {
+   "nonpy_callers": [],
+   "path": "skills/skill-authoring/scripts/xref_check.py",
+   "py_callers": [
+    "skills/skill-authoring/scripts/corpus_check.py",
+    "skills/skill-authoring/scripts/corpus_history.py",
+    "skills/skill-authoring/scripts/selfdesc_check.py"
+   ],
+   "registry_status": "wired",
+   "registry_via": "skills/skill-authoring/scripts/corpus_check.py:-",
+   "verdict": "has_committed_caller",
+   "via_is_a_test_file": false
+  }
+ ],
+ "wall_seconds": 11.75
+}

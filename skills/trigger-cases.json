@@ -3089,5 +3089,26 @@
    "a-survivor-is-not-one-finding"
   ],
   "prompt": "We added tests specifically to kill the survivors from last quarter's mutation run, then re-ran the campaign with the same coverage map and got the exact same survivor list. The tests definitely pass. What would make a re-run blind to tests that already exist?"
+ },
+ {
+  "id": "nprws-near",
+  "expect": [
+   "no-pooled-rate-without-its-strata"
+  ],
+  "prompt": "Our mutation kill rate over the analytics module is 94% and the team wants to publish it in the quality report. The scope is three line ranges someone picked in 2023 with a comment saying they're \"the code paths that produce customer-facing numbers\". Nobody has checked that comment since. Should I trust the 94%?"
+ },
+ {
+  "id": "nprws-mid",
+  "expect": [
+   "no-pooled-rate-without-its-strata"
+  ],
+  "prompt": "I found a helper in our billing package that I can't find a single caller for outside its own test file, but our service registry lists it as wired. The registry's \"wired\" check just looks for any import. How many more of these are there and how do I tell the difference between genuinely-used and used-only-by-its-tests?"
+ },
+ {
+  "id": "nprws-far",
+  "expect": [
+   "no-pooled-rate-without-its-strata"
+  ],
+  "prompt": "Coverage on this repo reads 82% and has for a year, but two of the four subpackages in the measured set are experimental code we only ever drive from the test harness. Is one percentage the right way to report that, and if not what should the report say instead?"
  }
 ]
