@@ -218,6 +218,69 @@ def test_invisible_open_is_false_when_the_owner_opened_it(tmp_path):
     assert "who does not run this suite" not in RD.note(root, min_logs=1)
 
 
+# ------------------------------- the head sentence must describe the rows --
+
+def test_the_head_names_the_suite_files_that_are_actually_red(tmp_path):
+    """Round 505's finding, as a falsifier.
+
+    Round 493 wrote the headline with its own red set spelled into it: "the
+    wiring-audit trio below is the fifth instance of a recurrence
+    `harness/wiring-registry.json` has diagnosed in prose four times since
+    round 473". Round 505 received that sentence above three
+    `test_swe_copyparity_real_subject.py` nodes and one `test_whenceslow.py`
+    node -- no wiring audit anywhere in the list, and not an instance of that
+    recurrence. Twelve rounds were handed a headline about the wrong red.
+
+    So the head is required to name the suite files it is standing above, and
+    two DIFFERENT red sets must produce two different heads. A hardcoded
+    sentence passes neither clause.
+    """
+    a = _tree(tmp_path / "a", {1: ([], CLEAN_TAIL), 2: ([NODE], PASSED_TAIL)})
+    b = _tree(tmp_path / "b",
+              {1: ([], CLEAN_TAIL),
+               2: (["harness/tests/test_zzz.py::test_other"], PASSED_TAIL)})
+    ha = RD.note(a, min_logs=1).strip().splitlines()[0]
+    hb = RD.note(b, min_logs=1).strip().splitlines()[0]
+    assert "harness/tests/test_a.py" in ha and "test_zzz" not in ha
+    assert "harness/tests/test_zzz.py" in hb and "test_a.py" not in hb
+    assert ha != hb, "the head does not vary with the rows it introduces"
+
+
+def test_the_head_states_the_invisible_open_count_and_both_directions(tmp_path):
+    """The clause that made round 493 build this module at all is a NUMBER,
+    and it has to be the number in front of the reader -- including when it
+    is zero, which is the case where no instrument would have helped."""
+    seen = _tree(tmp_path / "seen",
+                 {1: ([], CLEAN_TAIL), 2: ([NODE], PASSED_TAIL)},
+                 tracks={2: "harness(A)"})
+    unseen = _tree(tmp_path / "unseen",
+                   {1: ([], CLEAN_TAIL), 2: ([NODE], PASSED_TAIL)},
+                   tracks={2: "language(C)"})
+    h_seen = RD.note(seen, min_logs=1)
+    h_unseen = RD.note(unseen, min_logs=1)
+    assert "visible to its author" in h_seen
+    assert "readset.py blast" not in h_seen, (
+        "pointing at the opener-side instrument when nothing was opened "
+        "invisibly is advice for a problem this list does not have")
+    assert "1 of them was opened by a track that does NOT run" in h_unseen
+    assert "readset.py blast" in h_unseen
+
+
+def test_the_head_reaches_the_reader_with_a_runnable_command(tmp_path):
+    """`skills/finding-must-reach-an-actor` in one assertion: the instrument
+    named in the head has to exist and be runnable from the repo root, or
+    the sentence is the same rot it replaced."""
+    root = _tree(tmp_path, {1: ([], CLEAN_TAIL), 2: ([NODE], PASSED_TAIL)},
+                 tracks={2: "language(C)"})
+    text = RD.note(root, min_logs=1)
+    assert "python3 harness/readset.py blast" in text
+    assert os.path.exists(os.path.join(REPO, "harness", "readset.py"))
+    p = subprocess.run([sys.executable, "harness/readset.py", "blast",
+                        "--json", "languages/whence/no_such_file.py"],
+                       cwd=REPO, capture_output=True, text=True, timeout=180)
+    assert p.returncode == 0, p.stdout + p.stderr
+
+
 # -------------------------------------------------------- the note itself --
 
 def test_a_clean_tree_costs_the_prompt_zero_bytes(tmp_path):

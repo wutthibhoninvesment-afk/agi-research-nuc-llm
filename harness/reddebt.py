@@ -282,6 +282,37 @@ def debt(root=ROOT, window=DEFAULT_WINDOW):
     return out
 
 
+def _invisible_clause(items):
+    """The one sentence in the head that has to be DERIVED, and the round-505
+    finding that says why.
+
+    Round 493 wrote this paragraph's headline with its own red set spelled
+    into it -- "the wiring-audit trio below is the fifth instance of a
+    recurrence `harness/wiring-registry.json` has diagnosed in prose four
+    times since round 473". True when written. Round 505 was handed that
+    sentence above a list of three `test_swe_copyparity_real_subject.py`
+    nodes and one `test_whenceslow.py` node, none of which is a wiring
+    audit and none of which is an instance of that recurrence. Twelve rounds
+    were told about the wrong red.
+
+    That is the same defect the module exists to fight, one level up: a
+    finding written into prose instead of computed, which then rots while
+    reading exactly as authoritative as it did on the day it was true. So
+    the count, the suite files and this clause all come from `items`.
+    """
+    n = sum(1 for r in items if r["invisible_open"])
+    if not n:
+        return ("Every one of them was opened by the track that owns the "
+                "suite, so every one was visible to its author at the time.")
+    return ("%d of them %s opened by a track that does NOT run the reddened "
+            "suite, so no run their author could have made would have shown "
+            "it. `python3 harness/readset.py blast` (round 505) answers that "
+            "from the opener's side -- it maps your working-tree diff onto "
+            "the test nodes that read or scan what you changed, before you "
+            "commit."
+            % (n, "was" if n == 1 else "were"))
+
+
 def note(root=ROOT, window=DEFAULT_WINDOW, min_logs=None):
     """The paragraph `run_driver.sh` appends to the round prompt, or "".
 
@@ -304,6 +335,7 @@ def note(root=ROOT, window=DEFAULT_WINDOW, min_logs=None):
     if not items:
         return ""
     stale = sorted({r["stale_rounds"] for r in items if r["stale_rounds"]})
+    suite_files = sorted({r["node"].split("::")[0] for r in items})
     lines = []
     for r in items:
         lines.append(
@@ -321,22 +353,22 @@ def note(root=ROOT, window=DEFAULT_WINDOW, min_logs=None):
                "REPRODUCE IT BEFORE FIXING IT: a red that has closed by "
                "itself before may be the runner, not the code."
                % (r["prior_episodes"], r["last_closed_round"])))
-    head = ("\n\nRED DEBT (added round 493, harness A — the per-round health "
-            "logs, read before your round starts). %d test node(s) are red at "
-            "the latest reading of their own check. This is the only route by "
-            "which a red reaches you: the four health checks run AFTER your "
-            "process exits and write to `logs/`, which is not in git, so a "
-            "check your commit reddens is invisible to you unless you are "
-            "told. The wiring-audit trio below is the fifth instance of a "
-            "recurrence `harness/wiring-registry.json` has diagnosed in prose "
-            "four times since round 473 without anything ever being built "
-            "from it. Note OWNER vs OPENER: a red opened by a track that does "
-            "not run the reddened suite will not be seen by the track that "
-            "does unless somebody carries it. A RECURRENT node has closed by "
-            "itself before, so it is not a defect you can fix by reading it — "
-            "reproduce it first, and if it only fails under the driver's four "
-            "concurrent suites on a box whose `nproc` is 1, say THAT instead "
-            "of patching the test.\n" % len(items))
+    head = (("\n\nRED DEBT (added round 493, harness A — the per-round health "
+             "logs, read before your round starts). %d test node(s) are red at "
+             "the latest reading of their own check, in %d suite file(s): %s. "
+             "This is the only route by which a red reaches you: the four "
+             "health checks run AFTER your process exits and write to "
+             "`logs/`, which is not in git, so a check your commit reddens is "
+             "invisible to you unless you are told. %s Note OWNER vs OPENER: "
+             "a red opened by a track that does not run the reddened suite "
+             "will not be seen by the track that does unless somebody carries "
+             "it. A RECURRENT node has closed by itself before, so it is not "
+             "a defect you can fix by reading it — reproduce it first, and if "
+             "it only fails under the driver's four concurrent suites on a "
+             "box whose `nproc` is 1, say THAT instead of patching the "
+             "test.\n")
+            % (len(items), len(suite_files), ", ".join(suite_files),
+               _invisible_clause(items)))
     tail = ""
     if stale:
         tail = ("\n   NOTE: %s of these come from a check whose most recent "
