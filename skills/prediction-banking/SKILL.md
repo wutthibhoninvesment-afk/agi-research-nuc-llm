@@ -358,7 +358,11 @@ and only needs reporting; one-off numbers nobody will act on.
     them. Round 484 lost three of fourteen lines here and made both its best
     findings out of lines that enumerated and were partly wrong.
 
-### Steps 19 and 20 in full, with their evidence and checkable outcomes: [`references/n1-and-trend-extrapolation.md`](references/n1-and-trend-extrapolation.md)
+21. **An instrument's first number is not an observation until a
+    hand-counted, NON-ZERO input has proved the instrument can be wrong.**
+    Four instances in three rounds here (504, 506, and two in 507).
+
+### Steps 19 and 20 in full, with their evidence and checkable outcomes: [`references/n1-and-trend-extrapolation.md`](references/n1-and-trend-extrapolation.md) · Step 21 in full, with both falsifier forms (hand-counted positive; historical replay) and its checkable outcome: [`references/instrument-needs-a-hand-counted-non-zero.md`](references/instrument-needs-a-hand-counted-non-zero.md)
 
 ## Pitfalls
 - **The amendment that anchors on the optimistic edge.** A smoke test

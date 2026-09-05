@@ -3188,5 +3188,31 @@
   "id": "sec-spell-neg",
   "expect": [],
   "prompt": "We have two payment provider integrations and the Stripe one is definitely dead \u2014 no config references it, the feature flag has been off for a year, and the vendor account is closed. Can you help me delete the module and its tests cleanly?"
+ },
+ {
+  "id": "dsrac-near",
+  "expect": [
+   "dated-section-reads-as-current"
+  ],
+  "prompt": "Our language SPEC is 11k lines of `## v0.6`, `## v0.7`, ... `## v0.43` sections. Yesterday I reasoned from a bullet in the v0.12 section that said a type annotation \"desugars in the parser to a typed() call\" \u2014 it turned out v0.19 deleted that four releases ago. The sentence isn't wrong for v0.12, it's just read as current. How do I find the others without reading 11,000 lines?"
+ },
+ {
+  "id": "dsrac-near-2",
+  "expect": [
+   "dated-section-reads-as-current"
+  ],
+  "prompt": "I have a CHANGELOG where each release section explains the mechanism, not just the change. One section already carries an \"Updated 2025-06\" note about one of its bullets, which tells me somebody found it wrong once and nobody swept the rest. Meanwhile a source comment says `// 3.1-3.4 used the old codec`. Can I use comments like that as an index into which doc sections are describing history?"
+ },
+ {
+  "id": "dsrac-mid",
+  "expect": [
+   "dated-section-reads-as-current"
+  ],
+  "prompt": "I wrote a checker that flags stale prose in our versioned design doc and it comes back with 67 hits. If I require two matching identifiers instead of one it drops to 6, which looks much better \u2014 except the one case I already know is stale disappears. How should I be deciding which filter to keep?"
+ },
+ {
+  "id": "dsrac-far",
+  "expect": [],
+  "prompt": "The README's \"current limitations\" list has an item we've been copying forward for eight sprints saying we still have no retry logic. We shipped retry logic in sprint 3. How do I stop carrying dead items?"
  }
 ]
