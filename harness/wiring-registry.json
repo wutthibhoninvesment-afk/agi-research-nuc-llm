@@ -66,6 +66,13 @@
       "via": "harness/run_tests_fast.sh:124",
       "via_kind": "path"
     },
+    "harness/readset.py": {
+      "status": "wired",
+      "via": "harness/tests/test_readset.py:30",
+      "via_kind": "import",
+      "owner": "harness(A)",
+      "reason": "Round 505 (harness A). Built and declared in the same round, with `wiring_audit.py declare --write` rather than by hand -- the second round to do so after 493, and the round that measured why the check could still miss it. W001 reports on `git ls-files`, so an entry point that exists only in the WORKING TREE is invisible to it: `undeclared` said `no undeclared entry point in the whole tree` with this file sitting unstaged beside it, and only reported W001 after `git add -N`. That is the same latency class the file itself is about, one layer down -- the commit-time check is blind before the commit. Wired by import: the fast tier collects `harness/tests/test_readset.py`, which imports it; the driver does not invoke `readset.py` directly and deliberately does not gate on `blast --strict`."
+    },
     "harness/redattrib.py": {
       "status": "wired",
       "via": "harness/tests/test_redattrib.py:-",
@@ -402,6 +409,13 @@
       "status": "wired",
       "via": "run_driver.sh:585",
       "via_kind": "path"
+    },
+    "languages/whence/runlive.py": {
+      "status": "wired",
+      "via": "languages/whence/tests/test_runlive.py:34",
+      "via_kind": "import",
+      "owner": "language(C)",
+      "reason": "Round 506 (language C). Declared with `wiring_audit.py declare --write` after `git add -N`, per round 505's own entry above: W001 reports on `git ls-files`, so a working-tree-only entry point is invisible to the commit-time check until it is staged. Wired by import -- the whence fast tier collects `languages/whence/tests/test_runlive.py`, which imports it. SAME SHAPE round 504 disclosed for `builtinlive.py` (next-step #2: \"declared `wired` by their own tests and nothing else\"), and this is one more instance of that class, said out loud rather than hidden under `manual`. ONE difference, and it is the half round 504 asked for: `test_runlive.py::test_the_new_example_makes_typed_a_builtin_some_example_runs` is an unmarked LIVE-CORPUS assertion, so the tier every language round runs carries the claim this module exists to make. The full-corpus pins and the `--strict` ratchet over `state/whence/builtin-runtime.json` are still `whence_slow` and still scheduled by nothing; that half of round 504's next-step #2 is NOT closed."
     },
     "languages/whence/specreg.py": {
       "status": "wired",

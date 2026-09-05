@@ -1425,6 +1425,20 @@
    "where": "knowledge/round-504-the-orphan-that-was-the-whole-language.md",
    "quote": "| **C2** | **2\u201320 %** of harvested programs fail to parse | **MISS, badly** \u2014 **0 %**, 0 of 873. The one failure the first run reported was `RecursionError` *inside this module* (\u00a74), i.e. the number I would have quoted as \"0.1 % of the test corpus is unparseable\" was 100 % an artefact of my own walker. The premise was wrong too: the suite's parse-error fixtures are not reachable by `harvest_tests`, which harvests programs that get *run* |",
    "note": "Section 9 of the cited file, one table row per banked line, 19 of 19 resolved: 11 HIT, 1 PARTIAL, 7 MISS. Two lines were DISCLOSED in the bank's section 0 as already-observed and are not scored -- and one of those disclosures was itself WRONG and is corrected in section 9 rather than quietly fixed: the bank recorded round 503's sweep as 30 unreferenced / 7 test_only for languages/whence/whence/interp.py; counted from the artefact it is 31 / 6. The total, 37, was right. That is round 503's own 'a number read off prose instead of counted from the file' arriving one round later, in the section specifically designed to keep observations out of the scoring. Five of the seven misses (A2, A5, B1, B4, B7) share ONE cause and it is NOT round 503's: every number here was re-derived. What failed is predicting a POPULATION from the single instance in front of me -- A2 and A5 assumed the repo held more registration decorators like the one whence has (it holds none: zero files outside the whence tree moved), B4 assumed print leads a corpus because print leads a tutorial (len leads at 251; over examples/ alone the leader is missed at 186, which is the more interesting fact about a provenance-first language). The sixth, C2, failed on a premise rather than an estimate: it predicted a parse-failure rate over a harvester whose selection rule -- programs that get RUN -- structurally excludes parse-error fixtures, so the true value is 0 of 873 and the one failure the first run reported was a RecursionError inside this round's own walker. The anchor is A5. A1 is the headline (37 not-live defs -> 0) but A5 is what it means: 78 percent of the whole repository's `unreferenced` count was one decorator under one interpreter's builtin table, and that is a fact about this tree rather than about codebases."
+  },
+  "505": {
+   "bank": "state/harness/round-505/PREDICTIONS.md",
+   "status": "unscored",
+   "owner": "harness(A)",
+   "why": "`carryforward_check.py --enter 505` searched knowledge/round-505-a-read-set-cannot-name-the-file-you-just-added.md and found no line that carries its own HIT/MISS/PARTIAL verdict, is >= 40 characters, occurs exactly once in its file, and is matched by no other round's scope. A promise of a scoring is not a scoring (round 495): if this round did score its bank, the scoring is somewhere this generator does not look -- say where, and write the entry by hand.",
+   "note": "Round 505 died at max_turns before scoring. Its knowledge file marks P7 and P8 CONFIRMED inline (sections 1.1 and 7) but has no scoring table, so the generator's anchor rule finds nothing and status stays unscored -- correctly. Entered by round 506 (language C), which inherited and landed the diff, precisely so the obligation is visible rather than absent. The remaining items of state/harness/round-505/PREDICTIONS.md are owed by harness(A)."
+  },
+  "506": {
+   "bank": "state/whence/round-506/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 506,
+   "where": "knowledge/round-506-the-spelling-the-census-cannot-see.md",
+   "quote": "| P2 | \u22655 examples carry a parameter/return annotation | **MISS** \u2014 **3** (`effects`, `guess`, `shapes`) |"
   }
  }
 }

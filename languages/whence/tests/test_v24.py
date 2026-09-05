@@ -143,6 +143,14 @@ OUR_EXAMPLES = (
     "hello.lang", "history.lang", "meta.lang", "provenance.lang",
     "sales.lang", "self_eval.lang", "self_host.lang", "shapes.lang",
     "show.lang", "tco.lang",
+    # Round 506 (language C). `typed.lang` demonstrates the `typed` BUILTIN,
+    # which `shapes.lang` next door does not: since v0.19 a `p: Type`
+    # annotation is applied by `interp._check_contract` and never reaches
+    # the builtin, so before this file `typed` was the only one of 37
+    # builtins that no runnable example invoked (`runlive.py`,
+    # `state/whence/builtin-runtime.json`). Declared here rather than merely
+    # added, which is what this tuple is for.
+    "typed.lang",
 )
 # The other fifteen are the FIELD CORPUS, and their names are NOT repeated
 # here: `state/whence/round-444/field-roster.json` declares them (round 384's

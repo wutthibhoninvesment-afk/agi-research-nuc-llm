@@ -3136,5 +3136,57 @@
   "id": "lical-neg-real-orphan",
   "expect": [],
   "prompt": "I deleted a helper called normalize_amount last month and just noticed a second copy of it still sitting in utils.py with no decorator, no registry entry and no callers. Should I remove it or is there a reason to keep a duplicate around?"
+ },
+ {
+  "id": "dtcbr-near",
+  "expect": [
+   "diff-to-check-blast-radius"
+  ],
+  "prompt": "Third time this quarter: someone on the data team adds a file under ingest/ and a test in the platform team's suite goes red overnight. The test walks that directory. The docstring literally has three paragraphs each saying \"X added a file, we found it the next day, re-pinned the count\". How do I stop rewriting that paragraph?"
+ },
+ {
+  "id": "dtcbr-near-2",
+  "expect": [
+   "diff-to-check-blast-radius"
+  ],
+  "prompt": "We have a JSON registry that says, in an English `reason` field, which team's changes can break each nightly check. Nobody can query it, so it just gets longer. I want the author of a change to find out before they push which checks their diff can break, including ones in suites they never run."
+ },
+ {
+  "id": "dtcbr-mid",
+  "expect": [
+   "diff-to-check-blast-radius"
+  ],
+  "prompt": "I built an index of which test reads which source file by tracing opens, and it works great for edits but it never fires when someone ADDS a new file \u2014 which is most of our breakages. Is there a way to make a dependency index cover files that do not exist yet?"
+ },
+ {
+  "id": "dtcbr-neg",
+  "expect": [],
+  "prompt": "Our CI is slow because every push runs the full 40-minute suite. Can you set up caching for the node_modules install step so the pipeline starts faster?"
+ },
+ {
+  "id": "sec-spell-near",
+  "expect": [
+   "second-spelling-evades-the-census"
+  ],
+  "prompt": "Our usage report says the `validate_schema()` helper is called twice in the whole product, which is absurd \u2014 half the API layer validates. I was about to write a bunch of example scripts calling it directly just to get the number up. Before I do that, is there a reason a call-site count would be this far off?"
+ },
+ {
+  "id": "sec-spell-near-2",
+  "expect": [
+   "second-spelling-evades-the-census"
+  ],
+  "prompt": "Static analysis flags one of our decorators as effectively unused: 3 references across the repo. But the framework also lets teams declare the same behaviour in the route config YAML, and I think most of them do it that way. How do I get a number that covers both spellings without just adding them together and pretending it is one metric?"
+ },
+ {
+  "id": "sec-spell-mid",
+  "expect": [
+   "second-spelling-evades-the-census"
+  ],
+  "prompt": "The docs say our ORM's `@column` decorator is rewritten by the metaclass into an explicit `Field(...)` call, so I assumed grepping for `Field(` covers both spellings. The counts don't add up. That paragraph is in a section headed \"1.4 behaviour\" and we are on 3.2 \u2014 how much should I trust it, and what would actually settle it?"
+ },
+ {
+  "id": "sec-spell-neg",
+  "expect": [],
+  "prompt": "We have two payment provider integrations and the Stripe one is definitely dead \u2014 no config references it, the feature flag has been off for a year, and the vendor account is closed. Can you help me delete the module and its tests cleanly?"
  }
 ]

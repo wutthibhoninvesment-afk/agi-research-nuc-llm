@@ -1504,7 +1504,21 @@ Names are `[A-Za-z_][A-Za-z0-9_]*` and numeric literals are ASCII digits
 
 ## v0.12 (round 122) — structural types
 - **A type annotation is erased at parse time, not evaluated at runtime.**
-  `fn f(a: num, b: Point) { … }` desugars, in the parser, to one leading
+  **Stale-note correction (round 506):** the sentence below describes
+  v0.12-v0.18 and is written in the present tense. Since **v0.19 (round
+  344)** a parameter annotation does NOT desugar to a `typed` call at all
+  — `parser._param_contracts` carries the contract on the FnDef/FnExpr
+  node and `interp._check_contract` applies it in the host, for the reason
+  the v0.19 section below gives (a re-evaluated spec expression let one
+  signature name two different shapes with one name). `parser.py:389` and
+  `parser.py:2072` both record the change; this bullet, in the v0.12
+  section where it is history, never got the past-tense marker its
+  neighbours got, and read as current it says annotations invoke the
+  builtin. They do not: round 506 measured `typed` invoked **zero** times
+  across every runnable example while 100021 annotation contracts were
+  applied (`runlive.py`, `state/whence/builtin-runtime.json`). Read the
+  rest of this bullet as v0.12 history.
+  `fn f(a: num, b: Point) { … }` desugared, in the parser, to one leading
   `let a = typed(a, "num", "parameter 'a' of f")` per annotated parameter,
   prepended to the body's statement list before it is returned — an
   ordinary `Let`/`Call`/`Str` AST, exactly what a Whence programmer could

@@ -1,0 +1,128 @@
+# typed.lang — the type contract as a FIRST-CLASS CALL (v0.12's `typed`
+# builtin), which is not the same feature as `shapes.lang`'s annotations.
+#
+# Why this example exists (round 506). `shapes.lang` demonstrates the
+# `p: Type` / `-> Type` half of the contract thoroughly and calls `typed`
+# exactly zero times — because since v0.19 (round 344) an annotation does
+# not go through the builtin at all: the parser stores the contract on the
+# function node and `interp._check_contract` applies it in the host. So
+# every example in this directory exercised the CHECK and none of them
+# ever invoked the BUILTIN. Measured: `runlive.py` ran all 23 runnable
+# examples and `typed` was the only one of 37 builtins with zero runtime
+# invocations. This file is the missing half.
+#
+# One rule, two spellings, and the difference is what each can say:
+#   - an ANNOTATION is written on a function boundary and fixed at parse
+#     time. It cannot name a spec the program computes.
+#   - `typed(value, spec, label)` is an ordinary call, so the spec is an
+#     ordinary VALUE — chosen per row, read from a record, passed in.
+
+# --- 1. A satisfied contract is invisible ---------------------------------
+# Pass-through means pass-through: the same Prov node comes back, so a
+# satisfied `typed` leaves nothing in the why-tree. This is the same
+# promise a satisfied annotation makes, and here it is checkable.
+let rate = 0.08
+let kept = typed(rate, "num", "rate")
+check "a match returns the value unchanged": kept == 0.08
+check "and adds no provenance step at all": len(steps(kept)) == 3
+check "the chain still names the ORIGINAL binding": steps(kept)[1].detail == "rate"
+check "no step in it was contributed by typed": not contains(
+  join(map(fn(s) { s.op }, steps(kept)), ","), "typed")
+
+# --- 2. A mismatch is an ORIGIN miss --------------------------------------
+let wrong = typed("8%", "num", "rate")
+check "a mismatch is a miss, not a crash": missed(wrong)
+check "the message names the label, the want and the got": contains(
+  reasons(wrong)[0], "rate expected num, got str")
+# An ORIGIN miss: no input of its own is a miss, so `blame` stops here and
+# names the call that did the rejecting rather than something upstream.
+check "blame stops at the call that rejected it": blame(wrong)[0].detail == "rate"
+
+# --- 3. An already-missed argument keeps its OWN reason -------------------
+# Decision 2: misses propagate before inspection. `typed` does not paint a
+# "wrong type" gloss over a value that already failed for its own reason —
+# the cause survives, which is the whole point of the language.
+let parsed = num("3O")            # a typo in the data: letter O for zero
+let guarded = typed(parsed, "num", "rate")
+check "a missed input propagates": missed(guarded)
+check "carrying its own cause, NOT a type complaint": contains(
+  reasons(guarded)[0], "cannot parse \"3O\"")
+check "and typed added no second reason": not contains(
+  reasons(guarded)[0], "expected num")
+
+# --- 4. An unusable SPEC is itself a miss, not an exception ---------------
+# `typed` is total (decision 2): there is no argument that makes it raise.
+let nonsense = typed(1, 5, "rate")
+check "a spec that is not a type name or a shape misses": missed(nonsense)
+check "and says so in its own words": contains(
+  reasons(nonsense)[0], "typed spec must be a type name or a shape")
+
+# --- 5. A shape is a spec, and so is any record that looks like one -------
+shape Point = @{x: num, y: num}
+check "a declared shape is a spec": typed(@{x: 1, y: 2}, Point, "pt").x == 1
+let short = typed(@{x: 1}, Point, "pt")
+check "a missing field misses, naming the field": contains(
+  reasons(short)[0], "(no field 'y')")
+# Real duck typing: a hand-built record with no declared relation to
+# anything is as good a spec as `Point`.
+check "a hand-built record is a legal spec too":
+  typed(@{x: 1, y: 2}, @{x: "num", y: "num"}, "pt").y == 2
+check "matches is the same check as a TOTAL predicate": matches(@{x: 1, y: 2}, Point)
+check "and never itself misses, even on a bad value": not matches(@{x: 1}, Point)
+check "not even on a miss": not matches(parsed, "num")
+
+# --- 6. The spec the program CHOOSES --------------------------------------
+# This is what an annotation cannot express. The column type lives in the
+# data, so the contract has to be a value.
+let schema = @{amount: "num", note: "str", reading: "guess"}
+let rows = [
+  @{field: "amount",  value: 12},
+  @{field: "note",    value: "shipped late"},
+  @{field: "reading", value: guess(5, 0.9, "sensor")},
+  @{field: "amount",  value: "12"}          # a string where a number belongs
+]
+fn validate(row) { typed(row.value, get(schema, row.field), "column " + row.field) }
+let checked = map(validate, rows)
+check "the three well-typed columns pass": not missed(checked[0]) and
+  not missed(checked[1]) and not missed(checked[2])
+check "an uncommitted value satisfies the 'guess' tag": is_guess(checked[2])
+check "the mistyped one is the only miss": missed(checked[3])
+check "and it names the column the schema disagreed with": contains(
+  reasons(checked[3])[0], "column amount expected num, got str")
+
+# A miss is a value, so the failure survives an aggregation and `blame`
+# still finds the row that caused it.
+fn total_amounts(vs) { fold(fn(acc, v) { acc + v }, 0, vs) }
+let bad_total = total_amounts(map(fn(r) { validate(r) }, [rows[0], rows[3]]))
+check "one bad column poisons the total": missed(bad_total)
+check "blame names the column, not the fold": blame(bad_total)[0].detail == "column amount"
+print("why the total failed:")
+print(reasons(bad_total))
+
+# --- 7. The two spellings are ONE rule ------------------------------------
+# `_check_contract` (annotations) and `b_typed` (this builtin) produce the
+# same node shape with the same wording, so a reader cannot tell from the
+# miss which spelling produced it. That is the design, stated as a check.
+fn annotated(a: num) { a }
+let by_annotation = annotated("8%")
+let by_builtin = typed("8%", "num", "parameter 'a' of annotated")
+let want = "parameter 'a' of annotated expected num, got str"
+check "the annotation and the builtin word it identically":
+  contains(reasons(by_annotation)[0], want) and
+  contains(reasons(by_builtin)[0], want)
+check "same op tag in the why-tree, so blame cannot tell them apart":
+  blame(by_annotation)[0].op == blame(by_builtin)[0].op
+# The ONE thing that differs, and it is a rule rather than a discrepancy:
+# a `reason` carries the line its miss was made at, and the two ends of the
+# contract deliberately keep different line rules — a parameter miss is
+# reported where the contract is WRITTEN (the body's opening line), a
+# `typed` call where the call is. So the two strings are the same sentence
+# and are still not equal.
+check "and yet the two reasons are NOT equal":
+  reasons(by_annotation)[0] != reasons(by_builtin)[0]
+check "because each carries the line it was made at":
+  contains(reasons(by_annotation)[0], "(line ") and
+  contains(reasons(by_builtin)[0], "(line ")
+print("")
+print("written at:  " + reasons(by_annotation)[0])
+print("called at:   " + reasons(by_builtin)[0])

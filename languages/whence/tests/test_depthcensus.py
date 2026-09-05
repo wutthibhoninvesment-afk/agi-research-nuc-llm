@@ -194,8 +194,12 @@ def test_the_node_budget_is_reported_when_it_stops_a_walk():
 # the corpus reading
 # --------------------------------------------------------------------------
 
-def test_the_corpus_is_thirty_three_programs():
-    assert len(DC.corpus_paths()) == 33
+def test_the_corpus_is_thirty_four_programs():
+    """34 since round 506 added `examples/typed.lang`. RENAMED rather than
+    left reading `thirty_three` with a 34 under it: the name is the claim a
+    reader sees in a `FAILED` line, and this file's own neighbour explains
+    that a constant justified by a comment is not justified."""
+    assert len(DC.corpus_paths()) == 34
 
 
 @pytest.mark.whence_slow
@@ -206,7 +210,7 @@ def test_the_corpus_maximum_is_fourteen_and_it_is_self_host_lang():
     re-takes is a constant justified by a comment."""
     rows = DC.census(alloc=False)
     s = DC.summarise(rows)
-    assert s["programs"] == 33
+    assert s["programs"] == 34
     assert s["max_built_depth"] == 14
     assert s["deepest_program"] == "self_host.lang"
     assert s["max_printed_depth"] == 2
