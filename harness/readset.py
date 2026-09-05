@@ -352,9 +352,42 @@ if os.environ.get(OUT_ENV_VAR):
     sys.addaudithook(_REC.hook)
 
 
+#: Path from the recorded root to pytest's rootdir, as `a/b/`, or "".
+#: Round 509 (SWE-loop D). `_key`'s original docstring said "pytest nodeids
+#: are already repo-relative" and that is TRUE ONLY when pytest's rootdir IS
+#: the repo root -- which held for exactly as long as the map covered
+#: `harness/tests/` alone. `languages/whence/pytest.ini` makes rootdir
+#: `languages/whence`, so the same suite collects as
+#: `tests/test_assertshadow.py::…`, and a map merging both trees would key a
+#: whence node and a hypothetical `harness/tests/`-rooted node on the same
+#: string. `blast` reports `file_of(key)` straight to the user as a path to
+#: run, so an unprefixed key is not merely ambiguous, it is a WRONG COMMAND.
+_PREFIX = ""
+
+
+def pytest_configure(config):
+    """Record the rootdir offset before any nodeid is keyed."""
+    global _PREFIX
+    if _REC is None:
+        return
+    try:
+        rootdir = str(config.rootpath)
+    except AttributeError:                                # pragma: no cover
+        rootdir = str(config.rootdir)
+    rel = os.path.relpath(rootdir, _REC.root.rstrip(os.sep))
+    _PREFIX = "" if rel in (".", "") else rel.replace(os.sep, "/") + "/"
+
+
 def _key(nodeid):
-    """pytest nodeids are already repo-relative with `/`; normalise anyway."""
-    return str(nodeid).replace(os.sep, "/")
+    """A pytest nodeid made relative to the RECORDED ROOT, `/`-separated.
+
+    Prefixed with `_PREFIX` when pytest's rootdir is below the recorded root
+    (see `_PREFIX`). `UNATTRIBUTED` is never prefixed -- it is a bucket, not
+    a path."""
+    nid = str(nodeid).replace(os.sep, "/")
+    if not nid or nid == UNATTRIBUTED:
+        return nid or UNATTRIBUTED
+    return _PREFIX + nid
 
 
 def pytest_collectstart(collector):
@@ -537,6 +570,7 @@ def staleness(mp, root=ROOT):
 RECORD_ARGV = ["harness/readset.py", "record"]
 BLAST_ARGV = ["harness/readset.py", "blast"]
 SHOW_ARGV = ["harness/readset.py", "show"]
+MERGE_ARGV = ["harness/readset.py", "merge"]
 
 #: What `record` instruments when told nothing else: the harness fast tier,
 #: the same selection `harness/run_tests_fast.sh` runs.
@@ -567,9 +601,34 @@ def cmd_record(args):
     # THIS file's directory, not `args.root/harness`: `--root` names the tree
     # being RECORDED, which may be any checkout (the tests point it at a
     # miniature repo in `tmp_path`), while the plugin always ships here.
-    boot = ("import sys; sys.path.insert(0, %r); import pytest; "
+    # LOAD BY FILE LOCATION -- `harness/` never goes on `sys.path` at all.
+    # Round 509 (SWE-loop D) found the second half of round 505's own
+    # finding. That round reasoned about the arming variable leaking into
+    # CHILD processes and chose `sys.path` because it "is process-local and
+    # is not inherited" -- correct, and silent about the process the
+    # recorder is in. MEASURED, three runs of the same selection:
+    #
+    #   harness/ at sys.path[0]   `languages/whence/tests/test_v38.py`
+    #   harness/ appended          -> ModuleNotFoundError at collection,
+    #                                 `1 error during collection`, rc=2
+    #   loaded by file location    -> 14 tests collected, clean
+    #
+    # `harness/tests/__init__.py` makes `tests` a regular package, and the
+    # repo root has no `tests/`, so with `harness/` on the path in ANY
+    # position a bare `import tests` binds to `harness/tests` -- verified
+    # directly: `tests.__path__ == ['<repo>/harness/tests']`. Every
+    # `from tests.X import ...` in the whence suite then fails. The
+    # instrument had changed the subject, which is the same class of defect
+    # round 505's own comment describes one step earlier in the chain.
+    # `record` did not notice: it only refuses when NO map is written, so
+    # the aborted run still produced a 10-key map that `blast` would read
+    # as authoritative.
+    boot = ("import sys, importlib.util as U; "
+            "s = U.spec_from_file_location('readset', %r); "
+            "m = U.module_from_spec(s); sys.modules['readset'] = m; "
+            "s.loader.exec_module(m); import pytest; "
             "raise SystemExit(pytest.main(sys.argv[1:]))"
-            % os.path.dirname(os.path.abspath(__file__)))
+            % os.path.abspath(__file__))
     cmd = ([sys.executable, "-c", boot, "-p", "readset", "-q"] + target)
     t0 = time.time()
     p = subprocess.run(cmd, cwd=args.root, env=env)
@@ -579,11 +638,116 @@ def cmd_record(args):
               "that recorded nothing is not an empty tree" % (p.returncode, dt))
         return 1
     mp = load_map(out)
+    # rc 2/3/4 are pytest's INTERRUPTED / INTERNAL ERROR / USAGE ERROR. rc 1
+    # is "tests failed", which is fine here -- a failing test still read the
+    # files it read. Round 509 added this: the sys.path defect above aborted
+    # collection in 0.6 s and `record` printed a cheerful summary over a
+    # 10-key map, because the only refusal it had was "no file was written".
+    # A map recorded from an interrupted collection is not a small map, it
+    # is a WRONG one -- `blast` reads absence as "nothing reads this".
+    if p.returncode in (2, 3, 4):
+        print("readset: INCOMPLETE RUN — pytest exited %d (interrupted / "
+              "internal / usage error). %d key(s) were written to %s and "
+              "they are NOT a statement about the tree; re-run before "
+              "merging or blasting."
+              % (p.returncode, len(mp.get("nodes", {})),
+                 os.path.relpath(out, args.root)))
+        return 1
     print("readset record: %d node(s) rostered, %d key(s) with evidence, "
           "%d audited event(s), %d kept, pytest rc=%d in %.1fs -> %s"
           % (len(mp.get("roster", ())), len(mp.get("nodes", {})),
              mp.get("n_events", 0), mp.get("n_kept", 0), p.returncode, dt,
              os.path.relpath(out, args.root)))
+    return 0
+
+
+def merge_maps(maps):
+    """Union several recorded maps into one.
+
+    Round 509 (SWE-loop D). `record` instruments EXACTLY ONE pytest process
+    (`OUT_ENV_VAR` is popped, not read, so no child re-arms the hook), and
+    the four checks whose reds this module exists to predict are four
+    SEPARATE pytest invocations with three different rootdirs. So a map that
+    covers more than `harness/tests/` cannot be produced by one run, and
+    merging is not a convenience -- it is the only way the instrument can
+    reach the trees where 4 of round 507's 7 directly-opened reds live.
+
+    Union semantics, chosen so a merged map can only ever say MORE:
+
+      * `nodes`  -- per key, the union of `files` and of `scans`. A key
+        present in two maps was recorded twice; keeping both sets is right,
+        because a node's read set is a lower bound on what it touches.
+      * `roster` -- union. Used by `silent`, which asks which rostered nodes
+        touched nothing; a node absent from one map's roster was simply not
+        collected by that run.
+      * `head`   -- kept ONLY if every input agrees. Otherwise `""`, which
+        `staleness()` already renders as "no git HEAD available on one side;
+        cannot compare". A merged map whose halves were recorded at
+        different commits must not claim either one.
+      * counters -- summed. `sources` records what went in.
+    """
+    nodes, roster, heads, n_events, n_kept, srcs = {}, set(), set(), 0, 0, []
+    for name, m in maps:
+        for k, ent in m.get("nodes", {}).items():
+            cur = nodes.setdefault(k, {"files": set(), "scans": set()})
+            cur["files"] |= set(ent.get("files", ()))
+            cur["scans"] |= set(ent.get("scans", ()))
+        roster |= set(m.get("roster", ()))
+        heads.add(m.get("head") or "")
+        n_events += int(m.get("n_events", 0) or 0)
+        n_kept += int(m.get("n_kept", 0) or 0)
+        srcs.append({"source": name, "keys": len(m.get("nodes", {})),
+                     "roster": len(m.get("roster", ())),
+                     "head": m.get("head") or "",
+                     "exitstatus": m.get("exitstatus")})
+    out = {
+        "_comment": (
+            "Written by `python3 harness/readset.py merge`. The union of "
+            "several `record` runs -- one per pytest rootdir, because "
+            "`record` instruments exactly one process. Per test node: "
+            "`files` = repo paths OPENED for reading or imported while that "
+            "node ran; `scans` = repo directories LISTED. Read by "
+            "`harness/readset.py blast`."),
+        "schema": 1,
+        "recorded_at": int(time.time()),
+        "head": (heads.pop() if len(heads) == 1 else ""),
+        "roster": sorted(roster),
+        "n_events": n_events,
+        "n_kept": n_kept,
+        "sources": srcs,
+        "nodes": dict((k, {"files": sorted(v["files"]),
+                           "scans": sorted(v["scans"])})
+                      for k, v in sorted(nodes.items())),
+    }
+    return out
+
+
+def cmd_merge(args):
+    maps = []
+    for path in args.maps:
+        try:
+            maps.append((os.path.relpath(path, args.root), load_map(path)))
+        except (OSError, ValueError) as exc:
+            print("readset merge: cannot read %s (%s)" % (path, exc))
+            return 1
+    if not maps:
+        print("readset merge: nothing to merge")
+        return 1
+    out = merge_maps(maps)
+    d = os.path.dirname(os.path.abspath(args.out))
+    if d and not os.path.isdir(d):
+        os.makedirs(d)
+    with open(args.out, "w", encoding="utf-8") as f:
+        json.dump(out, f, indent=1, sort_keys=False)
+        f.write("\n")
+    for srow in out["sources"]:
+        print("  in   %-44s %5d key(s)  %5d rostered  head %s"
+              % (srow["source"], srow["keys"], srow["roster"],
+                 (srow["head"] or "?")[:12]))
+    print("readset merge: %d source(s) -> %d key(s), %d rostered, head %s -> %s"
+          % (len(maps), len(out["nodes"]), len(out["roster"]),
+             (out["head"] or "DISAGREE")[:12],
+             os.path.relpath(args.out, args.root)))
     return 0
 
 
@@ -685,6 +849,11 @@ def main(argv=None):
     p.add_argument("paths", nargs="*",
                    help="paths to attribute (default: the working tree)")
     p.set_defaults(fn=cmd_blast)
+
+    p = sub.add_parser("merge", help="union several recorded maps into one")
+    p.add_argument("--out", default=DEFAULT_MAP)
+    p.add_argument("maps", nargs="+")
+    p.set_defaults(fn=cmd_merge)
 
     p = sub.add_parser("show", help="one node's recorded read/scan sets")
     p.add_argument("key")

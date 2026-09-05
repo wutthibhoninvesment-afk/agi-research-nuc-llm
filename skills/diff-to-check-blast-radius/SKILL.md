@@ -110,7 +110,57 @@ prose ages and nobody can query it.
     derive that sentence from the current data rather than writing today's
     situation into it.
 
+11. **Cover every tree the checks run — one recorder process cannot.**
+    Count the checks, then count the trees your index has rows for. Round
+    509 measured the shipped index: **315 keys, 314 of them in one
+    directory**, against FOUR scheduled checks over four trees. On the tree
+    it covered it worked (it named the file the previous round reddened);
+    the four reds in a tree it had no rows for were invisible, and the
+    instrument reported them as "nothing reads this". The recorder is
+    single-process by design (the arming variable is POPPED so no child
+    re-arms and races on the file), and separate suites have separate
+    runner roots, so a multi-tree index has to be **one recording per root,
+    then a `merge`**. Union `nodes` and `roster`; keep the recorded revision
+    only if every input agrees, else store none — a merged index whose
+    halves were recorded at different commits must not claim either.
+
+12. **Key nodes by the INDEX root, not the runner's root.** The moment the
+    index spans two suites this stops being cosmetic. A test-runner config
+    file inside a subtree makes that subtree the runner root, so its node
+    ids come back as `tests/test_x.py::…` — which collides with any other
+    subtree's `tests/` and, because the tool prints the node's file as **a
+    path to run**, produces a wrong command rather than an ambiguous one.
+    Compute `relpath(runner_root, index_root)` once at startup and prefix
+    every key with it.
+
 ## Pitfalls
+
+- **THE INSTRUMENT SHADOWING THE SUBJECT'S IMPORT NAMESPACE.** The recorder
+  has to be importable by the runner process, and the obvious way is to put
+  its own directory on `sys.path`. Round 505 rejected the environment-
+  variable form of this after measuring that it leaked into child processes
+  and inverted a test; it then used `sys.path` and reasoned, correctly, that
+  `sys.path` is process-local and is not inherited — which says nothing
+  about the process the recorder is *in*. Round 509 measured the
+  consequence: the recorder's directory contained `tests/__init__.py`, the
+  repo root had no `tests/`, so a bare `import tests` bound to the
+  RECORDER's package **in any sys.path position, prepended or appended**,
+  and every `from tests.X import …` in the subject suite raised at
+  collection. Load the plugin by file location
+  (`importlib.util.spec_from_file_location`) and never touch `sys.path`.
+  The general rule: an instrument that must be importable inside the
+  subject's process is a namespace collision waiting to happen — check for
+  a name your instrument's directory and your subject's directory both
+  define, and prefer file-location loading.
+- **Summarising an interrupted run.** The refusal "no output file was
+  written" does not cover the run that wrote one and then died. Round 509's
+  recorder printed `2949 node(s) rostered, 10 key(s) with evidence … rc=2`
+  over a collection that had aborted 0.6 s in, and the ten-key file was
+  indistinguishable from a real index. **An index built from an interrupted
+  collection is not a small index, it is a wrong one**, because the query
+  reads absence as "nothing reads this". Refuse on the runner's
+  interrupted/internal/usage exit codes; a plain test FAILURE is fine, since
+  a failing test still read what it read.
 
 - **Recording only reads.** Covered above; it is the single most common way
   this ends up useless. The negative test is `scanned_dir/does_not_exist`.
@@ -155,7 +205,24 @@ rm languages/whence/zz_probe.py
 # 5. the hook is not installed unless asked
 python3 -c "import sys;sys.path.insert(0,'harness');import readset;\
 assert readset._REC is None"
+
+# 6. COVERAGE: the index has rows for every tree the scheduled checks run.
+#    This is the step round 509 added, and the one that was silently false
+#    for four rounds.
+python3 -c "import json,collections;m=json.load(open('harness/readset-map.json'));\
+print(collections.Counter('/'.join(k.split('::')[0].split('/')[:2]) \
+for k in m['nodes']))"
+#    -> every checked tree must appear, not just the hosting one
+
+# 7. NAMESPACE: the recorder's own directory must not shadow a package the
+#    subject tree defines
+python3 -c "import sys;sys.path.append('harness');import tests;\
+print(tests.__path__)"
+#    -> if this resolves INSIDE your instrument's directory, the recorder
+#       must not put that directory on sys.path at all
 ```
 
 The instrument is working when step 2 names a file in a directory you do not
-run, and step 3 names nothing.
+run, step 3 names nothing, and step 6 lists every tree a scheduled check
+covers. Steps 6 and 7 are the ones that fail silently: 1-5 all pass on an
+index that covers a quarter of the repo.

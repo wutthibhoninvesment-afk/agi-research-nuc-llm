@@ -597,3 +597,221 @@ def test_blast_strict_is_opt_in_and_the_driver_does_not_use_it():
     with open(os.path.join(REPO_ROOT, "run_driver.sh"), encoding="utf-8") as f:
         driver = f.read()
     assert "readset.py blast --strict" not in driver
+
+
+# ---------------------------------------------------------------------------
+# Round 509 (SWE-loop D) — the map that covered one of four trees
+# ---------------------------------------------------------------------------
+#
+# Round 505 built this module to reach the OPENER, and round 509 measured
+# what it reached. Against round 507's exact 12-path diff, `blast` named
+# `harness/tests/test_swe_copyparity_real_subject.py` (a TRUE positive: that
+# file's three nodes did go red) and did NOT name
+# `languages/whence/tests/test_assertshadow.py` or `test_subjprov.py`, whose
+# four nodes went red in the same round for the same commit. It could not:
+# the shipped map had 315 keys and 314 of them were in `harness/tests/`.
+# The four health checks run four suites in four trees; the map covered one.
+#
+# Three defects stood between the map and the other three trees, and each of
+# the tests below pins one of them.
+
+MERGE_ARGV = ["harness/readset.py", "merge"]
+
+#: The trees the four health checks run, as key prefixes. `skills/` is the
+#: fourth; its check is a script rather than a pytest selection, so it is not
+#: asserted here — named rather than implied.
+CHECKED_TREE_PREFIXES = ("harness/tests/", "languages/whence/tests/",
+                         "nuc/tests/")
+
+
+def test_a_nodeid_is_keyed_relative_to_the_recorded_root_not_pytests_rootdir(
+        tmp_path):
+    """DEFECT 1. `_key`'s docstring said "pytest nodeids are already
+    repo-relative", which is true exactly while the map covers one tree
+    whose rootdir IS the repo root. `languages/whence/pytest.ini` makes
+    rootdir `languages/whence`, so the same suite collects as
+    `tests/test_assertshadow.py::…`. `blast` prints `file_of(key)` to the
+    user as a path to run, so an unprefixed key is a WRONG COMMAND, not
+    merely an ambiguous one."""
+    r = str(tmp_path / "repo")
+    _write(os.path.join(r, "sub", "pytest.ini"), "[pytest]\n")
+    _write(os.path.join(r, "sub", "data", "a.txt"), "alpha\n")
+    _write(os.path.join(r, "sub", "tests", "test_sub.py"), '''
+import io, os
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def test_reads():
+    assert io.open(os.path.join(ROOT, "data", "a.txt")).read() == "alpha\\n"
+''')
+    out = os.path.join(r, "map.json")
+    env = dict(os.environ)
+    env["READSET_OUT"] = out
+    env["READSET_ROOT"] = r
+    boot = ("import sys, importlib.util as U; "
+            "s = U.spec_from_file_location('readset', %r); "
+            "m = U.module_from_spec(s); sys.modules['readset'] = m; "
+            "s.loader.exec_module(m); import pytest; "
+            "raise SystemExit(pytest.main(sys.argv[1:]))"
+            % os.path.join(REPO_ROOT, "harness", "readset.py"))
+    subprocess.run([sys.executable, "-c", boot, "-p", "readset", "-q",
+                    "sub/tests/"], cwd=r, env=env, capture_output=True,
+                   text=True, timeout=300)
+    with open(out, encoding="utf-8") as f:
+        mp = json.load(f)
+    keys = [k for k in mp["nodes"] if k != R.UNATTRIBUTED]
+    assert keys, mp
+    assert all(k.startswith("sub/tests/") for k in keys), keys
+    assert R.implicated(["sub/data/a.txt"], mp), \
+        "a path the node read must implicate it under the prefixed key"
+
+
+def test_the_recorder_does_not_shadow_the_subject_trees_tests_package():
+    """DEFECT 2, and the one that cost the most. Round 505 put `harness/` on
+    `sys.path` and reasoned only about the CHILD processes that would
+    inherit it. `harness/tests/__init__.py` makes `tests` a regular package
+    and the repo root has none, so with `harness/` on the path in ANY
+    position a bare `import tests` binds to `harness/tests` — measured
+    directly below. Every `from tests.X import ...` in the whence suite then
+    raises at collection. The instrument had changed the subject.
+
+    Both halves are asserted: that the shadow is real (so the test cannot
+    pass by the defect having been renamed away), and that `cmd_record`'s
+    bootstrap no longer creates it."""
+    probe = subprocess.run(
+        [sys.executable, "-c",
+         "import sys; sys.path.append(%r); import tests; print(tests.__path__[0])"
+         % os.path.join(REPO_ROOT, "harness")],
+        capture_output=True, text=True, timeout=120, cwd=REPO_ROOT)
+    assert probe.returncode == 0, probe.stderr
+    assert probe.stdout.strip() == os.path.join(REPO_ROOT, "harness", "tests"), \
+        ("the shadow this test guards against is gone; re-derive the rule "
+         "before deleting the guard: " + probe.stdout)
+    src = open(os.path.join(REPO_ROOT, "harness", "readset.py"),
+               encoding="utf-8").read()
+    boot = src[src.index("    boot = ("):src.index("    cmd = (")]
+    assert "sys.path" not in boot, \
+        "cmd_record's bootstrap must not touch sys.path:\n" + boot
+    assert "spec_from_file_location" in boot, boot
+
+
+def test_the_whence_suite_collects_under_the_recorders_bootstrap():
+    """The same defect, asked of the real subject rather than the rule.
+    `languages/whence/tests/test_v38.py` is the file that raised; it spells
+    an intra-suite import `from tests.test_parse_error_differential import`.
+    Collection only, so this stays in the fast tier."""
+    boot = ("import sys, importlib.util as U; "
+            "s = U.spec_from_file_location('readset', %r); "
+            "m = U.module_from_spec(s); sys.modules['readset'] = m; "
+            "s.loader.exec_module(m); import pytest; "
+            "raise SystemExit(pytest.main(sys.argv[1:]))"
+            % os.path.join(REPO_ROOT, "harness", "readset.py"))
+    p = subprocess.run(
+        [sys.executable, "-c", boot, "-p", "readset", "-q", "--collect-only",
+         "languages/whence/tests/test_v38.py"],
+        cwd=REPO_ROOT, capture_output=True, text=True, timeout=300)
+    assert p.returncode == 0, p.stdout + p.stderr
+    assert "error" not in p.stdout.lower(), p.stdout
+
+
+def test_an_interrupted_collection_is_refused_rather_than_summarised(tmp_path):
+    """DEFECT 3. `record`'s only refusal was "no file was written". Defect 2
+    aborted collection in 0.6 s and `record` printed a cheerful summary over
+    a ten-key map. A map recorded from an interrupted collection is not a
+    small map; `blast` reads absence as "nothing reads this"."""
+    r = str(tmp_path / "repo")
+    _write(os.path.join(r, "tests", "test_ok.py"),
+           "def test_ok():\n    assert True\n")
+    _write(os.path.join(r, "tests", "test_broken.py"),
+           "import no_such_module_round509\n\n\ndef test_x():\n    assert True\n")
+    out = os.path.join(r, "map.json")
+    p = subprocess.run(
+        [sys.executable, os.path.join(REPO_ROOT, "harness", "readset.py"),
+         "--root", r, "record", "--out", out, "--", "tests/"],
+        cwd=r, capture_output=True, text=True, timeout=300)
+    assert p.returncode == 1, p.stdout + p.stderr
+    assert "INCOMPLETE RUN" in p.stdout, p.stdout
+
+
+def test_merge_unions_nodes_and_roster_and_keeps_a_shared_head():
+    a = {"schema": 1, "head": "abc", "roster": ["x::1"], "n_events": 3,
+         "n_kept": 2,
+         "nodes": {"x::1": {"files": ["p/a.py"], "scans": ["p"]}}}
+    b = {"schema": 1, "head": "abc", "roster": ["y::1"], "n_events": 5,
+         "n_kept": 4,
+         "nodes": {"x::1": {"files": ["p/b.py"], "scans": []},
+                   "y::1": {"files": [], "scans": ["q"]}}}
+    m = R.merge_maps([("a", a), ("b", b)])
+    assert m["nodes"]["x::1"]["files"] == ["p/a.py", "p/b.py"]
+    assert m["nodes"]["x::1"]["scans"] == ["p"]
+    assert m["roster"] == ["x::1", "y::1"]
+    assert (m["head"], m["n_events"], m["n_kept"]) == ("abc", 8, 6)
+    assert [s["source"] for s in m["sources"]] == ["a", "b"]
+
+
+def test_merge_refuses_to_claim_a_head_its_halves_disagree_on():
+    """A merged map whose halves were recorded at different commits must not
+    claim either one — `staleness()` already renders an empty head as "no
+    git HEAD available on one side; cannot compare", which is the truth."""
+    a = {"schema": 1, "head": "aaa", "roster": [], "nodes": {}}
+    b = {"schema": 1, "head": "bbb", "roster": [], "nodes": {}}
+    assert R.merge_maps([("a", a), ("b", b)])["head"] == ""
+    assert R.staleness(R.merge_maps([("a", a), ("b", b)]), REPO_ROOT)[0] is True
+
+
+def test_the_shipped_map_covers_every_tree_the_health_checks_run(real_map):
+    """THE POINT OF THE ROUND. Round 507 reddened seven nodes in three suite
+    files in two trees with one commit, and `blast` could name only the one
+    tree the map had rows for."""
+    have = set()
+    for k in real_map.get("nodes", ()):
+        for pre in CHECKED_TREE_PREFIXES:
+            if k.startswith(pre):
+                have.add(pre)
+    assert have == set(CHECKED_TREE_PREFIXES), (
+        "the map has rows for %s and the health checks run %s — re-record "
+        "the missing tree(s) and `readset.py merge` them in"
+        % (sorted(have), sorted(CHECKED_TREE_PREFIXES)))
+
+
+def test_round_507s_diff_now_implicates_the_whence_nodes_it_reddened(real_map):
+    """The falsifiable claim, stated as round 507's real paths.
+
+    `languages/whence/tests/test_specstale.py` was ADDED by round 507, so at
+    that moment no read set on earth could name it and only a SCAN of
+    `languages/whence/tests/` can answer — the same asymmetry round 505
+    built the two sets for, asked in the tree the map could not see."""
+    rows = R.implicated(["languages/whence/tests/test_no_such_round509.py"],
+                        real_map)
+    files = {d["file"] for d in R.by_file(rows)}
+    assert "languages/whence/tests/test_assertshadow.py" in files, sorted(files)
+
+
+def test_the_merge_cli_runs_and_its_output_is_a_usable_map(tmp_path):
+    """`MERGE_ARGV` above is the token `harness/verb_audit.py` reads; this is
+    the run that makes it a real invocation rather than a mention."""
+    a = tmp_path / "a.json"
+    b = tmp_path / "b.json"
+    out = tmp_path / "m.json"
+    a.write_text(json.dumps(
+        {"schema": 1, "head": "", "roster": ["harness/tests/t.py::one"],
+         "n_events": 1, "n_kept": 1,
+         "nodes": {"harness/tests/t.py::one":
+                   {"files": ["harness/x.py"], "scans": ["harness"]}}}))
+    b.write_text(json.dumps(
+        {"schema": 1, "head": "", "roster": ["languages/whence/tests/t.py::two"],
+         "n_events": 1, "n_kept": 1,
+         "nodes": {"languages/whence/tests/t.py::two":
+                   {"files": [], "scans": ["languages/whence/tests"]}}}))
+    p = subprocess.run(
+        [sys.executable] + MERGE_ARGV[:1] + ["merge", "--out", str(out),
+                                             str(a), str(b)],
+        cwd=REPO_ROOT, capture_output=True, text=True, timeout=120)
+    assert p.returncode == 0, p.stdout + p.stderr
+    assert "2 source(s)" in p.stdout, p.stdout
+    mp = json.loads(out.read_text())
+    assert set(mp["nodes"]) == {"harness/tests/t.py::one",
+                                "languages/whence/tests/t.py::two"}
+    rows = R.implicated(["languages/whence/tests/added_round509.py"], mp)
+    assert {d["file"] for d in R.by_file(rows)} == \
+        {"languages/whence/tests/t.py"}
