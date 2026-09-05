@@ -536,6 +536,11 @@
       "via": "nuc/tests/test_lane_bench.py:-",
       "via_kind": "import"
     },
+    "nuc/mutant_remap.py": {
+      "status": "wired",
+      "via": "nuc/tests/test_mutant_remap.py:15",
+      "via_kind": "import"
+    },
     "nuc/nuc-adapter-copy.py": {
       "status": "wired",
       "via": "nuc/tests/test_kv_reuse_model.py:-",
