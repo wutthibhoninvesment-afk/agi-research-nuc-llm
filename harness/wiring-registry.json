@@ -354,6 +354,11 @@
       "owner": "language(C)",
       "reason": "A `bench/` measurement script. Every reference to it in languages/whence/tests/ is inside a comment or a docstring explaining what it once measured -- correctly not an edge -- so nothing runs it automatically and nothing should: each one drives the real interpreter over large programs to produce a number a round asks for once."
     },
+    "languages/whence/builtinlive.py": {
+      "status": "wired",
+      "via": "languages/whence/tests/test_builtinlive.py:19",
+      "via_kind": "import"
+    },
     "languages/whence/checkpin.py": {
       "status": "wired",
       "via": "languages/whence/tests/test_checkpin.py:57",
