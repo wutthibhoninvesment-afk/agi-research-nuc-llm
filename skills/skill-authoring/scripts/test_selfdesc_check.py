@@ -650,7 +650,7 @@ class TestLiveCorpus(unittest.TestCase):
 
     def test_every_artefact_with_prose_is_actually_swept(self):
         """The denominator is derived, not asserted from a constant."""
-        arts, n_json, _u, _s = selfdesc_check.scan_tree(ROOT)
+        arts, n_json, _u, _s, _o = selfdesc_check.scan_tree(ROOT)
         self.assertEqual(self.stats["artefacts"], len(arts))
         self.assertEqual(self.stats["json_files"], n_json)
         self.assertGreaterEqual(self.stats["artefacts"], 20)
@@ -677,7 +677,7 @@ class TestLiveCorpus(unittest.TestCase):
         inside an element was never reached at all. Both are asserted by
         lower bounds rather than by counts, because both populations grow.
         """
-        arts, _n, _u, _s = selfdesc_check.scan_tree(ROOT)
+        arts, _n, _u, _s, _o = selfdesc_check.scan_tree(ROOT)
         nested = [f for a in arts for f in a.fields if f.depth]
         stamped = [f for a in arts for f in a.fields if f.round is not None]
         self.assertGreater(len(nested), 100, "depth gap re-opened")
@@ -719,6 +719,74 @@ class TestLiveCorpus(unittest.TestCase):
         import corpus_check
         names = [n for n, _argv in corpus_check.checks(ROOT)]
         self.assertIn("selfdesc_check", names)
+
+
+class TestTheSizeCapAnnouncesWhatItDropped(unittest.TestCase):
+    """Round 513. `MAX_BYTES` was a silent `continue`, so a file that GREW
+    past the cap left the audited population and the only trace was the
+    `artefacts` count going down by one. Round 513 grew
+    `harness/readset-map.json` past 2 MB and measured exactly that: 61 -> 60,
+    no finding, no line. A cap that does not name what it dropped makes its
+    own denominator a fact about the cap."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def write(self, rel, text):
+        path = os.path.join(self.tmp, rel)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        return path
+
+    def test_an_oversize_object_json_is_named_not_merely_dropped(self):
+        pad = "x" * (selfdesc_check.MAX_BYTES + 10)
+        # indent=1, so the file is multi-line: a ONE-line JSON object is
+        # indistinguishable from JSONL by `_is_jsonl` and would be
+        # classified as a stream instead.
+        self.write("state/big.json",
+                   json.dumps({"_comment": pad}, indent=1))
+        arts, seen, _u, _s, oversize = selfdesc_check.scan_tree(self.tmp)
+        self.assertEqual(arts, [])
+        self.assertEqual(seen, 1)
+        self.assertEqual(oversize, ["state/big.json"])
+
+    def test_an_oversize_jsonl_log_is_a_stream_and_not_an_oversize_artefact(self):
+        """The size check runs BEFORE the stream classification, so without
+        this the report names 41 files of which 32 were never artefacts."""
+        line = json.dumps({"e": "x" * 200}) + "\n"
+        self.write("logs/round-999.json",
+                   line * (selfdesc_check.MAX_BYTES // len(line) + 20))
+        arts, _seen, _u, streams, oversize = selfdesc_check.scan_tree(self.tmp)
+        self.assertEqual(arts, [])
+        self.assertEqual(oversize, [])
+        self.assertEqual(streams, ["logs/round-999.json"])
+
+    def test_a_small_artefact_is_still_audited(self):
+        self.write("state/small.json", json.dumps(
+            {"_comment": "Written by `python3 x.py`. Read by harness/y.py."},
+            indent=1))
+        arts, _seen, _u, _s, oversize = selfdesc_check.scan_tree(self.tmp)
+        self.assertEqual(oversize, [])
+        self.assertEqual([a.rel for a in arts], ["state/small.json"])
+
+    def test_the_report_prints_the_dropped_names_above_the_summary(self):
+        import io as _io
+        buf = _io.StringIO()
+        selfdesc_check.report([], [], {
+            "artefacts": 1, "json_files": 2, "prose_fields": 0,
+            "silent_fields": 0, "nested_fields": 0, "checked_fields": 0,
+            "claims": 0, "unparseable": [], "streams": 0,
+            "oversize": ["state/big.json"], "must_claims": 0,
+            "watched_claims": 0, "acknowledged": 0}, out=buf)
+        text = buf.getvalue()
+        self.assertIn("state/big.json", text)
+        self.assertIn("NOT audited", text)
+        self.assertLess(text.index("state/big.json"),
+                        text.index("selfdesc-check:"))
 
 
 if __name__ == "__main__":

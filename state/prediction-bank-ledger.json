@@ -1487,6 +1487,14 @@
    "where": "state/whence/round-512/scored.md",
    "quote": "| **P7** | **MISSED** | Predicted no other ledger was stale. **Three of five were stale, not one.** `assert-shadow-census.json` had been stale since round 500 (72\u219276 files, 1935\u21922029 test functions, 3908\u21924122 asserts) and `subject-provenance.json` was stale with **no red at all**. This was the round's main finding and I predicted its opposite. |",
    "note": "TWO bank files, both under state/whence/round-512/: predictions.json (P1-P8, written before any measurement) and predictions-2.json (P9-P12 banked after P1-P8 were scored, then P13 and P14 each appended immediately before the single run that decided it). Scored in scored.md: 14 banked, 11 kept, 3 missed. The item that earned the bank is P7, which predicted the OPPOSITE of the round's headline -- a bank whose value was in being contradicted, as round 511's P1 was. The three misses share one shape, named in scored.md's closing section: predicting an instrument's behaviour from its STATED PURPOSE rather than from its PREDICATE (P7, P10, P11), and once from a usage string rather than the parser (P13). That is the round's own finding one level up, which is why it is recorded as a rule and not just a tally. P14 is the one banked as a PRECONDITION rather than a guess: byte-determinism of all five generators, banked before the design that rests on it was written."
+  },
+  "513": {
+   "bank": "state/round-513-predictions.md",
+   "status": "scored",
+   "scored_by": 513,
+   "where": "knowledge/round-513-the-absence-that-was-a-fact-about-the-filter.md",
+   "quote": "| P11 | **MISS** | predicted case_coverage warnings stay at 31. They went to 32 \u2014 I forgot my own new skill enters the corpus it is counting \u2014 and then to 30 once both P004s were acknowledged. Two errors in one line |",
+   "note": "Twelve banked in state/round-513-predictions.md before any measurement, scored in section 9 of the cited file: 8 HIT, 4 MISS. The bank earned its keep by being WRONG: P6 and P7 predicted that harness/readset.py blast WOULD implicate the skills suites that carried this round's reds, on the assumption that the instrument existed and had merely not been run. It implicated nothing, because harness/readset-map.json contained ZERO nodes under skills/ -- a different and larger repair (record the suite, re-merge from the three ORIGINAL round-510 source maps rather than from the previous merge output, which collapses provenance) that a correct prediction would not have produced. P11 is the instructive miss: it predicted case_coverage's warning count would be unchanged, scoping the prediction to the EDIT while the instrument counts the ROUND -- this round's own new skill is in the corpus it is counting. P8 missed low (36.4 s against a 40-150 s band) on a wrong premise as well as a wrong number: corpus_check.py --precommit already existed and already caught all three of this round's ERRORs."
   }
  }
 }

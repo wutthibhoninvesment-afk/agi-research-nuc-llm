@@ -1125,3 +1125,40 @@ class TestAPredictionBankIsADatedRecord(unittest.TestCase):
         self.assertEqual(
             xref_check.scope_of("state/skills/round-495/notes.md"),
             "authoritative")
+
+
+class TestTheDatedScopeFollowsTheLedgerCheckersSweep(unittest.TestCase):
+    """Round 513. `HISTORICAL_RE` enumerated `.md` on every round-scoped
+    alternative, exactly as `carryforward_check.find_banks` did. The two are
+    coupled by `test_every_bank_the_ledger_checker_finds_is_dated_scope`, so
+    widening the sweep without widening this regex turns a real bank into an
+    authoritative file whose every citation is then policed."""
+
+    def test_a_json_bank_in_a_round_directory_is_historical(self):
+        self.assertEqual(
+            xref_check.scope_of("state/whence/round-512/predictions.json"),
+            "historical")
+
+    def test_a_sequence_suffixed_json_bank_is_historical(self):
+        self.assertEqual(
+            xref_check.scope_of("state/whence/round-512/predictions-2.json"),
+            "historical")
+
+    def test_the_flat_convention_widens_the_same_way(self):
+        self.assertEqual(
+            xref_check.scope_of("state/round-513-predictions.json"),
+            "historical")
+
+    def test_the_ledger_is_still_authoritative_after_the_widening(self):
+        """The register is not a member. This is the file the widening is
+        most likely to swallow, and swallowing it would stop every citation
+        in the ledger being checked at all."""
+        self.assertEqual(
+            xref_check.scope_of("state/prediction-bank-ledger.json"),
+            "authoritative")
+
+    def test_no_round_number_means_no_widening(self):
+        for rel in ("state/known-absent-paths.json",
+                    "state/predictions-notes.json",
+                    "state/whence/assert-shadow-census.json"):
+            self.assertEqual(xref_check.scope_of(rel), "authoritative", rel)

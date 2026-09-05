@@ -241,6 +241,15 @@ REQUIRED_UNSCORED = ("bank", "status", "owner", "why")
 # ROUND, not to the file's tracked-ness.
 # --------------------------------------------------------------------------
 BANK_NAME_RE = re.compile(r"prediction", re.IGNORECASE)
+# ROUND 513. The sweep above was made repo-wide because enumerating the
+# DIRECTORIES you already know about cannot find an obligation nobody
+# registered. It kept enumerating the EXTENSIONS: `.md`, and every one of the
+# six conventions listed above is `.md`. Round 512 banked in
+# `state/whence/round-512/predictions.json` -- a seventh convention -- so
+# `find_banks` returned nothing for round 512, and K003 reported the entry as
+# naming "nothing" while the file it names sat on disk. Same reasoning error,
+# one attribute down.
+BANK_SUFFIXES = (".md", ".json")
 BANK_ROUND_RE = re.compile(r"round[-_ ]?(\d{1,4})", re.IGNORECASE)
 SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "research-env",
              "__pycache__", "site-packages", ".mypy_cache", ".pytest_cache",
@@ -267,9 +276,16 @@ def find_banks(root):
             dirnames[:] = []
             continue
         for name in filenames:
-            if not name.endswith(".md") or not BANK_NAME_RE.search(name):
+            if not name.endswith(BANK_SUFFIXES) or not BANK_NAME_RE.search(name):
                 continue
             rel = os.path.normpath(os.path.join(rel_dir, name))
+            # The LEDGER is the register of banks, not a bank. Its name
+            # matches `prediction` and it is now an admitted suffix, so it
+            # has to be named out explicitly -- otherwise widening the sweep
+            # invents one unnumbered obligation out of the file that tracks
+            # them.
+            if rel == LEDGER_FILE:
+                continue
             # The round number lives in the FILENAME for three conventions and
             # in the DIRECTORY for two, so match the whole relative path.
             m = BANK_ROUND_RE.search(rel)
@@ -746,9 +762,30 @@ def findings(root, corpus, banks, ledger, err, latest_round):
                             "delete the field or say what is outstanding."
                             % (n, field)))
         if n not in banks:
-            out.append(("K003", LEDGER_FILE,
-                        "round %d: no bank on disk at all — the entry names "
-                        "nothing" % n))
+            # ROUND 513. This branch used to say "no bank on disk at all --
+            # the entry names nothing" for BOTH of the two cases below, and
+            # for round 512 that sentence was false: the entry named
+            # `state/whence/round-512/predictions.json`, the file existed,
+            # and the only thing that was missing was the sweep's ability to
+            # see it. A negative verdict computed on a FILTERED view
+            # (`banks`, everything `find_banks` admits) must be re-tested
+            # against the RAW thing the entry names before it is worded as a
+            # fact about the disk -- one `os.path.exists`. The two cases need
+            # opposite repairs, in different files.
+            named = os.path.join(root, e["bank"])
+            if os.path.exists(named):
+                out.append(("K003", LEDGER_FILE,
+                            "round %d: `bank` is %s, which EXISTS on disk, "
+                            "yet the sweep found no bank for this round. The "
+                            "LEDGER is right and `find_banks` is wrong — fix "
+                            "the sweep's predicate (name shape, suffix, "
+                            "skipped directory), not this entry"
+                            % (n, e["bank"])))
+            else:
+                out.append(("K003", LEDGER_FILE,
+                            "round %d: no bank on disk at all — `bank` is %s "
+                            "and nothing is there, and the sweep found no "
+                            "bank for this round either" % (n, e["bank"])))
             continue
         if e["bank"] not in banks[n]:
             out.append(("K003", LEDGER_FILE,

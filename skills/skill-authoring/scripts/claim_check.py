@@ -632,7 +632,7 @@ def load_absent_allowlist(repo_root, path=None):
         return set()
 
 
-def token_exempt_reason(tok, created=(), declared_absent=()):
+def token_exempt_reason(tok, created=(), declared_absent=(), word=None):
     """Why `tok` must NOT be resolved, or None if it is a checkable claim.
 
     THE one home for suppression rules 1, 2 and the "not a path at all" half
@@ -647,6 +647,17 @@ def token_exempt_reason(tok, created=(), declared_absent=()):
     So the rule is stated once, as a function with a name, and BOTH doors
     ask it. A third door added later must ask it too; the invariant is
     pinned by `test_every_c001_site_consults_the_exemption_gate`.
+
+    ROUND 513 added the optional `word`: the whitespace-delimited word the
+    token was CUT OUT OF. `path_tokens` splits on `=` as well as whitespace
+    so that `--flag=path` yields the path, and that split can destroy the
+    marker this gate keys on. `sed -n '/^=* FAILURES/,...'` becomes `/^` and
+    `*`; the survivor is a regex address, it is absolute, `is_anchored`
+    admits every absolute token by definition, and C001 then reports a path
+    that was never a path. A marker anywhere in the containing word makes
+    every fragment of that word a template, and that policy belongs HERE and
+    not in the producer — same reasoning as round 411's, one representation
+    down. Measured over the live corpus: it drops exactly one token.
 
     Rule 3 (mutating/network) is NOT here: it is a property of the COMMAND,
     not of the token, and `check_paths` applies it from `cmd.reason`.
@@ -663,7 +674,7 @@ def token_exempt_reason(tok, created=(), declared_absent=()):
     """
     if not tok or URLISH_RE.search(tok):
         return "not a path: url, flag or bare number"
-    if TOKEN_PLACEHOLDER_RE.search(tok):
+    if TOKEN_PLACEHOLDER_RE.search(tok) or (word and TOKEN_PLACEHOLDER_RE.search(word)):
         return "placeholder: a template the reader fills in"
     if tok.startswith(SCRATCH_PREFIXES):
         return "scratch: created by the command, not required by it"
@@ -686,14 +697,29 @@ def path_tokens(command):
     -k expressions, and a false STALE costs more than a missed one.
     """
     out = []
-    for raw in re.split(r"[\s=]+", command):
-        tok = raw.strip("'\"`,;()")
-        if token_exempt_reason(tok) is not None:
-            continue
-        if tok.startswith(("~", "/", "./", "../")):
-            out.append(tok)
-        elif "/" in tok and (PATH_EXT_RE.search(tok) or tok.endswith("/")):
-            out.append(tok)
+    for word in command.split():
+        # ROUND 513. Ask the placeholder question of the WHITESPACE-delimited
+        # word, BEFORE the `=` split, because the split can destroy the very
+        # marker the exemption keys on.
+        #
+        #     sed -n '/^=* FAILURES/,/^=* short test summary/p' <log>
+        #
+        # `re.split(r"[\s=]+", ...)` cuts `'/^=*` into `'/^` and `*`. The
+        # fragment that survives is `/^` -- a sed regex address, never a
+        # path -- and it is ABSOLUTE, so `is_anchored` waves it through by
+        # definition ("there is nothing else it could be relative to") and
+        # C001 reports it as a path that resolves nowhere. The `*` that
+        # would have exempted the whole token left in the other fragment.
+        # Measured over the live corpus at round 513: this rule drops
+        # exactly ONE token, the phantom, and no real path.
+        for raw in re.split(r"=+", word):
+            tok = raw.strip("'\"`,;()")
+            if token_exempt_reason(tok, word=word) is not None:
+                continue
+            if tok.startswith(("~", "/", "./", "../")):
+                out.append(tok)
+            elif "/" in tok and (PATH_EXT_RE.search(tok) or tok.endswith("/")):
+                out.append(tok)
     return out
 
 

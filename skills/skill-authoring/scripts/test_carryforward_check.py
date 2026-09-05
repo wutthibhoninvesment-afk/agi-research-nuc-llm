@@ -1212,5 +1212,97 @@ class TestSuggestIsHonestAboutAnUnkeptPromise(unittest.TestCase):
         self.assertIsNotNone(cf.scan(corpus, 492, banks[492]))
 
 
+class TestTheSweepEnumeratedSuffixesToo(unittest.TestCase):
+    """Round 513. `find_banks` was made repo-wide because enumerating the
+    DIRECTORIES you know about cannot find an obligation nobody registered.
+    It went on enumerating the EXTENSIONS -- all six documented conventions
+    are `.md` -- so round 512's `state/whence/round-512/predictions.json` was
+    invisible and K003 said the entry "names nothing" about a file that was
+    on disk."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        os.makedirs(os.path.join(self.tmp, "state"))
+        os.makedirs(os.path.join(self.tmp, "knowledge"))
+        write(os.path.join(self.tmp, "state/research-state.md"), "# s\n")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def messages(self, ledger, latest_round=512):
+        write(os.path.join(self.tmp, cf.LEDGER_FILE),
+              json.dumps({"banks": ledger}))
+        banks, _ = cf.find_banks(self.tmp)
+        led, err = cf.load_ledger(self.tmp)
+        return cf.findings(self.tmp, cf.Corpus(self.tmp), banks, led, err,
+                           latest_round)
+
+    def test_a_json_bank_in_a_round_directory_is_found(self):
+        write(os.path.join(self.tmp,
+                           "state/whence/round-512/predictions.json"), "{}")
+        banks, _ = cf.find_banks(self.tmp)
+        self.assertEqual(banks.get(512),
+                         ["state/whence/round-512/predictions.json"])
+
+    def test_a_second_numbered_json_bank_lands_under_the_same_round(self):
+        for n in ("predictions.json", "predictions-2.json"):
+            write(os.path.join(self.tmp, "state/whence/round-512", n), "{}")
+        banks, _ = cf.find_banks(self.tmp)
+        self.assertEqual(sorted(banks[512]),
+                         ["state/whence/round-512/predictions-2.json",
+                          "state/whence/round-512/predictions.json"])
+
+    def test_the_ledger_itself_is_not_swept_up_as_a_bank(self):
+        """The register is not a member of the set it registers. Its name
+        matches `prediction` and `.json` is now an admitted suffix, so the
+        widening invents one unnumbered obligation unless it is named out."""
+        write(os.path.join(self.tmp, cf.LEDGER_FILE),
+              json.dumps({"banks": {}}))
+        banks, unnumbered = cf.find_banks(self.tmp)
+        self.assertEqual((banks, unnumbered), ({}, []))
+
+    def test_the_six_md_conventions_still_work_after_the_widening(self):
+        for rel in ("state/round-017-predictions.md",
+                    "state/whence/round-368/PREDICTIONS.md",
+                    "nuc/predictions-e-round358.md",
+                    "state/swe/round-359/PREDICTIONS.md"):
+            write(os.path.join(self.tmp, rel), "x")
+        banks, _ = cf.find_banks(self.tmp)
+        self.assertEqual(sorted(banks), [17, 358, 359, 368])
+
+    def test_k003_blames_the_sweep_when_the_named_bank_exists(self):
+        """The round-512 case. `bank` names a file that IS there and the
+        sweep cannot see it: the repair is in `find_banks`, not the ledger,
+        and the message has to say which."""
+        write(os.path.join(self.tmp, "state/round-512/predictions.rst"), "x")
+        msgs = [m for c, _, m in self.messages(
+            {"512": {"bank": "state/round-512/predictions.rst",
+                     "status": "unscored", "owner": "skills(B)",
+                     "why": "x"}}) if c == "K003"]
+        self.assertEqual(len(msgs), 1, msgs)
+        self.assertIn("EXISTS on disk", msgs[0])
+        self.assertIn("find_banks", msgs[0])
+        self.assertNotIn("no bank on disk at all", msgs[0])
+
+    def test_k003_still_says_nothing_is_there_when_nothing_is(self):
+        msgs = [m for c, _, m in self.messages(
+            {"512": {"bank": "state/round-512/predictions.md",
+                     "status": "unscored", "owner": "skills(B)",
+                     "why": "x"}}) if c == "K003"]
+        self.assertEqual(len(msgs), 1, msgs)
+        self.assertIn("no bank on disk at all", msgs[0])
+        self.assertIn("state/round-512/predictions.md", msgs[0])
+
+    def test_the_json_bank_that_the_ledger_names_raises_nothing(self):
+        write(os.path.join(self.tmp,
+                           "state/whence/round-512/predictions.json"), "{}")
+        codes = [c for c, _, _ in self.messages(
+            {"512": {"bank": "state/whence/round-512/predictions.json",
+                     "status": "unscored", "owner": "language(C)",
+                     "why": "x"}})]
+        self.assertNotIn("K003", codes)
+        self.assertNotIn("K001", codes)
+
+
 if __name__ == "__main__":
     unittest.main()

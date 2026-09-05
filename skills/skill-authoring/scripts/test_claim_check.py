@@ -1395,5 +1395,57 @@ class TestBareExpectationDetector(unittest.TestCase):
                                            "expectation the number tier cannot see")
 
 
+class TestTheSplitDoesNotOutrunTheGate(unittest.TestCase):
+    """Round 513. `path_tokens` splits on `[\\s=]+` so `--flag=path` yields
+    the path. That split also cuts `'/^=*` -- a sed address -- into `'/^` and
+    `*`, and the `*` that `TOKEN_PLACEHOLDER_RE` keys on ends up in the OTHER
+    fragment. The survivor is absolute, `is_anchored` admits every absolute
+    token by definition, and C001 reported a path that was never a path.
+
+    The exemption is asked of the containing WORD, inside the gate, because
+    the policy belongs to the gate (round 411) and the producer must not
+    hold a second copy of it.
+    """
+
+    SED = "sed -n '/^=* FAILURES/,/^=* short test summary/p' <the log>"
+
+    def test_the_sed_address_is_not_a_path_token(self):
+        self.assertEqual(claim_check.path_tokens(self.SED), [])
+
+    def test_the_marker_is_only_visible_before_the_split(self):
+        """The mechanism, pinned directly: the fragment is NOT exempt and the
+        word it came from IS. If this ever inverts the fix is unnecessary."""
+        self.assertIsNone(claim_check.token_exempt_reason("/^"))
+        self.assertIsNotNone(claim_check.token_exempt_reason("/^=*"))
+
+    def test_the_gate_takes_the_word_and_exempts_the_fragment(self):
+        self.assertIn("placeholder",
+                      claim_check.token_exempt_reason("/^", word="'/^=*"))
+
+    def test_a_control_without_an_equals_was_never_broken(self):
+        """Same idiom, no `=`: the marker survives into the token, so this
+        case was always exempt. It is the control that says the `=` in the
+        split class is the cause and not the sed syntax."""
+        self.assertEqual(claim_check.path_tokens(
+            "sed -n '/^Z* FAILURES/,/^Z* summary/p' log"), [])
+
+    def test_a_real_flag_equals_path_is_still_extracted(self):
+        self.assertEqual(
+            claim_check.path_tokens("python3 x.py --out=state/whence/y.json"),
+            ["state/whence/y.json"])
+
+    def test_ordinary_path_arguments_are_untouched(self):
+        self.assertEqual(
+            claim_check.path_tokens("python3 -m pytest -q harness/tests/t.py"),
+            ["harness/tests/t.py"])
+        self.assertEqual(
+            claim_check.path_tokens("cd harness && python3 -m pytest tests/t.py"),
+            ["tests/t.py"])
+
+    def test_a_glob_in_the_word_still_exempts_the_whole_word(self):
+        self.assertEqual(
+            claim_check.path_tokens("python3 -m pytest -q skills/*/scripts"), [])
+
+
 if __name__ == "__main__":
     unittest.main()

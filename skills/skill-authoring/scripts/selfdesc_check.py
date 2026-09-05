@@ -566,7 +566,7 @@ def _is_jsonl(path):
 
 def scan_tree(repo_root):
     """Every JSON artefact in the tree carrying a self-description."""
-    out, seen, unparseable, streams = [], 0, [], []
+    out, seen, unparseable, streams, oversize = [], 0, [], [], []
     for dirpath, dirnames, filenames in os.walk(repo_root):
         dirnames[:] = [d for d in sorted(dirnames) if d not in SKIP_DIR_PARTS]
         for fn in sorted(filenames):
@@ -577,6 +577,19 @@ def scan_tree(repo_root):
             seen += 1
             try:
                 if os.path.getsize(path) > MAX_BYTES:
+                    # ROUND 513. This `continue` used to be silent, and a
+                    # silent cap makes the artefact count a fact about
+                    # MAX_BYTES rather than about the corpus. Round 513 grew
+                    # `harness/readset-map.json` from 1.44 MB to 2.92 MB by
+                    # merging one more recorded map into it; the file left
+                    # the audited population, `artefacts` went 61 -> 60, and
+                    # nothing said so. Dropped files are now NAMED in the
+                    # report and counted in the summary line.
+                    # `_is_jsonl` reads ONE line, so classifying an
+                    # oversize file costs the same as skipping it. Without
+                    # this the list is 41 files of which 32 are logs that
+                    # were never artefacts -- a report nobody would read.
+                    (streams if _is_jsonl(path) else oversize).append(rel)
                     continue
                 with open(path, encoding="utf-8") as f:
                     data = json.load(f)
@@ -591,7 +604,7 @@ def scan_tree(repo_root):
             art = Artefact(rel, data)
             if art.prose:
                 out.append(art)
-    return out, seen, unparseable, streams
+    return out, seen, unparseable, streams, sorted(oversize)
 
 
 def source_index(repo_root):
@@ -998,7 +1011,7 @@ def load_acks(repo_root):
 
 
 def sweep(repo_root):
-    arts, n_json, unparseable, streams = scan_tree(repo_root)
+    arts, n_json, unparseable, streams, oversize = scan_tree(repo_root)
     index = source_index(repo_root)
     tops = xref_check.top_level_dirs(repo_root)
     global _TOPS_SNAPSHOT
@@ -1108,6 +1121,7 @@ def sweep(repo_root):
              "nested_fields": n_nested, "checked_fields": n_checked,
              "claims": n_claims,
              "unparseable": unparseable, "streams": len(streams),
+             "oversize": oversize,
              "must_claims": n_must, "watched_claims": n_watched,
              "acknowledged": len(acked)}
     return live, acked, stats
@@ -1130,6 +1144,13 @@ def report(findings, acked, stats, show_acknowledged=False, out=sys.stdout):
                  (", %d unparseable: %s" % (len(stats["unparseable"]),
                                             ", ".join(stats["unparseable"][:3])))
                  if stats["unparseable"] else ""))
+    # ROUND 513: a file dropped for SIZE is dropped from the population, and
+    # a population that shrinks silently makes `artefacts` a fact about
+    # MAX_BYTES. Named, not counted -- a bare count cannot be acted on.
+    if stats.get("oversize"):
+        out.write("  skipped: %d file(s) over the %d-byte cap, NOT audited: "
+                  "%s\n" % (len(stats["oversize"]), MAX_BYTES,
+                            ", ".join(stats["oversize"])))
     n_err = sum(1 for f in findings if f.severity == "ERROR")
     n_warn = sum(1 for f in findings if f.severity == "WARN")
     n_info = sum(1 for f in findings if f.severity == "INFO")

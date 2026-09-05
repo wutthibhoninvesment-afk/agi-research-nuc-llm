@@ -3240,5 +3240,57 @@
   "id": "gmrowd-neg",
   "expect": [],
   "prompt": "Our nightly job regenerates a report and uploads it to S3. The upload keeps failing with a 403 about half the time. Can you help me work out whether it's the IAM role or a bucket policy?"
+ },
+ {
+  "id": "rdt-near",
+  "expect": [
+   "red-debt-triage"
+  ],
+  "prompt": "CI handed me four failing tests this morning and one of them is in a file I own. Its assertion message is basically a list of other test names. Before I start bisecting my own module, how should I be triaging this list?"
+ },
+ {
+  "id": "rdt-mid",
+  "expect": [
+   "red-debt-triage"
+  ],
+  "prompt": "This test has gone red and green on its own three times over the last month without anyone touching it, and `git blame` on the failing line points at a commit that changed nothing it imports. I reproduced the failure fine but I can't see any defect in the code. What am I actually looking at?"
+ },
+ {
+  "id": "rdt-far",
+  "expect": [
+   "red-debt-triage"
+  ],
+  "prompt": "We have an audit job that asserts our nightly suite exits 0, and it's been failing for a week. Two different engineers have now independently diagnosed it from scratch and come to different conclusions. I want a procedure that tells us whether a failure is about the thing it's testing or about somebody else's run."
+ },
+ {
+  "id": "rdt-neg",
+  "expect": [],
+  "prompt": "Our test suite takes 40 minutes and most of it is one integration file. Can you help me split it so it runs in parallel across four CI workers?"
+ },
+ {
+  "id": "arri-near",
+  "expect": [
+   "absence-retested-on-the-raw-input"
+  ],
+  "prompt": "Our config validator keeps reporting `plugin 'reporting' not found \u2014 create it` for a plugin directory that is definitely on disk; I can `ls` it. The suggested fix is to create something that already exists. Where do I even start with a message like that?"
+ },
+ {
+  "id": "arri-mid",
+  "expect": [
+   "absence-retested-on-the-raw-input"
+  ],
+  "prompt": "Our linter flags a path in one of our doc snippets as unresolvable, but the string it quotes isn't the path we wrote \u2014 it's a fragment of it. It looks like the tokenizer chops the argument and then the 'this is a template, skip it' rule runs on the piece that's left. Is the right fix to allowlist the path or something else?"
+ },
+ {
+  "id": "arri-far",
+  "expect": [
+   "absence-retested-on-the-raw-input"
+  ],
+  "prompt": "We have a script that sweeps the repo for migration files and reports any registry entry with no matching file as an error. Someone added a migration in a new format and the sweep now says its registry entry 'names nothing'. I'm going to widen the sweep's file pattern \u2014 is that the whole fix, and is there anything the widened pattern will start swallowing that it shouldn't?"
+ },
+ {
+  "id": "arri-neg",
+  "expect": [],
+  "prompt": "The staging deploy 404s on one static asset about 1 in 20 requests. The file is in the bucket and the CDN config looks right to me. Can you help me work out whether it's a cache invalidation race?"
  }
 ]

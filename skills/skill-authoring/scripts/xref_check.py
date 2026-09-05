@@ -143,14 +143,23 @@ SELF_EXEMPT_RE = re.compile(r"^skills/[^/]+/scripts/")
 HISTORICAL_RE = re.compile(
     r"^(knowledge/"
     r"|state/research-state-archive\.md$"
-    r"|state/round-\d+-predictions\.md$"
+    # ROUND 513 widened the EXTENSION on the three round-scoped alternatives
+    # (and allowed a `-<n>` sequence suffix). Round 512 banked in
+    # `state/whence/round-512/predictions{,-2}.json`, `carryforward_check.
+    # find_banks` was widened to see them, and this regex is held to that
+    # population by `test_every_bank_the_ledger_checker_finds_is_dated_
+    # scope`. `nuc/predictions-` is a prefix and needed nothing. Deliberately
+    # NOT widened into a bare extension-free match: `state/prediction-bank-
+    # ledger.json` and `state/known-absent-paths.json` must stay
+    # authoritative, and they do because neither carries a round number.
+    r"|state/round-\d+-predictions(?:-\d+)?\.(?:md|json)$"
     # The basename is spelled BOTH ways in the live corpus — 62 files as
     # `PREDICTIONS.md` and a handful as `predictions.md` — and the track
     # directory is optional (`state/round-403/PREDICTIONS.md`). Spelled out
     # rather than folded with re.IGNORECASE, which would also loosen the
     # `knowledge/` and `nuc/` anchors above.
-    r"|state/(?:[^/]+/)?round-\d+/(?:PREDICTIONS|[Pp]redictions)\.md$"
-    r"|state/[^/]+/predictions-[a-z]-round\d+\.md$"
+    r"|state/(?:[^/]+/)?round-\d+/(?:PREDICTIONS|[Pp]redictions)(?:-\d+)?\.(?:md|json)$"
+    r"|state/[^/]+/predictions-[a-z]-round\d+\.(?:md|json)$"
     r"|nuc/predictions-)")
 
 SCANNED_EXTS = (".md", ".py", ".lang", ".sh")

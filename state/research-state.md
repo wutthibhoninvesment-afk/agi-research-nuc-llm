@@ -28975,6 +28975,147 @@ entry here; nothing below is inferred from intentions.*
   0 warnings.
 
 
+### Round 513 — skills(B) — 2026-09-05 — the absence that was a fact about the filter
+
+- **All four red `skills-check` nodes are CLOSED, and two of the three ERRORs
+  behind them were defects in the CHECKERS, not in the corpus.** Reproduced
+  solo first (deterministic, not runner flakiness, so the RECURRENT label was
+  about a recurring SHAPE rather than a flaky node).
+- **K003 "round 512: no bank on disk at all — the entry names nothing" was
+  FALSE.** The entry named `state/whence/round-512/predictions.json` and that
+  file was on disk. `carryforward_check.find_banks` is a repo-wide sweep —
+  made repo-wide precisely because "an obligation nobody registered cannot be
+  enumerated from a list of the places you already know about" — and it went
+  on enumerating SUFFIXES: `endswith(".md")`, and all six documented banking
+  conventions are `.md`. Two-part fix: `BANK_SUFFIXES = (".md", ".json")` with
+  `LEDGER_FILE` named out (**the register is not a member of the set it
+  registers** — without that line the widening invents an unnumbered
+  obligation out of the ledger), AND the branch now stats the named path and
+  emits one of two messages pointing at different files. Renaming the bank to
+  `.md` was RUN, not reasoned: it moves K003 to the other branch, it does not
+  silence it.
+- **C001 "path `/^` resolves nowhere" was a `sed` address.**
+  `path_tokens` splits on `[\s=]+` (so `--flag=path` yields the path); that
+  split cuts `'/^=*` into `'/^` and `*`, and **the split destroys the marker
+  the placeholder exemption keys on**. The survivor is absolute, and
+  `is_anchored` admits every absolute token by definition, so the one token
+  guaranteed not to be a path is guaranteed to be checked. Control with no
+  `=` (`/^Z*`) was never broken. Fix went INTO the gate
+  (`token_exempt_reason(tok, ..., word=)`) after
+  `TestExemptionGateHasOneHome` correctly rejected a second copy of the
+  policy in the producer — round 411's rule, one representation down.
+  Corpus-wide blast radius, measured: drops exactly ONE token, no real path.
+- **Same defect, one checker over, found by a coupling test.**
+  `xref_check.HISTORICAL_RE` enumerated `.md` the same way, and
+  `test_every_bank_the_ledger_checker_finds_is_dated_scope` pins it to
+  `find_banks`. Widened to `(?:md|json)` + optional `-<n>`, deliberately NOT
+  extension-free, so `state/prediction-bank-ledger.json` stays
+  `authoritative`. THIRD instance of one shape in one round.
+- **A FOURTH, made by this round.** Merging the new read-set map grew
+  `harness/readset-map.json` 1.44 MB → 2.92 MB past `selfdesc_check`'s
+  `MAX_BYTES`; artefacts went 61 → 60 with no finding. The cap had been
+  silently dropping **41 files**; 32 were JSONL logs (now classified first,
+  since `_is_jsonl` reads one line), leaving **4 real artefacts named in the
+  report**, three of which predate this round: `harness/readset-map.json`,
+  `nuc/tokenizer-qwen36.json`, `state/swe/round-503/sweep-repo.json`,
+  `state/whence/round-470/tests-census-829.json`. Cap unchanged — naming what
+  it drops is the fix; raising it is an unmeasured cost decision.
+- **`harness/readset.py blast` could not see this suite AT ALL.** Fed round
+  511's and round 512's own diffs it implicated **0** skills files — not a
+  miss, an empty population: `harness/readset-map.json` had **zero** nodes
+  under `skills/`. Recorded the corpus suite (1191 rostered, 616 keys,
+  57 420 audited events, 147 s) and re-merged **from the three ORIGINAL
+  round-510 source maps plus the new one**, not from the previous merge
+  output — merging a merge collapsed `sources` 3 → 1 and cost one
+  self-described artefact, caught by diffing the artefact's own metadata.
+  841 → 1456 keys; HEAD's node set is a strict subset. Both diffs now
+  implicate 16 skills files including all four suites that carried the reds.
+- **The cheaper instrument already existed and nothing routes anyone to it.**
+  `corpus_check.py --precommit` (every checker except `unit_tests`) took
+  **36.4 s** measured on this `nproc=1` box and printed all three ERRORs on
+  the tree as inherited. A three-round, four-node debt was preventable by a
+  36-second command in the tree since round 463.
+- **P001 was the one real missing obligation.** `skills/red-debt-triage/`
+  (round 511, harness A) shipped with 0 cases; round 511's own state entry
+  cites `skill_lint --house --strict: 0 errors` — true, and skill_lint does
+  not check cases. Four cases added (`rdt-near/mid/far` + negative), written
+  by a different round from the description.
+- **New skill `skills/absence-retested-on-the-raw-input/SKILL.md`** (4 cases,
+  registered unprobed with an owner and a scorable prediction): a checker
+  reporting an ABSENCE holds the failure of a predicate, not the thing; the
+  absence is a fact about the far side of the derivation and the message is
+  written about the near side, so the cost is a WRONG REPAIR. Re-test the
+  negative directly against the raw input before wording it.
+- **24 new tests** (7 carryforward, 8 claim_check, 5 xref, 4 selfdesc), all
+  green; `test_claim_check.py` + `test_xref_check.py` 276 passed;
+  `test_selfdesc_check.py` 51 passed; `test_carryforward_check.py` 132
+  passed. `corpus_check --precommit`: **0 error(s)**.
+- **Bank scored: 12 banked, 8 HIT, 4 MISS** — `state/round-513-predictions.md`,
+  §9 of `knowledge/round-513-the-absence-that-was-a-fact-about-the-filter.md`,
+  ledger entry 513. The bank earned its keep by being WRONG: P6/P7 assumed
+  `blast` existed-but-unrun, and its map being EMPTY of the suite is a
+  different and larger repair.
+- **Landed round 512's leftover, attributed:** the uncommitted
+  `harness/wiring-registry.json` entry for `languages/whence/corpusledger.py`
+  (verified correct — `tests/test_corpusledger.py:48` is `import
+  corpusledger as cl`).
+
+## Next steps (as of round 513)
+
+1. **Route non-skills tracks to `corpus_check.py --precommit`.** It is 36.4 s
+   measured, it caught all three of this round's ERRORs on the inherited
+   tree, and nothing tells the tracks that author skills and bank predictions
+   that it exists. This is `research-state.md`'s carried item 9 (a non-skills
+   round authoring a skill owes it three positive cases and a runnable
+   Verification command) with an executable answer attached — the rule has
+   been written down twice and never wired. CLAUDE.md rule 5, or
+   `run_driver.sh`'s prompt. harness(A) or skills(B).
+2. **The read-set map now covers skills/, and its three other thirds are
+   round 510's.** `head` is `DISAGREE` and always has been. Anyone
+   re-recording a tier should merge from the FOUR source maps
+   (`/tmp/r510-{whence,harness,nuc}.json` + a fresh skills record), never
+   from the previous merge output — merging a merge collapses `sources` and
+   silently loses provenance. `/tmp` is not durable; the next re-record
+   should put the per-tier maps somewhere that is. harness(A).
+3. **`selfdesc_check`'s cap now NAMES four unaudited artefacts. Nobody has
+   decided whether to audit them.** `nuc/tokenizer-qwen36.json`,
+   `state/swe/round-503/sweep-repo.json`,
+   `state/whence/round-470/tests-census-829.json` have been outside the audit
+   for many rounds with no round ever told. Either raise `MAX_BYTES` with a
+   measured cost, or acknowledge the three by name. skills(B).
+4. **Sweep for the fifth instance.** Four checkers in this corpus computed a
+   negative on a filtered view and worded it about the raw one, and only one
+   of the four was found by a test. The unswept candidates are every other
+   `endswith`/extension/name filter that feeds an error message:
+   `placeholder_check`, `state_claim_check`, `corpus_history`, `verb_audit`.
+   The skill's step 2 is a two-line experiment each. skills(B).
+5. **Neither new skill is probed.** `red-debt-triage` and
+   `absence-retested-on-the-raw-input` are registered in
+   `state/known-unprobed-skills.json` with owners and scorable predictions
+   (which one of the three positives is weakest, and the expected taker).
+   A probe is a priced live run needing operator authorisation; it belongs to
+   a skills(B) batch. Score the registered predictions, do not rewrite toward
+   them (round 405: 5 of 5 by-reading sibling guesses were wrong).
+6. **Round 512's next steps 1-8 stand, UNCHECKED by this round** — the
+   round-513 rotation was skills(B) and its assignment was the red debt.
+   Re-derive before quoting: this round re-derived one carried claim (round
+   511's "`skill_lint --house --strict`: 0 errors, 0 warnings" for
+   `red-debt-triage`) and found it true but irrelevant — skill_lint does not
+   check cases, and the skill had none.
+7. **The four other red nodes are untouched and still owned elsewhere.**
+   `harness/tests/test_swe_copyparity_real_subject.py` ×3 (harness A) and
+   `nuc/tests/test_survivor_impact.py` (NUC-integration E, red 5 rounds).
+   What changed for them: `readset blast` can now name skills nodes, which
+   does nothing for their suites. Their maps are round 510's.
+8. **Standing, and not touched by this round:** the NUC `retention --strict`
+   deadline; the `%vmeff` residual; `case_coverage`'s 47-of-99 disagreeing
+   cross-report verdicts; `claim_check` executing 0 of 615 commands; and
+   CLAUDE.md's `CRITICAL MISSION` block, still a one-line deletion for the
+   operator. `languages/whence/SECURITY.md` remains the operator's decision —
+   do not copy a carry count for it from this file; the checker's own line is
+   the only source.
+
+
 ### Round 512 — language(C) — 2026-09-05 — a ledger is as fresh as its gate's predicate is total
 
 - **`languages/whence/corpusledger.py` (531 lines) + `tests/test_corpusledger.py`
