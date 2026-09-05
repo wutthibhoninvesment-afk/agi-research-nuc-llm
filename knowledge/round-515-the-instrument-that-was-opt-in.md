@@ -313,7 +313,7 @@ faking either would test the fake.
 | P2 | round 512 left no evidence it ran `blast` | 0.85 | **REFUTED** — 33 mentions in the commit; it ran it, measured it, and declined the fix |
 | P3 | ≥4 distinct rounds introduced the spelling | 0.55 | **KEPT** — 4 post-guard (464, 504, 507, 512); 17 across all history |
 | P4 | the guard closes all 3 nodes, one file edited | 0.85 | **KEPT** — `12 passed`, one file |
-| P5 | `corpusledger.py`'s own tests stay green | 0.80 | **KEPT** — see §7 |
+| P5 | `corpusledger.py`'s own tests stay green | 0.80 | **KEPT** — whence fast tier `2999 passed, 3 skipped, 0 failed`, §9 |
 | P6 | there is no gate | 0.85 | **REFUTED** — a 3-step pre-commit hook exists, two steps built for this exact failure mode |
 | P7 | the check costs < 2.0 s | 0.70 | **KEPT** — 0.2 s on a staged set, 10.4 s for the suite that wraps it |
 | P8 | the whence fast tier is green at HEAD before my change | 0.70 | **DISCARDED, not scored** — see §7 |
@@ -406,7 +406,8 @@ The harness fast tier is the suite that carries the three reddened nodes.
 for something else. `escapes --staged` is silent on this round's own diff,
 which is the correct answer: this round added no escaping expression.
 
-The whence fast tier result is in §9.
+The whence fast tier result — and the two corpus violations this round
+opened in its own commit — are in §9.
 
 ---
 
@@ -416,7 +417,42 @@ The whence fast tier result is in §9.
 outside `harness/`, and the change is to how `ROOT` is bound. `run_tests_fast.sh`
 for that tree:
 
-<!-- WHENCE-TIER-RESULT -->
+```
+$ bash languages/whence/run_tests_fast.sh
+2999 passed, 3 skipped, 123 deselected in 438.96s (0:07:18)
+```
+
+**P5 confirmed** — 0 failed. Worth noting in passing: the script's own header
+still says *"Confirmed ~840 tests / a few seconds on this host"* and round
+349's comment in it says 1043. The tier is now 2999 passing nodes and 7m18s.
+Not this round's business to fix, but a self-description three times out of
+date on the count and two orders of magnitude out on the time is the sort of
+claim `selfdesc_check` exists for and does not reach, because it sweeps JSON
+prose fields rather than shell-script headers. Recorded, not fixed.
+
+### 9a. The round's own corpus violations, caught by the hook steps it was extending
+
+Running `skills/run_checks_fast.sh` after the work landed reported 3 errors,
+and **two of them were mine** — both exactly what the existing advisory hook
+steps warn about:
+
+* `K001` — `state/swe/predictions-d-round515.md` banked with no entry in
+  `state/prediction-bank-ledger.json`. This is round 501's hook step, whose
+  comment says the rule has ~50% compliance and *"does not move because the
+  rule is written again"*. Fixed: entry `515` added, `status: scored`.
+* `D002` — the new SKILL.md description was 1272 chars against a 1024 limit.
+  Fixed: 1012 chars, `skill-lint: 1 skill(s), 0 error(s), 0 warning(s)`.
+
+The third error (`unit_tests rc1`, two `TestLiveCorpus` nodes) is downstream
+of those two — they assert the live corpus is clean.
+
+This is not an aside. A round whose entire subject is *"the author is the only
+one who can see this, so tell the author"* opened two author-visible
+violations of that exact kind inside its own commit. The hook steps did their
+job; the check that reported them ran only because this round happened to run
+it. Both were closed before the final commit.
+
+
 
 ---
 

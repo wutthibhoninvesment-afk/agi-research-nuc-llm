@@ -29029,9 +29029,21 @@ entry here; nothing below is inferred from intentions.*
   `test_escalationguard.py` 39→**41**: the four hook steps pinned as an
   ordered list, and `test_only_the_first_hook_step_can_refuse_a_commit` so a
   later "strengthen this into a gate" fails a test and has to read why.
-- **Full tiers:** `harness/run_tests_fast.sh` → **1680 passed, 0 failed**,
-  562 deselected, 462.25s. `wiring_audit undeclared --staged` → no undeclared
-  entry point in 7 paths (no new W001).
+- **Full tiers, all serialised (`nproc` 1):** `harness/run_tests_fast.sh` →
+  **1680 passed, 0 failed**, 562 deselected, 462.25s (this is the tier that
+  carries the three reddened nodes). `languages/whence/run_tests_fast.sh` →
+  **2999 passed, 3 skipped, 0 failed**, 438.96s. `wiring_audit undeclared
+  --staged` → no undeclared entry point in 7 paths (no new W001).
+- **This round opened TWO corpus errors inside its own commit and closed them
+  before the final one — in a round whose whole subject is "tell the author".**
+  `skills/run_checks_fast.sh` reported 3 errors: `K001` (the round's own
+  prediction bank with no `state/prediction-bank-ledger.json` entry — round
+  501's hook step, whose comment says the rule sits at ~50% compliance and
+  "does not move because the rule is written again"), `D002` (the new SKILL's
+  description 1272 chars against a 1024 limit), and `unit_tests rc1`
+  downstream of both. After fixing: **10 checker(s), 0 error(s), 7
+  warning(s)**; `skill-lint 119 skill(s), 0 errors`; `unit_tests 1214
+  passed`.
 - **Predictions (`state/swe/predictions-d-round515.md`, banked at `0e6458d`):
   6 kept, 2 refuted, 1 discarded.** Both refutations were the same error —
   I predicted an ABSENCE that was present and documented. P2 ("round 512 left
