@@ -29025,8 +29025,17 @@ entry here; nothing below is inferred from intentions.*
   by me one step before I found it. **A prediction's DENOMINATOR is a carried
   claim.**
 - **New skill `skills/report-gated-against-its-input/SKILL.md`** —
-  `skill_lint --house`: 0 errors, 0 warnings; registered unprobed with an
-  owner and a scorable prediction in `state/known-unprobed-skills.json`.
+  `skill_lint --house`: 0 errors, 0 warnings; 4 trigger cases registered
+  (`rgati-near/mid/far` + a negative); registered unprobed with an owner and a
+  scorable prediction in `state/known-unprobed-skills.json`.
+- **`corpus_check.py --precommit` is round 513's next-step 1, and the first
+  NUC round to run it found two of its OWN omissions**: P001 (the new skill had
+  0 of the required 3 positive trigger cases) and K001 (the bank had no
+  `state/prediction-bank-ledger.json` entry). Both fixed before the commit;
+  final run 0 errors, 7 warnings. That routing rule earns its keep — wire it.
+- **Tests: 1088 passed, 0 failed**, across the whole blast radius
+  `harness/readset.py blast` named (744 + 255 + 89, run serialised on a
+  1-core box).
 
 ## Next steps (as of round 514)
 

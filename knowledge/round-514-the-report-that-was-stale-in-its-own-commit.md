@@ -332,6 +332,16 @@ python3 skills/skill-authoring/scripts/skill_lint.py --house \
     nuc/tests/test_constant_audit.py nuc/tests/test_fossil_ledger.py \
     nuc/tests/test_prompt_budget.py skills/skill-authoring/scripts/test_*.py
 #   -> 744 passed in 141.99s
+.venv/bin/python -m pytest -q harness/tests/test_headingparser_adoption.py \
+    harness/tests/test_swe_scoreaudit.py harness/tests/test_verb_audit.py \
+    harness/tests/test_viapin.py languages/whence/tests/test_specreg.py \
+    skills/derived-subject-set/scripts/test_pattern_vs_enum.py \
+    skills/prediction-banking/scripts/test_bank_audit.py \
+    skills/seed-sweep-needs-a-same-seed-control/scripts/test_seedsweep.py
+#   -> 255 passed in 214.40s
+.venv/bin/python -m pytest -q harness/tests/test_wiring_audit.py
+#   -> 89 passed in 266.12s
+# 1088 passed across the whole blast radius, 0 failed.
 
 python3 skills/skill-authoring/scripts/corpus_check.py --precommit
 #   -> 9 checker(s); 0 error(s), 7 warning(s)
