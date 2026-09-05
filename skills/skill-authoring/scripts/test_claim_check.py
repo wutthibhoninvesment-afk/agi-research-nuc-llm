@@ -172,6 +172,27 @@ class TestClassify(unittest.TestCase):
         self.assertTrue(reason.startswith(category),
                         "%r classified %r, wanted %s" % (command, reason, category))
 
+    def test_carryforward_check_is_auto_but_never_when_it_writes(self):
+        """Round 501. The read-only tiers are offline and free; `--write`
+        APPENDS to state/prediction-bank-ledger.json and `--force` REPLACES
+        an entry. An executor that runs a `--write` form while re-deriving a
+        claim would edit the ledger as a side effect of checking a sentence
+        about it.
+
+        Both write forms are already caught by the `mutating` MANUAL rule,
+        so the `forbid` clause on this entry is redundant TODAY. It is there
+        because the pristine_check entry above teaches the same lesson from
+        the other side: an allowlist entry that names only its program hands
+        an `auto` verdict to every flag added later.
+        """
+        base = "python3 skills/skill-authoring/scripts/carryforward_check.py"
+        for c in (base, base + " --list", base + " --enter 492",
+                  base + " --staged-check --quiet", base + " --audit-quotes"):
+            self.assertEqual(claim_check.classify(c)[0], "auto", c)
+        for c in (base + " --enter 501 --write",
+                  base + " --enter 501 --write --force"):
+            self.assertEqual(claim_check.classify(c)[0], "manual", c)
+
     def test_pristine_check_read_only_verbs_are_auto_and_the_rest_are_not(self):
         """Round 429. `pristine_check.py` was added to the allowlist so that
         `pristine-checkout-differential`'s Verification block executes at all

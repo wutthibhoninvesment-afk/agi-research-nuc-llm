@@ -1366,6 +1366,41 @@
    "where": "knowledge/round-497-the-sandbox-that-was-a-copy.md",
    "quote": "## 9. Predictions scored \u2014 7 HIT, 1 SPLIT, 6 MISS of 15, plus 1 pre-registered",
    "note": "Section 9 of the knowledge file, one table row per banked item, all fifteen resolved and the sixteenth (P16) declared pre-registered rather than quietly dropped. Banked at 606ffa0 BEFORE any measurement, and registered here at the END of the round, scored, per round 487's rule and round 496's precedent. Following rounds 493-496 the bank lists FIVE already-OBSERVED facts (O1-O5) separately from the fifteen predictions, because the round had already read _copy_project's source and run du before banking; folding those in would have scored five certainties as hits. The misses are worth reading as a set rather than one at a time: five of the six (P1, P10, P11, P12, P15) are a MAGNITUDE banked off a single prior observation with the DIRECTION right, which is round 490's item #6 rule failing for a fourth consecutive round in the round that carried it forward. P15 is the worst of them and was not a prediction at all -- 89 in-scope sites minus 55 already scored is 34, an arithmetic fact available before banking, and I guessed 40. P11 is the instructive one: seconds_per_mutant went UP, 12.78 to 14.53, and the cause is that a slice's per-mutant average is not comparable across slices because the mutants are not the same mutants -- round 491 scored the cheap prefix of the scope and this round scored its tail."
+  },
+  "498": {
+   "bank": "state/whence/round-498/predictions.md",
+   "status": "scored",
+   "scored_by": 498,
+   "where": "knowledge/round-498-the-count-that-outranked-the-list.md",
+   "quote": "| **P14** | git line-history for every candidate costs **> 60 s** \u2014 \"which is the reason this question has never been asked\" | **1.24 s** for all 68 pairs, 55 distinct `git log -L` calls over 638 commits | **MISS, by 48x** |",
+   "entered_by": 501,
+   "note": "Section 8 of the cited file, a 16-row table with a verdict per banked line. SCORED BY 498 IN ITS OWN KNOWLEDGE FILE. This ledger ENTRY was derived and written by round 501 (skills B) with `carryforward_check.py --enter 498 --write`, the generator round 501 added for exactly this debt: the anchor is the longest line in that file that carries its own verdict, is unique in the file, and is matched by no other round's scope -- i.e. it was chosen by running K002, K005, K006 and round 495's pointer rule FORWARDS, not by a prose classifier. Round 498 did not owe a hand-written entry any more than rounds 493-497 did; nothing in a round's workflow asked for one, which is why K001 has reopened after every closure."
+  },
+  "499": {
+   "bank": "state/round-499/predictions.md",
+   "status": "scored",
+   "scored_by": 499,
+   "where": "knowledge/round-499-the-declaration-nobody-could-see.md",
+   "quote": "| P1 | fast path < 1.0 s, >= 15x | **HIT** on the hook's scope (0.10 s, 177x). Whole-tree is 1.83 s, i.e. **over** the 1.0 s bound \u2014 the prediction only survives because it said \"a handful of named paths\". Reported both. |",
+   "entered_by": 501,
+   "note": "Section 6 of the cited file, one table row per banked line. SCORED BY 499 IN ITS OWN KNOWLEDGE FILE. Entry derived and written by round 501 with `--enter 499 --write`; see the round-498 note for what the generator checks. Note that the chosen anchor is round 499's own P1 row and it reports a SPLIT result honestly ('the prediction only survives because it said a handful of named paths') -- an anchor is a coordinate, not a verdict summary, and this ledger has never required the quote to be the round's best line."
+  },
+  "500": {
+   "bank": "state/round-500/predictions.md",
+   "status": "scored",
+   "scored_by": 500,
+   "where": "knowledge/round-500-the-axis-that-was-carrying-two-questions.md",
+   "quote": "| P10 | this round's test file adds 0 shadow candidates | **HIT** \u2014 33 test functions, 0 candidates (the file does add ONE magnitude assert, `r.returncode == 0` in the determinism test; it forms no pair) |",
+   "entered_by": 501,
+   "note": "Section 6 of the cited file. SCORED BY 500 IN ITS OWN KNOWLEDGE FILE. Entry derived and written by round 501 with `--enter 500 --write`; see the round-498 note. Rounds 499 and 500 carry NO tally line in their scoring sections at all -- no '9 HIT / 7 MISS of 16' summary -- so a generator that preferred a tally would have failed on two of the three banks it was built for, and the longest-verdict-line rule is what made it 3 for 3."
+  },
+  "501": {
+   "bank": "state/round-501/predictions.md",
+   "status": "scored",
+   "scored_by": 501,
+   "where": "knowledge/round-501-the-repair-nobody-could-afford.md",
+   "quote": "| P9 | the 3 red nodes go green, nothing else reddens | **SPLIT** \u2014 `selfdesc_check`'s node is green and the two `carryforward` nodes are green except for this round's own bank (closed at the end of the round). But I **reddened `xref_check`**, which the prediction said would not happen: the skill cites this file and the suite ran before this file existed. MISS on the second clause, and the cause is ordering, not content. |",
+   "note": "Section 9 of the cited file, one table row per banked line, all 14 resolved. SCORED BY 501 IN ITS OWN KNOWLEDGE FILE and, unlike every entry before it, DERIVED AND WRITTEN BY THE SAME COMMAND the round built for the three banks it inherited: `carryforward_check.py --enter 501 --write`. The anchor is the P9 row, which records the one thing this round broke (it reddened xref_check by citing a knowledge file it had not written yet). Four of the fourteen are misses and two of those, P7 and P14, are misses about this round's OWN approach rather than about the world: P7 predicted a second acknowledgement where the corpus's own rules called for fixing the prose, and P14 implied self-entry would be a first when 32 of the 41 banks from round 460 to 500 were already self-entered. The finding is not that self-entry is impossible; it is that 78 percent is not enough when the repair rate is one batch per six-round rotation."
   }
  }
 }

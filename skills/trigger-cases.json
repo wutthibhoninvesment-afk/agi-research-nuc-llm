@@ -3047,5 +3047,26 @@
   ],
   "prompt": "Our audit rows cite evidence with a file path and a quoted sentence, and the checker re-derives by substring search. The quote resolves fine, but I noticed one sentence appears in four different files. Does the check actually prove the row named the right file?",
   "note": "round 495 negative control: the target EXISTS here, so this is not a pointer problem. The defect is that a substring match locates nothing -- matching-is-not-locating, not pointer-is-not-the-evidence."
+ },
+ {
+  "id": "gwca-near",
+  "expect": [
+   "generate-what-the-checker-accepts"
+  ],
+  "prompt": "Our dependency-ownership lint has gone red every sprint for five sprints. Each time the platform team closes it by hand-writing OWNERS entries for services other teams added, and it's red again two weeks later. The count keeps climbing. I don't want another reminder in the onboarding doc -- can we make the lint produce the entries it wants?"
+ },
+ {
+  "id": "gwca-mid",
+  "expect": [
+   "generate-what-the-checker-accepts"
+  ],
+  "prompt": "`changelog-audit --scaffold` emits stanzas with `version: TODO` and `breaking: null`, so filling one in by hand costs the same as writing it from scratch and nobody uses it. The audit itself has four rules about what a valid stanza is. Can the scaffold just satisfy those four rules instead of leaving blanks?"
+ },
+ {
+  "id": "gwca-far",
+  "expect": [
+   "generate-what-the-checker-accepts"
+  ],
+  "prompt": "I want to auto-generate the missing rows in our compliance registry, but I'm worried an autofill would just mark everything compliant and we'd stop noticing the real gaps. How do I build it so it can say no?"
  }
 ]

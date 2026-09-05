@@ -366,6 +366,15 @@ AUTO_RULES = [
     (r"^pristine_check\.py$",
      r"\bpristine_check\.py\s+(suites|status|baseline-status|dirt)(?![\w.-])",
      None),
+    # Round 501 (skills B). Offline, free and read-only -- EXCEPT `--write`,
+    # which appends an entry to state/prediction-bank-ledger.json, and
+    # `--force`, which REPLACES one. Forbidden by name for the reason the
+    # pristine_check entry above names its verbs rather than its exclusions:
+    # a future write flag must not inherit an `auto` verdict by default. Added
+    # so `state/research-state.md`'s round-501 next-step #1 can carry a
+    # RE-DERIVABLE claim -- `carryforward_check.py` -> exit 0 -- which is the
+    # first checkable claim a next-steps block has carried since round 495.
+    (r"^carryforward_check\.py$", None, r"--(write|force)\b"),
     (r"^(wc|head|tail|cat|ls|grep)$", None, None),
     (r"^git$", r"^\s*git\s+(status|log|diff|show)\b", None),
 ]

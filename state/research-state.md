@@ -28186,6 +28186,184 @@ the entry is round 493's.
   not idle.
 - **Knowledge:** `knowledge/round-500-the-axis-that-was-carrying-two-questions.md`.
 
+### Round 501 — skills(B) — 2026-09-05 — the repair nobody could afford
+
+- **CLOSED ALL THREE INHERITED SKILLS-CHECK REDS, AND REPRODUCED EACH SOLO
+  FIRST.** `carryforward` 3 ERRORs -> **0**, `selfdesc_check` 1 -> **0**,
+  `unit_tests` 3 failed -> **0** (991 passed in 160.38 s). All three are
+  deterministic assertions over parsed data with no timeout, reproduced off
+  the driver in 1.92 s, so the briefing's `RECURRENT`/"may be the runner"
+  reading does not apply to any of them — round 498's conclusion for the
+  `selfdesc_check` node, now re-derived for the whole trio.
+- **K001's ERROR MESSAGE WAS FALSE FOR ALL THREE INSTANCES.** It says "nobody
+  can tell whether D-013's second half was ever done". Rounds 498, 499 and
+  500 each scored their own bank, honestly, in their own knowledge file, in
+  their own commit (§8, §6, §6). The missing thing was the ledger ENTRY, not
+  the scoring — a bookkeeping gap reported as an unscored-prediction gap.
+- **THE RECURRENCE IS ARITHMETIC, NOT DISCIPLINE, AND THE NUMBERS ARE
+  MEASURED.** Over rounds 460-500: `carryforward` was ERROR-red in **19 of
+  41** health logs, K001 specifically in **13 of 41**. Over the same window,
+  by asking git which commit first wrote each entry, **32 of 41 banks were
+  registered by the round that banked them**, 6 by a later round, 3 (498-500)
+  never. 78% compliance is high enough that the red reads as carelessness and
+  low enough that `0.78^6 ~ 0.22` makes a clean rotation the exception. The
+  signature is exact: within an episode the error count grows by precisely
+  the number of rounds that failed to self-enter — 490:1, 491:2, 492:3,
+  then **493:3, 494:3** because those two DID self-enter, then closed by 495.
+- **BUILT `carryforward_check.py --enter NNN [--write]`: THE CHECKER'S OWN
+  ERROR PREDICATES, RUN FORWARDS.** A checker that ERRORs on an invalid
+  record is a specification with the arrows reversed. `anchor_candidates()`
+  is literally the K002/K005/K006 list plus round 495's pointer rule and the
+  negation/attribution vetoes, applied to select rather than reject. Live:
+  498 -> 17 candidates, 499 -> 8, 500 -> 10, all `scored`, 1.87-3.04 s each.
+  Explicitly NOT `--suggest`, which runs the prose classifier round 369
+  demoted and emits `"where": "?"`.
+- **THE REFUSAL PATH IS THE SAFETY PROPERTY AND IT IS PINNED AGAINST THE LIVE
+  CORPUS.** `--enter 492` finds **0** candidates and proposes `unscored` —
+  independently reproducing round 495's finding that round 492's file
+  promises `Scored in §10.` and has no §10, no HIT and no MISS. Two tests:
+  a fixture, and `test_the_generator_refuses_the_live_round_492_bank`, which
+  also asserts the live ledger still says `unscored`, so generator and ledger
+  must agree that the one genuinely outstanding debt stays owed. A generator
+  that always produces a satisfying record is a mute button with a CLI.
+- **IT REFUSES TO INVENT JUDGEMENTS, AND DERIVES ONLY THE SELF-SCORING
+  CASE.** An `unscored` proposal carries `"owner": ""` and `write_entry`
+  refuses to write it (it would be a K003 on landing). Cross-round discharge
+  — 27 of 174 entries — stays manual, because the predicates cannot verify an
+  attribution. Writes are pinned to the file's own serialisation
+  (`json.dumps(doc, indent=1) + "\n"`, `ensure_ascii` True, verified
+  byte-identical against the untouched file first): the three entries landed
+  as **27 added, 0 deleted**.
+- **THIRD ADVISORY PRE-COMMIT STEP, BECAUSE REMOVING THE COST IS ONLY HALF.**
+  `--staged-check --quiet` in **0.096 s** (ledger JSON + staged list only, no
+  `Corpus`; the full run's 1.9 s is all corpus). Fires on the **knowledge
+  file**, never on the bank — a bank is committed early, before measuring, so
+  warning there would fire at the round doing D-013 right. WARNS and exits 0,
+  for round 499's stated reason. This is `finding-must-reach-an-actor`
+  applied and the new skill says so rather than claiming it as new.
+- **J004 FIXED RATHER THAN ACKNOWLEDGED, REVERSING THIS ROUND'S OWN BANKED
+  PREDICTION.** Two fields cite the path round 493 `git mv`d away from.
+  `banks.493.note` IS the evidence of the move and round 495 correctly
+  content-pin acknowledged it. `harness/crosstrack-registry.json`'s
+  `selfdesc_check` node `why` merely DESCRIBES it, and round 498 spelled the
+  path out in full while diagnosing it — creating a second instance of the
+  error it was reporting, red from 498 to 501. Round 495's own rule (name the
+  coordinate, the path is one hop away) and `known-selfdesc-drift.json`'s own
+  `_comment` ("Prefer FIXING the prose") both point at a fix, not a second
+  acknowledgement. One line of diff, no information lost. Banked P7 scored a
+  MISS on its mechanism.
+- **ALSO FIXED: `state/known-selfdesc-drift.json`'s `_comment` still said
+  "this file has been EMPTY since round 437"**, false since round 495 added
+  the entry directly below it — six rounds stale, in the registry whose job
+  is recording that other artefacts' self-descriptions have drifted.
+- **NEW SKILL `generate-what-the-checker-accepts`** (108th; 0 errors under
+  `--house --strict`), with three trigger cases registered (gwca-near / -mid
+  / -far) and an entry in `state/known-unprobed-skills.json` — the batch is
+  now **50** deep and this round did NOT pay it (a probe is ~$0.05 and needs
+  operator authorisation). The entry names a scorable prediction rather than
+  a bare deferral, and a `_round_501_note` records that this is a *skills(B)*
+  round adding to the batch, which is the shape earlier notes complained of.
+- **18 NEW TESTS** in `test_carryforward_check.py` (**107 -> 125**; whole
+  `skills/skill-authoring/scripts/` suite **973 -> 991**), covering K005 and
+  K006 forwards, the length floor, negation, foreign attribution, the missing
+  knowledge file, the round-trip (generate -> write -> `findings()` -> 0
+  errors), byte-stable writes, the ownerless-`unscored` refusal, and the
+  hook step's trigger discipline in both directions.
+- **I REDDENED `xref_check` AND IT IS MY OWN ORDERING.** The new SKILL.md
+  cites this round's knowledge file and I launched the corpus check before
+  writing it: 1 NEW X004. Fixed by writing the file; final run is 0 NEW.
+  Also: `unit_tests` **185.30 s solo** against **646 s** for the same stage
+  under the driver's concurrent suites — a 3.5x contention penalty on this
+  one-core box, and I had banked explicitly AGAINST that ratio holding.
+- **FIRST CHECKABLE CLAIM IN A NEXT-STEPS BLOCK SINCE ROUND 495.**
+  `state_claim_check` reported `0/N items, 0/0 claims` for rounds 497-500.
+  Item 1 below now states
+  `python3 skills/skill-authoring/scripts/carryforward_check.py` -> exit 0 —
+  an EXIT CODE, not a test count, because the exit code is 1 iff a bank is
+  unaccounted for, so it goes stale exactly when the recurrence returns and
+  for no other reason. Needed one `claim_check.AUTO_RULES` entry (the claim
+  extracted and was then skipped as `unknown program (fails closed)`), added
+  with `--write` and `--force` FORBIDDEN BY NAME — redundant today against
+  the existing `mutating` rule, present for the reason the `pristine_check`
+  entry names its verbs: an entry naming only its program hands `auto` to
+  every flag added later. Now `1 claim(s): 1 re-derivable, 0 stale of 1
+  checked; coverage 1/8 items (12%), 1/1 claims`.
+- **Predictions:** `state/round-501/predictions.md`, banked before any code,
+  scored in §9 of the knowledge file — 8 HIT, 1 SPLIT, 3 MISS, 1 HIT-on-band-
+  MISS-on-estimate, 1 HIT-on-substance-VOID-as-posed, of 14. Two of the
+  misses (P7, P14) are about this round's own approach rather than the world.
+  **This round entered its own bank with the command it built** (`--enter 501
+  --write`), so K001 is 0 at the final commit and not merely at the middle.
+- **Knowledge:** `knowledge/round-501-the-repair-nobody-could-afford.md`.
+
+## Next steps (as of round 501)
+
+1. **The generator exists; the practice does not yet, and one round is not
+   evidence.** `--enter NNN --write` closed three inherited K001s and this
+   round's own, and the pre-commit step now asks for it — but that step has
+   fired exactly once, on this round's own commit. The measurement that
+   settles it is the K001 column of `logs/skills_health_round_*.log` over
+   rounds 502-507: if §2's arithmetic is right it should read `0 error(s)`
+   for a whole rotation for the first time since round 460. If it does not,
+   read WHICH round's bank is missing and whether the hook fired — the shape
+   to look for is a knowledge file committed alongside something that made
+   the hook fail open. The claim to re-derive is the checker's own exit code,
+   which is 1 if and ONLY if some bank on disk is unaccounted for:
+   `python3 skills/skill-authoring/scripts/carryforward_check.py` -> exit 0.
+   That goes stale exactly when the recurrence returns and for no other
+   reason, which is why it is an exit code rather than a test count. It is
+   also the first checkable claim a next-steps block has carried since round
+   495: `state_claim_check` reported `0/N items` for rounds 497, 498, 499 and
+   500. skills(B) at round 507; nobody before then must act.
+2. **`--enter` derives only the SELF-scoring case and that is a declared
+   limit.** 27 of 174 entries are cross-round discharges and every future one
+   is still a four-clause hand job with only the demoted prose classifier
+   beside it. The honest move is NOT to widen `--enter` — the predicates
+   cannot verify an attribution — but to decide whether cross-round discharge
+   should be recorded at all, or whether an unscored bank should stay
+   unscored with an owner. skills(B) or language(C).
+3. **Round 492's bank is the one genuinely outstanding debt in this ledger
+   and is now pinned by two tests.** `unscored`, owner language(C), owed nine
+   rounds; ledger and generator agree. It cannot be closed by scoring it now
+   — a bank scored after the results are known is not scored — so the honest
+   moves are a written decision that it is unscorable, or an explicit,
+   labelled nearest-instantiation scoring of the kind round 371 did for round
+   23. language(C).
+4. **`selfdesc_check` sweeps TOP-LEVEL prose fields only, and this round
+   found the cost of that twice.** Coverage is `157/854 prose-fields`.
+   `state/known-unprobed-skills.json` alone carries twelve `_round_NNN_note`
+   fields (one of them added by this round) and none is swept; the stale
+   "EMPTY since round 437" this round fixed WAS top-level and was caught by
+   reading, not by the checker. Round 435's next-step #3, still open, still
+   uncosted, and now the single largest coverage gap in that checker.
+   skills(B).
+5. **The probe batch is 50 deep and this round added to it.** ~$0.05 per
+   invocation, needs operator authorisation. The new entry names a scorable
+   prediction (that `gwca-far` misfires, most likely toward
+   `unenforced-documented-rule` or `errors-that-name-the-fix`) so the round
+   that eventually pays has something to score. skills(B), with
+   authorisation.
+6. **The fourth red in this round's briefing is untouched and harness(A)'s:**
+   `test_swe_mutation.py::test_the_grandchild_pid_survives_a_grandchild_
+   slower_than_the_cap`, red since round 500, RECURRENT with 3 earlier
+   episodes. It is a live-timing test on a one-core box — the class the
+   briefing warns may be the runner. This round's trio turned out NOT to be
+   that class, so the distinction is worth drawing rather than assuming in
+   either direction. harness(A).
+7. **Round 500's next-steps #1-#6 stand, untouched by this round** (they are
+   language(C)'s `subjprov`/`assertshadow` decisions), as does #4, which
+   named `skills/` as never swept by either provenance axis — still true.
+   Round 499's #2-#6 stand. Round 499's #7, the three skills-check reds, is
+   **CLOSED IN FULL** by this round.
+8. **Standing and untouched:** `case_coverage`'s 47-of-99 disagreeing
+   cross-report verdicts; `claim_check` executing **0 of 548** commands; the
+   operator-blocked `--cap 196`; the NUC `retention --strict` deadline; and
+   CLAUDE.md's `CRITICAL MISSION` and `MASTER MISSION` blocks, still a
+   deletion for the operator. `languages/whence/SECURITY.md` remains the
+   operator's decision and the checker's own line is the only source for its
+   carry count.
+
+
 ## Next steps (as of round 500)
 
 1. **Round 498's next-step #2 is CLOSED, and the population it was supposed

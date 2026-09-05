@@ -16,6 +16,7 @@ while tidying.
 import json
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 
@@ -255,6 +256,222 @@ class TestFindings(unittest.TestCase):
         self.assertIn("K003", codes)
 
 
+class TestEnterGeneratesAnEntryTheCheckerAccepts(unittest.TestCase):
+    """Round 501. `--enter` runs K002/K005/K006 and the pointer rule FORWARDS.
+
+    The property under test is not "it produces an entry" — `--suggest` does
+    that and round 495 showed what its entries are worth. It is that every
+    entry it produces SURVIVES this module's own error codes, and that it
+    declines rather than guesses when no line in the round's own knowledge
+    file can.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        os.makedirs(os.path.join(self.tmp, "state"))
+        os.makedirs(os.path.join(self.tmp, "knowledge"))
+        write(os.path.join(self.tmp, "state/round-700-predictions.md"), "P1 ...")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def build(self):
+        corpus = cf.Corpus(self.tmp)
+        banks, _ = cf.find_banks(self.tmp)
+        ledger, _ = cf.load_ledger(self.tmp)
+        return corpus, banks, ledger
+
+    def test_a_verdict_line_becomes_the_anchor(self):
+        line = ("| P3 | the sweep finds between 25 and 70 candidates | "
+                "**43** | HIT |")
+        write(os.path.join(self.tmp, "knowledge/round-700-a.md"),
+              "# round 700\n\n## 8. Predictions\n\n%s\n" % line)
+        corpus, banks, ledger = self.build()
+        entry, diag = cf.enter(self.tmp, corpus, banks, ledger, 700)
+        self.assertEqual(diag["verdict"], "scored")
+        self.assertEqual(entry["status"], "scored")
+        self.assertEqual(entry["scored_by"], 700)
+        self.assertEqual(entry["where"], "knowledge/round-700-a.md")
+        self.assertEqual(entry["quote"], line)
+
+    def test_a_promise_of_a_scoring_yields_unscored(self):
+        """THE falsifier, and it is round 492's real shape.
+
+        Round 492's knowledge file opens `(state/whence/round-492/
+        predictions.md). Scored in §10.` and then ends at `## 9.`. There is
+        no §10, no HIT and no MISS in the file, and `--suggest` proposed a
+        `scored` entry quoting the promise (round 495). A generator that
+        does the same has re-introduced the bug that ledger exists to
+        prevent, so this test is the gate on the whole feature.
+        """
+        write(os.path.join(self.tmp, "knowledge/round-700-a.md"),
+              "# round 700\n\nPredictions banked (`state/round-700-"
+              "predictions.md`). Scored in section 10 below.\n\n"
+              "## 9. Tests and gates\n\nAll green.\n")
+        corpus, banks, ledger = self.build()
+        entry, diag = cf.enter(self.tmp, corpus, banks, ledger, 700)
+        self.assertEqual(diag["verdict"], "unscored/no-anchor")
+        self.assertEqual(entry["status"], "unscored")
+        self.assertIn("promise of a scoring is not a scoring", entry["why"])
+
+    def test_a_round_with_no_knowledge_file_is_unscored_and_says_which(self):
+        corpus, banks, ledger = self.build()
+        entry, diag = cf.enter(self.tmp, corpus, banks, ledger, 700)
+        self.assertEqual(diag["verdict"], "unscored/no-knowledge-file")
+        self.assertIn("no knowledge/round-700-*.md exists", entry["why"])
+
+    def test_an_anchor_occurring_twice_is_refused_this_is_K005_forwards(self):
+        line = ("| P3 | the sweep finds between 25 and 70 candidates | "
+                "**43** | HIT |")
+        write(os.path.join(self.tmp, "knowledge/round-700-a.md"),
+              "%s\n\nrepeated verbatim below\n\n%s\n" % (line, line))
+        corpus, banks, ledger = self.build()
+        entry, _ = cf.enter(self.tmp, corpus, banks, ledger, 700)
+        self.assertEqual(entry["status"], "unscored")
+
+    def test_an_anchor_another_round_also_carries_is_refused_K006_forwards(self):
+        line = ("| P3 | the sweep finds between 25 and 70 candidates | "
+                "**43** | HIT |")
+        write(os.path.join(self.tmp, "knowledge/round-700-a.md"), line + "\n")
+        write(os.path.join(self.tmp, "knowledge/round-701-b.md"),
+              "quoting round 700 while reviewing it:\n%s\n" % line)
+        corpus, banks, ledger = self.build()
+        entry, _ = cf.enter(self.tmp, corpus, banks, ledger, 700)
+        self.assertEqual(entry["status"], "unscored")
+
+    def test_a_line_under_the_floor_is_not_an_anchor(self):
+        write(os.path.join(self.tmp, "knowledge/round-700-a.md"),
+              "| P3 | fast | HIT |\n")
+        corpus, banks, ledger = self.build()
+        entry, _ = cf.enter(self.tmp, corpus, banks, ledger, 700)
+        self.assertEqual(entry["status"], "unscored")
+
+    def test_a_negated_verdict_line_is_not_a_scoring(self):
+        write(os.path.join(self.tmp, "knowledge/round-700-a.md"),
+              "P4 was never scored and carries no HIT or MISS of its own, "
+              "so it is owed to a later round entirely.\n")
+        corpus, banks, ledger = self.build()
+        entry, _ = cf.enter(self.tmp, corpus, banks, ledger, 700)
+        self.assertEqual(entry["status"], "unscored")
+
+    def test_a_line_crediting_another_round_is_not_this_rounds_scoring(self):
+        write(os.path.join(self.tmp, "knowledge/round-700-a.md"),
+              "Round 699's P4 is a MISS by a factor of four, which this "
+              "round re-derived from the committed artefact before writing.\n")
+        corpus, banks, ledger = self.build()
+        entry, _ = cf.enter(self.tmp, corpus, banks, ledger, 700)
+        self.assertEqual(entry["status"], "unscored")
+
+    def test_the_generated_entry_passes_the_checkers_own_findings(self):
+        """The round trip. A generator whose output the checker rejects is
+        worse than no generator: it produces a red the next round inherits."""
+        line = ("| P3 | the sweep finds between 25 and 70 candidates | "
+                "**43** | HIT |")
+        write(os.path.join(self.tmp, "knowledge/round-700-a.md"),
+              "# round 700\n\n%s\n" % line)
+        write(os.path.join(self.tmp, cf.LEDGER_FILE),
+              json.dumps({"banks": {}}, indent=1) + "\n")
+        corpus, banks, ledger = self.build()
+        entry, _ = cf.enter(self.tmp, corpus, banks, ledger, 700)
+        self.assertIsNone(cf.write_entry(self.tmp, 700, entry))
+        ledger, err = cf.load_ledger(self.tmp)
+        found = cf.findings(self.tmp, corpus, banks, ledger, err, 700)
+        self.assertEqual([f for f in found if cf.SEV[f[0]] == "ERROR"], [],
+                         "\n".join("%s %s" % (f[0], f[2]) for f in found))
+
+
+class TestWriteEntryIsByteStableAndRefusesToGuess(unittest.TestCase):
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        os.makedirs(os.path.join(self.tmp, "state"))
+        self.path = os.path.join(self.tmp, cf.LEDGER_FILE)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def seed(self, banks=None):
+        write(self.path, json.dumps(
+            {"_comment": "seed — with a non-ascii dash",
+             "banks": banks if banks is not None else {}}, indent=1) + "\n")
+
+    def test_a_write_reproduces_the_files_own_serialisation(self):
+        """The ledger on disk IS `json.dumps(doc, indent=1) + newline` with
+        `ensure_ascii` at its default. Writing it any other way turns a
+        three-entry addition into a whole-file reformat."""
+        self.seed()
+        cf.write_entry(self.tmp, 700, {"bank": "state/round-700-predictions.md",
+                                       "status": "scored", "scored_by": 700,
+                                       "where": "knowledge/round-700-a.md",
+                                       "quote": "x" * 50})
+        raw = open(self.path, encoding="utf-8").read()
+        self.assertEqual(json.dumps(json.loads(raw), indent=1) + "\n", raw)
+        self.assertIn("\\u2014", raw)
+
+    def test_an_existing_entry_is_not_overwritten_without_force(self):
+        self.seed({"700": {"status": "scored"}})
+        err = cf.write_entry(self.tmp, 700, {"status": "unscored",
+                                             "owner": "skills(B)",
+                                             "bank": "b", "why": "w"})
+        self.assertIn("already has an entry", err)
+        self.assertEqual(json.load(open(self.path))["banks"]["700"],
+                         {"status": "scored"})
+        self.assertIsNone(cf.write_entry(
+            self.tmp, 700, {"status": "unscored", "owner": "skills(B)",
+                            "bank": "b", "why": "w"}, force=True))
+
+    def test_an_unscored_entry_with_no_owner_is_refused(self):
+        """It would be a K003 the moment it lands. Naming who owes the
+        scoring is a judgement and the generator will not make one up."""
+        self.seed()
+        err = cf.write_entry(self.tmp, 700, {"bank": "b", "status": "unscored",
+                                             "owner": "", "why": "w"})
+        self.assertIn("no owner", err)
+        self.assertEqual(json.load(open(self.path))["banks"], {})
+
+
+class TestStagedCheckFiresWhereTheAuthorStillIs(unittest.TestCase):
+    """Round 501's commit-time tier. Trigger discipline is the whole test."""
+
+    def test_the_knowledge_file_fires_and_the_bank_alone_does_not(self):
+        banks = {700: ["state/round-700-predictions.md"]}
+        bank_only = cf.staged_gaps(".", ["state/round-700-predictions.md"],
+                                   banks, {})
+        self.assertEqual(bank_only, [],
+                         "a bank is committed BEFORE measuring; warning there "
+                         "cries wolf at the one round doing D-013 right")
+        closing = cf.staged_gaps(".", ["knowledge/round-700-x.md"], banks, {})
+        self.assertEqual(closing, [(700, "knowledge/round-700-x.md",
+                                    "state/round-700-predictions.md")])
+
+    def test_a_round_already_in_the_ledger_is_silent(self):
+        banks = {700: ["state/round-700-predictions.md"]}
+        self.assertEqual(
+            cf.staged_gaps(".", ["knowledge/round-700-x.md"], banks,
+                           {"700": {"status": "scored"}}), [])
+
+    def test_a_knowledge_file_for_a_round_that_banked_nothing_is_silent(self):
+        self.assertEqual(
+            cf.staged_gaps(".", ["knowledge/round-700-x.md"], {}, {}), [])
+
+    def test_the_pre_commit_hook_carries_the_advisory_ledger_step(self):
+        """Same assertion shape as `test_wiring_audit.py`'s for round 499's
+        step, because it is the same design: advisory, fail-open, last line
+        `exit 0`. A gate here can destroy the uncommitted diff of a round
+        with no turns left."""
+        harness = os.path.join(ROOT, "harness")
+        if not os.path.isdir(harness):
+            self.skipTest("no harness/ in this tree")
+        sys.path.insert(0, harness)
+        import escalationguard as eg
+        body = eg.hook_script()
+        self.assertIn("carryforward_check.py", body)
+        self.assertIn("--staged-check", body)
+        step = body.split("--staged-check")[-1]
+        self.assertIn("|| true", step)
+        self.assertTrue(body.rstrip().endswith("exit 0"))
+
+
 class TestLiveCorpus(unittest.TestCase):
     """The enforcement. Everything above exists so this cannot pass vacuously."""
 
@@ -268,6 +485,46 @@ class TestLiveCorpus(unittest.TestCase):
         errors = [f for f in found if cf.SEV[f[0]] == "ERROR"]
         self.assertEqual(errors, [], "\n".join("%s %s" % (f[0], f[2])
                                                for f in errors))
+
+    def test_the_generator_refuses_the_live_round_492_bank(self):
+        """Round 495's finding, pinned against the real file rather than a
+        fixture. Round 492 banked P1-P14 and never scored them; its
+        knowledge file promises a section that was never written. If
+        `--enter` ever proposes `scored` for it, the generator has become
+        the prose classifier round 369 deleted, and it would be laundering
+        the one debt in this ledger that is genuinely outstanding.
+        """
+        corpus = cf.Corpus(ROOT)
+        banks, _ = cf.find_banks(ROOT)
+        led, _ = cf.load_ledger(ROOT)
+        if 492 not in banks:
+            self.skipTest("round 492's bank is not in this tree")
+        entry, diag = cf.enter(ROOT, corpus, banks, led, 492)
+        self.assertEqual(entry["status"], "unscored", diag)
+        self.assertEqual(led["492"]["status"], "unscored",
+                         "the live ledger and the generator must agree that "
+                         "round 492's bank is still owed")
+
+    def test_every_entry_this_round_generated_is_re_derivable(self):
+        """The three K001s round 501 closed, checked the way the ledger is
+        checked: the quote must be present in `where`, present ONCE, and
+        matched by no scope the entry does not name."""
+        corpus = cf.Corpus(ROOT)
+        led, _ = cf.load_ledger(ROOT)
+        checked = 0
+        for n in ("498", "499", "500"):
+            e = led.get(n)
+            if not e or e.get("status") != "scored":
+                continue
+            body = cf.read(os.path.join(ROOT, e["where"]))
+            self.assertEqual(body.count(e["quote"]), 1,
+                             "round %s: anchor is not unique in %s"
+                             % (n, e["where"]))
+            self.assertEqual(
+                corpus.foreign_scopes(e["quote"], {int(n)}), [],
+                "round %s: anchor also matches a foreign scope" % n)
+            checked += 1
+        self.assertEqual(checked, 3)
 
     def test_no_live_entry_uses_remainder_for_narrative(self):
         # Round 375's own finding, pinned as a SHAPE rather than a count: a

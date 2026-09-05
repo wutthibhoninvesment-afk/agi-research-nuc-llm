@@ -367,6 +367,8 @@ def hook_script(python=None, script_rel=None):
     python = python or "python3"
     script_rel = script_rel or os.path.join("harness", "escalationguard.py")
     wiring_rel = os.path.join("harness", "wiring_audit.py")
+    carry_rel = os.path.join("skills", "skill-authoring", "scripts",
+                             "carryforward_check.py")
     return """#!/bin/sh
 %s
 # Refuses a commit that would land a path listed in
@@ -404,9 +406,31 @@ top=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 if [ -f "$top/%s" ]; then
   %s "$top/%s" undeclared --staged --quiet 2>/dev/null || true
 fi
+
+# Round 501 (skills B): the THIRD advisory step, same design and the same
+# reason. K001 -- a prediction bank on disk with no entry in
+# state/prediction-bank-ledger.json -- has gone red and been closed six
+# times, and every closure was a skills(B) round writing entries for banks
+# other rounds left. Banks arrive at ~1 per round; entries were written at
+# ~1 per rotation, and the rotation is six.
+#
+# It is not that the rule is unknown: rounds 493, 494, 496 and 497 each
+# registered their own bank inside their own commit and said so in the
+# entry. Rounds 498, 499 and 500 did not, and one miss keeps the check red
+# for the rest of the rotation. A ~50%% compliance rate on a written rule
+# does not move because the rule is written again.
+#
+# Triggers on the KNOWLEDGE FILE, never on the bank: a bank is committed
+# early, before measuring, and at that moment the entry cannot exist yet.
+# Reads the ledger JSON and the staged list only -- no corpus, ~0.1 s.
+# WARNS, NEVER BLOCKS, and fails open, for round 499's reason above.
+if [ -f "$top/%s" ]; then
+  %s "$top/%s" --staged-check --quiet 2>/dev/null || true
+fi
 exit 0
 """ % (HOOK_MARKER, script_rel, python, script_rel,
-       wiring_rel, python, wiring_rel)
+       wiring_rel, python, wiring_rel,
+       carry_rel, python, carry_rel)
 
 
 def hooks_dir(repo=REPO_ROOT):

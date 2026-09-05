@@ -189,6 +189,7 @@ import argparse
 import json
 import os
 import re
+import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -928,6 +929,263 @@ def requote(root, corpus, ledger, n):
     return out
 
 
+# --------------------------------------------------------------------------
+# `--enter` (round 501, skills B). The generator behind the recurrence.
+#
+# K001 has gone red six times and been closed six times, and every closure was
+# a skills(B) round hand-writing ledger entries for banks OTHER rounds left.
+# The arithmetic is the whole story: banks arrive at ~1 per round, entries are
+# written at ~1 per ROTATION, and the rotation is six. So the steady state is
+# a red check with a monotonically growing error count, closed on the sixth
+# round and reopened on the seventh. Rounds 473, 480, 487 and 494 each wrote
+# that diagnosis down in prose; nothing was ever built from it.
+#
+# What was missing was not the will. It was that writing an entry by hand is
+# a four-code job -- the quote must be PRESENT in `where` (K002), present
+# exactly ONCE (K005), matched by no other round's scope (K006), and it must
+# be a scoring rather than a promise of one (round 495's POINTER_RE) -- and a
+# round that has just spent its budget on its own track will not do a
+# four-code job for bookkeeping. So it is done by whoever runs this checker,
+# which is skills(B), one round in six.
+#
+# `--enter NNN` does the four-code job. It is deliberately NOT `--suggest`:
+#
+#   `--suggest` runs `scan`, which is the PROSE CLASSIFIER round 369 demoted
+#   for getting 5 of 13 verdicts wrong. It emits `"where": "?"` and
+#   `"scored_by": null` -- an entry nobody can write without doing the work
+#   again -- and round 495 showed it will happily propose `scored` for round
+#   492, whose knowledge file promises `Scored in §10.` and has no §10.
+#
+#   `--enter` runs the checker's OWN ERROR CODES FORWARDS. A line is a
+#   candidate anchor only if it would survive K002, K005, K006 and the
+#   pointer rule, and only if it carries a literal verdict of its own. When
+#   no line does, it proposes `unscored` and says what it searched for. It
+#   cannot launder a bank, because the property it tests IS the property the
+#   ledger is checked on.
+#
+# Scope, stated so it is not mistaken for more: `--enter` proposes a
+# SELF-scoring entry -- round n's bank, scored by round n, in round n's own
+# knowledge file. That is 146 of the 173 entries this ledger already holds.
+# A cross-round discharge (round 371 scoring round 23's bank) is a judgement
+# about somebody else's work and stays a hand job with `--suggest` beside it.
+# --------------------------------------------------------------------------
+
+# The floor round 464 proposed and round 465 priced. It is a PROXY for "this
+# anchor carries enough information to locate", not a finding in itself --
+# 47 live entries are under it and are fine. Used here as a generator-side
+# filter, where being conservative costs nothing but a longer quote.
+MIN_ANCHOR = 40
+
+
+def anchor_candidates(corpus, body, n, own=None):
+    """Lines in `body` that would survive this checker as round n's anchor.
+
+    Every filter is one of the module's own findings, run forwards:
+
+        len >= MIN_ANCHOR       the K005/K006 proxy (round 464/465)
+        VERDICT_ON_LINE_RE      a scoring, not a promise of one (round 495)
+        not NEGATION_RE         "P4 was never scored" is not a scoring
+        not unkept_pointer      a pointer to a section that does not exist
+        _attributable           the line does not credit some other round
+        body.count(line) == 1   K005: present twice is not located once
+        no foreign_scopes       K006: `where` could not have been wrong
+
+    Ranked longest-first for the same reason `requote` is: the failure being
+    prevented is an anchor with too little information in it.
+
+    Differs from `requote`'s filter in ONE clause and it is the load-bearing
+    one. `requote` accepts `_SCORING_LINE_RE` -- the vocabulary of scoring,
+    including the word `predictions` -- because a human is choosing from its
+    output and can see that `**Predictions banked before measuring:**` is a
+    header. Nothing chooses from this list, so it demands a VERDICT.
+    """
+    own = set(own or {n})
+    seen, out = set(), []
+    for raw in body.splitlines():
+        line = raw.strip()
+        if line in seen:
+            continue
+        seen.add(line)
+        if len(line) < MIN_ANCHOR:
+            continue
+        if not VERDICT_ON_LINE_RE.search(line):
+            continue
+        if NEGATION_RE.search(line):
+            continue
+        if unkept_pointer(line, body):
+            continue
+        if not _attributable(line, n):
+            continue
+        if body.count(line) != 1:
+            continue
+        if corpus.foreign_scopes(line, own):
+            continue
+        out.append(line)
+    out.sort(key=len, reverse=True)
+    return out
+
+
+def enter(root, corpus, banks, ledger, n, entered_by=None, owner=None,
+          note=None):
+    """(entry_or_None, diagnosis) — a derived ledger entry for round n.
+
+    `entry` is a dict ready to drop into `banks`, or None when there is no
+    bank on disk to write one for. The diagnosis carries everything the
+    proposal was derived FROM, so a reader can disagree with it without
+    re-running anything: which files were searched, how many candidates each
+    yielded, and which clause the verdict turned on.
+
+    NEVER guesses an owner. An `unscored` entry with no owner is a K003 the
+    moment it lands, so the CLI refuses to write one -- naming who owes the
+    scoring is a judgement and this function will not make it up.
+    """
+    diag = {"round": n, "bank": None, "already_in_ledger": str(n) in ledger,
+            "where_tried": [], "candidates": {}, "verdict": None,
+            "chose": None}
+    if n not in banks:
+        diag["verdict"] = "no-bank"
+        return None, diag
+    diag["bank"] = banks[n][0]
+
+    chosen = None
+    for rel in corpus.knowledge.get(n, []):
+        body = read(os.path.join(root, rel))
+        cands = anchor_candidates(corpus, body, n)
+        diag["where_tried"].append(rel)
+        diag["candidates"][rel] = cands
+        if cands and chosen is None:
+            chosen = (rel, cands[0])
+
+    if chosen is None:
+        diag["verdict"] = ("unscored/no-knowledge-file"
+                           if not diag["where_tried"]
+                           else "unscored/no-anchor")
+        searched = (", ".join(diag["where_tried"])
+                    if diag["where_tried"]
+                    else "no knowledge/round-%d-*.md exists" % n)
+        why = ("`carryforward_check.py --enter %d` searched %s and found no "
+               "line that carries its own HIT/MISS/PARTIAL verdict, is >= %d "
+               "characters, occurs exactly once in its file, and is matched "
+               "by no other round's scope. A promise of a scoring is not a "
+               "scoring (round 495): if this round did score its bank, the "
+               "scoring is somewhere this generator does not look -- say "
+               "where, and write the entry by hand."
+               % (n, searched, MIN_ANCHOR))
+        entry = {"bank": diag["bank"], "status": "unscored",
+                 "owner": owner or "", "why": why}
+        if note:
+            entry["note"] = note
+        return entry, diag
+
+    rel, quote = chosen
+    diag["verdict"] = "scored"
+    diag["chose"] = rel
+    entry = {"bank": diag["bank"], "status": "scored", "scored_by": n,
+             "where": rel, "quote": quote}
+    if entered_by is not None and entered_by != n:
+        entry["entered_by"] = entered_by
+    if note:
+        entry["note"] = note
+    return entry, diag
+
+
+def write_entry(root, n, entry, force=False):
+    """Append `entry` to the ledger, byte-stably. Returns an error or None.
+
+    The serialisation is pinned to what the file on disk already is --
+    `json.dumps(doc, indent=1) + "\\n"`, `ensure_ascii` left at its default
+    True. Verified before this was written: re-serialising the untouched
+    ledger that way reproduces it byte for byte, while `indent=2` or
+    `ensure_ascii=False` rewrites every one of its ~3000 lines and buries a
+    three-entry addition in a whole-file reformat. That is a mistake this
+    program has already made once and recorded.
+    """
+    path = os.path.join(root, LEDGER_FILE)
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except (OSError, ValueError) as exc:
+        return "ledger unreadable: %s" % exc
+    doc.setdefault("banks", {})
+    if str(n) in doc["banks"] and not force:
+        return ("round %d already has an entry; refusing to overwrite it "
+                "(pass --force if you mean to replace it)" % n)
+    if entry.get("status") == "unscored" and not entry.get("owner"):
+        return ("refusing to write an `unscored` entry with no owner -- it "
+                "would be a K003 the moment it lands. Pass --owner TRACK.")
+    doc["banks"][str(n)] = entry
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(json.dumps(doc, indent=1) + "\n")
+    return None
+
+
+# --------------------------------------------------------------------------
+# `--staged-check` (round 501). The generator above is useless if nothing
+# asks for it, and asking is what has failed.
+#
+# The practice is NOT unknown. Rounds 493, 494, 496 and 497 each wrote their
+# own ledger entry inside their own round's commit and said so in the entry
+# ("registered here at the END of the round, scored"). Rounds 498, 499 and
+# 500 did not. That is a ~50% compliance rate on a rule that is already
+# written down, and one miss is enough: the check then stays red until the
+# next skills(B) round, which is up to five rounds later, and the error
+# count grows by one per round in the meantime. Six closures, six reopenings.
+#
+# More prose will not move a 50% rate. The one place the AUTHOR is still
+# present is commit time -- round 499's finding, made about a different
+# check (W001, opened seven times by seven rounds that never saw it) and
+# true of this one for the same reason: the health checks run after the
+# agent process exits and write to logs/, which is not in git.
+#
+# TRIGGER, and why it is the knowledge file and not the bank. A bank is
+# committed EARLY, before measuring, and at that moment the ledger entry
+# cannot exist yet -- warning there would cry wolf on the one round doing
+# D-013 correctly. The knowledge file is the END-OF-ROUND artefact. When it
+# is in the commit, the round has scored, and the entry is one command away.
+#
+# COST is the whole reason this does not just call `findings()`. A full run
+# builds `Corpus`, which reads state/research-state.md, its archive and
+# every knowledge/*.md: 1.9 s measured. This path reads the ledger JSON and
+# walks the staged list, and nothing else.
+# --------------------------------------------------------------------------
+
+_KNOWLEDGE_ROUND_RE = re.compile(r"^knowledge/round-(\d{1,4})\b")
+
+
+def staged_paths(root):
+    """The paths this commit would land, or [] if git cannot be asked."""
+    try:
+        out = subprocess.run(
+            ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"],
+            cwd=root, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            timeout=20)
+    except (OSError, subprocess.SubprocessError):
+        return []
+    if out.returncode != 0:
+        return []
+    return [p for p in out.stdout.decode("utf-8", "replace").splitlines() if p]
+
+
+def staged_gaps(root, paths, banks, ledger):
+    """[(round, knowledge file, bank)] this commit closes a round without.
+
+    A gap is: the commit stages `knowledge/round-NNN-*.md`, a bank for NNN
+    exists on disk, and the ledger has no entry for NNN. Deliberately blind
+    to everything else -- it is not a second copy of `findings`, it is the
+    subset of K001 whose author is still in the room.
+    """
+    gaps = []
+    for rel in paths:
+        m = _KNOWLEDGE_ROUND_RE.match(rel.replace(os.sep, "/"))
+        if not m:
+            continue
+        n = int(m.group(1))
+        if n not in banks or str(n) in ledger:
+            continue
+        gaps.append((n, rel, banks[n][0]))
+    return sorted(set(gaps))
+
+
 def evidence_audit(corpus, banks):
     """Per bank round: the evidence `scan` would report, and what it skipped.
 
@@ -1022,6 +1280,28 @@ def main(argv=None):
                          "`where`, foreign scopes that also match")
     ap.add_argument("--requote", type=int, default=None, metavar="ROUND",
                     help="propose replacement anchors for ROUND's entry")
+    ap.add_argument("--enter", type=int, default=None, metavar="ROUND",
+                    help="derive a ledger entry for ROUND's bank from ROUND's "
+                         "own knowledge file, running K002/K005/K006 and the "
+                         "pointer rule FORWARDS. Prints; --write commits it.")
+    ap.add_argument("--write", action="store_true",
+                    help="with --enter: write the proposal into the ledger")
+    ap.add_argument("--force", action="store_true",
+                    help="with --enter --write: replace an existing entry")
+    ap.add_argument("--entered-by", type=int, default=None, metavar="ROUND",
+                    help="with --enter: the round writing the entry, when it "
+                         "is not the round that banked (round 453's field)")
+    ap.add_argument("--owner", default=None,
+                    help="with --enter: the track owing the scoring, required "
+                         "before an `unscored` proposal can be written")
+    ap.add_argument("--note", default=None,
+                    help="with --enter: a `note` for the entry")
+    ap.add_argument("--staged-check", action="store_true",
+                    help="commit-time tier: warn when this commit stages a "
+                         "round's knowledge file while that round's bank has "
+                         "no ledger entry. Reads the ledger only; no corpus.")
+    ap.add_argument("--quiet", action="store_true",
+                    help="with --staged-check: print nothing when clean")
     ap.add_argument("--audit-evidence", action="store_true",
                     help="per bank round: the evidence `scan` would publish, "
                          "the candidates it skipped, and whether that "
@@ -1032,6 +1312,27 @@ def main(argv=None):
     if not os.path.isdir(os.path.join(root, "state")):
         print("error: %s has no state/ directory" % root, file=sys.stderr)
         return 2
+
+    if args.staged_check:
+        banks, _unnumbered = find_banks(root)
+        ledger, _err = load_ledger(root)
+        gaps = staged_gaps(root, staged_paths(root), banks, ledger)
+        if not gaps:
+            if not args.quiet:
+                print("carryforward --staged-check: no staged round closes "
+                      "without its ledger entry")
+            return 0
+        for n, rel, bank in gaps:
+            print("carryforward: WARN K001-at-commit — this commit stages %s "
+                  "while %s has no entry for round %d's bank (%s).\n"
+                  "    Derive and write it with:\n"
+                  "      python3 skills/skill-authoring/scripts/"
+                  "carryforward_check.py --enter %d --write\n"
+                  "    That command REFUSES if round %d's knowledge file "
+                  "carries no verdict of its own, so it cannot launder an "
+                  "unscored bank."
+                  % (rel, LEDGER_FILE, n, bank, n, n))
+        return 0
 
     corpus = Corpus(root)
     banks, unnumbered = find_banks(root)
@@ -1099,6 +1400,32 @@ def main(argv=None):
                  sum(1 for r in rows if r[2] > 1),
                  sum(1 for r in rows if r[3]),
                  sum(1 for r in rows if r[1] < 40)))
+
+    if args.enter is not None:
+        entry, diag = enter(root, corpus, banks, ledger, args.enter,
+                            entered_by=args.entered_by, owner=args.owner,
+                            note=args.note)
+        print("-- enter round %d: verdict %s; bank %s; already in ledger: %s"
+              % (diag["round"], diag["verdict"], diag["bank"],
+                 diag["already_in_ledger"]))
+        for rel in diag["where_tried"]:
+            print("   searched %-62s %d candidate anchor(s)"
+                  % (rel, len(diag["candidates"][rel])))
+        if entry is None:
+            print("   no bank on disk for round %d — nothing to enter"
+                  % args.enter)
+        else:
+            print(json.dumps({str(args.enter): entry}, indent=1))
+        if args.write and entry is not None:
+            err_w = write_entry(root, args.enter, entry, force=args.force)
+            if err_w:
+                print("   NOT WRITTEN: %s" % err_w)
+            else:
+                print("   written to %s" % LEDGER_FILE)
+                ledger, err = load_ledger(root)
+                found = findings(root, corpus, banks, ledger, err, latest)
+        elif args.write:
+            print("   NOT WRITTEN: nothing to write")
 
     if args.requote is not None:
         cands = requote(root, corpus, ledger, args.requote)
