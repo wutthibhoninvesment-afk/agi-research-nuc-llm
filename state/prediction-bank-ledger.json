@@ -1460,6 +1460,13 @@
    "scored_by": 509,
    "where": "knowledge/round-509-the-map-that-covered-one-of-four-trees.md",
    "quote": "| P16 | mean open\u2192close latency \u2265 2 rounds, and every red was closable by its opener with one command | **MISS on both halves** \u2014 mean is **1.64 rounds** (3,2,2,2,2,2,2,2,1,1,1,1,1,1), and round 508's deliberate red was not \"closable for zero cost\": it needed a >600 s regeneration the round measured and could not afford. What it owed was a DECLARATION, not a fix |"
+  },
+  "510": {
+   "bank": "state/whence/round-510/predictions.md",
+   "status": "scored",
+   "scored_by": 510,
+   "where": "knowledge/round-510-the-branch-nothing-takes.md",
+   "quote": "| P13 | \u22651 branch is unreachable *as written* (dead), not merely unexercised | **MISS AS POSED** \u2014 this census measures EXERCISE, not reachability. `quote_body` 12/12, `guest_steps` 8/8 and `guest_at` 6/6 are entirely unexercised and `guest_steps`/`guest_at` are unexercised *because their dispatch arm is*, but nothing here proves any of them unreachable. The instrument cannot answer the question I asked it |"
   }
  }
 }

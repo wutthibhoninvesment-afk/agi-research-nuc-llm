@@ -424,7 +424,25 @@ def test_the_shipped_map_covers_the_harness_fast_tier(real_map):
         "reports every diff as touching nothing"
         % len(real_map.get("roster", ())))
     assert real_map.get("schema") == 1
-    assert real_map.get("head"), "a map with no HEAD cannot be called stale"
+    # ROUND 510 (language C): "head, OR every source's head", not "head".
+    # Round 509 shipped two rules that a real multi-tree map cannot satisfy
+    # at once. `merge_maps` keeps `head` only if every input agrees --
+    # correct, a merged map whose halves were recorded at different commits
+    # must not claim either -- and this line demanded a truthy `head`. The
+    # three recordings take 368 s + >900 s + 208 s SERIALISED on a box whose
+    # `nproc` is 1, and the round doing them is committing meanwhile, so
+    # "all three at one commit" is a condition no round can hold. Round 510
+    # measured exactly that: whence at `b38051d`, harness and nuc at
+    # `7b61384`, one commit apart. The staleness question is still
+    # answerable and this is what answers it -- `sources` carries the head
+    # each leg was recorded at, so a map with no consensus head is stale
+    # against whichever leg moved, which is strictly MORE information than
+    # a single head. What must never happen is a map that can name no
+    # commit at all.
+    heads = [s.get("head") for s in real_map.get("sources", ())]
+    assert real_map.get("head") or (heads and all(heads)), (
+        "a map that can name no commit cannot be called stale: head=%r "
+        "sources=%r" % (real_map.get("head"), heads))
 
 
 def test_a_new_file_in_the_whence_tree_implicates_the_copyparity_node(

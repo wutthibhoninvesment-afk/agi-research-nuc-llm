@@ -687,6 +687,12 @@ def merge_maps(maps):
       * counters -- summed. `sources` records what went in.
     """
     nodes, roster, heads, n_events, n_kept, srcs = {}, set(), set(), 0, 0, []
+    # ROUND 510: summed like the other counters. `merge_maps` shipped
+    # without it and `test_the_shipped_map_carries_no_gitignored_path`
+    # asserts it is NON-ZERO -- the positive control that the filter ran at
+    # all -- so the first real merged map failed a test about a property it
+    # actually had.
+    n_dropped = 0
     for name, m in maps:
         for k, ent in m.get("nodes", {}).items():
             cur = nodes.setdefault(k, {"files": set(), "scans": set()})
@@ -696,6 +702,7 @@ def merge_maps(maps):
         heads.add(m.get("head") or "")
         n_events += int(m.get("n_events", 0) or 0)
         n_kept += int(m.get("n_kept", 0) or 0)
+        n_dropped += int(m.get("n_gitignored_dropped", 0) or 0)
         srcs.append({"source": name, "keys": len(m.get("nodes", {})),
                      "roster": len(m.get("roster", ())),
                      "head": m.get("head") or "",
@@ -714,6 +721,7 @@ def merge_maps(maps):
         "roster": sorted(roster),
         "n_events": n_events,
         "n_kept": n_kept,
+        "n_gitignored_dropped": n_dropped,
         "sources": srcs,
         "nodes": dict((k, {"files": sorted(v["files"]),
                            "scans": sorted(v["scans"])})
