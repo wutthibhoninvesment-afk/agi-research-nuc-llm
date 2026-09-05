@@ -903,6 +903,60 @@ def check_census(declared, funcs):
     return sorted(old - live), sorted(live - old)
 
 
+def check_coordinates(declared, funcs):
+    """Declared pairs whose LINE NUMBERS no longer point at the assertion.
+
+    ROUND 500's FINDING, and it is this module's own lesson arriving one
+    level up. Round 498 built `assertshadow` because a COUNT assertion was
+    standing in front of a LIST assertion, and then wrote this module's
+    ledger gate to compare only the list: `check_census` diffs the node-id
+    SET, `check_costly` diffs the costly SET, and neither one looks at the
+    coordinates inside a node. So a node can keep its id, its pair count,
+    its assertion text and every published total while the line numbers
+    recorded against it drift to point at nothing.
+
+    That is not hypothetical. At round 500 the ledger committed by round
+    498 carried FIVE pairs across FOUR `test_testcorpus_census.py` nodes at
+    a uniform +9 offset, with identical assertion text -- and the file is
+    byte-identical to the version in round 498's own commit. The census was
+    generated, nine lines were then inserted above line 1634, and the two
+    were committed together. `--check` said "ledger agrees" throughout,
+    because every set it compares really was unchanged, and so did
+    `check_costly` and every published total.
+
+    Round 494 already found this shape once, in the other direction: it
+    WIDENED a residual-row location pin, and that pin's first live firing
+    caught round 498's own reorder. This is the same pin one level up, at
+    the pair coordinate rather than the residual row.
+
+    Returns `[(node_id, declared_mag, declared_shape, live_mag,
+    live_shape)]`, matched on ASSERTION TEXT rather than on position in the
+    pair list: a node whose pairs were re-ordered by an insertion is not
+    the same event as a pair that moved, and matching by index would report
+    both as the second."""
+    live = dict(("%s::%s" % (f["file"], f["func"]), f["pairs"])
+                for f in funcs)
+    out = []
+    for nid, node in sorted(declared.get("nodes", {}).items()):
+        got = live.get(nid)
+        if got is None:
+            continue          # `check_census` owns declared-but-gone nodes
+        for p in node["pairs"]:
+            same_text = [g for g in got
+                         if g["magnitude"] == p["magnitude"]
+                         and g["shape"] == p["shape"]]
+            if not same_text:
+                continue      # the assertion itself changed, not its place
+            if any(g["magnitude_line"] == p["magnitude_line"]
+                   and g["shape_line"] == p["shape_line"]
+                   for g in same_text):
+                continue
+            g = same_text[0]
+            out.append((nid, p["magnitude_line"], p["shape_line"],
+                        g["magnitude_line"], g["shape_line"]))
+    return out
+
+
 def check_costly(declared, funcs):
     """`(missing, extra)` over the COSTLY set alone -- the hard gate."""
     live = set(costly_ids(funcs))
@@ -1018,7 +1072,13 @@ def main(argv):
             print("no census on disk: %s" % census_path())
             return 1
         missing, extra = check_census(declared, funcs)
-        if not missing and not extra:
+        # `check_costly` existed from round 498 and was exercised only by
+        # `test_assertshadow.py`; the CLI -- the path every failure message
+        # names as the way to check -- never called it. A gate reachable
+        # only from a test is a gate the author of a change does not run.
+        cmiss, cextra = check_costly(declared, funcs)
+        moved = check_coordinates(declared, funcs)
+        if not (missing or extra or cmiss or cextra or moved):
             print("assert-shadow census: %d candidate node(s), ledger agrees"
                   % totals(funcs)["candidates"])
             return 0
@@ -1026,6 +1086,13 @@ def main(argv):
             print("GONE     %s  (declared, no longer a candidate)" % n)
         for n in extra:
             print("NEW      %s  (a shadow this tree did not have)" % n)
+        for n in cmiss:
+            print("UNCOSTLY %s  (declared costly, no longer is)" % n)
+        for n in cextra:
+            print("COSTLY   %s  (newly costly, not declared)" % n)
+        for nid, dm, ds, lm, ls in moved:
+            print("MOVED    %s  ledger %d/%d -> tree %d/%d"
+                  % (nid, dm, ds, lm, ls))
         print("regenerate: cd languages/whence && python3 assertshadow.py "
               "--history --json <census>")
         return 1

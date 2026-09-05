@@ -1,0 +1,1410 @@
+{
+  "_what": "provenance of the magnitude subject in every shadow pair of state/whence/assert-shadow-census.json -- round 498's next-step #2, measured by round 500.",
+  "_regenerate": "cd languages/whence && python3 subjprov.py --json ../../state/whence/subject-provenance.json",
+  "_lattice": [
+    "local",
+    "scratch",
+    "unknown",
+    "handed",
+    "tree"
+  ],
+  "_derived": [
+    "handed",
+    "tree"
+  ],
+  "_assumption": "arguments dominate: an opaque call propagates the join of its arguments; same-file helpers are analysed instead of assumed; _helpers_ignoring_arguments is the measured size of the remaining guess.",
+  "totals": {
+    "pairs": 57,
+    "prov_kinds": {
+      "handed": 3,
+      "local": 30,
+      "scratch": 7,
+      "tree": 12,
+      "unknown": 5
+    },
+    "heuristic_derived": 14,
+    "dataflow_derived": 15,
+    "agree": 54,
+    "disagree": 3,
+    "heuristic_only": 1,
+    "dataflow_only": 2,
+    "unknown_residual": 5,
+    "pairs_costly_heuristic": 7,
+    "nodes_costly_heuristic": 2,
+    "pairs_costly_dataflow": 7,
+    "nodes_costly_dataflow": 2,
+    "pairs_costly_and_guarding": 6,
+    "pairs_costly_unguarded": 1,
+    "nodes_costly_unguarded": 1
+  },
+  "_helpers_ignoring_arguments": {
+    "test_assertshadow.py": [
+      [
+        "_run_pytest",
+        [
+          "tmp_path",
+          "src",
+          "name"
+        ]
+      ],
+      [
+        "declared",
+        []
+      ],
+      [
+        "live",
+        []
+      ]
+    ],
+    "test_checkpin.py": [
+      [
+        "_registry",
+        []
+      ]
+    ],
+    "test_contract_message_differential.py": [
+      [
+        "_guest_reason_of",
+        [
+          "src"
+        ]
+      ],
+      [
+        "_is_unbound_site",
+        [
+          "line"
+        ]
+      ],
+      [
+        "declared_sites",
+        []
+      ],
+      [
+        "guest_reasons",
+        []
+      ],
+      [
+        "library_source",
+        []
+      ]
+    ],
+    "test_critical_mission_claims.py": [
+      [
+        "_claude_md",
+        []
+      ]
+    ],
+    "test_examples.py": [
+      [
+        "run_example",
+        [
+          "name",
+          "extra"
+        ]
+      ]
+    ],
+    "test_field_corpus_selector.py": [
+      [
+        "_fake_root",
+        [
+          "tmp_path",
+          "extra",
+          "commit_all"
+        ]
+      ],
+      [
+        "_git",
+        [
+          "repo",
+          "args"
+        ]
+      ],
+      [
+        "_old_corpus_unchanged",
+        [
+          "root",
+          "census_path"
+        ]
+      ],
+      [
+        "_py_files",
+        []
+      ]
+    ],
+    "test_folding.py": [
+      [
+        "_read",
+        [
+          "path"
+        ]
+      ]
+    ],
+    "test_lexer_guest_parity.py": [
+      [
+        "_example_files",
+        []
+      ],
+      [
+        "_run_files",
+        [
+          "paths"
+        ]
+      ],
+      [
+        "_small_example_files",
+        []
+      ],
+      [
+        "corpus_streams",
+        []
+      ],
+      [
+        "git_tracked_examples",
+        []
+      ],
+      [
+        "guest_streams",
+        [
+          "srcs"
+        ]
+      ],
+      [
+        "guest_tables",
+        []
+      ],
+      [
+        "library_source",
+        []
+      ]
+    ],
+    "test_miss_message_differential.py": [
+      [
+        "_unreachable_lines",
+        []
+      ],
+      [
+        "declared_sites",
+        []
+      ],
+      [
+        "guest_reasons",
+        []
+      ],
+      [
+        "library_source",
+        []
+      ],
+      [
+        "observed_sites",
+        [
+          "cases",
+          "kw"
+        ]
+      ]
+    ],
+    "test_parse_error_differential.py": [
+      [
+        "guest",
+        []
+      ],
+      [
+        "library_source",
+        []
+      ]
+    ],
+    "test_parser_differential.py": [
+      [
+        "_corpus",
+        []
+      ],
+      [
+        "_fuzzer_corpus",
+        [
+          "n",
+          "seed"
+        ]
+      ],
+      [
+        "_import_program_gen",
+        []
+      ],
+      [
+        "eval_library_source",
+        []
+      ],
+      [
+        "guest_parse_all",
+        [
+          "sources"
+        ]
+      ]
+    ],
+    "test_polarity.py": [
+      [
+        "_cp03p",
+        [
+          "registry"
+        ]
+      ],
+      [
+        "_eval_pin",
+        [
+          "pin_id"
+        ]
+      ],
+      [
+        "_eval_src",
+        []
+      ],
+      [
+        "_host_reg",
+        []
+      ],
+      [
+        "_host_src",
+        []
+      ],
+      [
+        "_law_table",
+        [
+          "routed",
+          "campaigns",
+          "collisions"
+        ]
+      ],
+      [
+        "_r438_case",
+        [
+          "stem"
+        ]
+      ],
+      [
+        "_repointed_registry",
+        []
+      ],
+      [
+        "_verdict_of",
+        [
+          "runfile",
+          "pid"
+        ]
+      ]
+    ],
+    "test_self_eval.py": [
+      [
+        "guest_box",
+        [
+          "src"
+        ]
+      ],
+      [
+        "guest_eval_all",
+        [
+          "sources"
+        ]
+      ],
+      [
+        "library_source",
+        []
+      ]
+    ],
+    "test_self_hosting.py": [
+      [
+        "eval_library_source",
+        []
+      ],
+      [
+        "self_host_library_section",
+        []
+      ]
+    ],
+    "test_spec_builtins.py": [
+      [
+        "_spec_arities",
+        []
+      ],
+      [
+        "_spec_table",
+        []
+      ]
+    ],
+    "test_specreg.py": [
+      [
+        "codes",
+        [
+          "text",
+          "kw"
+        ]
+      ],
+      [
+        "vcodes",
+        [
+          "tmp_path",
+          "spec_text",
+          "files"
+        ]
+      ]
+    ],
+    "test_subjprov.py": [
+      [
+        "_prov",
+        [
+          "src",
+          "func",
+          "line"
+        ]
+      ],
+      [
+        "_resolve",
+        [
+          "src",
+          "func",
+          "line"
+        ]
+      ]
+    ],
+    "test_testcorpus_census.py": [
+      [
+        "_fn",
+        [
+          "src",
+          "name"
+        ]
+      ],
+      [
+        "_tree_of",
+        [
+          "fname"
+        ]
+      ],
+      [
+        "harvest",
+        []
+      ],
+      [
+        "harvest_rows",
+        []
+      ]
+    ],
+    "test_testcorpus_contributions.py": [
+      [
+        "_census_functions",
+        []
+      ],
+      [
+        "_count_asserts",
+        [
+          "fn"
+        ]
+      ],
+      [
+        "live",
+        []
+      ]
+    ],
+    "test_testcorpus_suite_census.py": [
+      [
+        "suite_census",
+        []
+      ]
+    ],
+    "test_tiering.py": [
+      [
+        "_collect",
+        [
+          "extra_args"
+        ]
+      ]
+    ],
+    "test_v10.py": [
+      [
+        "_copy_package",
+        [
+          "dst"
+        ]
+      ],
+      [
+        "_have_rev",
+        [
+          "rev"
+        ]
+      ],
+      [
+        "_importable",
+        [
+          "pkg_parent"
+        ]
+      ],
+      [
+        "_ref_diff",
+        [
+          "ref_dir",
+          "modes",
+          "files"
+        ]
+      ]
+    ],
+    "test_v20.py": [
+      [
+        "_library_source",
+        []
+      ],
+      [
+        "guest_eval_all",
+        [
+          "sources"
+        ]
+      ]
+    ],
+    "test_v23.py": [
+      [
+        "_guest_library",
+        []
+      ]
+    ],
+    "test_v26.py": [
+      [
+        "_run_cli",
+        [
+          "args",
+          "src",
+          "timeout"
+        ]
+      ]
+    ],
+    "test_v27.py": [
+      [
+        "_cli",
+        [
+          "src",
+          "flags"
+        ]
+      ]
+    ],
+    "test_v29.py": [
+      [
+        "guest_outcomes",
+        []
+      ],
+      [
+        "library_source",
+        []
+      ]
+    ],
+    "test_v30.py": [
+      [
+        "lib",
+        []
+      ],
+      [
+        "library_source",
+        []
+      ]
+    ],
+    "test_v31.py": [
+      [
+        "budget_from_library",
+        []
+      ],
+      [
+        "lib",
+        []
+      ],
+      [
+        "library_source",
+        []
+      ],
+      [
+        "mk_miss_sites",
+        []
+      ]
+    ],
+    "test_v33.py": [
+      [
+        "_guest_reasons",
+        []
+      ],
+      [
+        "parity",
+        []
+      ]
+    ],
+    "test_v34.py": [
+      [
+        "_parse_error_sites",
+        []
+      ],
+      [
+        "guest",
+        []
+      ]
+    ],
+    "test_v37.py": [
+      [
+        "read",
+        [
+          "path"
+        ]
+      ]
+    ],
+    "test_v42.py": [
+      [
+        "_cli",
+        [
+          "src",
+          "tmp_path",
+          "extra"
+        ]
+      ]
+    ],
+    "test_v44.py": [
+      [
+        "_self_host_deepest",
+        []
+      ]
+    ]
+  },
+  "disagreements": [
+    {
+      "node": "test_lexer_guest_parity.py::test_guest_tokens_carry_a_column_and_it_is_the_hosts",
+      "magnitude_line": 574,
+      "magnitude": "len(guest[0]) == 4",
+      "heuristic": false,
+      "prov": "tree",
+      "subjects": {
+        "guest": "tree"
+      }
+    },
+    {
+      "node": "test_v30.py::test_the_guest_never_merges_a_tail_loop",
+      "magnitude_line": 335,
+      "magnitude": "max(h) > 1",
+      "heuristic": true,
+      "prov": "local",
+      "subjects": {
+        "h": "local"
+      }
+    },
+    {
+      "node": "test_v44.py::test_the_deepest_value_in_the_corpus_is_a_self_hosted_ast_14_deep",
+      "magnitude_line": 191,
+      "magnitude": "d == 14",
+      "heuristic": false,
+      "prov": "tree",
+      "subjects": {
+        "d": "tree"
+      }
+    }
+  ],
+  "costly_dataflow": [
+    "test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage",
+    "test_v44.py::test_the_deepest_value_in_the_corpus_is_a_self_hosted_ast_14_deep"
+  ],
+  "costly_unguarded": [
+    "test_v44.py::test_the_deepest_value_in_the_corpus_is_a_self_hosted_ast_14_deep"
+  ],
+  "pairs": [
+    {
+      "node": "test_checkpin.py::test_a_named_guardian_that_goes_red_is_guarded",
+      "magnitude_line": 196,
+      "shape_line": 197,
+      "magnitude": "r['n_red'] == 2",
+      "independent": false,
+      "heuristic": false,
+      "prov": "local",
+      "derived": false,
+      "guards_a_use": false,
+      "subjects": {
+        "r": "local"
+      }
+    },
+    {
+      "node": "test_checkpin.py::test_redundant_with_demotes_inert_and_is_scored_out",
+      "magnitude_line": 449,
+      "shape_line": 450,
+      "magnitude": "out['findings'] == 0",
+      "independent": false,
+      "heuristic": false,
+      "prov": "scratch",
+      "derived": false,
+      "guards_a_use": false,
+      "subjects": {
+        "out": "scratch"
+      }
+    },
+    {
+      "node": "test_depthcensus.py::test_records_and_lists_alternate_without_special_casing",
+      "magnitude_line": 75,
+      "shape_line": 76,
+      "magnitude": "DC.depth_of(v) == 3",
+      "independent": false,
+      "heuristic": false,
+      "prov": "local",
+      "derived": false,
+      "guards_a_use": false,
+      "subjects": {
+        "v": "local"
+      }
+    },
+    {
+      "node": "test_folding.py::test_fold_is_arity_3_with_the_signature_the_hint_names",
+      "magnitude_line": 233,
+      "shape_line": 234,
+      "magnitude": "len(sig) == 3",
+      "independent": false,
+      "heuristic": false,
+      "prov": "unknown",
+      "derived": false,
+      "guards_a_use": false,
+      "subjects": {
+        "sig": "unknown"
+      }
+    },
+    {
+      "node": "test_fuzz_regressions.py::test_fold_type_error_keeps_the_accumulator_in_its_provenance",
+      "magnitude_line": 240,
+      "shape_line": 242,
+      "magnitude": "len(kids) == 3",
+      "independent": true,
+      "heuristic": false,
+      "prov": "local",
+      "derived": false,
+      "guards_a_use": true,
+      "subjects": {
+        "kids": "local"
+      }
+    },
+    {
+      "node": "test_fuzz_regressions.py::test_fold_type_error_keeps_the_accumulator_in_its_provenance",
+      "magnitude_line": 240,
+      "shape_line": 247,
+      "magnitude": "len(kids) == 3",
+      "independent": true,
+      "heuristic": false,
+      "prov": "local",
+      "derived": false,
+      "guards_a_use": true,
+      "subjects": {
+        "kids": "local"
+      }
+    },
+    {
+      "node": "test_interp.py::test_push_is_functional",
+      "magnitude_line": 289,
+      "shape_line": 290,
+      "magnitude": "val(src) == 1",
+      "independent": false,
+      "heuristic": false,
+      "prov": "local",
+      "derived": false,
+      "guards_a_use": false,
+      "subjects": {
+        "src": "local",
+        "val": "local"
+      }
+    },
+    {
+      "node": "test_lexer_guest_parity.py::test_guest_tokens_carry_a_column_and_it_is_the_hosts",
+      "magnitude_line": 574,
+      "shape_line": 577,
+      "magnitude": "len(guest[0]) == 4",
+      "independent": false,
+      "heuristic": false,
+      "prov": "tree",
+      "derived": true,
+      "guards_a_use": false,
+      "subjects": {
+        "guest": "tree"
+      }
+    },
+    {
+      "node": "test_polarity.py::test_cored_polarity_counts_the_evidence_the_filter_drops",
+      "magnitude_line": 706,
+      "shape_line": 708,
+      "magnitude": "out['co_red_total'] == 3",
+      "independent": false,
+      "heuristic": false,
+      "prov": "local",
+      "derived": false,
+      "guards_a_use": false,
+      "subjects": {
+        "out": "local"
+      }
+    },
+    {
+      "node": "test_polarity.py::test_cored_polarity_counts_the_evidence_the_filter_drops",
+      "magnitude_line": 707,
+      "shape_line": 708,
+      "magnitude": "out['co_red_blind'] == 2",
+      "independent": false,
+      "heuristic": false,
+      "prov": "local",
+      "derived": false,
+      "guards_a_use": false,
+      "subjects": {
+        "out": "local"
+      }
+    },
+    {
+      "node": "test_polarity.py::test_no_violation_in_the_recorded_corpus_is_undecided_any_more",
+      "magnitude_line": 2092,
+      "shape_line": 2095,
+      "magnitude": "len(out['violations']) == 2",
+      "independent": false,
+      "heuristic": true,
+      "prov": "tree",
+      "derived": true,
+      "guards_a_use": false,
+      "subjects": {
+        "out": "tree"
+      }
+    },
+    {
+      "node": "test_polarity.py::test_the_sightedness_filter_drops_measured_red_evidence",
+      "magnitude_line": 1023,
+      "shape_line": 1026,
+      "magnitude": "out['co_red_unmatched'] == 0",
+      "independent": false,
+      "heuristic": true,
+      "prov": "tree",
+      "derived": true,
+      "guards_a_use": false,
+      "subjects": {
+        "out": "tree"
+      }
+    },
+    {
+      "node": "test_polarity.py::test_the_sightedness_filter_drops_measured_red_evidence",
+      "magnitude_line": 1024,
+      "shape_line": 1026,
+      "magnitude": "out['co_red_total'] == 93",
+      "independent": false,
+      "heuristic": true,
+      "prov": "tree",
+      "derived": true,
+      "guards_a_use": false,
+      "subjects": {
+        "out": "tree"
+      }
+    },
+    {
+      "node": "test_polarity.py::test_the_sightedness_filter_drops_measured_red_evidence",
+      "magnitude_line": 1025,
+      "shape_line": 1026,
+      "magnitude": "out['co_red_blind'] == 16",
+      "independent": false,
+      "heuristic": true,
+      "prov": "tree",
+      "derived": true,
+      "guards_a_use": false,
+      "subjects": {
+        "out": "tree"
+      }
+    },
+    {
+      "node": "test_self_eval.py::test_boxes_are_well_formed_and_stripped_output_has_none",
+      "magnitude_line": 593,
+      "shape_line": 604,
+      "magnitude": "n >= 8",
+      "independent": true,
+      "heuristic": false,
+      "prov": "local",
+      "derived": false,
+      "guards_a_use": false,
+      "subjects": {
+        "n": "local"
+      }
+    },
+    {
+      "node": "test_testcorpus_census.py::test_a_multi_line_comprehension_scopes_its_own_element_expression",
+      "magnitude_line": 1879,
+      "shape_line": 1880,
+      "magnitude": "len(progs) == 3",
+      "independent": false,
+      "heuristic": false,
+      "prov": "local",
+      "derived": false,
+      "guards_a_use": false,
+      "subjects": {
+        "progs": "local"
+      }
+    },
+    {
+      "node": "test_testcorpus_census.py::test_a_zip_over_a_runtime_column_is_refused_and_says_so",
+      "magnitude_line": 825,
+      "shape_line": 826,
+      "magnitude": "stats['unresolved_args'] == 1",
+      "independent": false,
+      "heuristic": false,
+      "prov": "local",
+      "derived": false,
+      "guards_a_use": false,
+      "subjects": {
+        "stats": "local"
+      }
+    },
+    {
+      "node": "test_testcorpus_census.py::test_a_zip_over_a_runtime_column_is_refused_and_says_so",
+      "magnitude_line": 825,
+      "shape_line": 831,
+      "magnitude": "stats['unresolved_args'] == 1",
+      "independent": true,
+      "heuristic": false,
+      "prov": "local",
+      "derived": false,
+      "guards_a_use": false,
+      "subjects": {
+        "stats": "local"
+      }
+    },
+    {
+      "node": "test_testcorpus_census.py::test_string_repetition_folds_and_the_repeat_is_capped",
+      "magnitude_line": 802,
+      "shape_line": 808,
+      "magnitude": "fold('2 * 3') == 6",
+      "independent": true,
+      "heuristic": false,
+      "prov": "local",
+      "derived": false,
+      "guards_a_use": false,
+      "subjects": {
+        "fold": "local"
+      }
+    },
+    {
+      "node": "test_testcorpus_census.py::test_the_corpus_grew_and_exactly_one_zip_row_survives",
+      "magnitude_line": 1307,
+      "shape_line": 1308,
+      "magnitude": "len(zips) == 1",
+      "independent": false,
+      "heuristic": true,
+      "prov": "handed",
+      "derived": true,
+      "guards_a_use": false,
+      "subjects": {
+        "zips": "handed"
+      }
+    },
+    {
+      "node": "test_testcorpus_census.py::test_the_same_string_bound_by_two_loops_is_two_bindings",
+      "magnitude_line": 1858,
+      "shape_line": 1859,
+      "magnitude": "len(progs) == 6",
+      "independent": true,
+      "heuristic": false,
+      "prov": "local",
+      "derived": false,
+      "guards_a_use": false,
+      "subjects": {
+        "progs": "local"
+      }
+    },
+    {
+      "node": "test_testcorpus_census.py::test_the_second_of_two_loops_is_the_one_that_answers_when_it_is_the_one_that_resolves",
+      "magnitude_line": 1902,
+      "shape_line": 1903,
+      "magnitude": "len(progs) == 3",
+      "independent": false,
+      "heuristic": false,
+      "prov": "local",
+      "derived": false,
+      "guards_a_use": false,
+      "subjects": {
+        "progs": "local"
+      }
+    },
+    {
+      "node": "test_testcorpus_census.py::test_two_loops_one_name_and_the_second_loops_row_disappears_with_it",
+      "magnitude_line": 1643,
+      "shape_line": 1651,
+      "magnitude": "len(progs) == 3",
+      "independent": true,
+      "heuristic": false,
+      "prov": "local",
+      "derived": false,
+      "guards_a_use": false,
+      "subjects": {
+        "progs": "local"
+      }
+    },
+    {
+      "node": "test_testcorpus_census.py::test_two_loops_one_name_and_the_second_loops_row_disappears_with_it",
+      "magnitude_line": 1644,
+      "shape_line": 1651,
+      "magnitude": "len(set(lines)) == 1",
+      "independent": false,
+      "heuristic": false,
+      "prov": "local",
+      "derived": false,
+      "guards_a_use": false,
+      "subjects": {
+        "lines": "local"
+      }
+    },
+    {
+      "node": "test_testcorpus_contributions.py::test_a_compensating_move_is_invisible_to_a_total_and_visible_to_the_ledger",
+      "magnitude_line": 233,
+      "shape_line": 250,
+      "magnitude": "sa['nonconstant_programs'] == 1",
+      "independent": true,
+      "heuristic": false,
+      "prov": "scratch",
+      "derived": false,
+      "guards_a_use": true,
+      "subjects": {
+        "sa": "scratch"
+      }
+    },
+    {
+      "node": "test_testcorpus_contributions.py::test_a_compensating_move_is_invisible_to_a_total_and_visible_to_the_ledger",
+      "magnitude_line": 233,
+      "shape_line": 252,
+      "magnitude": "sa['nonconstant_programs'] == 1",
+      "independent": true,
+      "heuristic": false,
+      "prov": "scratch",
+      "derived": false,
+      "guards_a_use": true,
+      "subjects": {
+        "sa": "scratch"
+      }
+    },
+    {
+      "node": "test_testcorpus_contributions.py::test_a_compensating_move_is_invisible_to_a_total_and_visible_to_the_ledger",
+      "magnitude_line": 233,
+      "shape_line": 253,
+      "magnitude": "sa['nonconstant_programs'] == 1",
+      "independent": true,
+      "heuristic": false,
+      "prov": "scratch",
+      "derived": false,
+      "guards_a_use": true,
+      "subjects": {
+        "sa": "scratch"
+      }
+    },
+    {
+      "node": "test_testcorpus_contributions.py::test_a_compensating_move_is_invisible_to_a_total_and_visible_to_the_ledger",
+      "magnitude_line": 234,
+      "shape_line": 250,
+      "magnitude": "sa['programs'] >= 1",
+      "independent": true,
+      "heuristic": false,
+      "prov": "scratch",
+      "derived": false,
+      "guards_a_use": true,
+      "subjects": {
+        "sa": "scratch"
+      }
+    },
+    {
+      "node": "test_testcorpus_contributions.py::test_a_compensating_move_is_invisible_to_a_total_and_visible_to_the_ledger",
+      "magnitude_line": 234,
+      "shape_line": 252,
+      "magnitude": "sa['programs'] >= 1",
+      "independent": true,
+      "heuristic": false,
+      "prov": "scratch",
+      "derived": false,
+      "guards_a_use": true,
+      "subjects": {
+        "sa": "scratch"
+      }
+    },
+    {
+      "node": "test_testcorpus_contributions.py::test_a_compensating_move_is_invisible_to_a_total_and_visible_to_the_ledger",
+      "magnitude_line": 234,
+      "shape_line": 253,
+      "magnitude": "sa['programs'] >= 1",
+      "independent": true,
+      "heuristic": false,
+      "prov": "scratch",
+      "derived": false,
+      "guards_a_use": true,
+      "subjects": {
+        "sa": "scratch"
+      }
+    },
+    {
+      "node": "test_timetravel.py::test_ttd_multiple_checkpoints",
+      "magnitude_line": 70,
+      "shape_line": 75,
+      "magnitude": "len(ttd.checkpoints) == 3",
+      "independent": false,
+      "heuristic": false,
+      "prov": "unknown",
+      "derived": false,
+      "guards_a_use": true,
+      "subjects": {
+        "ttd": "unknown"
+      }
+    },
+    {
+      "node": "test_timetravel.py::test_ttd_multiple_checkpoints",
+      "magnitude_line": 71,
+      "shape_line": 75,
+      "magnitude": "len(ttd.creation_order) == 3",
+      "independent": false,
+      "heuristic": false,
+      "prov": "unknown",
+      "derived": false,
+      "guards_a_use": true,
+      "subjects": {
+        "ttd": "unknown"
+      }
+    },
+    {
+      "node": "test_v04.py::test_fast_path_checks_inside_blocks_are_recorded",
+      "magnitude_line": 219,
+      "shape_line": 220,
+      "magnitude": "interp.fast_hits > 0",
+      "independent": false,
+      "heuristic": false,
+      "prov": "local",
+      "derived": false,
+      "guards_a_use": false,
+      "subjects": {
+        "interp": "local"
+      }
+    },
+    {
+      "node": "test_v04.py::test_tail_loop_if_decisions_are_run_length_merged",
+      "magnitude_line": 85,
+      "shape_line": 93,
+      "magnitude": "len(call.inputs) == 2",
+      "independent": true,
+      "heuristic": false,
+      "prov": "local",
+      "derived": false,
+      "guards_a_use": true,
+      "subjects": {
+        "call": "local"
+      }
+    },
+    {
+      "node": "test_v08.py::test_block_check_and_fndef_inline",
+      "magnitude_line": 188,
+      "shape_line": 189,
+      "magnitude": "env.get('result').payload == 15",
+      "independent": true,
+      "heuristic": false,
+      "prov": "local",
+      "derived": false,
+      "guards_a_use": false,
+      "subjects": {
+        "env": "local"
+      }
+    },
+    {
+      "node": "test_v09.py::test_shared_ast_two_interpreters_keep_their_own_state",
+      "magnitude_line": 353,
+      "shape_line": 355,
+      "magnitude": "env.get('result').payload == 8",
+      "independent": true,
+      "heuristic": false,
+      "prov": "local",
+      "derived": false,
+      "guards_a_use": false,
+      "subjects": {
+        "env": "local"
+      }
+    },
+    {
+      "node": "test_v09.py::test_shared_ast_two_interpreters_keep_their_own_state",
+      "magnitude_line": 353,
+      "shape_line": 356,
+      "magnitude": "env.get('result').payload == 8",
+      "independent": true,
+      "heuristic": false,
+      "prov": "local",
+      "derived": false,
+      "guards_a_use": false,
+      "subjects": {
+        "env": "local"
+      }
+    },
+    {
+      "node": "test_v09.py::test_shared_ast_two_interpreters_keep_their_own_state",
+      "magnitude_line": 353,
+      "shape_line": 359,
+      "magnitude": "env.get('result').payload == 8",
+      "independent": true,
+      "heuristic": false,
+      "prov": "local",
+      "derived": false,
+      "guards_a_use": false,
+      "subjects": {
+        "env": "local"
+      }
+    },
+    {
+      "node": "test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage",
+      "magnitude_line": 464,
+      "shape_line": 476,
+      "magnitude": "r.returncode == 0",
+      "independent": true,
+      "heuristic": true,
+      "prov": "tree",
+      "derived": true,
+      "guards_a_use": true,
+      "subjects": {
+        "r": "tree"
+      }
+    },
+    {
+      "node": "test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage",
+      "magnitude_line": 464,
+      "shape_line": 478,
+      "magnitude": "r.returncode == 0",
+      "independent": true,
+      "heuristic": true,
+      "prov": "tree",
+      "derived": true,
+      "guards_a_use": true,
+      "subjects": {
+        "r": "tree"
+      }
+    },
+    {
+      "node": "test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage",
+      "magnitude_line": 470,
+      "shape_line": 476,
+      "magnitude": "s.count(old) > 1",
+      "independent": true,
+      "heuristic": true,
+      "prov": "tree",
+      "derived": true,
+      "guards_a_use": true,
+      "subjects": {
+        "old": "local",
+        "s": "tree"
+      }
+    },
+    {
+      "node": "test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage",
+      "magnitude_line": 470,
+      "shape_line": 478,
+      "magnitude": "s.count(old) > 1",
+      "independent": true,
+      "heuristic": true,
+      "prov": "tree",
+      "derived": true,
+      "guards_a_use": true,
+      "subjects": {
+        "old": "local",
+        "s": "tree"
+      }
+    },
+    {
+      "node": "test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage",
+      "magnitude_line": 473,
+      "shape_line": 476,
+      "magnitude": "r.returncode == 1",
+      "independent": true,
+      "heuristic": true,
+      "prov": "tree",
+      "derived": true,
+      "guards_a_use": true,
+      "subjects": {
+        "r": "tree"
+      }
+    },
+    {
+      "node": "test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage",
+      "magnitude_line": 473,
+      "shape_line": 478,
+      "magnitude": "r.returncode == 1",
+      "independent": true,
+      "heuristic": true,
+      "prov": "tree",
+      "derived": true,
+      "guards_a_use": true,
+      "subjects": {
+        "r": "tree"
+      }
+    },
+    {
+      "node": "test_v15.py::test_combining_two_guesses_takes_the_minimum_confidence",
+      "magnitude_line": 132,
+      "shape_line": 133,
+      "magnitude": "v.value.node.value == 14",
+      "independent": false,
+      "heuristic": false,
+      "prov": "local",
+      "derived": false,
+      "guards_a_use": false,
+      "subjects": {
+        "v": "local"
+      }
+    },
+    {
+      "node": "test_v15.py::test_nested_guess_flattens",
+      "magnitude_line": 115,
+      "shape_line": 117,
+      "magnitude": "v.value.node.value == 7",
+      "independent": false,
+      "heuristic": false,
+      "prov": "local",
+      "derived": false,
+      "guards_a_use": false,
+      "subjects": {
+        "v": "local"
+      }
+    },
+    {
+      "node": "test_v16.py::test_record_from_plain_dict_unchanged_api",
+      "magnitude_line": 207,
+      "shape_line": 208,
+      "magnitude": "len(r.fields) == 2",
+      "independent": false,
+      "heuristic": false,
+      "prov": "local",
+      "derived": false,
+      "guards_a_use": false,
+      "subjects": {
+        "r": "local"
+      }
+    },
+    {
+      "node": "test_v30.py::test_the_guest_never_merges_a_tail_loop",
+      "magnitude_line": 335,
+      "shape_line": 336,
+      "magnitude": "max(h) > 1",
+      "independent": true,
+      "heuristic": true,
+      "prov": "local",
+      "derived": false,
+      "guards_a_use": false,
+      "subjects": {
+        "h": "local"
+      }
+    },
+    {
+      "node": "test_v32.py::test_a_top_level_expression_statement_that_misses_is_a_drop",
+      "magnitude_line": 69,
+      "shape_line": 71,
+      "magnitude": "i.dropped_total == 1",
+      "independent": true,
+      "heuristic": false,
+      "prov": "local",
+      "derived": false,
+      "guards_a_use": true,
+      "subjects": {
+        "i": "local"
+      }
+    },
+    {
+      "node": "test_v35.py::test_the_five_rendering_classes_are_still_the_five",
+      "magnitude_line": 143,
+      "shape_line": 144,
+      "magnitude": "sum(c.values()) == 28",
+      "independent": false,
+      "heuristic": false,
+      "prov": "unknown",
+      "derived": false,
+      "guards_a_use": false,
+      "subjects": {
+        "c": "unknown"
+      }
+    },
+    {
+      "node": "test_v42.py::test_a_miss_inside_a_discarded_list_is_a_drop",
+      "magnitude_line": 64,
+      "shape_line": 66,
+      "magnitude": "i.dropped_total == 1",
+      "independent": true,
+      "heuristic": false,
+      "prov": "local",
+      "derived": false,
+      "guards_a_use": true,
+      "subjects": {
+        "i": "local"
+      }
+    },
+    {
+      "node": "test_v43.py::test_a_miss_past_the_render_depth_is_reported_as_a_drop",
+      "magnitude_line": 376,
+      "shape_line": 377,
+      "magnitude": "i.dropped_total == 1",
+      "independent": false,
+      "heuristic": false,
+      "prov": "local",
+      "derived": false,
+      "guards_a_use": false,
+      "subjects": {
+        "i": "local"
+      }
+    },
+    {
+      "node": "test_v43.py::test_the_depth_boundary_is_a_constant_and_is_measured_not_assumed",
+      "magnitude_line": 353,
+      "shape_line": 358,
+      "magnitude": "len(named_misses(value_of(expr + '\\n'))) == 1",
+      "independent": false,
+      "heuristic": false,
+      "prov": "unknown",
+      "derived": false,
+      "guards_a_use": false,
+      "subjects": {
+        "expr": "unknown",
+        "value_of": "local"
+      }
+    },
+    {
+      "node": "test_v43.py::test_the_program_v042_cites_for_the_guess_decision_never_builds_a_guess",
+      "magnitude_line": 438,
+      "shape_line": 440,
+      "magnitude": "i.dropped_total == 1",
+      "independent": false,
+      "heuristic": false,
+      "prov": "local",
+      "derived": false,
+      "guards_a_use": false,
+      "subjects": {
+        "i": "local"
+      }
+    },
+    {
+      "node": "test_v44.py::test_the_deepest_value_in_the_corpus_is_a_self_hosted_ast_14_deep",
+      "magnitude_line": 191,
+      "shape_line": 193,
+      "magnitude": "d == 14",
+      "independent": true,
+      "heuristic": false,
+      "prov": "tree",
+      "derived": true,
+      "guards_a_use": false,
+      "subjects": {
+        "d": "tree"
+      }
+    },
+    {
+      "node": "test_v49.py::test_the_counts",
+      "magnitude_line": 90,
+      "shape_line": 92,
+      "magnitude": "manifest['sources'] == 19",
+      "independent": false,
+      "heuristic": true,
+      "prov": "handed",
+      "derived": true,
+      "guards_a_use": false,
+      "subjects": {
+        "manifest": "handed"
+      }
+    },
+    {
+      "node": "test_v49.py::test_the_counts",
+      "magnitude_line": 91,
+      "shape_line": 92,
+      "magnitude": "manifest['inputs'] == 89",
+      "independent": false,
+      "heuristic": true,
+      "prov": "handed",
+      "derived": true,
+      "guards_a_use": false,
+      "subjects": {
+        "manifest": "handed"
+      }
+    }
+  ]
+}

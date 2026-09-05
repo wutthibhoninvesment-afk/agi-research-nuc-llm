@@ -337,6 +337,20 @@
    "stmt_node_args": 0,
    "unresolved_args": 0
   },
+  "test_subjprov.py": {
+   "building": 0,
+   "calls": 0,
+   "dup_cross_file": 0,
+   "forwarded_args": 0,
+   "module_calls": 3,
+   "nonconstant_programs": 0,
+   "programs": 0,
+   "residual": 0,
+   "rest": 0,
+   "rows": 0,
+   "stmt_node_args": 0,
+   "unresolved_args": 0
+  },
   "test_testcorpus_census.py": {
    "building": 0,
    "calls": 1,

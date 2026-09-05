@@ -3,17 +3,17 @@
   "_regenerate": "cd languages/whence && python3 assertshadow.py --history --json <this file>",
   "_headline_predicate": "is_magnitude (widened) x is_shape (non-empty display), branch-compatible, magnitude strictly first",
   "totals": {
-    "files": 71,
-    "test_functions": 1902,
-    "asserts": 3862,
+    "files": 72,
+    "test_functions": 1935,
+    "asserts": 3908,
     "assert_kinds": {
-      "other": 2523,
-      "shape": 496,
-      "shape_empty": 148,
-      "magnitude": 695
+      "other": 2532,
+      "shape": 527,
+      "shape_empty": 153,
+      "magnitude": 696
     },
-    "functions_with_magnitude": 471,
-    "functions_with_shape": 383,
+    "functions_with_magnitude": 472,
+    "functions_with_shape": 405,
     "candidates": 37,
     "pairs": 57,
     "pairs_strict": 57,
@@ -31,7 +31,7 @@
     "candidates_independent": 15,
     "shadowed_shape_asserts": 44,
     "pairs_with_history": 57,
-    "literal_edits": 3,
+    "literal_edits": 5,
     "repins": 0,
     "pairs_with_a_repin": 0
   },
@@ -587,21 +587,21 @@
               "sha": "dbaf51ba",
               "kind": "rewrite",
               "before": "assert residual <= 100, residual     assert not [r for r in harvest_rows                 if r[\"kind\"] == \"residual\" and r[\"cls\"].startswith(\"zip\")]",
-              "after": "if r[\"kind\"] == \"residual\" and r[\"cls\"].startswith(\"zip\")]"
+              "after": "assert len(zips) == 1, [(r[\"file\"], r[\"line\"], r[\"cls\"]) for r in zips]"
             }
           ]
         }
       ]
     },
     "test_testcorpus_census.py::test_two_loops_one_name_and_the_second_loops_row_disappears_with_it": {
-      "lineno": 1576,
+      "lineno": 1585,
       "pairs": [
         {
-          "magnitude_line": 1634,
+          "magnitude_line": 1643,
           "magnitude": "len(progs) == 3",
           "magnitude_strict": true,
           "magnitude_conditional": false,
-          "shape_line": 1642,
+          "shape_line": 1651,
           "shape": "lines == [11, 11, 11]",
           "count_implied": false,
           "independent": true,
@@ -610,22 +610,45 @@
           "remedy": "reorder",
           "tree_derived": false,
           "literal_edits": 0,
-          "commits_touching": 2,
+          "commits_touching": 1,
           "repins": 0,
           "moves": []
         },
         {
-          "magnitude_line": 1635,
+          "magnitude_line": 1644,
           "magnitude": "len(set(lines)) == 1",
           "magnitude_strict": true,
           "magnitude_conditional": false,
-          "shape_line": 1642,
+          "shape_line": 1651,
           "shape": "lines == [11, 11, 11]",
           "count_implied": false,
           "independent": false,
           "shared_subjects": [
             "lines"
           ],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_testcorpus_census.py::test_the_same_string_bound_by_two_loops_is_two_bindings": {
+      "lineno": 1839,
+      "pairs": [
+        {
+          "magnitude_line": 1858,
+          "magnitude": "len(progs) == 6",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 1859,
+          "shape": "lines == [11, 11, 11, 13, 13, 13]",
+          "count_implied": false,
+          "independent": true,
+          "shared_subjects": [],
           "reorder_safe": true,
           "remedy": "reorder",
           "tree_derived": false,
@@ -637,44 +660,21 @@
               "sha": "dbaf51ba",
               "kind": "rewrite",
               "before": "# and NEITHER site is in the residual, though only one loop was read     assert _residual_classes(stats[\"rows\"]) == [], \\         \"the unread loop still has a row -- the hazard may have been fixed\"",
-              "after": "assert lines == [11, 11, 11], lines"
+              "after": "assert len(progs) == 6, [(p[\"line\"], p[\"src\"]) for p in progs]"
             }
           ]
         }
       ]
     },
-    "test_testcorpus_census.py::test_the_same_string_bound_by_two_loops_is_two_bindings": {
-      "lineno": 1830,
-      "pairs": [
-        {
-          "magnitude_line": 1849,
-          "magnitude": "len(progs) == 6",
-          "magnitude_strict": true,
-          "magnitude_conditional": false,
-          "shape_line": 1850,
-          "shape": "lines == [11, 11, 11, 13, 13, 13]",
-          "count_implied": false,
-          "independent": true,
-          "shared_subjects": [],
-          "reorder_safe": true,
-          "remedy": "reorder",
-          "tree_derived": false,
-          "literal_edits": 0,
-          "commits_touching": 2,
-          "repins": 0,
-          "moves": []
-        }
-      ]
-    },
     "test_testcorpus_census.py::test_a_multi_line_comprehension_scopes_its_own_element_expression": {
-      "lineno": 1854,
+      "lineno": 1863,
       "pairs": [
         {
-          "magnitude_line": 1870,
+          "magnitude_line": 1879,
           "magnitude": "len(progs) == 3",
           "magnitude_strict": true,
           "magnitude_conditional": false,
-          "shape_line": 1871,
+          "shape_line": 1880,
           "shape": "sorted((p['line'] for p in progs)) == [11, 11, 11]",
           "count_implied": true,
           "independent": false,
@@ -684,22 +684,29 @@
           "reorder_safe": true,
           "remedy": "delete_count",
           "tree_derived": false,
-          "literal_edits": 0,
+          "literal_edits": 1,
           "commits_touching": 2,
           "repins": 0,
-          "moves": []
+          "moves": [
+            {
+              "sha": "dbaf51ba",
+              "kind": "rewrite",
+              "before": "# and NEITHER site is in the residual, though only one loop was read     assert _residual_classes(stats[\"rows\"]) == [], \\         \"the unread loop still has a row -- the hazard may have been fixed\"",
+              "after": "assert len(progs) == 3, [(p[\"line\"], p[\"src\"]) for p in progs]"
+            }
+          ]
         }
       ]
     },
     "test_testcorpus_census.py::test_the_second_of_two_loops_is_the_one_that_answers_when_it_is_the_one_that_resolves": {
-      "lineno": 1876,
+      "lineno": 1885,
       "pairs": [
         {
-          "magnitude_line": 1893,
+          "magnitude_line": 1902,
           "magnitude": "len(progs) == 3",
           "magnitude_strict": true,
           "magnitude_conditional": false,
-          "shape_line": 1894,
+          "shape_line": 1903,
           "shape": "sorted((p['line'] for p in progs)) == [13, 13, 13]",
           "count_implied": true,
           "independent": false,
@@ -709,10 +716,17 @@
           "reorder_safe": true,
           "remedy": "delete_count",
           "tree_derived": false,
-          "literal_edits": 0,
+          "literal_edits": 1,
           "commits_touching": 2,
           "repins": 0,
-          "moves": []
+          "moves": [
+            {
+              "sha": "dbaf51ba",
+              "kind": "rewrite",
+              "before": "# and NEITHER site is in the residual, though only one loop was read     assert _residual_classes(stats[\"rows\"]) == [], \\         \"the unread loop still has a row -- the hazard may have been fixed\"",
+              "after": "assert len(progs) == 3, progs"
+            }
+          ]
         }
       ]
     },
