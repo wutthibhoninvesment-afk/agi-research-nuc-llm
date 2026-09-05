@@ -51,6 +51,13 @@
       "via": "run_driver.sh:192",
       "via_kind": "dashm"
     },
+    "harness/hookaudit.py": {
+      "status": "wired",
+      "via": "harness/tests/test_hookaudit.py:30",
+      "via_kind": "import",
+      "owner": "harness(A)",
+      "reason": "Round 517 (harness A). Built and declared in the same round, with `wiring_audit.py declare --write` after staging the file -- round 505's finding, that W001 reports on `git ls-files` and an entry point living only in the working tree is invisible to it. `wired` via its sibling test, which is the route that matters: the four live-tree nodes in harness/tests/test_hookaudit.py are what make the fast tier read `.git/hooks/pre-commit`, and reading that file is the module's whole purpose. NOT added as a printed line in harness/run_tests_fast.sh: the four status echoes already there exist for tiers whose result is RECORDED elsewhere and cannot be re-derived cheaply, and this one is re-derived by the pytest run three lines above it. A `hookaudit audit --strict` step in the pre-commit hook was also considered and refused -- a stale hook is the old text and cannot warn about itself, so the check has to live somewhere the hook is not."
+    },
     "harness/live_smoke.py": {
       "status": "manual",
       "owner": "harness(A)",

@@ -782,10 +782,16 @@ class TestAnchorsOnTheLiveLedger(unittest.TestCase):
         for n, e in sorted(self.led.items()):
             if e.get("status") != "scored":
                 continue
-            body = cf.read(os.path.join(ROOT, e["where"]))
-            self.assertEqual(body.count(e["quote"]), 1,
+            # Round 517: K005's own predicate, on collapsed whitespace.
+            # Asking it on the RAW text made this node disagree with the
+            # checker it enforces — round 516's anchor is wrapped across two
+            # lines in the file it cites, so this said "occurs 0 times" about
+            # a sentence that is there.
+            body = cf.flat(cf.read(os.path.join(ROOT, e["where"])))
+            occ = body.count(cf.flat(e["quote"]))
+            self.assertEqual(occ, 1,
                              "round %s: anchor occurs %d times in %s"
-                             % (n, body.count(e["quote"]), e["where"]))
+                             % (n, occ, e["where"]))
 
     def test_no_live_anchor_is_satisfied_by_a_round_it_does_not_name(self):
         for n, e in sorted(self.led.items()):
@@ -1302,6 +1308,191 @@ class TestTheSweepEnumeratedSuffixesToo(unittest.TestCase):
                      "why": "x"}})]
         self.assertNotIn("K003", codes)
         self.assertNotIn("K001", codes)
+
+
+class TestAWrappedAnchorIsNotADriftedOne(TestFindings):
+    """Round 517 (harness A). K002's second-ever ERROR episode.
+
+    This corpus's knowledge files are hard-wrapped at ~76 columns, so a
+    quoted SENTENCE is usually not a LINE. K002/K005/K006 compared RAW text,
+    so an anchor matched only if its whitespace matched too — and round 516's
+    entry, copied out of its own file and flattened to one line, was reported
+    as "not in" a file it is plainly in.
+    """
+
+    LEDGER = {"500": {"bank": "state/round-500-predictions.md",
+                      "status": "scored", "scored_by": 501,
+                      "where": "knowledge/round-501-x.md",
+                      "quote": "**7 HIT, 2 MISS of 9.** Banked before "
+                               "any measurement was taken."}}
+
+    def test_an_anchor_the_cited_file_wraps_across_two_lines_is_clean(self):
+        write(os.path.join(self.tmp, "knowledge/round-501-x.md"),
+              "## 8. Predictions\n\n**7 HIT, 2 MISS of 9.** Banked before\n"
+              "any measurement was taken.\n")
+        self.assertEqual(self.run_check(self.LEDGER), [])
+
+    def test_the_same_anchor_really_is_absent_when_it_is_absent(self):
+        """The normalisation must not turn K002 into a check that passes on
+        anything — the same ledger against a file missing the sentence."""
+        write(os.path.join(self.tmp, "knowledge/round-501-x.md"),
+              "## 8. Predictions\n\nnothing was scored here\n")
+        self.assertIn("K002", self.run_check(self.LEDGER))
+
+    def test_collapsing_does_not_join_words_across_the_wrap(self):
+        """`flat` collapses a newline to a SPACE, not to nothing. A file
+        whose wrap fell mid-word would otherwise match an anchor that has no
+        space there, which is a different sentence."""
+        self.assertEqual(cf.flat("mea\nsurement"), "mea surement")
+        self.assertEqual(cf.flat("a  b\n\n c "), "a b c")
+
+    def test_k005_counts_on_the_collapsed_text_too(self):
+        """Half-normalising would let an anchor pass K002 and then be
+        reported as occurring 0 times."""
+        write(os.path.join(self.tmp, "knowledge/round-501-x.md"),
+              "**7 HIT, 2 MISS of 9.** Banked before\nany measurement was "
+              "taken.\n\nrestated: **7 HIT, 2 MISS of 9.** Banked before "
+              "any measurement was taken.\n")
+        self.assertIn("K005", self.run_check(self.LEDGER))
+
+    def test_the_nine_live_entries_that_embed_a_newline_still_match(self):
+        """The convention that grew up around the raw comparison. Nine of the
+        live ledger's scored entries carry a literal newline inside `quote`;
+        collapsing both sides must not cost any of them."""
+        corpus = cf.Corpus(ROOT)
+        led, err = cf.load_ledger(ROOT)
+        self.assertIsNone(err)
+        embedded = [n for n, e in led.items()
+                    if e.get("status") == "scored"
+                    and "\n" in (e.get("quote") or "")]
+        self.assertGreaterEqual(len(embedded), 9, embedded)
+        for n in embedded:
+            e = led[n]
+            body = cf.read(os.path.join(ROOT, e["where"]))
+            self.assertIn(cf.flat(e["quote"]), cf.flat(body), n)
+            self.assertEqual(cf.flat(body).count(cf.flat(e["quote"])), 1, n)
+
+
+class TestK002ChoosesTheCauseInsteadOfNamingOne(TestFindings):
+    """Round 517. K002 has gone ERROR-red twice in the whole retained
+    health-log record — rounds 484-488 and round 516 — and the message named
+    the WRONG REPAIR both times, for two different causes. Round 489's fix
+    was to add a second named cause to a sentence; this is the general one.
+    """
+
+    def _msg(self, ledger, latest=501):
+        write(os.path.join(self.tmp, cf.LEDGER_FILE),
+              json.dumps({"banks": ledger}))
+        corpus = cf.Corpus(self.tmp)
+        banks, _ = cf.find_banks(self.tmp)
+        led, err = cf.load_ledger(self.tmp)
+        return [f[2] for f in cf.findings(self.tmp, corpus, banks, led, err,
+                                          latest) if f[0] == "K002"]
+
+    def test_an_anchor_that_lives_in_another_round_scope_says_so(self):
+        """Round 464's real case: an entry quoting research-state's wording
+        while naming the knowledge file. K006 asks this question when the
+        anchor MATCHES; nothing asked it on the failing side, so the reader
+        was sent to `git log -S` for a sentence sitting in the next file."""
+        write(os.path.join(self.tmp, "knowledge/round-501-x.md"), "nothing")
+        write(os.path.join(self.tmp, "knowledge/round-499-y.md"),
+              "P1 HIT and the whole of it\n")
+        msgs = self._msg({"500": {"bank": "state/round-500-predictions.md",
+                                  "status": "scored", "scored_by": 501,
+                                  "where": "knowledge/round-501-x.md",
+                                  "quote": "P1 HIT and the whole of it"}})
+        self.assertEqual(len(msgs), 1, msgs)
+        self.assertIn("knowledge/round-499-y.md", msgs[0])
+        self.assertIn("the likely repair is `where`", msgs[0])
+        self.assertNotIn("git log -S", msgs[0])
+
+    def test_an_anchor_nowhere_in_the_corpus_keeps_round_489s_message(self):
+        write(os.path.join(self.tmp, "knowledge/round-501-x.md"), "nothing")
+        msgs = self._msg({"500": {"bank": "state/round-500-predictions.md",
+                                  "status": "scored", "scored_by": 501,
+                                  "where": "knowledge/round-501-x.md",
+                                  "quote": "P1 HIT and the whole of it"}})
+        self.assertEqual(len(msgs), 1, msgs)
+        self.assertIn("git log -S", msgs[0])
+        self.assertNotIn("no longer", msgs[0])
+
+    def test_the_absent_message_forecloses_the_wrap_diagnosis(self):
+        """The cause that cost round 516 a red is now impossible, so the
+        message says so rather than leaving a reader to rule it out."""
+        write(os.path.join(self.tmp, "knowledge/round-501-x.md"), "nothing")
+        msgs = self._msg({"500": {"bank": "state/round-500-predictions.md",
+                                  "status": "scored", "scored_by": 501,
+                                  "where": "knowledge/round-501-x.md",
+                                  "quote": "P1 HIT and the whole of it"}})
+        self.assertIn("NOT a line wrap", msgs[0])
+
+    def test_the_diagnosis_kinds_are_exactly_two_and_both_are_errors(self):
+        write(os.path.join(self.tmp, "knowledge/round-501-x.md"), "nothing")
+        corpus = cf.Corpus(self.tmp)
+        e = {"bank": "state/round-500-predictions.md", "status": "scored",
+             "scored_by": 501, "where": "knowledge/round-501-x.md",
+             "quote": "P1 HIT and the whole of it"}
+        self.assertEqual(cf.k002_diagnosis(500, e, corpus)[0], "absent")
+        write(os.path.join(self.tmp, "knowledge/round-499-y.md"),
+              "P1 HIT and the whole of it\n")
+        self.assertEqual(cf.k002_diagnosis(500, e, cf.Corpus(self.tmp))[0],
+                         "elsewhere")
+        self.assertEqual(cf.SEV["K002"], "ERROR")
+
+
+class TestK006SeesThroughAForeignWrap(TestFindings):
+    """Round 517, and the finding this round did NOT predict. Collapsing
+    whitespace was expected to move exactly one verdict (round 516's K002).
+    It moved three: it also opened TWO K006 errors, rounds 455 and 462,
+    whose anchors were pasted by a LATER round with a different line wrap.
+
+    K006 asks "could `where` have been wrong and nothing would say so". A
+    later round that quotes the anchor defeats it just as completely whether
+    or not the paragraph happened to wrap in the same place, so the raw
+    comparison had a wrap-shaped recall hole. Both entries were repaired in
+    round 517 by re-quoting a longer contiguous slice of the SAME file —
+    round 465's repair — and both carry `quote_was`/`quote_fixed_by`.
+    """
+
+    def test_a_foreign_scope_that_wraps_differently_is_still_foreign(self):
+        write(os.path.join(self.tmp, "knowledge/round-501-x.md"),
+              "**7 HIT, 2 MISS of 9.** Banked before any measurement.\n")
+        write(os.path.join(self.tmp, "knowledge/round-499-y.md"),
+              "as round 501 put it, **7 HIT, 2 MISS of 9.** Banked before\n"
+              "any measurement.\n")
+        codes = self.run_check({"500": {
+            "bank": "state/round-500-predictions.md", "status": "scored",
+            "scored_by": 501, "where": "knowledge/round-501-x.md",
+            "quote": "**7 HIT, 2 MISS of 9.** Banked before any "
+                     "measurement."}})
+        self.assertIn("K006", codes)
+
+    def test_the_two_repaired_entries_carry_their_provenance(self):
+        led, err = cf.load_ledger(ROOT)
+        self.assertIsNone(err)
+        for n in ("455", "462"):
+            self.assertIn("quote_was", led[n], n)
+            self.assertIn("round 517", led[n]["quote_fixed_by"], n)
+
+    def test_the_live_ledger_has_no_anchor_matching_a_foreign_scope(self):
+        """The backlog K005/K006 ship against is zero, and this is what says
+        so on the collapsed comparison rather than the raw one."""
+        corpus = cf.Corpus(ROOT)
+        led, err = cf.load_ledger(ROOT)
+        self.assertIsNone(err)
+        bad = []
+        for n, e in led.items():
+            if e.get("status") != "scored" or not e.get("quote"):
+                continue
+            own = {int(n)}
+            try:
+                own.add(int(e["scored_by"]))
+            except (TypeError, ValueError):
+                pass
+            f = corpus.foreign_scopes(e["quote"], own)
+            if f:
+                bad.append((n, f))
+        self.assertEqual(bad, [])
 
 
 if __name__ == "__main__":

@@ -1,0 +1,96 @@
+........................................................................ [  4%]
+........................................................................ [  8%]
+........................................................................ [ 12%]
+........................................................................ [ 16%]
+........................................................................ [ 21%]
+........................................................................ [ 25%]
+........................................................................ [ 29%]
+........................................................................ [ 33%]
+........................................................................ [ 38%]
+........................................................................ [ 42%]
+........................................................................ [ 46%]
+........................................................................ [ 50%]
+........................................................................ [ 54%]
+........................................................................ [ 59%]
+........................................................................ [ 63%]
+........................................................................ [ 67%]
+........................................................................ [ 71%]
+........................................................................ [ 76%]
+........................................................................ [ 80%]
+........................................................................ [ 84%]
+........................................................................ [ 88%]
+........................................................................ [ 92%]
+........................................................................ [ 97%]
+.................................................                        [100%]
+tier-budget: 15/15 promoted files timed, 53.5s of a 59.0s budget — worst test_swe_copyparity_real_subject.py 10.8s of 17.1s
+1705 passed, 562 deselected in 426.28s (0:07:06)
+
+--- end of measured output; recorded status below ---
+
+slow tier: 36 files / 37 units, 17 conclusive against checkout 9a1f1b49e4476ae3 (46% recall), 1 failing
+  + 4 file(s) conclusive WITHIN their measured read-scope only (57% combined) — the checkout moved outside what they read
+  test_swe_sandbox_evidence.py           fresh_fail         5s  0.6h ago
+  test_swe_abconfound.py                 fresh_pass         1s  0.6h ago
+  test_swe_alias_effects.py              fresh_pass_scoped  329s  2.7h ago
+      scope: whence
+  test_swe_bymap.py                      stale_checkout     47s  5.6h ago
+  test_swe_campaign.py[heavy]            stale_checkout     3000s  3.8h ago
+  test_swe_campaign.py[light]            stale_checkout     3000s  6.8h ago
+      excludes: test_cli_runs_offline_stages_and_stops
+  test_swe_copyparity.py                 fresh_pass         8s  0.6h ago
+  test_swe_copyparity_real_subject.py    fresh_pass         10s  0.6h ago
+  test_swe_coverage.py                   stale_checkout     4s  1.7h ago
+  test_swe_depthceiling.py               fresh_pass         1s  0.6h ago
+  test_swe_equivalence.py                fresh_pass         72s  0.6h ago
+  test_swe_exemptaudit.py                fresh_pass_scoped  29s  1.7h ago
+      scope: examples, whence
+  test_swe_exemptmap.py                  stale_harness      106s  8.6h ago
+      moved: swe/copyparity.py
+  test_swe_falsifiers.py                 stale_checkout     6s  5.5h ago
+  test_swe_fuzz.py                       stale_checkout     88s  5.6h ago
+  test_swe_guardpin.py                   fresh_pass         11s  0.6h ago
+  test_swe_guest.py                      fresh_pass_scoped  340s  10.5h ago
+      scope: examples, whence
+  test_swe_instrument.py                 fresh_pass         1s  0.6h ago
+  test_swe_killerrepin.py                stale_checkout     16s  1.7h ago
+  test_swe_killers.py                    fresh_pass         30s  0.6h ago
+  test_swe_linkcopy.py                   fresh_pass         2s  0.6h ago
+  test_swe_loop.py                       fresh_pass         0s  0.6h ago
+  test_swe_loop_cli.py                   stale_checkout     74s  1.7h ago
+  test_swe_mutation.py                   stale_checkout     20s  8.6h ago
+  test_swe_nodeid_selection.py           fresh_pass         15s  0.6h ago
+  test_swe_oraclekill.py                 fresh_pass         52s  0.6h ago
+  test_swe_oracles.py                    fresh_pass         6s  0.6h ago
+  test_swe_prioritize.py                 fresh_pass         3s  0.6h ago
+  test_swe_proc.py                       stale_checkout     6s  1.7h ago
+  test_swe_regiontools.py                fresh_pass         1s  0.6h ago
+  test_swe_repair.py                     stale_checkout     94s  5.6h ago
+  test_swe_review.py                     stale_checkout     94s  1.7h ago
+  test_swe_scopecall.py                  stale_checkout     85s  8.6h ago
+  test_swe_scoreaudit.py                 fresh_pass_scoped  1s  1.7h ago
+      scope: (nothing)
+  test_swe_spacewitness.py               stale_checkout     2s  1.7h ago
+  test_swe_toolliveness.py               stale_checkout     3s  1.7h ago
+  test_swe_triage.py                     fresh_pass         0s  0.6h ago
+  NOTE: 16 unit(s) are NOT evidence about this checkout.
+
+RECORDED 2026-08-31T20:28:10Z (5.1 days ago) — a stored verdict, not a run just now
+  HEAD HAS MOVED SINCE: recorded at 50c7bb3caf0a, now 57bf4bd1be9a — this verdict is NOT about the current tree
+ref HEAD (50c7bb3caf0a)   verdict dirty_worktree
+  the live tree differs from HEAD in 1 tracked file(s);
+  a differential against it cannot attribute anything.  Commit or stash first:
+    M state/baseline-ledger.jsonl
+
+procreap scan: under=/home/pgain/agi-research-nuc-llm verdict=residue matched=2 unreadable=0 (protected=2 vanished=0)
+  pid=202981   ppid=188915          cwd=/home/pgain/agi-research-nuc-llm
+      open: /tmp/claude-1001/-home-pgain-agi-research-nuc-llm/ec459512-e695-4f16-a97a-49e64cd1df28/tasks/bufozfhsv.output
+  pid=202985   ppid=202981          cwd=/home/pgain/agi-research-nuc-llm
+      open: /tmp/claude-1001/-home-pgain-agi-research-nuc-llm/ec459512-e695-4f16-a97a-49e64cd1df28/tasks/bufozfhsv.output
+
+whence slow tier: 32 units / 122 marked (AST), 1 conclusive against subject 25b536073dec36fb (3% recall), 1 failing
+NOTE: 1 unit(s) LAST RAN RED but against a tree that has moved; not counted as failing, and the first thing a slice should re-run
+NOTE: 31 unit(s) are NOT evidence about this checkout
+
+real	7m9.788s
+user	5m1.732s
+sys	0m31.044s

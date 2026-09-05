@@ -1,0 +1,56 @@
+[
+ {
+  "sha": "076c1f61",
+  "subject": "round 475 (harness A): the remedy that erased its own eviden",
+  "hook_script": true,
+  "digest": "de2c0fa515",
+  "bytes": 630,
+  "n_steps": 1,
+  "blocking": 1,
+  "scripts": [
+   "harness/escalationguard.py"
+  ]
+ },
+ {
+  "sha": "79d1bffb",
+  "subject": "round 499 (harness A): the declaration nobody could see",
+  "hook_script": true,
+  "digest": "e97e82d11f",
+  "bytes": 2052,
+  "n_steps": 2,
+  "blocking": 1,
+  "scripts": [
+   "harness/escalationguard.py",
+   "harness/wiring_audit.py"
+  ]
+ },
+ {
+  "sha": "c63e5c59",
+  "subject": "round 501 (skills B): the repair nobody could afford",
+  "hook_script": true,
+  "digest": "03de130441",
+  "bytes": 3279,
+  "n_steps": 3,
+  "blocking": 1,
+  "scripts": [
+   "harness/escalationguard.py",
+   "harness/wiring_audit.py",
+   "skills/skill-authoring/scripts/carryforward_check.py"
+  ]
+ },
+ {
+  "sha": "982f26d8",
+  "subject": "round 515 (SWE-loop D): the instrument that was opt-in \u2014 esc",
+  "hook_script": true,
+  "digest": "611ba20d32",
+  "bytes": 5166,
+  "n_steps": 4,
+  "blocking": 1,
+  "scripts": [
+   "harness/escalationguard.py",
+   "harness/wiring_audit.py",
+   "skills/skill-authoring/scripts/carryforward_check.py",
+   "harness/swe/copyparity.py"
+  ]
+ }
+]

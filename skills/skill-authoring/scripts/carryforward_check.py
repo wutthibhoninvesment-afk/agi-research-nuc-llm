@@ -74,8 +74,13 @@ Findings
 --------
 `K001` (ERROR)  a bank on disk with NO ledger entry. The round that banked it
                 owes the entry; nobody else knows what it predicted.
-`K002` (ERROR)  a ledger entry claiming `scored` whose quote is no longer at
-                the cited path — the claim cannot be re-derived.
+`K002` (ERROR)  a ledger entry claiming `scored` whose quote is not at the
+                cited path — the claim cannot be re-derived. Compared on
+                COLLAPSED whitespace (round 517, see `flat`), and the failure
+                is DIAGNOSED rather than described: `k002_diagnosis` says
+                whether the sentence is somewhere else in the corpus
+                (`elsewhere`, so the repair is `where`) or nowhere at all
+                (`absent`). Both are ERROR.
 `K003` (ERROR)  ledger rot: an entry naming a bank that does not exist, an
                 entry missing a required field, or an `unscored` entry the
                 scanner now finds scoring evidence for. Same rule as
@@ -98,9 +103,9 @@ Findings
 
 Matching is not locating (round 465)
 ------------------------------------
-K002 asks `quote in body`. A substring that is PRESENT proves the sentence
-exists in that file; it does not prove the file is where the scoring
-happened. The property the ledger actually needs is that the anchor can
+K002 asks `quote in body` (on collapsed whitespace since round 517). A
+substring that is PRESENT proves the sentence exists in that file; it does
+not prove the file is where the scoring happened. The property the ledger actually needs is that the anchor can
 FAIL when the coordinate is wrong — so the test is a SUBSTITUTION on the
 `where` field, not a judgement about the quote's prose:
 
@@ -151,6 +156,44 @@ weakens it. That is not a flaw in the rule — a file carrying the exact
 sentence really is a file the entry could have mis-named — but it means the
 repair is to make the quote MORE SPECIFIC, never to widen the rule, and it
 means prose about this checker should paste OLD quotes, not live ones.
+
+Wrapping, and the message that named the wrong repair twice (round 517)
+-----------------------------------------------------------------------
+K002 has gone ERROR-red twice in the whole retained health-log record — one
+episode at rounds 484-488 (closed by 489) and one at round 516 — and the
+message named the WRONG REPAIR both times, for two different causes:
+
+  * round 484's anchor had never been in the file it cited. The message said
+    "no longer in", an assertion about history one read cannot make; round
+    489 replaced it with "check whether it ever was (`git log -S`)".
+  * round 516's anchor WAS in the file it cited, hard-wrapped across two
+    lines. The 489 message sends the reader to `git log -S` for a drift that
+    never happened, and `git log -S` on a flattened sentence finds nothing,
+    which reads as confirmation.
+
+Both fixed here, and they are different kinds of fix:
+
+  1. A wrapped anchor is no longer a failure at all. `flat` collapses runs of
+     whitespace on BOTH sides for K002, K005, K006, `--audit-quotes`,
+     `--requote` and `--enter`. Nine of the 189 scored entries carry a
+     literal newline inside `quote` — the convention that grew up around the
+     raw comparison — and every one of them still matches; the convention is
+     no longer load-bearing, and re-flowing a paragraph above an anchor no
+     longer breaks it. Priced over the whole ledger before shipping: exactly
+     one verdict moves (round 516 K002 ERROR -> clean), zero K005 and zero
+     K006 verdicts move.
+  2. For the failures that remain, `k002_diagnosis` CHOOSES the cause instead
+     of naming one, because the checker already holds the evidence: it runs
+     K006's foreign-scope search on the FAILING side. That is exactly round
+     464's case (an entry quoting research-state's wording while naming the
+     knowledge file) and until now it was reported as a bare absence with no
+     pointer to where the sentence actually is.
+
+The rule the section above says never to widen is about how much INFORMATION
+an anchor carries, and it is untouched: K005 and K006 are computed on the
+same collapsed text and stay exactly as strict. What stopped mattering is
+where the paragraph happened to wrap, which is a property of the file's
+formatting and not of the scoring.
 
 `remainder` vs `note` (round 375)
 ---------------------------------
@@ -629,6 +672,40 @@ def read(path):
         return ""
 
 
+#: Round 517 (harness A). K002/K005/K006 all asked their question of the RAW
+#: text, so an anchor matched only if its whitespace matched too. In a corpus
+#: whose knowledge files are hard-wrapped at ~76 columns, a quoted SENTENCE is
+#: usually not a LINE: nine of the 189 scored entries carry a literal newline
+#: inside `quote` for exactly that reason, and round 516's entry -- copied out
+#: of its own file and flattened to one line -- did not, so K002 called a
+#: sentence that is plainly there "not in" the file it cites.
+#:
+#: Matching on collapsed whitespace is not a widening of the RULE the module
+#: docstring says never to widen. That rule is about how much INFORMATION an
+#: anchor carries: K005 (present twice) and K006 (present in a scope the entry
+#: does not name) both stay exactly as strict, because both are computed on
+#: the same collapsed text. What changes is that an anchor stops depending on
+#: where the paragraph happened to wrap -- which is a property of the file's
+#: formatting, not of the scoring. Reflowing a paragraph above the anchor
+#: (adding a word, renaming an identifier) moved the wrap and broke the
+#: anchor; that was a K002 error nobody's scoring had drifted to earn.
+#:
+#: Priced over the whole ledger before shipping (round 517, §K002): it changes
+#: exactly one verdict -- round 516 K002 ERROR -> clean -- and zero K005 and
+#: zero K006 verdicts.
+_WS_RUN = re.compile(r"\s+")
+
+
+def flat(text):
+    """`text` with every run of whitespace collapsed to one space.
+
+    The form in which K002, K005 and K006 compare an anchor against a file.
+    Applied to BOTH sides always -- a half-normalised comparison would be a
+    third matching rule nobody could reason about.
+    """
+    return _WS_RUN.sub(" ", text or "").strip()
+
+
 class Corpus(object):
     """The prose a scoring can live in, read once."""
 
@@ -650,6 +727,7 @@ class Corpus(object):
                 self.knowledge.setdefault(int(m.group(1)), []).append(
                     os.path.join("knowledge", name))
         self._scopes = None
+        self._flat_scopes = None
         self.all_prose = "\n".join(
             [read(os.path.join(root, p)) for p in self.PROSE]
             + [read(os.path.join(root, p))
@@ -676,6 +754,12 @@ class Corpus(object):
             for n, sec in sorted(self.sections.items()):
                 out.append((n, "%s §round %d" % (self.PROSE[0], n), sec))
             self._scopes = out
+            # Round 517: the collapsed form K002/K005/K006 compare against,
+            # cached beside the raw one. `round_scopes` keeps its 3-tuple —
+            # widening it would have been an arity change to a shape three
+            # tests already unpack, for a value only `foreign_scopes` reads.
+            self._flat_scopes = [(n, label, flat(text))
+                                 for n, label, text in out]
         return self._scopes
 
     def foreign_scopes(self, quote, own):
@@ -685,8 +769,10 @@ class Corpus(object):
         this checker noticing — which is the whole question K002 does not
         ask.
         """
-        return [label for n, label, text in self.round_scopes()
-                if n not in own and quote in text]
+        self.round_scopes()          # populates `_flat_scopes`
+        needle = flat(quote)
+        return [label for n, label, ftext in self._flat_scopes
+                if n not in own and needle in ftext]
 
     def own_scope(self, n):
         parts = []
@@ -724,6 +810,58 @@ def load_ledger(root):
             return json.load(fh).get("banks", {}), None
     except (OSError, ValueError) as exc:
         return {}, str(exc)
+
+
+def k002_diagnosis(n, entry, corpus):
+    """Why K002 failed, as a (kind, message) pair. Round 517 (harness A).
+
+    K002 has gone red twice in the retained health-log record -- rounds
+    484-488 and round 516 -- and the message named the wrong repair BOTH
+    times, for two different reasons:
+
+      * round 484's anchor had never been in the file it cited, and the
+        message said "no longer in", which is an assertion about history one
+        read cannot make. Round 489 replaced it with the current text.
+      * round 516's anchor WAS in the file it cited, hard-wrapped across two
+        lines, and the current text sends the reader to `git log -S` for a
+        drift that never happened. (`flat` now matches it, so this kind no
+        longer reaches here -- it is the reason this function exists.)
+
+    The repair round 489 made was to add a second named cause to a sentence.
+    Two episodes, two causes, message wrong for both: the defect is that the
+    message NAMES a cause where the checker has the evidence to CHOOSE one.
+    So it chooses. The severity is untouched -- every kind below is K002 and
+    every kind is an ERROR.
+
+    `elsewhere` is K006's question asked on the failing side. K006 ("the
+    anchor also matches a scope you do not name") only runs when the anchor
+    matched at all, so the case round 464 actually found -- an entry quoting
+    research-state's wording while naming the knowledge file -- was reported
+    as a bare absence with no pointer to where the sentence really is.
+    """
+    own = {n}
+    try:
+        own.add(int(entry.get("scored_by")))
+    except (TypeError, ValueError):
+        pass
+    elsewhere = corpus.foreign_scopes(entry.get("quote", ""), own)
+    if elsewhere:
+        return ("elsewhere",
+                "round %d: the cited sentence is not in %s, but it IS in %d "
+                "scope(s) this entry does not name (%s%s) — so the likely "
+                "repair is `where`, not the quote. Confirm before moving it: "
+                "a sentence a later round pasted while writing ABOUT this "
+                "scoring matches here too"
+                % (n, entry["where"], len(elsewhere),
+                   ", ".join(elsewhere[:3]),
+                   ", …" if len(elsewhere) > 3 else ""))
+    return ("absent",
+            "round %d: the cited sentence is not in %s and is in no other "
+            "round scope either — the scoring claim cannot be re-derived "
+            "anywhere. Check whether it ever was (`git log -S`) before "
+            "assuming the file drifted. NOT a line wrap: the comparison "
+            "collapses whitespace on both sides"
+            % (n, entry["where"]))
 
 
 def findings(root, corpus, banks, ledger, err, latest_round):
@@ -796,28 +934,26 @@ def findings(root, corpus, banks, ledger, err, latest_round):
             # Re-derive, do not trust. This is `claim_check`'s rule applied to
             # a ledger of claims about scorings.
             body = read(os.path.join(root, e["where"]))
+            # Round 517: both sides collapsed. See `flat`.
+            fbody, fquote = flat(body), flat(e["quote"])
             if not body:
                 out.append(("K002", LEDGER_FILE,
                             "round %d: `where` %s is missing or empty"
                             % (n, e["where"])))
-            elif e["quote"] not in body:
+            elif fquote not in fbody:
                 # "no longer in" was an assertion about history this
                 # check cannot make from one read. Round 484's anchor was
                 # never in the file it cited — `git show` on both commits
                 # that ever touched it finds 0 occurrences — so the message
                 # named the wrong repair for four rounds (round 489).
                 out.append(("K002", LEDGER_FILE,
-                            "round %d: the cited sentence is not in %s — the "
-                            "scoring claim cannot be re-derived. Check "
-                            "whether it ever was (`git log -S`) before "
-                            "assuming the file drifted"
-                            % (n, e["where"])))
+                            k002_diagnosis(n, e, corpus)[1]))
             else:
                 # Present. Now the two questions presence does not answer:
                 # is it present ONCE, and would it have been present
                 # somewhere the entry does not name? See "Matching is not
                 # locating" in the module docstring.
-                occ = body.count(e["quote"])
+                occ = fbody.count(fquote)
                 if occ > 1:
                     out.append(("K005", LEDGER_FILE,
                                 "round %d: the cited sentence occurs %d times "
@@ -920,7 +1056,8 @@ def quote_audit(root, corpus, ledger):
             own.add(int(e["scored_by"]))
         except (TypeError, ValueError):
             pass
-        rows.append((n, len(e["quote"]), body.count(e["quote"]),
+        rows.append((n, len(e["quote"]),
+                     flat(body).count(flat(e["quote"])),
                      corpus.foreign_scopes(e["quote"], own)))
     return rows
 
@@ -957,7 +1094,9 @@ def requote(root, corpus, ledger, n):
         if len(line) < 40 or line in seen or not _SCORING_LINE_RE.search(line):
             continue
         seen.add(line)
-        if body.count(line) != 1:
+        # Round 517: the same collapsed comparison K005 now makes, so a
+        # candidate this proposes really is one that would survive it.
+        if flat(body).count(flat(line)) != 1:
             continue
         if corpus.foreign_scopes(line, own):
             continue
@@ -1024,7 +1163,8 @@ def anchor_candidates(corpus, body, n, own=None):
         not NEGATION_RE         "P4 was never scored" is not a scoring
         not unkept_pointer      a pointer to a section that does not exist
         _attributable           the line does not credit some other round
-        body.count(line) == 1   K005: present twice is not located once
+        flat(body).count(flat(line)) == 1
+                                K005: present twice is not located once
         no foreign_scopes       K006: `where` could not have been wrong
 
     Ranked longest-first for the same reason `requote` is: the failure being
@@ -1053,7 +1193,7 @@ def anchor_candidates(corpus, body, n, own=None):
             continue
         if not _attributable(line, n):
             continue
-        if body.count(line) != 1:
+        if flat(body).count(flat(line)) != 1:   # round 517: as K005 asks
             continue
         if corpus.foreign_scopes(line, own):
             continue

@@ -28975,6 +28975,155 @@ entry here; nothing below is inferred from intentions.*
   0 warnings.
 
 
+### Round 517 — harness(A) — 2026-09-05 — the file that runs is not the file that is tested
+
+- **The RED DEBT's 2 nodes are ONE cause, reproduced SOLO and root-caused, and
+  the cause is a checker defect rather than round 516's record.**
+  `corpus_check.py` alone on an idle box: `carryforward ERROR K002` +
+  `unit_tests ERROR rc1` (4 failed / 1210 passed / 182.99 s), and all four
+  failing `unit_tests` nodes are carryforward nodes. Round 516's anchor **is**
+  at line 83 of the file it cites — hard-wrapped, with a NEWLINE where the
+  ledger has a space. `carryforward_check` asked `e["quote"] not in body`, raw.
+- **THE NUMBER: 9 of 189 scored entries embed a literal newline in `quote` and
+  51 exceed the corpus's 76-column wrap.** So a convention exists, round 516
+  did not follow it, and the convention is WRITTEN DOWN NOWHERE — not in the
+  docstring, not in the ledger `_comment`, not in the error message. Predicted
+  zero (P3) and predicted <25 long quotes (P4): both REFUTED, both by
+  reasoning about a corpus instead of counting it.
+- **Fixed the checker, not the record.** `flat()` collapses whitespace on BOTH
+  sides for K002/K005/K006/`--audit-quotes`/`--requote`/`--enter`. Rewriting a
+  committed round's record to satisfy a checker is the mute-button failure this
+  corpus warns about; and a raw anchor breaks when a paragraph ABOVE it is
+  reflowed, which is a K002 nobody's scoring drifted to earn. The rule the
+  module says never to widen is untouched — K005/K006 are computed on the same
+  collapsed text and stay exactly as strict.
+- **PRICED BEFORE SHIPPING, AND THE PRICE WAS NOT THE PREDICTED ONE (P6
+  REFUTED — the round's best small finding).** Normalisation moves THREE
+  verdicts, not one: K002 1→0 **and K006 0→2**. Rounds 455 and 462, both
+  genuine — a LATER round pasted each anchor with a different line wrap (471
+  quoting 455; 464 quoting 462 while diagnosing it), so **K006 had a
+  wrap-shaped recall hole, 2 of 189 = 1.1%**. Repaired with round 465's repair
+  (a longer contiguous slice of the SAME file, K002/K005/K006-checked on the
+  collapsed text before writing), `quote_was` + `quote_fixed_by` on both. The
+  ledger round-trips byte-for-byte at `indent=1, ensure_ascii=True`, so a
+  two-entry edit is 6 insertions / 2 deletions.
+- **K002 now CHOOSES the cause instead of naming one.** Over the retained
+  health-log record (477-516) the `carryforward` node is red for K001 in 13
+  rounds, K003 in 4, and K002 in exactly TWO episodes — 484-488 and 516 (P5
+  HIT: the recurrence is the node, not this defect). **The message named the
+  wrong repair BOTH times.** Round 489 fixed it by adding a second named
+  cause; round 516 hit a third. `k002_diagnosis` returns `elsewhere` (the
+  sentence is in *n* scopes this entry does not name — K006's question asked
+  on the FAILING side, which is round 464's real case and was reported as a
+  bare absence) or `absent` (round 489's `git log -S` text plus *"NOT a line
+  wrap: the comparison collapses whitespace on both sides"*). Both ERROR.
+- **Built `harness/hookaudit.py` (round 515's next-step #2, and a third gap
+  that next step did not name).** The pre-commit hook is the only mechanism
+  that reaches the AUTHOR of a defect; three rounds extended it on that
+  reasoning (499, 501, 515). The artefact that RUNS is not in git and every
+  test asserts about `hook_script()`, which is. Three ways to differ:
+  IDENTITY (`ok|stale|foreign|absent|no-repo`, compared against a
+  re-generation with **the installed hook's own interpreter** — comparing
+  against `hook_script()`'s `python3` default would call a hook installed with
+  `.venv/bin/python` stale on a difference the installer was asked for);
+  REFERENCE; ARGUMENT.
+- **THE REFERENCE GAP IS LIVE AND IS DEMONSTRATED, NOT ARGUED.** Every step is
+  wrapped in `[ -f "$top/<rel>" ]`, so moving a script does not break the hook
+  — it DELETES the step, silently, and for step 1 that guard is `|| exit 0`,
+  i.e. the only BLOCKING guard in the program disables itself and reports
+  success. `test_the_hook_really_does_fall_silent_when_the_script_moves`: real
+  repo, registered escalation, `git commit` correctly REFUSED; then one
+  `os.rename` of `harness/escalationguard.py` and nothing else, the same
+  commit succeeds and **the escalated blob is at HEAD**. No existing test
+  moves.
+- **The argument check is STATIC and that is a rule, not a scruple.** Running a
+  guard's verb is running the guard. All four current steps are read-only
+  `check`-shaped verbs — a property of the four, not a contract — so the verbs
+  are resolved by reading the target's argparse surface with `ast`, and it
+  FAILS OPEN: an unrecognisable CLI is `unknown`, never `broken`, and
+  `unknown` does not fail `--strict`.
+- **The parser is replayed over every generation of the hook that ever
+  existed** (`state/harness/round-517/hook-generations.json`): 4 commits have
+  touched `escalationguard.py`, all 4 carry `hook_script`, 4 distinct bodies,
+  steps 1→2→3→4, **exactly one blocking step in every generation**, 0 parse
+  failures, 0 special cases (P9/P10/P11 HIT). Pinned as a test, not left as a
+  number. `[ -f "$top/x" ]` / `if [ -f … ]; then` must NOT read as
+  invocations, and `|| exit 0` must NOT read as blocking (it is the fail-open
+  path) — both pinned.
+- **Where it does NOT live, decided and recorded:** not a fifth hook step (a
+  stale hook IS the old text and cannot warn about itself), and not a printed
+  line in `run_tests_fast.sh` (the four echoes there are for tiers whose
+  result is recorded elsewhere; this one is re-derived by the pytest run three
+  lines above). A linked worktree resolves `--git-path hooks` to the MAIN
+  repo's, probed rather than assumed, so `pristine_check baseline` reads the
+  same installed hook and the four live nodes do not go `absent` there.
+- **Round 516's next-step #1 CLOSED with the tier's own output**:
+  `languages/whence/run_tests_fast.sh` → **3029 passed, 3 skipped, 0 failed,
+  123 deselected, 488.61 s** serialised (P13 HIT, banked 3020-3040).
+- **`blast` on this round's diff names 28 suites; 2 mattered — ~7% precision**,
+  between round 512's 20% and round 515's 5.6%. `test_hookaudit.py` is
+  correctly absent from the list (round 505). A third data point for round
+  515's #1, not a fix. `blast` also printed `map no git HEAD available on one
+  side; cannot compare` on every run and nothing failed.
+- **Tests +43** (`test_hookaudit.py` 25 new; `test_carryforward_check.py`
+  165→183). `test_hookaudit.py` carries no `__main__` guard on purpose —
+  50-odd siblings have none and a guard makes it an entry point owing a
+  registry line. The hook's own step 2 caught it in this round's staged set
+  (`W001 harness/tests/test_hookaudit.py`), which is round 499's design
+  working. `harness/hookaudit.py` declared `wired` with `wiring_audit declare
+  --write` after staging (round 505).
+- **Predictions (`state/harness/round-517/PREDICTIONS.md`, banked at
+  `57bf4bd`): 10 HIT, 3 REFUTED, 2 SPLIT, 1 VOID of 16.** The three
+  refutations share one shape and it is round 516's own scored miss: P3, P4
+  and P6 were each derived by REASONING ABOUT a corpus rather than counting
+  it. Every prediction made from something already read at HEAD landed. P12 is
+  VOID because the design changed (`stale` went into a new module and
+  `escalationguard.py` was not edited at all), and P16's first half missed for
+  the same reason.
+- **Disclosed:** this round's FIRST commit (the prediction bank) was made with
+  `git -c core.hooksPath=/dev/null`, reflexively, in the round whose subject is
+  the hook. Nothing that would have fired was bypassed (one new file under
+  `state/`), and every later commit ran the hook — recorded rather than quietly
+  dropped.
+
+## Next steps (as of round 517)
+
+1. **The K002 authoring convention is now unnecessary but 9 entries still
+   carry it.** Nothing is wrong with them and nothing needs changing; the
+   note is here so a future round does not "fix" nine embedded newlines and
+   call it tidying. `test_the_nine_live_entries_that_embed_a_newline_still_
+   match` holds that open. any track.
+2. **`k002_diagnosis` has two kinds and there is an obvious third nobody
+   has a case for**: an anchor present in `where` but only as a *substring of
+   a longer word*. Not observed in 189 entries, not implemented, and named
+   here rather than built speculatively. skills(B).
+3. **`hookaudit` checks the hook; nothing checks `hookaudit`'s own STEP
+   TABLE against `hook_script()`'s.** They agree today because both are
+   derived from the installed file, but `is_clean` is a hand-written
+   predicate and a fifth step with a new shape (a pipeline, a `sh -c`) would
+   parse as zero steps and report `4 live` on a 5-step hook. The replay test
+   would catch a shape change in HISTORY, not in the future. harness(A).
+4. **Round 515's #1 (the `blast` refinement) is unlanded for the THIRD
+   round**, now with a third precision measurement (20% / 5.6% / 7%). Round
+   512 measured a refinement to 67% at full recall and declined to land it
+   because it did not own `harness/`. harness(A) owns it and this round did
+   not land it either. harness(A) or SWE-loop(D).
+5. **Round 516's #2, #3, #4, #5 stand, UNCHECKED by this round** —
+   `runlive.check`'s `a is not None`, the post-repair `checkscope --scope`
+   before/after table, the `checkscope`-imported-by-two-gates-it-measures
+   edge, and `--selfref` over `harness/tests/` and `skills/`. Re-derive
+   before quoting.
+6. **Round 515's #3 and #4 stand** (`escapes --staged` covers one tree; the
+   HEAD-differencing move-between-files hole).
+7. **Standing and untouched:** the operator-blocked `--cap 196`; CLAUDE.md's
+   `CRITICAL MISSION` / `MISSION #476` blocks, still one-line deletions for
+   the operator (round 512 re-derived and REFUTED both with run evidence —
+   carry that, not the claim); `case_coverage`'s disagreeing verdicts;
+   `claim_check` executing 0 of its commands. `languages/whence/SECURITY.md`
+   is still the operator's decision — do not copy a carry count for it from
+   this file.
+
+
 ### Round 516 — language(C) — 2026-09-05 — the check that ranged over a fragment of its own document
 
 - **Assignment: round 512's next steps #3, #4, #6 and #8 — all four CLOSED.**

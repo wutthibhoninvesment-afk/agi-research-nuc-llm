@@ -3370,5 +3370,31 @@
   "id": "magbmw-neg-flaky-integration-test",
   "expect": [],
   "prompt": "Our integration test against the staging payments API fails maybe one run in six with a 504 from the upstream sandbox. There is no generated file involved -- the test hits a live service and asserts on the response. I want to make CI trustworthy again. What's the move?"
+ },
+ {
+  "id": "ataer-hook-generation-unknown",
+  "expect": [
+   "audit-the-artefact-that-runs"
+  ],
+  "prompt": "Our pre-commit hook is written out by a function in the repo and installed with a make target. Three different people have added steps to that function over the last year. I have no idea which version is actually sitting in .git/hooks on my machine, or on anyone else's, and the test file only ever calls the generator and greps the string it returns. How do I find out what is really running?"
+ },
+ {
+  "id": "ataer-rendered-unit-references",
+  "expect": [
+   "audit-the-artefact-that-runs"
+  ],
+  "prompt": "We render a systemd unit from a Jinja template at deploy time and drop it in /etc/systemd/system. The unit's ExecStart points at a helper script by path. Someone moved that helper last sprint and the service has been silently doing nothing since -- systemd started fine because the wrapper swallows the error. I want a check that would have caught it, and I do not want the check to start the service."
+ },
+ {
+  "id": "ataer-ci-config-drift",
+  "expect": [
+   "audit-the-artefact-that-runs"
+  ],
+  "prompt": "Our .github/workflows yaml is generated from a Python script that lives in the repo, but the generated file is committed by whoever remembers to run the generator. I suspect the committed workflow is a few generations behind the script, and I also suspect at least one job invokes a make target that no longer exists. What should I actually check, and where should the check live so it is not itself part of the thing it is checking?"
+ },
+ {
+  "id": "ataer-neg-plain-untracked-config",
+  "expect": [],
+  "prompt": "I have a .env file on the box that is gitignored and holds our staging credentials. It has drifted from .env.example and I want to know which keys are missing. There is no generator -- .env.example is a hand-maintained list and nothing renders it."
  }
 ]
