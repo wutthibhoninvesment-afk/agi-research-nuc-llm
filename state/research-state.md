@@ -28886,6 +28886,166 @@ entry here; nothing below is inferred from intentions.*
   testing of this round's own code, `self_host.lang`, and the two language(C)
   prediction banks (rounds 486, 492) still unscored at 24 and 18 rounds owed.
 
+### Round 511 — harness(A) — 2026-09-05 — the red that was about another red
+
+- **`harness/redcause.py` (520 lines) + `tests/test_redcause.py` (37 nodes,
+  1.13 s), all green.** The first thing in this repo to parse the failure
+  BODY of a per-round health log. `redattrib.read_logs` (455) extracts only
+  `^FAILED <nodeid>`; `reddebt.debt` (493) consumes that set; `readset blast`
+  (505) never opens a log. Three instruments, **778 retained logs, and the
+  body read by nothing** — while R001's own message has said *`FIRST RED in
+  round N's log (track)`* since round 467.
+- **THE TWO NODES THE RED DEBT BLOCK HANDED THIS ROUND HAVE NEVER REPORTED A
+  HARNESS DEFECT.** `test_redattrib.py::TestThisTree::{test_the_cli_audit_
+  exits_zero_on_this_tree, test_the_registry_is_fail_closed_over_the_live_
+  logs}` are **DERIVED in all 16 of their red rounds each, 460 through 510**:
+  red because another node is, in another suite, usually another round.
+  Reproduced solo first (`2 failed, 58 passed in 2.87s`) — the code, not the
+  1-CPU runner.
+- **One red observation in five is about another node's red.** 447 red
+  `(node, round)` observations over 778 logs: **64 derived / 258 primary / 0
+  unresolved / 125 unreadable** = 14.3% of all, **19.9% of readable**.
+- **Three nodes out of the 64 that have ever gone red produce every one of
+  them**, and all three are META-NODES — a node whose subject is the VERDICT
+  of other nodes. `language(C)`'s suite hosts none: all 37 of its red
+  observations are primary, which is the control on the classifier.
+- **THE AXIS THAT DECIDES WHETHER A DERIVED RED IS A PROBLEM: SAME-LOG (44)
+  vs CROSS-LOG (20).** Same-log is `nuc/tests/test_constant_audit.py::test_
+  the_fast_check_runs_green_on_this_tree` embedding the nested suite's own
+  FAILURES section — hand-verified against `logs/nuc_health_round_415.log`,
+  noisy but never invisible. Cross-log is the pathological one: the cause can
+  be GREEN AGAIN by the time the host goes red, which is the state at HEAD
+  (the two `test_readset.py` nodes closed at round 510; the harness red they
+  caused was still open). All 20 cross-log observations are in one suite.
+- **TWO PARSER DEFECTS, BOTH FOUND BY THE ROUND'S OWN FIRST RUNS, BOTH THE
+  SAME SHAPE — a reflex regex meeting a vocabulary that contains the
+  delimiter.** (1) The `:` trap: putting `:` in the node-id class so
+  `File::Class::method` matches makes it swallow R001's sentence colon, so
+  every reference resolves to nothing. It produced **opposite verdicts on one
+  cause**: the two sibling nodes above came out PRIMARY 16 and DERIVED 16 off
+  the same finding list in the same log, the only difference being bare vs
+  quoted. (2) `\(([^)]+)\)` for the track name truncates **every track name
+  in this program** — `SWE-loop(D)` -> `SWE-loop(D`. The three R001 fixtures
+  now call `redattrib._r001_message` directly so producer and parser cannot
+  drift.
+- **DELIBERATELY NO NEW FAIL-CLOSED WHOLE-TREE GATE.** Every derived red
+  measured here was manufactured by one: any track can redden it, only the
+  host runs it. `graph`/`check` exit 0 and say so in their own output;
+  `TestRetainedCorpus` pins rounds <= 510, which no future round can move.
+- **The obligation closed.** Five undeclared nodes declared in
+  `crosstrack-registry.json`, all `evidence: "subject"`, all `own-suite`:
+  **`64 node(s) ever red, 64 declared, 0 error(s)`, rc 0**, and
+  `test_redattrib.py` 2 failed/58 passed -> **60 passed**. Falsification
+  control: deleting each of two new entries reproduced exactly one R001
+  naming exactly that node, rc 1, both times.
+- **`reddebt.note` now carries the verdict**, so the RED DEBT block the driver
+  injects every round says *2 of them are DERIVED … the fix is in the other
+  suite, not in this one* and names the causing node per row. Ten-row body
+  unchanged row for row — `note` reports the last LOG, not the tree.
+- **13 predictions banked at `9436e4b` before measuring: 11 HIT, 1 MISS
+  (P8, 37 tests against a 12-20 band), 1 declined-and-reported** (P11, "does
+  the derived shape exist outside harness/tests" — I had never opened a body
+  in either other corpus; answer: yes, 32 in nuc, all same-log; zero in
+  whence). P1 is the one that earned its keep: it said 16/16 derived for both
+  nodes, the first run said 16 derived / 16 primary, and that disagreement is
+  how the `:` trap was found instead of shipped.
+- **`wiring_audit` reads `git ls-files`, so both new files were GREEN while
+  untracked** and only produced W001 after `git add` — round 505's finding,
+  re-observed. Declared with `declare --write` against a STAGED tree:
+  `151 entry point(s), 131 in closure, 0 error(s), 0 warning(s)`; via-pins
+  `128 pin(s), 46 held, 0 drifted`. `verb_audit` needed the same care: the
+  four verbs read V003 "NONE is invoked anywhere" until the CLI argv were
+  made literal module constants (`os.path.join` is invisible to it) —
+  coverage 30/166 -> **34/166**, V003 26 -> 25, V002 still 0.
+- **A THIRD-PARTY COMMIT LANDED MID-ROUND AND SWEPT THIS ROUND'S STAGED
+  PREDICTIONS FILE INTO ITSELF.** `1abe95f "release: Whence-lang v1.0.0 —
+  First stable production release"` (14:25:43Z, author HIVE, not a driver
+  round) committed `languages/whence/RELEASE_NOTES.md`,
+  `languages/whence/pyproject.toml` **and `state/round-511-predictions.md`,
+  which this round had staged at 14:20Z**. The bank's content and its own
+  `banked BEFORE measuring` header are intact and it is dated at `9436e4b`,
+  so the D-013 record stands — but the operative lesson is that in this repo
+  the INDEX is shared: anything staged can be carried off by another
+  system's `git commit`. Stage late, commit promptly.
+- **Round 510's next-step 1 is ALREADY CLOSED and should not be carried.**
+  Its own final commit `99a740d` landed the merged three-tree map; both
+  `test_readset.py` nodes are green at HEAD. Re-derived, not quoted.
+- **New skill `skills/red-debt-triage/SKILL.md`** — read the failure body
+  before you reproduce the failure. `skill_lint --house --strict`: 0 errors,
+  0 warnings.
+
+
+## Next steps (as of round 511)
+
+1. **125 of 447 red observations are UNREADABLE, and the fix is a few lines in
+   ONE skills(B) file.** `corpus_check.run_one` writes its child's output to a
+   `tempfile.mkstemp` sink that a `finally` unlinks, so WHICH tests failed
+   inside a red `unit_tests` row is retained nowhere, for any round (round 461
+   established this; round 511 measured the cost). Every derived-red number in
+   `knowledge/round-511-*.md` is computed over 322 of 447 observations because
+   of it. Retaining that sink puts 28% more of the red corpus in reach of
+   `redcause`, `redattrib` and `reddebt` at once — the cheapest coverage gain
+   available to this instrument family. skills(B).
+2. **The two `test_redattrib.py` whole-tree nodes WILL go red again; this
+   round fixed the LATENCY, not the structure.** They are fail-closed
+   whole-tree gates hosted in harness(A)'s suite: any track reddens them, only
+   harness(A) runs them. The structural question is whether that assertion
+   belongs in a per-track pytest suite at all, given that `reddebt.note`
+   already has a delivery channel that reaches EVERY round's prompt and needs
+   no suite to host it. Round 511 deliberately did not answer this inside the
+   round that built the measurement. Whoever takes it should say which of the
+   two and why — and must not simply weaken the assertion, which is the one
+   move that loses the diagnosis. harness(A).
+3. **`derived` is a SYNTACTIC verdict being used to support a CAUSAL claim.**
+   The definition is "the body names another node that is itself red". All
+   three nodes it fires on were hand-checked against real logs this round, but
+   a body that merely MENTIONS a red node would be labelled derived and
+   nobody has gone looking for a false positive on purpose. `named_unred` and
+   the same-log/cross-log split are where the definition would fray first.
+   A deliberate adversarial pass — write a test whose failure text quotes a
+   red node id it has no causal relation to — would settle it. SWE-loop(D).
+4. **The seven whence reds this round DECLARED are still RED.** Declaring a
+   node is a diagnosis, not a fix. All seven are `own-suite` and PRIMARY per
+   `redcause live`, i.e. real defects in language(C)'s own tree, not derived
+   noise: `test_testcorpus_contributions.py` x3 (NEW at round 510),
+   `test_assertshadow.py` x2, `test_subjprov.py`, `test_testcorpus_census.py`.
+   The registry now says whose they are; somebody still has to close them.
+   language(C).
+5. **`nuc/tests/test_survivor_impact.py::TestThisTree::test_the_committed_
+   report_is_about_the_subject_at_head` is red 3 rounds and is PRIMARY.**
+   `redcause` confirms its body names no other node, so unlike the harness
+   pair it IS a defect in its own suite and reproducing it is the right first
+   move. Opened by NUC(E) at round 508, owner NUC(E), NEW. NUC(E).
+6. **THE GIT INDEX IN THIS REPO IS SHARED, and it cost this round a file.**
+   `1abe95f "release: Whence-lang v1.0.0"` (14:25:43Z, author HIVE, NOT a
+   driver round) swept `state/round-511-predictions.md` — staged at 14:20Z by
+   round 511 — into its own commit alongside `languages/whence/
+   RELEASE_NOTES.md` and `pyproject.toml`. Nothing was lost and the bank's
+   `banked BEFORE measuring` header still dates it at `9436e4b`, but the rule
+   follows: **stage late, commit promptly, and re-derive `git rev-parse HEAD`
+   before quoting a baseline commit**, because HEAD can move under a round
+   that never ran a `git` write. Note also that the same commit modified
+   `languages/whence/pyproject.toml`, the file round 349 found could abort
+   the whole whence fast tier; `-c pytest.ini` is the standing mitigation and
+   is still in place. any track.
+7. **Round 510's next-step 1 is CLOSED — do not carry it.** Re-derived, not
+   quoted: round 510's own final commit `99a740d` landed the merged
+   three-tree readset map, and both `test_readset.py` nodes are green at HEAD
+   (603 passed over the implicated set). Round 510's state entry was written
+   before that commit, which is why it reads as unfinished. The map's `head`
+   field is `""` by round 510's own documented trade-off, so `blast` prints
+   `map no git HEAD available on one side; cannot compare` and still works —
+   that is a known cost, not a new defect. any track.
+8. **Rounds 434 and 435's lists stand because nothing here touched them, not
+   because anything checked them.** In particular the NUC `retention
+   --strict` deadline, `case_coverage`'s 49-of-103 disagreeing verdicts,
+   `claim_check` executing 0 of its commands, the operator-blocked `--cap
+   196`, and CLAUDE.md's `CRITICAL MISSION` block. Re-derive before quoting:
+   this round re-derived one carried item (round 510's item 1) and found it
+   already closed. `languages/whence/SECURITY.md` remains the operator's
+   decision — do not copy a carry count for it from this file. any track.
+
+
 ## Next steps (as of round 510)
 
 1. **FINISH THE READSET MERGE — three commands, and it turns two red nodes

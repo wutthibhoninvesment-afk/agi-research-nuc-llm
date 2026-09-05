@@ -322,6 +322,31 @@
       "subject_scope": "own-suite",
       "evidence": "subject",
       "why": "Round 508 (NUC E) left this red ON PURPOSE and said so in its state entry: it edited `nuc/survivor_impact.py`'s battery, which expires the committed `state/nuc/round-502/survivor-impact.json` (the path `nuc/tests/test_survivor_impact.py:19` actually reads; round 508's own next-step #1 named a `state/swe/` path that has never existed, repaired by round 509) and the 87-row mutation ledger keyed on its digest, and regeneration exceeded 600 s on 5 survivors before being killed. Subject is `nuc/` code plus that committed report; NUC(E) hosts AND runs `nuc/tests`, so this is the rare `own-suite` open by the owner -- the one case where the opener could see it, and did. What it was NOT is DECLARED: the registry is fail-closed, so an undeclared deliberate red is indistinguishable from an accident and it reddened both `harness/tests/test_redattrib.py::TestThisTree` nodes for round 509, in a suite NUC(E) does not run. Declaring a deliberate red is part of leaving one."
+    },
+    "harness/tests/test_readset.py::test_the_shipped_map_covers_every_tree_the_health_checks_run": {
+      "subject_scope": "own-suite",
+      "evidence": "subject",
+      "why": "The node's whole input is `harness/readset-map.json` (the `real_map` fixture) and `CHECKED_TREE_PREFIXES`, a constant declared in the test file itself; it asserts the shipped map has rows for every tree the four health checks run. No file outside harness/ is opened, so a change in languages/, nuc/ or skills/ cannot move it -- adding a whence test does not add a row to a static recording. The scope survives deleting every clause that names a round. Same shape as test_the_repo_root_is_a_scannable_directory_not_a_dropped_path above, and distinct from its file-sibling test_the_shipped_map_carries_no_gitignored_path, which is whole-tree because it cross-checks the map against `git check-ignore` over the live tree. Corroboration, not evidence: first and only red in round 509's own log -- round 509 (SWE-loop D) wrote the multi-tree recorder, and D runs harness/tests, so this one was visible to its author; it closed at round 510 when the merged map landed."
+    },
+    "harness/tests/test_readset.py::test_round_507s_diff_now_implicates_the_whence_nodes_it_reddened": {
+      "subject_scope": "own-suite",
+      "evidence": "subject",
+      "why": "Calls `readset.implicated()` against `harness/readset-map.json` with a synthetic path under languages/whence/tests/ and asserts the map's SCAN rows name languages/whence/tests/test_assertshadow.py. The whence path is an argument string and a value inside the shipped map, not a file the node opens -- deleting test_assertshadow.py from the tree would leave this node green, because the map is a recording and not a live walk. Only harness/readset.py, this file, or a re-record/merge of the map can move it. Corroboration, not evidence: same round-509 episode as its file-sibling above, closed by round 510's merged three-tree map."
+    },
+    "languages/whence/tests/test_testcorpus_contributions.py::test_the_ledger_covers_exactly_the_files_in_the_tree": {
+      "subject_scope": "own-suite",
+      "evidence": "subject",
+      "why": "`dc.harvest_tests(by_file=True)` walks languages/whence/tests/ and the node asserts its file set equals the key set of state/whence/testcorpus-contributions.json. Both sides are language(C) artefacts: the walk root is the hosting suite's own directory and the ledger is written by the same track. A change in harness/, nuc/ or skills/ cannot add or remove a row. Identical shape and scope to the five test_testcorpus_census.py entries above, which round 494 built this file to replace. Corroboration, not evidence: first red in round 510's log."
+    },
+    "languages/whence/tests/test_testcorpus_contributions.py::test_every_declared_contribution_matches_the_live_harvest": {
+      "subject_scope": "own-suite",
+      "evidence": "subject",
+      "why": "Same two inputs as the covers-exactly node -- the live harvest of languages/whence/tests/ and the declared ledger -- compared row by row via `dc.check_contributions`. Adding or editing a whence test file is the only thing that can move a live row; nothing outside languages/whence/ is read. Corroboration, not evidence: first red in round 510's log, alongside its two file-siblings, which is what a per-file ledger going stale looks like."
+    },
+    "languages/whence/tests/test_testcorpus_contributions.py::test_the_ledger_sums_to_the_live_totals": {
+      "subject_scope": "own-suite",
+      "evidence": "subject",
+      "why": "The closure half of the same subject: `dc.contribution_totals(declared)` against the whole-tree counters of the same live harvest of languages/whence/tests/. It is the one of the three that can also fail for an internal reason -- a counter `harvest_tests` increments outside its per-file loop -- and that source is languages/whence/depthcensus.py, still inside the hosting track's own tree. Corroboration, not evidence: first red in round 510's log."
     }
   },
   "_evidence_kind": {

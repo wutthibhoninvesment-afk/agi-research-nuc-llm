@@ -1428,10 +1428,14 @@
   },
   "505": {
    "bank": "state/harness/round-505/PREDICTIONS.md",
-   "status": "unscored",
+   "status": "scored",
    "owner": "harness(A)",
-   "why": "`carryforward_check.py --enter 505` searched knowledge/round-505-a-read-set-cannot-name-the-file-you-just-added.md and found no line that carries its own HIT/MISS/PARTIAL verdict, is >= 40 characters, occurs exactly once in its file, and is matched by no other round's scope. A promise of a scoring is not a scoring (round 495): if this round did score its bank, the scoring is somewhere this generator does not look -- say where, and write the entry by hand.",
-   "note": "Round 505 died at max_turns before scoring. Its knowledge file marks P7 and P8 CONFIRMED inline (sections 1.1 and 7) but has no scoring table, so the generator's anchor rule finds nothing and status stays unscored -- correctly. Entered by round 506 (language C), which inherited and landed the diff, precisely so the obligation is visible rather than absent. The remaining items of state/harness/round-505/PREDICTIONS.md are owed by harness(A)."
+   "scored_by": 511,
+   "entered_by": 511,
+   "where": "knowledge/round-511-the-red-that-was-about-another-red.md",
+   "quote": "| P4 | the escape node's file set is 100\u2013130 paths | **HIT** \u2014 exactly **108**, the same number the prediction derived from the failure text. |",
+   "note": "Scored by round 511 (harness A), not by round 505, which died at max_turns before it could. Section 11 of the cited file, one table row per banked line, all 9 resolved: 4 HIT, 3 SPLIT, 1 REFINED, 1 UNSCORABLE. THE METHOD MATTERS AND IS THE REASON THIS COULD BE PAID AT ALL: P2, P4, P5 and P6 are about the map round 505 RECORDED, and harness/readset-map.json has been re-recorded and merged twice since (rounds 509, 510), so the HEAD artefact is not the subject. Round 505's own map is recoverable at `git show 55fe959:harness/readset-map.json` -- 315 nodes, head 7dd84e4, roster 1631, exitstatus 1 -- and every verdict is computed against THAT file; nothing is scored from HEAD. The two a later round should not re-litigate: P2 is a MISS AS POSED whose CLAIM is sound (round 505 recorded AFTER round 504's commit landed, so the two 'added' files are literally in 24 and 27 nodes' FILE sets and the replay cannot demonstrate the additions problem it was written to demonstrate -- the scan half is separately HIT); and P3 is UNSCORABLE because no committed artefact carries an instrumented/un-instrumented pair, and measuring it now would price round 510's runner on round 511's tree, a different quantity. Round 505's knowledge file already marked P1, P7, P8 confirmed and P9 refined inline but carried no scoring table, which is why the generator's anchor rule found nothing for six rounds. WRITTEN BY HAND, and the `where` is a FOREIGN round's file on purpose: `--enter 505` searches only knowledge/round-505-*.md, reports `0 candidate anchor(s)`, and its own `why` says to write the entry by hand and SAY WHERE if the scoring lives somewhere it does not look. It does -- section 11 of round 511's knowledge file. Same shape as the round-023 entry, whose scoring is in knowledge/round-371-*.md.",
+   "why_superseded": "`carryforward_check.py --enter 505` searched knowledge/round-505-a-read-set-cannot-name-the-file-you-just-added.md and found no line that carries its own HIT/MISS/PARTIAL verdict, is >= 40 characters, occurs exactly once in its file, and is matched by no other round's scope. A promise of a scoring is not a scoring (round 495): if this round did score its bank, the scoring is somewhere this generator does not look -- say where, and write the entry by hand."
   },
   "506": {
    "bank": "state/whence/round-506/PREDICTIONS.md",
@@ -1467,6 +1471,14 @@
    "scored_by": 510,
    "where": "knowledge/round-510-the-branch-nothing-takes.md",
    "quote": "| P13 | \u22651 branch is unreachable *as written* (dead), not merely unexercised | **MISS AS POSED** \u2014 this census measures EXERCISE, not reachability. `quote_body` 12/12, `guest_steps` 8/8 and `guest_at` 6/6 are entirely unexercised and `guest_steps`/`guest_at` are unexercised *because their dispatch arm is*, but nothing here proves any of them unreachable. The instrument cannot answer the question I asked it |"
+  },
+  "511": {
+   "bank": "state/round-511-predictions.md",
+   "status": "scored",
+   "scored_by": 511,
+   "where": "knowledge/round-511-the-red-that-was-about-another-red.md",
+   "quote": "| P8 | 12\u201320 new tests, file < 40 s solo | **MISS on count, HIT on time** \u2014 37 tests, 1.13 s. The band was set from `test_redattrib.py`'s density and the synthetic-log fixtures made each mechanic cheap enough to pin individually. Over-delivered is still a miss. |",
+   "note": "Section 8 of the cited file, one table row per banked line, all 13 resolved: 11 HIT, 1 MISS (P8, 37 tests against a 12-20 band -- over-delivered is still a miss), 1 declined-and-reported (P11, a no-basis line banked under round 435's rule rather than five guesses). Banked at 9436e4b BEFORE the first log body was read and registered here at the END of the round, scored, per round 487's rule. Two things a later reader should not have to reconstruct. (1) P1 is the item that earned the bank: it predicted 16/16 DERIVED for both owned nodes, the first run reported 16 derived and 16 PRIMARY, and that disagreement is how the module's node-id regex bug was found instead of shipped -- a bank whose value was in being CONTRADICTED. (2) The bank file was swept into a THIRD-PARTY commit mid-round: 1abe95f 'release: Whence-lang v1.0.0' (author HIVE, not a driver round) committed state/round-511-predictions.md alongside its own two files because round 511 had staged it at 14:20Z. Content and the banked-before-measuring header are intact and dated at 9436e4b; the commit that carries it is simply not this round's."
   }
  }
 }

@@ -78,6 +78,12 @@
       "via": "harness/tests/test_redattrib.py:-",
       "via_kind": "import"
     },
+    "harness/redcause.py": {
+      "status": "wired",
+      "via": "harness/reddebt.py:348",
+      "via_kind": "import",
+      "reason": "Round 511 (harness A). Built and declared in the same round -- the third round to use `declare --write` rather than hand-editing, and the round whose subject is the recurrence this W001 belongs to. The audit reports on `git ls-files`, so both files read GREEN while untracked and only produced W001 after `git add`; that is round 505's finding re-observed, and it is why the declaration was run against a STAGED tree. redcause.py is wired by import from harness/tests/test_redcause.py, which the fast tier collects, and by import from harness/reddebt.py, which run_driver.sh invokes by path every round to build the RED DEBT note -- so its `live` view reaches the round prompt unconditionally. There is deliberately NO fail-closed CLI gate on it: this module measures the cost of whole-tree fail-closed gates hosted in one track's suite, and shipping another would add an instance to the series it counts."
+    },
     "harness/roundheadings.py": {
       "status": "wired",
       "via": "skills/session-inheritance-audit/scripts/check_round_recorded.py:-",
@@ -264,6 +270,12 @@
       "status": "wired",
       "via": "harness/run_tests_fast.sh:51",
       "via_kind": "dir"
+    },
+    "harness/tests/test_redcause.py": {
+      "status": "wired",
+      "via": "harness/run_tests_fast.sh:51",
+      "via_kind": "dir",
+      "reason": "Round 511 (harness A). Built and declared in the same round -- the third round to use `declare --write` rather than hand-editing, and the round whose subject is the recurrence this W001 belongs to. The audit reports on `git ls-files`, so both files read GREEN while untracked and only produced W001 after `git add`; that is round 505's finding re-observed, and it is why the declaration was run against a STAGED tree. redcause.py is wired by import from harness/tests/test_redcause.py, which the fast tier collects, and by import from harness/reddebt.py, which run_driver.sh invokes by path every round to build the RED DEBT note -- so its `live` view reaches the round prompt unconditionally. There is deliberately NO fail-closed CLI gate on it: this module measures the cost of whole-tree fail-closed gates hosted in one track's suite, and shipping another would add an instance to the series it counts."
     },
     "harness/tests/test_retry.py": {
       "status": "wired",

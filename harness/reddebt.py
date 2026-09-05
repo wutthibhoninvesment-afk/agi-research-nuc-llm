@@ -334,6 +334,22 @@ def note(root=ROOT, window=DEFAULT_WINDOW, min_logs=None):
     items = debt(root, window)
     if not items:
         return ""
+    # Round 511 (harness A). A cause verdict per row. `redcause` reads the
+    # failure BODY, which nothing in this repo had ever parsed, and separates
+    # a red that reports a defect in its own suite from a red that reports
+    # ANOTHER node's red. The two owned rows in this very block have been the
+    # second kind in all 16 of their red rounds since 460, and eight harness
+    # rounds each re-diagnosed it from scratch. Imported here rather than at
+    # module scope: `redcause.live` calls `debt`, so the dependency is a cycle
+    # and this is the direction that keeps `debt`'s episode logic single-
+    # sourced. Failure to import must not cost the reader the whole note, so
+    # the clause degrades to empty rather than raising.
+    try:
+        import redcause as RC
+        items = RC.live(root, window)
+        cause_head = RC.note_clause(items)
+    except Exception:                                    # pragma: no cover
+        RC, cause_head = None, ""
     stale = sorted({r["stale_rounds"] for r in items if r["stale_rounds"]})
     suite_files = sorted({r["node"].split("::")[0] for r in items})
     lines = []
@@ -353,6 +369,8 @@ def note(root=ROOT, window=DEFAULT_WINDOW, min_logs=None):
                "REPRODUCE IT BEFORE FIXING IT: a red that has closed by "
                "itself before may be the runner, not the code."
                % (r["prior_episodes"], r["last_closed_round"])))
+        if RC is not None:
+            lines.extend(RC.note_lines([r]))
     head = (("\n\nRED DEBT (added round 493, harness A — the per-round health "
              "logs, read before your round starts). %d test node(s) are red at "
              "the latest reading of their own check, in %d suite file(s): %s. "
@@ -366,9 +384,10 @@ def note(root=ROOT, window=DEFAULT_WINDOW, min_logs=None):
              "a defect you can fix by reading it — reproduce it first, and if "
              "it only fails under the driver's four concurrent suites on a "
              "box whose `nproc` is 1, say THAT instead of patching the "
-             "test.\n")
+             "test.%s\n")
             % (len(items), len(suite_files), ", ".join(suite_files),
-               _invisible_clause(items)))
+               _invisible_clause(items),
+               (" " + cause_head) if cause_head else ""))
     tail = ""
     if stale:
         tail = ("\n   NOTE: %s of these come from a check whose most recent "
