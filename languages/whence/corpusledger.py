@@ -137,19 +137,20 @@ DECL_FIELDS = ("_regenerate", "_generated_by")
 
 #: Ledgers whose generator does NOT write a declaration into the artefact,
 #: with the reason. These are the coverage gap, kept visible.
-UNDECLARED = {
-    "builtin-liveness.json": {
-        "command": "python3 builtinlive.py --write --ledger <path>",
-        "why": "`builtinlive._write` dumps `ledger_view(c)` -- a reduced "
-               "projection of the census -- so a `_regenerate` key in the "
-               "artefact would not survive its own regeneration.",
-    },
-    "builtin-runtime.json": {
-        "command": "python3 runlive.py --write --ledger <path>",
-        "why": "same shape as builtin-liveness: `runlive._write` dumps a "
-               "computed view, not a document it could annotate.",
-    },
-}
+#: ROUND 516 CLOSED BOTH ENTRIES THAT USED TO LIVE HERE, and the reason
+#: they carried was wrong rather than merely obsolete. It read: "`_write`
+#: dumps `ledger_view(c)` -- a reduced projection of the census -- so a
+#: `_regenerate` key in the artefact would not survive its own
+#: regeneration." `ledger_view` is a PURE FUNCTION of the census, so a
+#: constant it emits is reproduced on every run; the key had to go into
+#: `ledger_view` rather than into `_write` (which `--json` shares with the
+#: full census), and round 512's next-step #3 named `_write`. Emptying
+#: this table takes this module's hand-maintained surface to zero: every
+#: generated ledger under `state/whence/` now declares its own command.
+#: The table stays -- an entry here with a REASON is the honest way to
+#: carry a generator that genuinely cannot annotate its output, and
+#: deleting the mechanism would push the next such case into silence.
+UNDECLARED = {}
 
 #: Not derived from anything, so freshness is not defined for them.
 NOT_GENERATED = {

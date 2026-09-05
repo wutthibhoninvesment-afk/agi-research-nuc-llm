@@ -3344,5 +3344,31 @@
   "id": "gawci-neg-new-checker",
   "expect": [],
   "prompt": "We have no linter at all. I want to write one from scratch for our Go services and run it in CI on the merge commit. There is no existing check, no hook, and no history of this defect class to look at yet \u2014 I just read about the bug pattern in a blog post. Where should I start?"
+ },
+ {
+  "id": "magbmw-green-guard-stale-file",
+  "expect": [
+   "measure-a-gate-by-mutating-what-it-guards"
+  ],
+  "prompt": "We just found that our generated API-surface snapshot had been stale for about four months. There IS a `snapshot --check` in CI and it was green the whole time; I regenerated the snapshot and CI is green again. My lead wants me to write up what happened. Before I do that I'd like to know what else that check can't see, and I don't want the answer to be me reading the function and guessing."
+ },
+ {
+  "id": "magbmw-does-it-cover-field-x",
+  "expect": [
+   "measure-a-gate-by-mutating-what-it-guards"
+  ],
+  "prompt": "Reviewing a PR that adds a `deprecations` block to our generated schema lockfile. The author says the existing `lockfile verify` command covers it. I read verify() and I *think* it only compares the `tables` key, but the code is 300 lines with helpers and I don't trust my reading. How do I settle this in a way that stays settled after someone edits verify()?"
+ },
+ {
+  "id": "magbmw-widening-a-verifier",
+  "expect": [
+   "measure-a-gate-by-mutating-what-it-guards"
+  ],
+  "prompt": "I'm about to widen our golden-file verifier so it also compares the header metadata, not just the body. Ticket says 'verifier now checks more'. That's not a number and I'd rather land this with a before/after I can put in the PR description. The verifier is a CLI that reads the golden path from a module constant."
+ },
+ {
+  "id": "magbmw-neg-flaky-integration-test",
+  "expect": [],
+  "prompt": "Our integration test against the staging payments API fails maybe one run in six with a 504 from the upstream sandbox. There is no generated file involved -- the test hits a live service and asserts on the response. I want to make CI trustworthy again. What's the move?"
  }
 ]

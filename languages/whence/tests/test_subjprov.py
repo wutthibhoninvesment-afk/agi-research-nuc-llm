@@ -475,10 +475,22 @@ def test_every_census_pair_finds_its_assertion(live):
     assert unjoined == []
     #
     # ROUND 512: this line read `== [57, 57]`, which conflated two claims.
-    # The INVARIANT -- every census pair joins, so the two counts agree --
-    # is total in what drifts and is what this node is named for. The SIZE
-    # (and that count is 57) moves on any corpus addition contributing a
-    # shadow pair.
+    # It split them, and ROUND 516 found the half it kept is not the claim
+    # the comment says it is. `checkscope.py --selfref` reported this
+    # assertion as one whose truth is a function of the LEDGER ALONE, and
+    # it is: `compare_with_census` emits one row per census pair
+    # UNCONDITIONALLY -- a pair that fails to join still produces a row,
+    # with `prov` defaulted to "unknown" -- so `len(rows)` counts the
+    # census's own pairs and can never disagree with a census whose
+    # `totals` agrees with its `nodes`. The join invariant is asserted two
+    # lines above, by `unjoined == []`, and that is the line that would go
+    # red. What survives here is a real but DIFFERENT claim: the census's
+    # published `totals["pairs"]` agrees with its own `nodes` -- which,
+    # until this round, was the only place in the tree that compared them
+    # (`assertshadow --check` was measured BLIND to its own `totals`).
+    # `test_the_pair_count_identity_cannot_see_a_join_failure` below is
+    # the falsification. The SIZE (and that count is 57) moves on any
+    # corpus addition contributing a shadow pair.
     #
     # The conflation hid a twelve-round staleness. Round 510 added
     # `tests/test_branchlive.py`, which contributes a shadow pair -- but
@@ -490,6 +502,35 @@ def test_every_census_pair_finds_its_assertion(live):
     # size may not share a node with shape -- is why the size now lives in
     # `test_the_number_of_census_pairs_is_pinned` instead of here.
     assert len(rows) == A.load_census()["totals"]["pairs"]
+
+
+def test_the_pair_count_identity_cannot_see_a_join_failure(tmp_path):
+    """ROUND 516: the falsification for the comment above.
+
+    A census naming a node this tree does not contain is the strongest
+    join failure there is. `compare_with_census` still returns exactly one
+    row per declared pair, so `len(rows) == census["totals"]["pairs"]`
+    holds -- and the assertion that was named for the join invariant is
+    green on a census that joins to nothing. `unjoined == []` is the one
+    that fires."""
+    empty = tmp_path / "tests"
+    empty.mkdir()
+    census = {
+        "nodes": {"test_no_such_file.py::test_nothing": {
+            "lineno": 1,
+            "pairs": [{"magnitude_line": 1, "shape_line": 2,
+                       "magnitude": "assert len(x) > 0",
+                       "shape": "assert x == []",
+                       "independent": False, "tree_derived": False}]}},
+        "totals": {"pairs": 1},
+    }
+    rows, _helpers = S.compare_with_census(str(empty), census)
+    assert len(rows) == census["totals"]["pairs"] == 1
+    assert [(r["prov"], r["subjects"]) for r in rows] == [("unknown", {})]
+
+    unjoined = [r["node"] for r in rows
+                if not r["subjects"] and r["prov"] == "unknown"]
+    assert unjoined == ["test_no_such_file.py::test_nothing"]
 
 
 def test_the_number_of_census_pairs_is_pinned(live):
@@ -629,9 +670,9 @@ def test_the_answer_is_the_same_in_two_processes():
 
 
 def test_the_ledger_on_disk_matches_the_live_tree(live):
-    rows, _helpers, guards = live
+    rows, helpers, guards = live
     declared = S.load_ledger()
-    assert S.check_ledger(declared, rows, guards) == []
+    assert S.check_ledger(declared, rows, guards, helpers) == []
 
 
 def test_the_ledger_totals_are_the_sums_of_its_own_rows():

@@ -3,17 +3,17 @@
   "_regenerate": "cd languages/whence && python3 assertshadow.py --history --json <this file>",
   "_headline_predicate": "is_magnitude (widened) x is_shape (non-empty display), branch-compatible, magnitude strictly first",
   "totals": {
-    "files": 77,
-    "test_functions": 2046,
-    "asserts": 4154,
+    "files": 78,
+    "test_functions": 2075,
+    "asserts": 4215,
     "assert_kinds": {
-      "other": 2667,
-      "shape": 568,
-      "shape_empty": 168,
-      "magnitude": 751
+      "other": 2695,
+      "shape": 591,
+      "shape_empty": 175,
+      "magnitude": 754
     },
-    "functions_with_magnitude": 510,
-    "functions_with_shape": 436,
+    "functions_with_magnitude": 513,
+    "functions_with_shape": 455,
     "candidates": 38,
     "pairs": 58,
     "pairs_strict": 58,

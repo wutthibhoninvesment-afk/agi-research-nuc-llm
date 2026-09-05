@@ -1,0 +1,484 @@
+{
+  "_what": "which top-level keys of each generated ledger under state/whence its OWN --check verb can see, measured by mutation -- round 512's next-steps #4 and #6, answered by round 516.",
+  "_regenerate": "cd languages/whence && python3 checkscope.py --scope --json <this file>",
+  "_method": "one key perturbed per run (delete, and the smallest corruption its type allows); the gate is pointed at the mutant; a non-zero exit is SEES, exit 0 is BLIND, a traceback is CRASH. Every ledger's sweep starts from an unmutated control that must exit 0.",
+  "totals": {
+    "keys": 32,
+    "seen": 9,
+    "blind": 23,
+    "crash_only": 1
+  },
+  "ledgers": [
+    {
+      "ledger": "assert-shadow-census.json",
+      "verb": "assertshadow.py --check",
+      "keys": [
+        {
+          "key": "_headline_predicate",
+          "prose": true,
+          "verdicts": {
+            "delete": "BLIND",
+            "corrupt": "BLIND"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "suffixed the string"
+          },
+          "seen": false
+        },
+        {
+          "key": "_history",
+          "prose": true,
+          "verdicts": {
+            "delete": "BLIND",
+            "corrupt": "BLIND"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "suffixed the string"
+          },
+          "seen": false
+        },
+        {
+          "key": "_regenerate",
+          "prose": true,
+          "verdicts": {
+            "delete": "BLIND",
+            "corrupt": "BLIND"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "suffixed the string"
+          },
+          "seen": false
+        },
+        {
+          "key": "_what",
+          "prose": true,
+          "verdicts": {
+            "delete": "BLIND",
+            "corrupt": "BLIND"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "suffixed the string"
+          },
+          "seen": false
+        },
+        {
+          "key": "by_file",
+          "prose": false,
+          "verdicts": {
+            "delete": "BLIND",
+            "corrupt": "BLIND"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "dropped the last of 25 element(s)"
+          },
+          "seen": false
+        },
+        {
+          "key": "costly_nodes",
+          "prose": false,
+          "verdicts": {
+            "delete": "SEES",
+            "corrupt": "SEES"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "dropped the last of 2 element(s)"
+          },
+          "seen": true
+        },
+        {
+          "key": "nodes",
+          "prose": false,
+          "verdicts": {
+            "delete": "SEES",
+            "corrupt": "SEES"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "dropped member 'test_branchlive.py::test_the_walk_finds_ifs_inside_named_and_anonymous_functions'"
+          },
+          "seen": true
+        },
+        {
+          "key": "totals",
+          "prose": false,
+          "verdicts": {
+            "delete": "BLIND",
+            "corrupt": "BLIND"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "dropped member 'assert_kinds'"
+          },
+          "seen": false
+        }
+      ],
+      "control": {
+        "rc": 0,
+        "output": "assert-shadow census: 38 candidate node(s), ledger agrees\n"
+      },
+      "status": "ok"
+    },
+    {
+      "ledger": "builtin-liveness.json",
+      "verb": "builtinlive.py --strict",
+      "keys": [
+        {
+          "key": "by_verdict",
+          "prose": false,
+          "verdicts": {
+            "delete": "SEES",
+            "corrupt": "SEES"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "dropped member 'used_by_example'"
+          },
+          "seen": true
+        },
+        {
+          "key": "counts",
+          "prose": false,
+          "verdicts": {
+            "delete": "BLIND",
+            "corrupt": "BLIND"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "dropped member 'used_by_example'"
+          },
+          "seen": false
+        },
+        {
+          "key": "n_builtins",
+          "prose": false,
+          "verdicts": {
+            "delete": "BLIND",
+            "corrupt": "BLIND"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "37 -> 38"
+          },
+          "seen": false
+        }
+      ],
+      "control": {
+        "rc": 0,
+        "output": "`if c { a } else { b }`, `fn f(x) { x }`) at line 12, col 10\n  UNPARSEABLE example  nano_reasoner.lang -- ParseError: unexpected '=' (Whence has no assignment; a name binds once \u2014 write `let name = value`) at line 31, col 21\n  UNPARSEABLE example  prod_demo_v1.lang -- ParseError: unexpected 'rescue' (`rescue` is infix: `risky rescue fallback`) at line 27, col 23\n  UNPARSEABLE example  prod_demo_v3.lang -- ParseError: expected ')', got 'total' (two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted) at line 22, col 19\n  UNPARSEABLE example  prod_demo_v4.lang -- ParseError: two statements on one line (Whence has no spelled-out numbers; write the literal `0.0`) at line 8, col 32\n  UNPARSEABLE example  prod_demo_v5.lang -- ParseError: unexpected 'rescue' (`rescue` is infix: `risky rescue fallback`) at line 35, col 18\n  UNPARSEABLE example  whenceguard_auditor.lang -- ParseError: unexpected ':' (records are written `@{a: 1}`, not `{a: 1}`) at line 14, col 10\n  UNPARSEABLE example  whenceguard_v2.lang -- ParseError: two statements on one line (two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted) at line 9, col 21\n"
+      },
+      "status": "ok"
+    },
+    {
+      "ledger": "builtin-runtime.json",
+      "verb": "runlive.py --strict",
+      "keys": [
+        {
+          "key": "_what",
+          "prose": true,
+          "verdicts": {
+            "delete": "BLIND",
+            "corrupt": "BLIND"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "suffixed the string"
+          },
+          "seen": false
+        },
+        {
+          "key": "by_verdict",
+          "prose": false,
+          "verdicts": {
+            "delete": "BLIND",
+            "corrupt": "BLIND"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "dropped member 'run_and_written'"
+          },
+          "seen": false
+        },
+        {
+          "key": "contract_checks",
+          "prose": false,
+          "verdicts": {
+            "delete": "BLIND",
+            "corrupt": "BLIND"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "100021 -> 100022"
+          },
+          "seen": false
+        },
+        {
+          "key": "counts",
+          "prose": false,
+          "verdicts": {
+            "delete": "BLIND",
+            "corrupt": "BLIND"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "dropped member 'run_and_written'"
+          },
+          "seen": false
+        },
+        {
+          "key": "n_builtins",
+          "prose": false,
+          "verdicts": {
+            "delete": "BLIND",
+            "corrupt": "BLIND"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "37 -> 38"
+          },
+          "seen": false
+        },
+        {
+          "key": "n_errors",
+          "prose": false,
+          "verdicts": {
+            "delete": "SEES",
+            "corrupt": "SEES"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "10 -> 11"
+          },
+          "seen": true
+        },
+        {
+          "key": "n_ran",
+          "prose": false,
+          "verdicts": {
+            "delete": "BLIND",
+            "corrupt": "BLIND"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "24 -> 25"
+          },
+          "seen": false
+        },
+        {
+          "key": "runtime",
+          "prose": false,
+          "verdicts": {
+            "delete": "SEES",
+            "corrupt": "SEES"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "dropped member 'abs'"
+          },
+          "seen": true
+        }
+      ],
+      "control": {
+        "rc": 0,
+        "output": "      [parse] ParseError: unexpected '=' (Whence has no assignment; a name binds once \u2014 write `let name = value`) at line 31, col 21\n  DID NOT RUN  prod_demo_v1.lang                  [parse] ParseError: unexpected 'rescue' (`rescue` is infix: `risky rescue fallback`) at line 27, col 23\n  DID NOT RUN  prod_demo_v3.lang                  [parse] ParseError: expected ')', got 'total' (two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted) at line 22, col 19\n  DID NOT RUN  prod_demo_v4.lang                  [parse] ParseError: two statements on one line (Whence has no spelled-out numbers; write the literal `0.0`) at line 8, col 32\n  DID NOT RUN  prod_demo_v5.lang                  [parse] ParseError: unexpected 'rescue' (`rescue` is infix: `risky rescue fallback`) at line 35, col 18\n  DID NOT RUN  whenceguard_auditor.lang           [parse] ParseError: unexpected ':' (records are written `@{a: 1}`, not `{a: 1}`) at line 14, col 10\n  DID NOT RUN  whenceguard_v2.lang                [parse] ParseError: two statements on one line (two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted) at line 9, col 21\n  ledger matches\n"
+      },
+      "status": "ok"
+    },
+    {
+      "ledger": "subject-provenance.json",
+      "verb": "subjprov.py --check",
+      "keys": [
+        {
+          "key": "_assumption",
+          "prose": true,
+          "verdicts": {
+            "delete": "BLIND",
+            "corrupt": "BLIND"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "suffixed the string"
+          },
+          "seen": false
+        },
+        {
+          "key": "_derived",
+          "prose": true,
+          "verdicts": {
+            "delete": "BLIND",
+            "corrupt": "BLIND"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "dropped the last of 2 element(s)"
+          },
+          "seen": false
+        },
+        {
+          "key": "_helpers_ignoring_arguments",
+          "prose": false,
+          "verdicts": {
+            "delete": "BLIND",
+            "corrupt": "BLIND"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "dropped member 'test_assertshadow.py'"
+          },
+          "seen": false
+        },
+        {
+          "key": "_lattice",
+          "prose": true,
+          "verdicts": {
+            "delete": "BLIND",
+            "corrupt": "BLIND"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "dropped the last of 5 element(s)"
+          },
+          "seen": false
+        },
+        {
+          "key": "_regenerate",
+          "prose": true,
+          "verdicts": {
+            "delete": "BLIND",
+            "corrupt": "BLIND"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "suffixed the string"
+          },
+          "seen": false
+        },
+        {
+          "key": "_what",
+          "prose": true,
+          "verdicts": {
+            "delete": "BLIND",
+            "corrupt": "BLIND"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "suffixed the string"
+          },
+          "seen": false
+        },
+        {
+          "key": "costly_dataflow",
+          "prose": false,
+          "verdicts": {
+            "delete": "SEES",
+            "corrupt": "SEES"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "dropped the last of 2 element(s)"
+          },
+          "seen": true
+        },
+        {
+          "key": "costly_unguarded",
+          "prose": false,
+          "verdicts": {
+            "delete": "BLIND",
+            "corrupt": "BLIND"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "dropped the last of 1 element(s)"
+          },
+          "seen": false
+        },
+        {
+          "key": "disagreements",
+          "prose": false,
+          "verdicts": {
+            "delete": "BLIND",
+            "corrupt": "BLIND"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "dropped the last of 3 element(s)"
+          },
+          "seen": false
+        },
+        {
+          "key": "pairs",
+          "prose": false,
+          "verdicts": {
+            "delete": "BLIND",
+            "corrupt": "BLIND"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "dropped the last of 58 element(s)"
+          },
+          "seen": false
+        },
+        {
+          "key": "totals",
+          "prose": false,
+          "verdicts": {
+            "delete": "CRASH",
+            "corrupt": "SEES"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "dropped member 'agree'"
+          },
+          "seen": true
+        }
+      ],
+      "control": {
+        "rc": 0,
+        "output": "0 finding(s). Regenerate: python3 subjprov.py --json ../../state/whence/subject-provenance.json\n"
+      },
+      "status": "ok"
+    },
+    {
+      "ledger": "testcorpus-contributions.json",
+      "verb": "pytest tests/test_testcorpus_contributions.py",
+      "keys": [
+        {
+          "key": "_generated_by",
+          "prose": true,
+          "verdicts": {
+            "delete": "SEES",
+            "corrupt": "SEES"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "suffixed the string"
+          },
+          "seen": true
+        },
+        {
+          "key": "files",
+          "prose": false,
+          "verdicts": {
+            "delete": "SEES",
+            "corrupt": "SEES"
+          },
+          "mutations": {
+            "delete": "deleted the key",
+            "corrupt": "dropped member 'test_assertshadow.py'"
+          },
+          "seen": true
+        }
+      ],
+      "control": {
+        "rc": 0,
+        "output": ".............                                                            [100%]\n13 passed in 4.19s\n"
+      },
+      "status": "ok"
+    }
+  ]
+}

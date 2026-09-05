@@ -110,6 +110,7 @@ CLI
     python3 subjprov.py --helpers           # where "arguments dominate" fails
     python3 subjprov.py --json <path>       # write the ledger
     python3 subjprov.py --check             # ledger vs live, rc=1 on drift
+    python3 subjprov.py --check --ledger <p>  # ...against a candidate file
 """
 
 import ast
@@ -1198,21 +1199,61 @@ def load_ledger(path=None):
         return json.load(fh)
 
 
-def check_ledger(declared, rows, guards):
-    """Findings where the ledger on disk disagrees with the live tree."""
+def check_ledger(declared, rows, guards, helpers):
+    """Findings where the ledger on disk disagrees with the live tree.
+
+    THREE codes, and the third is what round 516 added:
+
+        S001  a headline total moved
+        S002  the costly-dataflow set moved
+        S003  ANY OTHER top-level key of this document differs from what
+              `build_ledger` would write right now
+
+    WHY S003 HAD TO EXIST. Round 512 caught this ledger STALE -- it was
+    missing `test_specstale.py` entirely -- while this very function
+    returned `[]` and the CLI printed "0 finding(s)". Both of its codes
+    were telling the truth: `totals` really had not moved (the new file
+    contributes no shadow pair) and `costly_dataflow` really had not moved.
+    They range over two of the document's eleven top-level keys, and the
+    drift was in `_helpers_ignoring_arguments`, which is one of the other
+    nine. A self-check blind to the staleness it exists to detect is worse
+    than no self-check, because round 512 found it QUOTED AS EVIDENCE.
+
+    The fix is not a twelfth bespoke comparison. It is to stop enumerating
+    what to compare: `build_ledger` is a pure function of `(rows, helpers,
+    guards)`, so the total predicate is "the document I would write now
+    equals the document on disk", and S001/S002 survive only because their
+    messages are more readable than a whole-key diff. That is why `helpers`
+    is now a REQUIRED argument -- there is no partial mode to fall back to.
+
+    S001 also now ranges over the UNION of the declared and live totals
+    rather than over the live ones alone; a total that exists on disk and
+    no longer exists in the tree used to be invisible for the same reason.
+    And `declared["totals"]` is read with `.get`: round 516's mutation
+    sweep found the subscript was the one place where a malformed ledger
+    made this verb raise instead of report."""
+    import checkscope                                  # noqa: PLC0415
     out = []
-    live = totals(rows, guards)
-    for k, v in sorted(live.items()):
-        if declared["totals"].get(k) != v:
+    live_doc = build_ledger(rows, helpers, guards)
+    live = live_doc["totals"]
+    dec_totals = declared.get("totals")
+    if not isinstance(dec_totals, dict):
+        out.append(("S001", "totals",
+                    "ledger has no `totals` object (%r)" % (dec_totals,)))
+        dec_totals = {}
+    for k in sorted(set(live) | set(dec_totals)):
+        if dec_totals.get(k) != live.get(k):
             out.append(("S001", k,
                         "ledger says %r, tree says %r"
-                        % (declared["totals"].get(k), v)))
-    live_costly = sorted(set(r["node"] for r in rows
-                             if r["independent"] and r["derived"]))
+                        % (dec_totals.get(k), live.get(k))))
+    live_costly = live_doc["costly_dataflow"]
     if declared.get("costly_dataflow") != live_costly:
         out.append(("S002", "costly_dataflow",
                     "ledger %r, tree %r"
                     % (declared.get("costly_dataflow"), live_costly)))
+    for key, why in checkscope.document_diff(
+            declared, live_doc, ignore=("totals", "costly_dataflow")):
+        out.append(("S003", key, why))
     return out
 
 
@@ -1272,6 +1313,17 @@ def main(argv):
         directory = args[i + 1]
         del args[i:i + 2]
 
+    # Round 516 (language C): `--check` could only ever read ONE path, the
+    # one `ledger_path()` computes. That is why nothing had ever measured
+    # what this verb can see: the only way to run it against a candidate
+    # ledger was to overwrite the real one first. `checkscope.py` mutates a
+    # COPY and points the verb at it.
+    ledger_override = None
+    if "--ledger" in args:
+        i = args.index("--ledger")
+        ledger_override = args[i + 1]
+        del args[i:i + 2]
+
     if "--helpers" in args:
         _funcs, helpers = analyse_tree(directory)
         print(render_helpers(helpers))
@@ -1288,7 +1340,8 @@ def main(argv):
         return 0
 
     if "--check" in args:
-        findings = check_ledger(load_ledger(), rows, guards)
+        findings = check_ledger(load_ledger(ledger_override), rows, guards,
+                                helpers)
         for code, what, msg in findings:
             print("%s %s: %s" % (code, what, msg))
         print("%d finding(s). Regenerate: python3 subjprov.py --json "

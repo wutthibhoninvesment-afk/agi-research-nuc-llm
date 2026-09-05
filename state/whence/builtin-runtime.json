@@ -1,4 +1,5 @@
 {
+  "_regenerate": "cd languages/whence && python3 runlive.py --write --ledger <this file>",
   "_what": "Runtime builtin liveness (round 506, `runlive.py`). Per builtin: how many times it was INVOKED while every runnable program in `examples/` ran, against how many times it is written in that same corpus. Counted at `values.Builtin.fn`, the attribute all four dispatch paths reach through. Annotation contracts (`p: Type`, `-> Type`) are counted separately and are NOT `typed` calls: v0.19 moved that check off the builtin.",
   "by_verdict": {
     "neither": [],

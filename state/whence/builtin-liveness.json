@@ -1,4 +1,5 @@
 {
+ "_regenerate": "cd languages/whence && python3 builtinlive.py --write --ledger <this file>",
  "by_verdict": {
   "unused": [],
   "used_by_example": [

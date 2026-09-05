@@ -108,6 +108,7 @@ CLI
     python3 assertshadow.py --history              # + realised-shadow counts
     python3 assertshadow.py --json <path>          # write the census
     python3 assertshadow.py --check                # ledger vs live, rc=1 on drift
+    python3 assertshadow.py --check --census <p>  # ...against a candidate file
 """
 
 import ast
@@ -964,6 +965,44 @@ def check_costly(declared, funcs):
     return sorted(old - live), sorted(live - old)
 
 
+def _residual(declared, funcs):
+    """Top-level keys of the census that no finding above ranges over.
+
+    THE PREDICATE THAT IS TOTAL BY CONSTRUCTION, and round 512's rule
+    applied to its own next-step #6: `build_census` is a pure function of
+    `funcs`, so "the document I would write now" is the only comparison
+    that cannot fall behind the document.
+
+    Two exclusions, both named rather than silent. `nodes` and
+    `costly_nodes` are excluded because `check_census`, `check_coordinates`
+    and `check_costly` already report them in a form a reader can act on --
+    a whole-key diff of 38 nodes is not. And the census is rebuilt with the
+    SAME `history` shape as the declared document, because `--history` runs
+    `git log -L` per pair: rebuilding without it would report `_history` as
+    a spurious drift on every check, which is how a total gate earns the
+    reputation that gets it deleted."""
+    import checkscope                                  # noqa: PLC0415
+    live = build_census(funcs, history="_history" in declared)
+    #: Totals that only exist once `add_history` has run `git log -L` over
+    #: every pair. `--check` deliberately does not, so they are dropped
+    #: from BOTH sides rather than reported as drift -- found by
+    #: `test_the_cli_check_exits_zero_on_this_tree` going red on the first
+    #: run of the total residual, which is the failure mode the docstring
+    #: above predicts and the reason the exclusions are named out loud.
+    hist = ("literal_edits", "pairs_with_history", "repins",
+            "pairs_with_a_repin")
+    if not any(f.get("pairs") and "literal_edits" in f["pairs"][0]
+               for f in funcs if f.get("pairs")):
+        declared = dict(declared)
+        declared["totals"] = dict((k, v) for k, v in
+                                  declared.get("totals", {}).items()
+                                  if k not in hist)
+        live["totals"] = dict((k, v) for k, v in live["totals"].items()
+                              if k not in hist)
+    return checkscope.document_diff(declared, live,
+                                    ignore=("nodes", "costly_nodes"))
+
+
 def build_census(funcs, history=False):
     nodes = {}
     for f in candidates(funcs):
@@ -1060,6 +1099,11 @@ def main(argv):
     directory = TESTS
     if "--tests" in args:
         directory = args[args.index("--tests") + 1]
+    # Round 516 (language C): see `subjprov.main` -- a `--check` that can
+    # only read its own hardcoded path cannot be run against a mutant
+    # without endangering the artefact, and so was never measured.
+    census_file = (args[args.index("--census") + 1]
+                   if "--census" in args else None)
 
     funcs = scan_tree(directory)
     if history:
@@ -1067,9 +1111,10 @@ def main(argv):
 
     if check:
         try:
-            declared = load_census()
+            declared = load_census(census_file)
         except FileNotFoundError:
-            print("no census on disk: %s" % census_path())
+            print("no census on disk: %s"
+                  % (census_file or census_path()))
             return 1
         missing, extra = check_census(declared, funcs)
         # `check_costly` existed from round 498 and was exercised only by
@@ -1078,7 +1123,18 @@ def main(argv):
         # only from a test is a gate the author of a change does not run.
         cmiss, cextra = check_costly(declared, funcs)
         moved = check_coordinates(declared, funcs)
-        if not (missing or extra or cmiss or cextra or moved):
+        # ROUND 516: everything above ranges over `nodes` and
+        # `costly_nodes`. `checkscope.py --scope` mutated this census one
+        # top-level key at a time and pointed this very verb at each
+        # mutant: it saw 2 of the 8 keys. The census's OWN HEADLINE --
+        # `totals`, the three numbers the CLI prints and a reader quotes --
+        # was one of the six it could not see, and round 512 found those
+        # numbers had drifted 72 -> 76 files, 1935 -> 2029 test functions
+        # and 3908 -> 4122 asserts while this line printed "ledger agrees".
+        # The residual is not a seventh bespoke comparison: it is the
+        # document this run would write, diffed against the one on disk.
+        residual = _residual(declared, funcs)
+        if not (missing or extra or cmiss or cextra or moved or residual):
             print("assert-shadow census: %d candidate node(s), ledger agrees"
                   % totals(funcs)["candidates"])
             return 0
@@ -1093,6 +1149,12 @@ def main(argv):
         for nid, dm, ds, lm, ls in moved:
             print("MOVED    %s  ledger %d/%d -> tree %d/%d"
                   % (nid, dm, ds, lm, ls))
+        for key, why in residual:
+            print("DRIFT    %-20s %s" % (key, why))
+        if residual:
+            print("         (`nodes` is compared as a set and by "
+                  "coordinate above; its per-pair `literal_edits` need "
+                  "--history and are NOT compared here)")
         print("regenerate: cd languages/whence && python3 assertshadow.py "
               "--history --json <census>")
         return 1

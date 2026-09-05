@@ -384,6 +384,11 @@ def census_lines(c):
 def ledger_view(c):
     """The pinned subset: verdicts and counts, no wall-clock, no paths."""
     return {
+        # ROUND 516 (round 512's next-step #3) -- see the twin comment in
+        # `builtinlive.ledger_view` for why this key lives here and not in
+        # `_write`, and for the `corpusledger.UNDECLARED` reason it refutes.
+        "_regenerate": "cd languages/whence && python3 runlive.py "
+                       "--write --ledger <this file>",
         "_what": ("Runtime builtin liveness (round 506, `runlive.py`). Per "
                   "builtin: how many times it was INVOKED while every "
                   "runnable program in `examples/` ran, against how many "

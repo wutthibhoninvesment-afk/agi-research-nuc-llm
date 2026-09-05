@@ -551,6 +551,18 @@ def ledger_view(c):
     are excluded on purpose: a ratchet that moves when a test file is
     renamed is a ratchet nobody can keep green."""
     return {
+        # ROUND 516 (round 512's next-step #3). The declaration goes HERE,
+        # not in `_write`: `_write` is shared with `--json`, which dumps
+        # the FULL census, and a census is not a document that regenerates
+        # with `--write --ledger`. `corpusledger.UNDECLARED` used to carry
+        # this command with the reason "a `_regenerate` key in the artefact
+        # would not survive its own regeneration" -- which is false, and
+        # was the last thing keeping `corpusledger`'s hand-maintained
+        # surface above zero. `ledger_view` is a pure function of the
+        # census, so a constant it emits is reproduced byte-for-byte on
+        # every run; `corpusledger.py --check` is what proves it.
+        "_regenerate": "cd languages/whence && python3 builtinlive.py "
+                       "--write --ledger <this file>",
         "n_builtins": c["n_builtins"],
         "by_verdict": c["by_verdict"],
         "counts": c["counts"],
