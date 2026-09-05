@@ -294,3 +294,118 @@ def test_kill_rate_is_none_rather_than_zero_when_nothing_was_scorable():
             "op": "cmp", "description": "d", "seconds": 1.0}]
     rep = NC.report(ran, [1], [1], 0, g, None, 1.0)
     assert rep["kill_rate"] is None          # not 0.0, which reads as a real score
+
+
+# --------------------------------------------------------------------------
+# Round 502 (NUC-integration E): the three selections.
+#
+# Round 497 recorded `suite_digest` per row and counted the rows scored under
+# another one. That made the staleness VISIBLE and left it unpayable: the
+# resume key is `(mutant_id, subject_digest)`, so a scored mutant is skipped
+# forever, and `survived` is exactly the verdict a stronger suite overturns.
+# Round 491 added six tests immediately after its own slice to kill eight of
+# its own survivors and the ledger still called all fifteen survivors.
+
+def _slice(root, tmp_path, ledger, **kw):
+    cov = _collect(root, by_test=True)
+    p = str(tmp_path / "cov.json")
+    CV.save(cov, p)
+    return NC.run_slice(root, "pkg/mod.py", p,
+                        [sys.executable, "-m", "pytest", "-x", "-q", "tests"],
+                        ledger=ledger, budget_s=120.0, timeout_s=60.0,
+                        linked=False, **kw)
+
+
+def test_only_scores_just_the_named_ids_and_still_skips_scored_ones(tmp_path):
+    root = _project(tmp_path)
+    ms, digest = NC.select_mutants(root, "pkg/mod.py")
+    led = str(tmp_path / "led.jsonl")
+    NC.append_ledger(led, {"id": ms[0].id, "subject_digest": digest,
+                           "status": "killed", "suite_digest": "whatever"})
+    rep = _slice(root, tmp_path, led, only_ids=[ms[0].id, ms[1].id])
+    assert rep["selection"] == "only"
+    assert rep["n_selected"] == 1                    # ms[0] already scored
+    assert [r["id"] for r in rep["survivors"]] in ([], [ms[1].id])
+
+
+def test_rescore_runs_a_mutant_the_ledger_already_holds(tmp_path):
+    root = _project(tmp_path)
+    ms, digest = NC.select_mutants(root, "pkg/mod.py")
+    led = str(tmp_path / "led.jsonl")
+    NC.append_ledger(led, {"id": ms[0].id, "subject_digest": digest,
+                           "status": "survived", "suite_digest": "old"})
+    rep = _slice(root, tmp_path, led, only_ids=[ms[0].id], rescore=True)
+    assert rep["selection"] == "only-rescore"
+    assert rep["n_selected"] == 1
+    assert rep["n_run_this_slice"] == 1
+
+
+def test_a_rescore_appends_and_the_ledger_is_last_wins(tmp_path):
+    """It must not EDIT the file. A ledger that rewrites rows loses the fact
+    that the verdict changed, which is the only interesting thing about it."""
+    root = _project(tmp_path)
+    ms, digest = NC.select_mutants(root, "pkg/mod.py")
+    led = str(tmp_path / "led.jsonl")
+    NC.append_ledger(led, {"id": ms[0].id, "subject_digest": digest,
+                           "status": "survived", "suite_digest": "old"})
+    _slice(root, tmp_path, led, only_ids=[ms[0].id], rescore=True)
+    rows = [json.loads(l) for l in open(led) if l.strip()]
+    assert len(rows) == 2 and rows[0]["suite_digest"] == "old"
+    assert NC.load_ledger(led)[(ms[0].id, digest)] is not rows[0]
+
+
+def test_stale_selects_exactly_the_survivors_graded_by_another_suite(tmp_path):
+    root = _project(tmp_path)
+    ms, digest = NC.select_mutants(root, "pkg/mod.py")
+    led = str(tmp_path / "led.jsonl")
+    # a stale survivor, a stale KILL, and a survivor at the current suite
+    NC.append_ledger(led, {"id": ms[0].id, "subject_digest": digest,
+                           "status": "survived", "suite_digest": "old"})
+    NC.append_ledger(led, {"id": ms[1].id, "subject_digest": digest,
+                           "status": "killed", "suite_digest": "old"})
+    cov = _collect(root, by_test=True)
+    p = str(tmp_path / "cov.json")
+    CV.save(cov, p)
+    base = [sys.executable, "-m", "pytest", "-x", "-q", "tests"]
+    suite = NC.suite_digest(root, base)
+    NC.append_ledger(led, {"id": ms[2].id, "subject_digest": digest,
+                           "status": "survived", "suite_digest": suite})
+    rep = _slice(root, tmp_path, led, stale_survivors_only=True)
+    assert rep["selection"] == "stale-survivors"
+    assert rep["n_selected"] == 1
+    assert rep["survivors_scored_under_another_suite"] == [ms[0].id]
+
+
+def test_a_selection_reports_every_verdict_it_CHANGED(tmp_path):
+    """The number the round quotes. Without it a re-score is a silent
+    correction and nobody can tell how wrong the old figure was."""
+    root = _project(tmp_path)
+    ms, digest = NC.select_mutants(root, "pkg/mod.py")
+    led = str(tmp_path / "led.jsonl")
+    NC.append_ledger(led, {"id": ms[0].id, "subject_digest": digest,
+                           "status": "survived", "suite_digest": "old"})
+    rep = _slice(root, tmp_path, led, stale_survivors_only=True)
+    changes = {c["id"]: c for c in rep["verdict_changes"]}
+    if rep["by_status"].get("killed"):
+        assert changes[ms[0].id]["was"] == "survived"
+        assert changes[ms[0].id]["now"] == "killed"
+    else:
+        assert changes == {}
+
+
+def test_the_default_selection_is_unchanged_and_reports_itself(tmp_path):
+    """Round 491's and 497's invocation must keep behaving exactly as it did;
+    the new fields are additive."""
+    root = _project(tmp_path)
+    led = str(tmp_path / "led.jsonl")
+    rep = _slice(root, tmp_path, led)
+    assert rep["selection"] == "unscored"
+    assert rep["n_selected"] == rep["n_sites_in_scope"]
+    assert "verdict_changes" not in rep
+
+
+def test_the_cli_parses_the_three_new_flags():
+    a = NC.build_parser().parse_args(["--only", "a,b", "--rescore"])
+    assert a.only == "a,b" and a.rescore is True and a.stale is False
+    b = NC.build_parser().parse_args(["--stale"])
+    assert b.stale is True and b.only is None and b.rescore is False

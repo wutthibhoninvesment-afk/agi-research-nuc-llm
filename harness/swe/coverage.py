@@ -176,6 +176,35 @@ def executable_lines(source, filename="<file>"):
     return lines
 
 
+def _suite_hashes(root, pytest_args):
+    """`{path: sha256}` for every existing FILE named in `pytest_args`.
+
+    ROUND 502. `file_hashes` records the digests of the traced SUBJECT files
+    and `MapPrioritizer(require_fresh=True)` checks them, so a map is "fresh"
+    exactly when the code under test has not moved. Nothing recorded the
+    SUITE, and a by-test map is a map of test NODEIDS -- so a map collected
+    before a test was written cannot select that test, ever.
+
+    That is not a theoretical hazard. Rounds 491 and 497 each added six tests
+    to `nuc/tests/test_perturbation.py` for the express purpose of killing
+    survivors they had just found. Round 502 re-scored those survivors against
+    a map holding 233 units while the suite held 245, and got 0 of 15 killed
+    -- every killer test invisible to the selection, every mutant graded by a
+    subset that excluded the one test written to kill it. A stale map biases a
+    campaign toward `survived`, which is the direction that reads as a
+    finding.
+    """
+    out = {}
+    for a in pytest_args or ():
+        if not isinstance(a, str) or a.startswith("-"):
+            continue
+        path = a.split("::")[0]
+        full = path if os.path.isabs(path) else os.path.join(root, path)
+        if os.path.isfile(full):
+            out[path] = _file_hash(full)
+    return out
+
+
 def collect(root, rel_paths, pytest_args=("-q", "-p", "no:cacheprovider", "tests"),
             timeout_s=3600.0, python=sys.executable, interest=None, by_file=False,
             by_test=False):
@@ -239,7 +268,8 @@ def collect(root, rel_paths, pytest_args=("-q", "-p", "no:cacheprovider", "tests
                     "returncode": p.returncode, "seconds": round(secs, 1), "pytest_tail": tail,
                     "targeted": interest is not None, "by_file": bool(by_file),
                     "by_test": bool(by_test),
-                    "file_hashes": dict((rel, _file_hash(real)) for real, rel in targets.items())}
+                    "file_hashes": dict((rel, _file_hash(real)) for real, rel in targets.items()),
+                    "suite_hashes": _suite_hashes(root, pytest_args)}
     if interest is not None:
         cov["_interest"] = dict((rel, interest_real[real]) for real, rel in targets.items())
     return cov

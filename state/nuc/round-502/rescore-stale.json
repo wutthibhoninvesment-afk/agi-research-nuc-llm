@@ -1,0 +1,160 @@
+{
+ "argv": [
+  "--stale",
+  "--budget",
+  "1200",
+  "--out",
+  "state/nuc/round-502/rescore-stale.json"
+ ],
+ "by_status": {
+  "survived": 15
+ },
+ "kill_rate": 0.0,
+ "linked": true,
+ "master": {
+  "drift_events": [],
+  "link_seconds": 2.67,
+  "n_drift_events": 0,
+  "n_fallback": 0,
+  "n_sandboxes": 15,
+  "n_stagings": 1,
+  "seconds_per_sandbox": 0.178,
+  "stage_seconds": 2.6,
+  "witness_seconds": 4.64
+ },
+ "median_units_selected": 40,
+ "mutants_scored_against_a_drifted_master": [],
+ "n_already_scored": 74,
+ "n_ledger_rows_scored_under_another_suite": 55,
+ "n_left_unrun_by_budget": 0,
+ "n_run_this_slice": 15,
+ "n_selected": 15,
+ "n_sites_in_scope": 89,
+ "oracle": {
+  "full": 0,
+  "subset": 15
+ },
+ "seconds": 277.7,
+ "seconds_per_mutant": 18.51,
+ "selection": "stale-survivors",
+ "subset_baseline": {
+  "n_clean": 10,
+  "n_distinct_subsets": 10,
+  "n_poisoned": 0,
+  "n_probes_run": 10,
+  "poisoned": [],
+  "probe_seconds": 68.2
+ },
+ "suite_digest": "2cd94b15530a0c79adb1603a126a82d4babc6c9a0f80b4b0c5fcaf05fe3519a4",
+ "survivors": [
+  {
+   "description": "50000 -> 50001",
+   "id": "perturbation.py:559:const#126",
+   "line": 559,
+   "op": "const"
+  },
+  {
+   "description": "GtE -> Gt",
+   "id": "perturbation.py:587:cmp#130",
+   "line": 587,
+   "op": "cmp"
+  },
+  {
+   "description": "LtE -> Lt",
+   "id": "perturbation.py:1582:cmp#161",
+   "line": 1582,
+   "op": "cmp"
+  },
+  {
+   "description": "1 -> 2",
+   "id": "perturbation.py:581:const#329",
+   "line": 581,
+   "op": "const"
+  },
+  {
+   "description": "GtE -> Gt",
+   "id": "perturbation.py:585:cmp#331",
+   "line": 585,
+   "op": "cmp"
+  },
+  {
+   "description": "GtE -> Gt",
+   "id": "perturbation.py:586:cmp#332",
+   "line": 586,
+   "op": "cmp"
+  },
+  {
+   "description": "0 -> 1",
+   "id": "perturbation.py:594:const#333",
+   "line": 594,
+   "op": "const"
+  },
+  {
+   "description": "True -> False",
+   "id": "perturbation.py:633:const#334",
+   "line": 633,
+   "op": "const"
+  },
+  {
+   "description": "Lt -> LtE",
+   "id": "perturbation.py:1580:cmp#373",
+   "line": 1580,
+   "op": "cmp"
+  },
+  {
+   "description": "Gt -> GtE",
+   "id": "perturbation.py:1580:cmp#377",
+   "line": 1580,
+   "op": "cmp"
+  },
+  {
+   "description": "0 -> 1",
+   "id": "perturbation.py:1631:const#379",
+   "line": 1631,
+   "op": "const"
+  },
+  {
+   "description": "True -> False",
+   "id": "perturbation.py:1661:const#382",
+   "line": 1661,
+   "op": "const"
+  },
+  {
+   "description": "0 -> 1",
+   "id": "perturbation.py:1580:const#627",
+   "line": 1580,
+   "op": "const"
+  },
+  {
+   "description": "LtE -> Lt",
+   "id": "perturbation.py:1638:cmp#631",
+   "line": 1638,
+   "op": "cmp"
+  },
+  {
+   "description": "GtE -> Gt",
+   "id": "perturbation.py:2246:cmp#662",
+   "line": 2246,
+   "op": "cmp"
+  }
+ ],
+ "survivors_scored_under_another_suite": [
+  "perturbation.py:1580:cmp#373",
+  "perturbation.py:1580:cmp#377",
+  "perturbation.py:1580:const#627",
+  "perturbation.py:1582:cmp#161",
+  "perturbation.py:1631:const#379",
+  "perturbation.py:1638:cmp#631",
+  "perturbation.py:1661:const#382",
+  "perturbation.py:2246:cmp#662",
+  "perturbation.py:559:const#126",
+  "perturbation.py:581:const#329",
+  "perturbation.py:585:cmp#331",
+  "perturbation.py:586:cmp#332",
+  "perturbation.py:587:cmp#130",
+  "perturbation.py:594:const#333",
+  "perturbation.py:633:const#334"
+ ],
+ "verdict_changes": [],
+ "wall_seconds": 286.2
+}

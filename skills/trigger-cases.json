@@ -3068,5 +3068,26 @@
    "generate-what-the-checker-accepts"
   ],
   "prompt": "I want to auto-generate the missing rows in our compliance registry, but I'm worried an autofill would just mark everything compliant and we'd stop noticing the real gaps. How do I build it so it can say no?"
+ },
+ {
+  "id": "asnof-near",
+  "expect": [
+   "a-survivor-is-not-one-finding"
+  ],
+  "prompt": "Our mutation campaign on the pricing engine finished: 214 mutants, 61 survivors, kill rate 71.5%. The ticket says \"add boundary tests for the survivors\" and I'm about to assign it. Before I do -- is 61 actually 61 problems? Some of them are on lines I'm not sure anything in production even runs."
+ },
+ {
+  "id": "asnof-mid",
+  "expect": [
+   "a-survivor-is-not-one-finding"
+  ],
+  "prompt": "mutmut says these 9 mutants survive in our report-generation module. Six of them are inside one f-string that builds the summary sentence we email to customers. I can't tell whether that means the sentence is unpinned or whether the branch never runs. How do I find out which?"
+ },
+ {
+  "id": "asnof-far",
+  "expect": [
+   "a-survivor-is-not-one-finding"
+  ],
+  "prompt": "We added tests specifically to kill the survivors from last quarter's mutation run, then re-ran the campaign with the same coverage map and got the exact same survivor list. The tests definitely pass. What would make a re-run blind to tests that already exist?"
  }
 ]

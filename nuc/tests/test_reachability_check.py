@@ -3563,12 +3563,19 @@ def test_the_audit_finds_nothing_unearned_in_the_live_log_today():
     construction. Round 484 moved coarse 20 -> 21 and the gap count 23 -> 24
     by backfilling round 478's missing row (`backfill-prose-r478`,
     `precision: coarse` because the addendum quotes no LastSeen and this
-    program does not invent digits). Re-derive them; do not preserve them."""
+    program does not invent digits). ROUND 502 moved coarse 21 -> 22 and the
+    gap count 24 -> 26, appending TWO rows for the same reason round 484 did:
+    its own `live-replay-r502`, and a `backfill-prose-r496` for round 496,
+    which probed the box twice, wrote the result into its knowledge file and
+    never appended a row. `unobserved_total_s` did NOT move this time and the
+    contrast is the lesson: round 484's pair straddled an UP observation and
+    created an interior, round 502's are two DOWN rows inside one witnessed
+    outage, which creates none. Re-derive them; do not preserve them."""
     aud = rc.precision_audit(rc.load_log(str(REAL_LOG)))
     assert aud["unearned_claims"] == []
     assert aud["unearned_missed_excursions"] == []
-    assert aud["by_precision"]["coarse"] == 21
-    assert aud["gaps_with_a_coarse_endpoint"] == 24
+    assert aud["by_precision"]["coarse"] == 22
+    assert aud["gaps_with_a_coarse_endpoint"] == 26
     assert 0.63 < aud["unobserved_carried_by_coarse_endpoint_fraction"] < 0.64
 
 

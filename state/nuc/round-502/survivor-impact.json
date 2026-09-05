@@ -1,0 +1,601 @@
+{
+ "battery": [
+  "window_swap",
+  "wsweep_swap",
+  "wsweep_commit",
+  "wsweep_steal",
+  "population_swap"
+ ],
+ "battery_gap": {
+  "engine": "needs an engine journal the union does not carry",
+  "exclusion": "randomised; not byte-reproducible, so not an output oracle",
+  "gap": "needs one sar table; the union's sar-all.txt is 120 sections",
+  "oom": "needs a journal the union does not carry",
+  "place": "needs an engine journal the union does not carry",
+  "reclaim": "needs one sar table; the union's sar-all.txt is 120 sections",
+  "stability": "needs an engine journal the union does not carry",
+  "window_commit": "rc 1 on this record: no derived costly-threshold",
+  "window_steal": "rc 1 on this record: no derived costly-threshold"
+ },
+ "by_reason": {
+  "branch_not_taken": 3,
+  "function_not_entered": 1,
+  "orphan_function": 8
+ },
+ "by_verdict": {
+  "moves_published_number": 11,
+  "reached_but_identical": 9,
+  "unreached_by_battery": 12
+ },
+ "capture": "state/nuc-record-union",
+ "control_identity_clean": true,
+ "moves_published_number": [
+  "perturbation.py:1654:const#1507",
+  "perturbation.py:1654:const#1558",
+  "perturbation.py:1655:arith#1216",
+  "perturbation.py:1655:arith#1396",
+  "perturbation.py:1655:cmp#972",
+  "perturbation.py:1655:const#1397",
+  "perturbation.py:1655:const#1557",
+  "perturbation.py:1655:const#1587",
+  "perturbation.py:2246:cmp#662",
+  "perturbation.py:2251:cmp#666",
+  "perturbation.py:2296:not#668"
+ ],
+ "n_lines_executed_by_battery": 1105,
+ "n_survivors_at_another_digest": 0,
+ "n_survivors_standing": 32,
+ "results": [
+  {
+   "description": "10.0 -> 11.0",
+   "diffs": [],
+   "enclosing_function_called_in_module": false,
+   "id": "perturbation.py:558:fconst#1739",
+   "line": 558,
+   "line_executed_by_battery": false,
+   "op": "fconst",
+   "owner": "classify_bucket",
+   "reason": "orphan_function",
+   "verdict": "unreached_by_battery"
+  },
+  {
+   "description": "50000 -> 50001",
+   "diffs": [],
+   "enclosing_function_called_in_module": false,
+   "id": "perturbation.py:559:const#126",
+   "line": 559,
+   "line_executed_by_battery": false,
+   "op": "const",
+   "owner": "classify_bucket",
+   "reason": "orphan_function",
+   "verdict": "unreached_by_battery"
+  },
+  {
+   "description": "50.0 -> 51.0",
+   "diffs": [],
+   "enclosing_function_called_in_module": false,
+   "id": "perturbation.py:560:fconst#1740",
+   "line": 560,
+   "line_executed_by_battery": false,
+   "op": "fconst",
+   "owner": "classify_bucket",
+   "reason": "orphan_function",
+   "verdict": "unreached_by_battery"
+  },
+  {
+   "description": "1 -> 2",
+   "diffs": [],
+   "enclosing_function_called_in_module": false,
+   "id": "perturbation.py:581:const#329",
+   "line": 581,
+   "line_executed_by_battery": false,
+   "op": "const",
+   "owner": "classify_bucket",
+   "reason": "orphan_function",
+   "verdict": "unreached_by_battery"
+  },
+  {
+   "description": "GtE -> Gt",
+   "diffs": [],
+   "enclosing_function_called_in_module": false,
+   "id": "perturbation.py:585:cmp#331",
+   "line": 585,
+   "line_executed_by_battery": false,
+   "op": "cmp",
+   "owner": "classify_bucket",
+   "reason": "orphan_function",
+   "verdict": "unreached_by_battery"
+  },
+  {
+   "description": "GtE -> Gt",
+   "diffs": [],
+   "enclosing_function_called_in_module": false,
+   "id": "perturbation.py:586:cmp#332",
+   "line": 586,
+   "line_executed_by_battery": false,
+   "op": "cmp",
+   "owner": "classify_bucket",
+   "reason": "orphan_function",
+   "verdict": "unreached_by_battery"
+  },
+  {
+   "description": "GtE -> Gt",
+   "diffs": [],
+   "enclosing_function_called_in_module": false,
+   "id": "perturbation.py:587:cmp#130",
+   "line": 587,
+   "line_executed_by_battery": false,
+   "op": "cmp",
+   "owner": "classify_bucket",
+   "reason": "orphan_function",
+   "verdict": "unreached_by_battery"
+  },
+  {
+   "description": "0 -> 1",
+   "diffs": [],
+   "enclosing_function_called_in_module": false,
+   "id": "perturbation.py:594:const#333",
+   "line": 594,
+   "line_executed_by_battery": false,
+   "op": "const",
+   "owner": "classify_bucket",
+   "reason": "orphan_function",
+   "verdict": "unreached_by_battery"
+  },
+  {
+   "description": "True -> False",
+   "diffs": [],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:633:const#334",
+   "line": 633,
+   "line_executed_by_battery": false,
+   "op": "const",
+   "owner": "ReclaimEvent",
+   "reason": "function_not_entered",
+   "verdict": "unreached_by_battery"
+  },
+  {
+   "description": "Lt -> LtE",
+   "diffs": [],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:1580:cmp#373",
+   "line": 1580,
+   "line_executed_by_battery": true,
+   "op": "cmp",
+   "owner": "_hypergeom_atleast",
+   "reason": null,
+   "verdict": "reached_but_identical"
+  },
+  {
+   "description": "Gt -> GtE",
+   "diffs": [],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:1580:cmp#377",
+   "line": 1580,
+   "line_executed_by_battery": true,
+   "op": "cmp",
+   "owner": "_hypergeom_atleast",
+   "reason": null,
+   "verdict": "reached_but_identical"
+  },
+  {
+   "description": "0 -> 1",
+   "diffs": [],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:1580:const#627",
+   "line": 1580,
+   "line_executed_by_battery": true,
+   "op": "const",
+   "owner": "_hypergeom_atleast",
+   "reason": null,
+   "verdict": "reached_but_identical"
+  },
+  {
+   "description": "LtE -> Lt",
+   "diffs": [],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:1582:cmp#161",
+   "line": 1582,
+   "line_executed_by_battery": true,
+   "op": "cmp",
+   "owner": "_hypergeom_atleast",
+   "reason": null,
+   "verdict": "reached_but_identical"
+  },
+  {
+   "description": "0 -> 1",
+   "diffs": [],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:1631:const#379",
+   "line": 1631,
+   "line_executed_by_battery": true,
+   "op": "const",
+   "owner": "power_floor",
+   "reason": null,
+   "verdict": "reached_but_identical"
+  },
+  {
+   "description": "Add -> Sub",
+   "diffs": [],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:1638:arith#970",
+   "line": 1638,
+   "line_executed_by_battery": true,
+   "op": "arith",
+   "owner": "power_floor",
+   "reason": null,
+   "verdict": "reached_but_identical"
+  },
+  {
+   "description": "LtE -> Lt",
+   "diffs": [],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:1638:cmp#631",
+   "line": 1638,
+   "line_executed_by_battery": true,
+   "op": "cmp",
+   "owner": "power_floor",
+   "reason": null,
+   "verdict": "reached_but_identical"
+  },
+  {
+   "description": "1 -> 2",
+   "diffs": [],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:1638:const#969",
+   "line": 1638,
+   "line_executed_by_battery": true,
+   "op": "const",
+   "owner": "power_floor",
+   "reason": null,
+   "verdict": "reached_but_identical"
+  },
+  {
+   "description": "0 -> 1",
+   "diffs": [
+    {
+     "battery": "window_swap",
+     "first_diff": {
+      "after": "\"why\": \"occupancies 4..1013 can clear the bar (contiguous)\"",
+      "before": "\"why\": \"occupancies 3..1013 can clear the bar (contiguous)\"",
+      "line_no": 217
+     },
+     "kind": "stdout"
+    }
+   ],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:1654:const#1507",
+   "line": 1654,
+   "line_executed_by_battery": true,
+   "op": "const",
+   "owner": "power_floor",
+   "reason": null,
+   "verdict": "moves_published_number"
+  },
+  {
+   "description": "1 -> 2",
+   "diffs": [
+    {
+     "battery": "window_swap",
+     "first_diff": {
+      "after": "\"why\": \"occupancies 3..1012 can clear the bar (contiguous)\"",
+      "before": "\"why\": \"occupancies 3..1013 can clear the bar (contiguous)\"",
+      "line_no": 217
+     },
+     "kind": "stdout"
+    }
+   ],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:1654:const#1558",
+   "line": 1654,
+   "line_executed_by_battery": true,
+   "op": "const",
+   "owner": "power_floor",
+   "reason": null,
+   "verdict": "moves_published_number"
+  },
+  {
+   "description": "Add -> Sub",
+   "diffs": [
+    {
+     "battery": "window_swap",
+     "first_diff": {
+      "after": "\"why\": \"1011 occupancies in [3, 1013] can clear the bar\"",
+      "before": "\"why\": \"occupancies 3..1013 can clear the bar (contiguous)\"",
+      "line_no": 217
+     },
+     "kind": "stdout"
+    }
+   ],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:1655:arith#1216",
+   "line": 1655,
+   "line_executed_by_battery": true,
+   "op": "arith",
+   "owner": "power_floor",
+   "reason": null,
+   "verdict": "moves_published_number"
+  },
+  {
+   "description": "Sub -> Add",
+   "diffs": [
+    {
+     "battery": "window_swap",
+     "first_diff": {
+      "after": "\"why\": \"1011 occupancies in [3, 1013] can clear the bar\"",
+      "before": "\"why\": \"occupancies 3..1013 can clear the bar (contiguous)\"",
+      "line_no": 217
+     },
+     "kind": "stdout"
+    }
+   ],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:1655:arith#1396",
+   "line": 1655,
+   "line_executed_by_battery": true,
+   "op": "arith",
+   "owner": "power_floor",
+   "reason": null,
+   "verdict": "moves_published_number"
+  },
+  {
+   "description": "Eq -> NotEq",
+   "diffs": [
+    {
+     "battery": "window_swap",
+     "first_diff": {
+      "after": "\"why\": \"1011 occupancies in [3, 1013] can clear the bar\"",
+      "before": "\"why\": \"occupancies 3..1013 can clear the bar (contiguous)\"",
+      "line_no": 217
+     },
+     "kind": "stdout"
+    }
+   ],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:1655:cmp#972",
+   "line": 1655,
+   "line_executed_by_battery": true,
+   "op": "cmp",
+   "owner": "power_floor",
+   "reason": null,
+   "verdict": "moves_published_number"
+  },
+  {
+   "description": "1 -> 2",
+   "diffs": [
+    {
+     "battery": "window_swap",
+     "first_diff": {
+      "after": "\"why\": \"1011 occupancies in [3, 1013] can clear the bar\"",
+      "before": "\"why\": \"occupancies 3..1013 can clear the bar (contiguous)\"",
+      "line_no": 217
+     },
+     "kind": "stdout"
+    }
+   ],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:1655:const#1397",
+   "line": 1655,
+   "line_executed_by_battery": true,
+   "op": "const",
+   "owner": "power_floor",
+   "reason": null,
+   "verdict": "moves_published_number"
+  },
+  {
+   "description": "0 -> 1",
+   "diffs": [
+    {
+     "battery": "window_swap",
+     "first_diff": {
+      "after": "\"why\": \"1011 occupancies in [3, 1013] can clear the bar\"",
+      "before": "\"why\": \"occupancies 3..1013 can clear the bar (contiguous)\"",
+      "line_no": 217
+     },
+     "kind": "stdout"
+    }
+   ],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:1655:const#1557",
+   "line": 1655,
+   "line_executed_by_battery": true,
+   "op": "const",
+   "owner": "power_floor",
+   "reason": null,
+   "verdict": "moves_published_number"
+  },
+  {
+   "description": "1 -> 2",
+   "diffs": [
+    {
+     "battery": "window_swap",
+     "first_diff": {
+      "after": "\"why\": \"1011 occupancies in [3, 1013] can clear the bar\"",
+      "before": "\"why\": \"occupancies 3..1013 can clear the bar (contiguous)\"",
+      "line_no": 217
+     },
+     "kind": "stdout"
+    }
+   ],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:1655:const#1587",
+   "line": 1655,
+   "line_executed_by_battery": true,
+   "op": "const",
+   "owner": "power_floor",
+   "reason": null,
+   "verdict": "moves_published_number"
+  },
+  {
+   "description": "0 -> 1",
+   "diffs": [],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:1656:const#1508",
+   "line": 1656,
+   "line_executed_by_battery": false,
+   "op": "const",
+   "owner": "power_floor",
+   "reason": "branch_not_taken",
+   "verdict": "unreached_by_battery"
+  },
+  {
+   "description": "1 -> 2",
+   "diffs": [],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:1657:const#1559",
+   "line": 1657,
+   "line_executed_by_battery": false,
+   "op": "const",
+   "owner": "power_floor",
+   "reason": "branch_not_taken",
+   "verdict": "unreached_by_battery"
+  },
+  {
+   "description": "True -> False",
+   "diffs": [],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:1661:const#382",
+   "line": 1661,
+   "line_executed_by_battery": false,
+   "op": "const",
+   "owner": "AttributionEvidence",
+   "reason": "branch_not_taken",
+   "verdict": "unreached_by_battery"
+  },
+  {
+   "description": "GtE -> Gt",
+   "diffs": [
+    {
+     "battery": "window_swap",
+     "first_diff": {
+      "after": "\"min_fires\": 18,",
+      "before": "\"min_fires\": 23,",
+      "line_no": 957
+     },
+     "kind": "stdout"
+    },
+    {
+     "battery": "wsweep_swap",
+     "first_diff": {
+      "after": "\"min_fires\": 18,",
+      "before": "\"min_fires\": 23,",
+      "line_no": 216
+     },
+     "kind": "stdout"
+    },
+    {
+     "battery": "wsweep_commit",
+     "first_diff": {
+      "after": "\"min_fires\": 15,",
+      "before": "\"min_fires\": 20,",
+      "line_no": 216
+     },
+     "kind": "stdout"
+    },
+    {
+     "battery": "wsweep_steal",
+     "first_diff": {
+      "after": "\"min_fires\": 18,",
+      "before": "\"min_fires\": 23,",
+      "line_no": 216
+     },
+     "kind": "stdout"
+    }
+   ],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:2246:cmp#662",
+   "line": 2246,
+   "line_executed_by_battery": true,
+   "op": "cmp",
+   "owner": "verdict_floor.passes",
+   "reason": null,
+   "verdict": "moves_published_number"
+  },
+  {
+   "description": "LtE -> Lt",
+   "diffs": [],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:2250:cmp#665",
+   "line": 2250,
+   "line_executed_by_battery": true,
+   "op": "cmp",
+   "owner": "verdict_floor.passes",
+   "reason": null,
+   "verdict": "reached_but_identical"
+  },
+  {
+   "description": "GtE -> Gt",
+   "diffs": [
+    {
+     "battery": "window_swap",
+     "first_diff": {
+      "after": "\"consistency\": 1",
+      "before": "\"consistency\": 2",
+      "line_no": 962
+     },
+     "kind": "stdout"
+    },
+    {
+     "battery": "wsweep_swap",
+     "first_diff": {
+      "after": "\"consistency\": 7",
+      "before": "\"consistency\": 10",
+      "line_no": 221
+     },
+     "kind": "stdout"
+    },
+    {
+     "battery": "wsweep_commit",
+     "first_diff": {
+      "after": "\"consistency\": 15",
+      "before": "\"consistency\": 18",
+      "line_no": 221
+     },
+     "kind": "stdout"
+    },
+    {
+     "battery": "wsweep_steal",
+     "first_diff": {
+      "after": "\"consistency\": 7",
+      "before": "\"consistency\": 10",
+      "line_no": 221
+     },
+     "kind": "stdout"
+    }
+   ],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:2251:cmp#666",
+   "line": 2251,
+   "line_executed_by_battery": true,
+   "op": "cmp",
+   "owner": "verdict_floor.passes",
+   "reason": null,
+   "verdict": "moves_published_number"
+  },
+  {
+   "description": "drop 'not'",
+   "diffs": [
+    {
+     "battery": "window_swap",
+     "first_diff": {
+      "after": "\"why\": \"at least one unit clears every gate\"",
+      "before": "\"why\": \"`supported` is empty because the gate sets do not intersect\"",
+      "line_no": 1572
+     },
+     "kind": "stdout"
+    }
+   ],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:2296:not#668",
+   "line": 2296,
+   "line_executed_by_battery": true,
+   "op": "not",
+   "owner": "verdict_floor",
+   "reason": null,
+   "verdict": "moves_published_number"
+  }
+ ],
+ "subject": "nuc/perturbation.py",
+ "subject_digest": "8082749f713ee07f05e1f9187324280156c547673e35fa39017ef67200173ea1",
+ "survivors_at_another_digest": []
+}

@@ -2565,6 +2565,49 @@ def replay(round_: int, checked_at_utc: str, ssh_returncode: int,
     return rec
 
 
+def backfill(round_: int, checked_at_utc: str, ssh_returncode: int,
+             ssh_stderr: str, tailscale_json: str, by_round: int,
+             citation: str, notes: str = "", precision: str = "coarse") -> dict:
+    """A row for a round that made the observations and never wrote them down.
+
+    Round 484 needed this for round 478 and hand-typed the row: `source`
+    `backfill-prose-r478`, `precision` `coarse`, a note saying which prose it
+    came from. Round 502 needed the same for round 496 and found no producer,
+    which is exactly the complaint `replay`'s own docstring makes about
+    `live-replay-r<N>` -- the label that says loudest "this came from a real
+    observation" was the one with nothing to re-derive it.
+
+    So this is `replay` with three differences, each of which is the point:
+
+      * `source` is `backfill-prose-r<N>`, never `live-replay-r<N>`. A row
+        somebody else reconstructed must not read like a probe.
+      * `citation` is REQUIRED and goes into the note. A backfill whose
+        source text is not named is an invention.
+      * `precision` defaults to `coarse`. `check` hardcodes `"precise"`, which
+        is true of a live probe and is a claim about digits when the digits
+        came out of a paragraph. Pass `precision="precise"` only when every
+        timestamp in the row is quoted verbatim in the cited prose, and say so
+        in the note.
+
+    A round cannot backfill ITSELF -- that is `replay`, which runs the real
+    verdict logic on observations still in hand.
+    """
+    if not str(citation).strip():
+        raise ValueError("backfill needs a citation: which text was read")
+    if by_round == round_:
+        raise ValueError("a round cannot backfill itself; use replay")
+    if precision not in ("coarse", "precise"):
+        raise ValueError("precision must be 'coarse' or 'precise'")
+    rec = replay(round_, checked_at_utc, ssh_returncode, ssh_stderr,
+                 tailscale_json, notes=notes)
+    rec["source"] = "backfill-prose-r%d" % round_
+    rec["precision"] = precision
+    head = ("Reconstructed by round %d from %s, NOT a live probe. "
+            % (by_round, citation))
+    rec["notes"] = head + (notes or "")
+    return rec
+
+
 def _as_points(records: list) -> list:
     """The same log as the pre-round-460 rules saw it: every timestamp exact.
 
@@ -2816,6 +2859,25 @@ def main(argv=None) -> int:
                     help="exit 1 if any claim is unearned under the row's own "
                          "declared precision")
 
+    bf = sub.add_parser("backfill",
+                        help="round 502: a row for a PAST round that observed "
+                             "the box and never appended one; needs a citation")
+    bf.add_argument("--round", type=int, required=True,
+                    help="the round the observations belong to")
+    bf.add_argument("--by-round", type=int, required=True,
+                    help="the round writing the row (cannot equal --round)")
+    bf.add_argument("--citation", required=True,
+                    help="the text these observations were read out of")
+    bf.add_argument("--checked-at", required=True)
+    bf.add_argument("--ssh-returncode", type=int, required=True)
+    bf.add_argument("--ssh-stderr", default="")
+    bf.add_argument("--tailscale-json", required=True)
+    bf.add_argument("--precision", default="coarse",
+                    choices=("coarse", "precise"))
+    bf.add_argument("--notes", default="")
+    bf.add_argument("--log-path", default=DEFAULT_LOG_PATH)
+    bf.add_argument("--append", action="store_true")
+
     cv = sub.add_parser("coverage",
                         help="round 454: which E rounds owe this log a row and "
                              "have not paid")
@@ -2863,6 +2925,23 @@ def main(argv=None) -> int:
         if args.verdict:
             bounds = [b for b in bounds if b["verdict"] == args.verdict]
         print(json.dumps({"n_streaks": len(bounds), "streaks": bounds}, indent=2))
+        return 0
+
+    if args.mode == "backfill":
+        with open(args.tailscale_json, encoding="utf-8") as fh:
+            tj = fh.read()
+        rec = backfill(args.round, args.checked_at, args.ssh_returncode,
+                       args.ssh_stderr, tj, by_round=args.by_round,
+                       citation=args.citation, notes=args.notes,
+                       precision=args.precision)
+        existing = {r.get("round") for r in load_log(args.log_path)}
+        if args.append and args.round in existing:
+            print(json.dumps({"skipped": "round %d already has a row"
+                              % args.round}))
+            return 1
+        if args.append:
+            append_record(rec, args.log_path)
+        print(json.dumps(rec, indent=2))
         return 0
 
     if args.mode == "replay":

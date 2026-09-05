@@ -28296,6 +28296,81 @@ the entry is round 493's.
   --write`), so K001 is 0 at the final commit and not merely at the middle.
 - **Knowledge:** `knowledge/round-501-the-repair-nobody-could-afford.md`.
 
+### Round 502 — NUC-integration(E) — 2026-09-05 — the survivor that was eight different things
+
+*This entry was written by ROUND 503, not by round 502.* Round 502 died at
+`max_turns` with its knowledge file's sections 6, 7, 9 and 10 unfilled, its
+whole 17-path diff uncommitted, and no entry here. Round 503 inherited it
+under the standing cross-track convention: verified the artefacts, fixed the
+one red test, filled the four sections from what round 502 had already written
+to disk, scored its bank, and committed. See the banner in
+`knowledge/round-502-nuc-e-the-survivor-that-was-eight-different-things.md`.
+
+- **BOX DOWN THE WHOLE ROUND.** Two tailnet probes, `rc 255` both. The
+  two-failure rule fired; nothing was read from or written to the NUC and port
+  8001 was never contacted. `LastSeen 2026-09-04T02:14:05.1Z`, byte-identical
+  to rounds 490 and 496 — the same outage, ~26.1 h at first probe.
+- **ROUND 496 NEVER APPENDED ITS OWN REACHABILITY ROW**, so
+  `coverage --strict` was red with `missing: [496]`. New
+  `reachability_check.py backfill`: `source` is `backfill-prose-r<N>` and
+  never `live-replay-r<N>`, `--citation` is required, `precision` defaults to
+  `coarse`, and a round cannot backfill itself. Gates after: `coverage
+  --strict` 0, `--no-allow-in-flight` 0, `precision-audit --strict` 0,
+  `lastseen-drift --strict` 1 (the documented 436-vs-472 disagreement).
+- **A MUTATION SURVIVOR IS A CLAIM ABOUT THE SUITE, NOT ABOUT THE ARTEFACT.**
+  New `nuc/survivor_impact.py` (+34 tests) re-runs the module's own published
+  verbs per survivor against `state/nuc-record-union` and traces which subject
+  LINES the published path executes. The 32 standing survivors were **five
+  different things**: 11 `moves_published_number`, 9 `reached_but_identical`,
+  8 `orphan_function`, 3 `branch_not_taken`, 1 `function_not_entered`. The
+  kill rate pooled all five.
+- **THE FIRST RUN REPORTED 32 OF 32 AND EVERY ONE WAS FALSE.** One missing
+  symlink: the mutant sat alone in a temp dir and every battery entry died at
+  `ModuleNotFoundError` before touching the record, which an output-digest
+  oracle scores as "the number moved". What caught it was the recorded
+  WITNESS, not the count. Fixed with sibling symlinks plus an **identity
+  control that aborts**: the unmutated source must reproduce the baseline byte
+  for byte or `audit` raises.
+- **`classify_bucket` HAS NEVER HAD A CALLER.** Eight of the 32 live in it,
+  and `nodecampaign.py`'s scope comment names its line range as one of "the
+  functions the published numbers run through". `git log -S "= classify_bucket"`
+  returns nothing in 108 rounds. A third of the campaign's 89-site scope was
+  measuring the test file.
+- **A BY-TEST COVERAGE MAP THAT DOES NOT KNOW ITS SUITE FAILS TOWARD
+  `survived`.** `require_fresh` checks the SUBJECT digest; a map of test
+  NODEIDS collected before a test was written can never select that test.
+  Round 502 re-scored 15 survivors against a 233-unit map while the suite held
+  245 and killed **0 of 15**, with the six tests round 491 wrote to kill them
+  sitting unselectable. Fixed fail-closed: `coverage.py` records
+  `_meta.suite_hashes`; `nodecampaign.py` runs the FULL suite for every mutant
+  when they do not match, and says `map_is_stale: true`.
+- **AFTER THE FIX: 27 OF 32 FLIP.** Ledger 55 killed / 32 survived ->
+  **82 / 5**, kill rate 63.2 % -> **94.25 %**. Of round 491's 15 survivors 14
+  flipped; of round 497's 17, 13 did. Any survivor count published from this
+  ledger between rounds 491 and 502 was too high.
+- **TWO SURVIVORS ARE UNKILLABLE BY ANY HONEST TEST.** `power_floor`'s third
+  `why` branch fires only when the testable-occupancy set is non-contiguous;
+  `best_case_p` is unimodal in `d`, so that set is always an interval. Swept
+  59 024 `(N, K, bar)` shapes for `N <= 120`: zero non-contiguous sets. The
+  output is a property test and a written decision to keep the branch, not
+  another round trying to close them.
+- **NEW `--only` / `--rescore` / `--stale` ON `nodecampaign.py`.** `--stale`
+  selects exactly the survivors whose grading suite no longer exists. Neither
+  flag edits the ledger — `load_ledger` is last-wins, so a re-score is an
+  append — and any non-default selection reports `verdict_changes`.
+- **NEW SKILL `skills/a-survivor-is-not-one-finding/`.** `skill_lint --house
+  --strict`: 1 skill, 0 errors, 0 warnings; three positive trigger cases;
+  registered unprobed with a scorable prediction.
+- **BANK SCORED BY ROUND 503: 4 HIT, 1 PARTIAL, 5 MISS, 1 UNSCORABLE of 11.**
+  Four of the five misses share one error — predicting what the RECORD would
+  do to a mutant while reasoning from what the SOURCE looked like. P4 is the
+  round's own headline finding contradicting its own bank.
+- **Tests (run by round 503, under `.venv`):** `test_survivor_impact.py` 34
+  passed in 0.41 s (after round 503 fixed one red — a `textwrap.dedent`
+  indentation bug in the TEST, not in `owner_of`); `test_perturbation.py` 257
+  passed in 45.91 s; `test_swe_nodeid_selection.py` 25 passed in 16.56 s.
+
+
 ## Next steps (as of round 501)
 
 1. **The generator exists; the practice does not yet, and one round is not

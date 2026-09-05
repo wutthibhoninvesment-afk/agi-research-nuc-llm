@@ -3120,3 +3120,230 @@ def test_the_replication_gate_is_inclusive_at_min_fires():
                    "verdict": "unsupported"}]})
     assert under["pass_counts"]["min_fires"] == 0
     assert under["per_unit"][0]["first_gate_failed"] == "min_fires"
+
+
+# ==========================================================================
+# ROUND 502 (NUC-integration E) -- the eleven survivors that MOVE A PUBLISHED
+# NUMBER.
+#
+# `nuc/survivor_impact.py` re-ran this module's own published verbs
+# (`window`, `wsweep` x3, `population`) on `state/nuc-record-union` under each
+# of the 32 standing mutation survivors, and split them by what each costs the
+# record rather than by whether a test noticed:
+#
+#   11  moves_published_number   <- these tests
+#    9  reached_but_identical
+#    8  unreached / orphan_function   (`classify_bucket` has never had a
+#                                      caller -- see the block below it)
+#    3  unreached / branch_not_taken
+#    1  unreached / function_not_entered
+#
+# Report: `state/nuc/round-502/survivor-impact.json`. Every assertion below
+# pins a value the report saw a mutant CHANGE, with the mutant id named.
+# ==========================================================================
+
+def test_power_floor_publishes_the_contiguous_phrasing_and_its_real_endpoints():
+    """The `why` sentence and its endpoints, on the union record's own shape.
+
+    `window --capture state/nuc-record-union` reports
+    `evidence.power.why` and rounds 430-490 quote it. Eight survivors move it
+    and NOT ONE test looked at it:
+
+      1654:const#1507  `testable[0]`  -> `testable[1]`   3..1013 -> 4..1013
+      1654:const#1558  `testable[-1]` -> `testable[-2]`  3..1013 -> 3..1012
+      1655:cmp#972     `==` -> `!=`   ) all four force the NON-contiguous
+      1655:arith#1216  `+`  -> `-`    ) phrasing on a set that IS contiguous:
+      1655:arith#1396  `-`  -> `+`    ) "1011 occupancies in [3, 1013]"
+      1655:const#1397  `1`  -> `2`    )
+      1655:const#1557  `0`  -> `1`    )
+      1655:const#1587  `1`  -> `2`    )
+    """
+    r = pt.power_floor(1145, 52, 33)
+    assert r["min_testable_occupancy"] == 3
+    assert r["max_testable_occupancy"] == 1013
+    assert r["n_testable_occupancies"] == 1011
+    assert r["why"] == "occupancies 3..1013 can clear the bar (contiguous)"
+
+
+def test_power_floor_says_the_record_has_no_power_when_it_has_none():
+    """The other branch of the same sentence, and round 412's actual result:
+    K=1 with 16 units and N=218 can support nothing whatever happens in it."""
+    r = pt.power_floor(218, 1, 16)
+    assert r["any_testable"] is False
+    assert r["min_testable_occupancy"] is None
+    assert r["why"].startswith("no occupancy can clear the Bonferroni bar")
+
+
+def test_the_testable_set_is_always_contiguous_so_the_third_phrasing_is_dead():
+    """`power_floor`'s third `why` branch (lines 1656-1657) is DEAD CODE, and
+    saying so is better than writing a test that cannot exist.
+
+    `best_case_p(N, K, .)` is unimodal in occupancy -- falling while
+    `min(K, d) == d`, rising once `d >= K` because covering all K gets easier
+    with a bigger subset -- so `{d : best_case_p <= bar}` is an interval and
+    `testable[-1] - testable[0] + 1 == len(testable)` always holds. Round 502
+    swept 59 024 (N, K, bar) shapes for N <= 120 and found no counterexample
+    and no second sign change; this test re-runs the cheap half of that sweep.
+
+    Two survivors live on those two lines (`1656:const#1508`,
+    `1657:const#1559`) and `survivor_impact` graded both `branch_not_taken`.
+    They are unkillable by any honest test, and the branch should be KEPT
+    (the sweep is bounded, the live record has N=1145) -- but nobody should
+    spend another round trying to close them. If this test ever fails, the
+    branch is live and those two mutants become real gaps."""
+    checked = 0
+    for N in range(2, 61):
+        for K in range(0, N + 1):
+            seen = set()
+            for u in (1, 2, 3, 8, 33):
+                bar = pt.ATTRIBUTION_MAX_FAMILY_P / u
+                if bar in seen:
+                    continue
+                seen.add(bar)
+                t = [d for d in range(1, N + 1)
+                     if pt.best_case_p(N, K, d) <= bar]
+                checked += 1
+                if t:
+                    assert t[-1] - t[0] + 1 == len(t), (N, K, u, t[:5], t[-5:])
+    assert checked > 8000
+
+
+def _one_unit_evidence(**over):
+    """An `attribution_evidence`-shaped dict with ONE unit sitting exactly on
+    every gate threshold. Every gate must PASS: the thresholds are inclusive,
+    and three survivors turn one of them exclusive."""
+    u = {"unit": "u.service", "n_fires": 2, "n_costly": 1, "n_clean": 1,
+         "testable": True, "p_family": 0.05, "consistency": 0.5,
+         "verdict": "supported"}
+    u.update(over)
+    return {"units": [u], "max_family_p": 0.05, "min_consistency": 0.5,
+            "min_fires": 2}
+
+
+def test_every_verdict_floor_gate_is_inclusive_at_its_own_threshold():
+    """Three survivors, one shape, all three published in `window`'s
+    `gates.pass_counts` and in `wsweep`'s per-threshold table:
+
+      2246:cmp#662  `n_fires >= min_fires`   -> `>`  : min_fires 23 -> 18
+      2251:cmp#666  `consistency >= min_...` -> `>`  : consistency 2 -> 1
+      2250:cmp#665  `p_family <= max_...`    -> `<`  : (identical on the
+                    union, because no unit sits exactly on the bar there --
+                    which is a fact about the record, not about the gate)
+
+    A unit that is exactly at the bar is INSIDE it. Nothing tested that."""
+    r = pt.verdict_floor(_one_unit_evidence())
+    assert r["pass_counts"]["min_fires"] == 1
+    assert r["pass_counts"]["consistency"] == 1
+    assert r["pass_counts"]["chance"] == 1
+    assert r["per_unit"][0]["gates_failed"] == []
+    assert r["all_gates_passed"] == ["u.service"]
+
+
+def test_each_verdict_floor_gate_fails_one_step_the_wrong_side():
+    """The falsifier for the test above: inclusive is not the same as
+    always-true."""
+    for over, gate in ((dict(n_fires=1), "min_fires"),
+                       (dict(consistency=0.4999), "consistency"),
+                       (dict(p_family=0.0501), "chance"),
+                       (dict(n_costly=0), "any_costly"),
+                       (dict(n_clean=0), "separable"),
+                       (dict(testable=False), "testable")):
+        r = pt.verdict_floor(_one_unit_evidence(**over))
+        assert r["pass_counts"][gate] == 0, over
+        assert r["per_unit"][0]["first_gate_failed"] == gate or \
+            gate in r["per_unit"][0]["gates_failed"], over
+        assert r["all_gates_passed"] == []
+
+
+def test_verdict_floor_why_says_empty_only_when_the_intersection_is_empty():
+    """`2296:not#668` drops the `not` and inverts the published sentence.
+    `window --capture state/nuc-record-union` reports
+
+        "why": "`supported` is empty because the gate sets do not intersect"
+
+    and under the mutant it reports "at least one unit clears every gate" --
+    the OPPOSITE claim about whether this record licenses any attribution,
+    with the suite green. That sentence is what a reader takes away."""
+    empty = pt.verdict_floor(_one_unit_evidence(n_fires=1))
+    assert empty["all_gates_passed"] == []
+    assert empty["supported_reachable_all_gates"] is False
+    assert empty["why"] == ("`supported` is empty because the gate sets do "
+                            "not intersect")
+    full = pt.verdict_floor(_one_unit_evidence())
+    assert full["supported_reachable_all_gates"] is True
+    assert full["why"] == "at least one unit clears every gate"
+
+
+def test_the_reclaim_and_attribution_records_are_frozen():
+    """`633:const#334` and `1661:const#382` both flip `@dataclass(frozen=True)`
+    to `frozen=False`. `survivor_impact` graded them `unreached_by_battery`:
+    no published derivation rebinds a field, so no output moves and no test on
+    the real record can ever kill them. They are killable only by asserting
+    the invariant itself, which is exactly what immutability is for -- these
+    records are hashed into sets and reused across the module."""
+    import dataclasses
+
+    def zero(cls):
+        kw = {}
+        for f in dataclasses.fields(cls):
+            t = f.type if isinstance(f.type, str) else getattr(f.type, "__name__", "")
+            kw[f.name] = {"int": 0, "float": 0.0, "str": "", "bool": False,
+                          "list": [], "tuple": ()}.get(t, None)
+        return cls(**kw)
+
+    for cls, field in ((pt.ReclaimEvent, "kind"),
+                       (pt.AttributionEvidence, "unit")):
+        inst = zero(cls)
+        with pytest.raises(dataclasses.FrozenInstanceError):
+            setattr(inst, field, "changed")
+
+
+# --------------------------------------------------------------------------
+# `classify_bucket` HAS NEVER HAD A CALLER (round 502).
+#
+# Eight survivors live in it, and `harness/swe/nodecampaign.py`'s scope
+# comment calls its line range one of "the functions the published numbers run
+# through". It is not. `git log -S 'classify_bucket('` over this file returns
+# exactly one commit -- `ea92702`, round 394, the one that defined it -- and
+# `survivor_impact` graded all eight `orphan_function`.
+#
+# So these tests do NOT pin a published number. They pin the DEFAULTS and the
+# boundaries of a function whose contract is entirely documented and entirely
+# unexercised, which is the only honest thing a test can do for it. The choice
+# they encode is: keep it, because its docstring is the written record of how
+# round 388's 02:00 bucket was misread and why the absolute floor exists.
+# --------------------------------------------------------------------------
+
+def test_classify_bucket_default_surge_factor_is_exactly_ten():
+    """`558:fconst#1739` moves it to 11.0. A ratio of exactly 10 with the
+    absolute floor cleared is a page-cache surge."""
+    assert pt.classify_bucket(60.0, 6.0, 0.0, 0) == "page_cache"
+    assert pt.classify_bucket(59.0, 6.0, 0.0, 0) == "quiet"
+
+
+def test_classify_bucket_default_min_step_kb_is_exactly_fifty_thousand():
+    """`559:const#126` moves it to 50_001."""
+    assert pt.classify_bucket(0.0, 0.1, 50_000, 0) == "commitment"
+    assert pt.classify_bucket(0.0, 0.1, 49_999, 0) == "quiet"
+
+
+def test_classify_bucket_default_min_pgpgin_floor_is_exactly_fifty():
+    """`560:fconst#1740` moves it to 51.0. This is the floor whose absence
+    made round 388 grade a 2.5 MB firmware download as a page-cache surge."""
+    assert pt.classify_bucket(50.0, 0.1, 0.0, 0) == "page_cache"
+    assert pt.classify_bucket(49.9, 0.1, 0.0, 0) == "quiet"
+
+
+def test_classify_bucket_accepts_a_surge_factor_of_exactly_two():
+    """`581:const#329` widens the guard from `<= 1` to `<= 2` and would
+    reject it. The guard exists to refuse a factor that cannot express a
+    surge; 2 can."""
+    assert pt.classify_bucket(100.0, 50.0, 0.0, 0, surge_factor=2.0) == "page_cache"
+
+
+def test_classify_bucket_calls_a_single_swapped_page_unattributed():
+    """`594:const#333` moves the test to `swapped_bytes > 1`. One byte out to
+    swap with neither channel showing anything is the `unattributed` verdict
+    round 388 needed a name for."""
+    assert pt.classify_bucket(0.0, 0.1, 0.0, 1) == "unattributed"
+    assert pt.classify_bucket(0.0, 0.1, 0.0, 0) == "quiet"

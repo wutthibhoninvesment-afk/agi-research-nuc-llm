@@ -1,0 +1,10 @@
+{
+  "_provenance": "NOT a tailscale capture. Round 502 assembled this from the ONLY tailscale values round 496 wrote down, so that `reachability_check.py backfill` can re-derive round 496's missing log row from a file instead of from a typed dict. Source text: knowledge/round-496-the-check-that-ran-its-own-suite-twice.md line 250-255 and state/research-state.md's round-496 entry ('Box DOWN, same outage. Two tailnet SSH probes (rc 255, Connection timed out) ... tailscale: Online false, LastSeen 2026-09-04T02:14:05.1Z - byte-identical to round 490's reading'). Round 496 quoted NO LastWrite and NO Relay, so neither appears here: this program does not invent digits.",
+  "Peer": {
+    "r496": {
+      "HostName": "pgain-nuc",
+      "Online": false,
+      "LastSeen": "2026-09-04T02:14:05.1Z"
+    }
+  }
+}
