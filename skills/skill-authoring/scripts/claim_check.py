@@ -27,7 +27,11 @@ Three tiers, cheapest and safest first
 --------------------------------------
 1. **Static (always).** `C001` — a path named in a Verification command that
    resolves nowhere plausible. No execution at all, so it is safe to run
-   anywhere, and it is what catches the `~/agi-research` class.
+   anywhere, and it is what catches the `~/agi-research` class. Its six
+   suppression rules have one home (`token_exempt_reason`), and the two
+   round 507 added carry a paired assertion: `C007` reports a path the repo
+   DECLARED absent that has since come into existence, so the allowlist
+   behind rule 6 is a claim that can be wrong rather than a mute.
 2. **Classification (always).** Every command is sorted into `auto`
    (cheap, offline, read-only, deterministic) or `manual` (with a reason).
    The tally is the honest coverage number — the analogue of round 333's
@@ -520,6 +524,27 @@ def classify(command):
 #      something this tool cannot see. `sampled-interval-brackets` documents
 #      `pytest -q tests/test_bounds.py` for the READER'S repo, which has no
 #      `tests/` here — undecidable statically, so not a finding.
+#   5. CREATED-IN-BLOCK (round 507): a path the Verification block itself
+#      makes, at or before the command that names it — `touch
+#      languages/whence/zz_probe.py && python3 harness/readset.py blast`.
+#      **Rule 1 already states this rule and tests a proxy for it.** Its
+#      reason string is "created by the command, not required by it"; its
+#      test is a `/tmp/`-family prefix. A file created INSIDE the repo
+#      satisfies the sentence and fails the proxy, which is how round 505's
+#      `diff-to-check-blast-radius` skill reddened this checker for two
+#      rounds. `created_paths` computes the evidence; the gate still decides.
+#   6. DECLARED ABSENT (round 507): `state/known-absent-paths.json`, the
+#      registry `xref_check`'s X004 rule already reads. A path can be
+#      correct-as-written AND missing on purpose — a negative control
+#      (`readset.py blast languages/whence/no_such_file.py`, whose whole
+#      point is a path that does not exist inside a directory that does) is
+#      not rot, and rule 4 lets it through today only when it is written
+#      UNANCHORED, i.e. only when it is written badly. Reusing X004's file
+#      rather than minting a second one is deliberate: round 506 put a path
+#      in that registry to close this very red, and the red stayed open
+#      because the two checkers did not share it. The sharing comes with a
+#      POSITIVE CONTROL — see `check_absent_registry` and C007 — because an
+#      allowlist nothing ever falsifies is a mute, not a rule.
 #
 # Bases accumulate across a Verification block: `cd harness` sets the working
 # directory, and any directory NAMED as an argument (`swe.mutation
@@ -533,8 +558,81 @@ TOKEN_PLACEHOLDER_RE = re.compile(r"[*?$<>]|\bNNN\b|\bLAST\b")
 SCRATCH_PREFIXES = ("/tmp/", "/var/tmp/", "/dev/", "/proc/")
 UNCHECKED_CATEGORIES = ("mutating", "network")
 
+# Rule 5's evidence. Programs whose NON-FLAG arguments are things they bring
+# into existence, and programs whose LAST non-flag argument is a destination.
+# `rm` is deliberately absent: it is already `mutating`, and a path a block
+# deletes is a path the block required.
+CREATING_PROGRAMS = ("touch", "mkdir", "tee")
+CREATING_DEST_PROGRAMS = ("cp", "mv", "install", "ln")
+# `>` / `>>`, but never `2>&1`: the character class excludes `&`, so the
+# redirect-to-fd form matches nothing rather than inventing a file called `1`.
+REDIRECT_RE = re.compile(r">>?\s*([^\s;|&<>]+)")
 
-def token_exempt_reason(tok):
+# Rule 6's registry, shared with `xref_check.py`'s X004 (round 345). One file,
+# two readers, one `_comment` describing both.
+ABSENT_ALLOWLIST = os.path.join("state", "known-absent-paths.json")
+
+
+def _norm_tok(tok):
+    """One normalisation, used on BOTH sides of every token comparison.
+
+    `path_tokens` keeps `./x` as written and a `touch` argument may be
+    spelled `./x` or `x`; comparing the two raw forms silently misses. The
+    reported token is always the raw one — only the comparison is normalised.
+    """
+    tok = (tok or "").strip("'\"`,;()")
+    return os.path.normpath(tok) if tok else tok
+
+
+def created_paths(command):
+    """Paths this command line BRINGS INTO EXISTENCE, normalised.
+
+    Granularity is the command LINE, not the shell segment: `touch X && q X`
+    and the (nonsensical) `q X && touch X` are treated alike, because this
+    returns a set for the whole line. That is the one over-approximation the
+    rule accepts, and it is bounded — ACROSS lines the caller accumulates in
+    order, so a path created at line 5 does not excuse a claim at line 2.
+    Both halves are pinned in `TestRuleFiveEndToEnd`.
+
+    Returns a set of normalised tokens. Callers hand it to the gate; nothing
+    here decides anything.
+    """
+    out = set()
+    for m in REDIRECT_RE.finditer(command):
+        out.add(_norm_tok(m.group(1)))
+    for seg in split_segments(command):
+        toks = _tokens(seg)
+        while toks and ENV_ASSIGN_RE.match(toks[0]):
+            toks.pop(0)
+        if not toks:
+            continue
+        prog = os.path.basename(toks[0])
+        args = [t for t in toks[1:] if not t.startswith("-")]
+        if prog in CREATING_PROGRAMS:
+            out.update(_norm_tok(a) for a in args)
+        elif prog in CREATING_DEST_PROGRAMS and len(args) >= 2:
+            out.add(_norm_tok(args[-1]))
+    out.discard("")
+    return out
+
+
+def load_absent_allowlist(repo_root, path=None):
+    """Repo-relative paths whose ABSENCE is declared correct, as a set.
+
+    Deliberately the same file `xref_check.load_absent_allowlist` reads. The
+    duplication is eight lines; the alternative was a second registry, and a
+    second registry is what kept this checker red for two rounds while an
+    entry for the offending path sat in the first one.
+    """
+    try:
+        with open(os.path.join(repo_root, path or ABSENT_ALLOWLIST),
+                  encoding="utf-8") as f:
+            return set(json.load(f).get("paths", {}))
+    except (OSError, ValueError):
+        return set()
+
+
+def token_exempt_reason(tok, created=(), declared_absent=()):
     """Why `tok` must NOT be resolved, or None if it is a checkable claim.
 
     THE one home for suppression rules 1, 2 and the "not a path at all" half
@@ -554,6 +652,14 @@ def token_exempt_reason(tok):
     not of the token, and `check_paths` applies it from `cmd.reason`.
     Rule 4 (unanchored) is NOT here either: it needs the caller's bases and
     lives in `is_anchored`.
+
+    Round 507 added rules 5 and 6, and they are the reason this function
+    takes arguments beyond the token. Both are properties of the token IN A
+    CONTEXT — what the block has already made, and what the repo has already
+    declared missing on purpose — so the context is passed IN rather than
+    read here. The gate stays the one decider; `created_paths` and
+    `load_absent_allowlist` are producers of evidence, and a caller that
+    forgets them gets the round-411 behaviour, not a crash.
     """
     if not tok or URLISH_RE.search(tok):
         return "not a path: url, flag or bare number"
@@ -561,6 +667,13 @@ def token_exempt_reason(tok):
         return "placeholder: a template the reader fills in"
     if tok.startswith(SCRATCH_PREFIXES):
         return "scratch: created by the command, not required by it"
+    norm = _norm_tok(tok)
+    if norm in created:
+        return ("created: this Verification block makes this path itself, "
+                "so its absence between runs is the point")
+    if norm in declared_absent or tok in declared_absent:
+        return ("declared absent: %s says this path is correct while missing"
+                % ABSENT_ALLOWLIST)
     return None
 
 
@@ -623,7 +736,7 @@ class Finding:
                                     self.level, self.code, self.message)
 
 
-def check_paths(commands, repo_root):
+def check_paths(commands, repo_root, declared_absent=None):
     """C001: a Verification command names a path that resolves nowhere.
 
     `cd DIR` inside the fence updates the working directory used for
@@ -631,12 +744,26 @@ def check_paths(commands, repo_root):
     (`cd harness && python3 -m pytest -q tests/...`). Returns
     (findings, n_checked, n_skipped) so the caller can report honest coverage
     instead of implying every path was verified.
+
+    Two things ACCUMULATE across the command list, and they accumulate for
+    the same reason `cwd` and `bases` do: the list is one Verification
+    block's worth of shell, read top to bottom. `bases` grows with every
+    directory named; `created` grows with every path a command makes. A
+    caller that wants per-block scoping calls this once per block.
+
+    `declared_absent` defaults to the registry under `repo_root`; pass a set
+    to override it (the tests do, and so would a caller auditing a checkout
+    that has no registry).
     """
     findings = []
     cwd = repo_root
     extra_bases = []
+    created = set()
+    if declared_absent is None:
+        declared_absent = load_absent_allowlist(repo_root)
     n_checked = n_skipped = 0
     for cmd in commands:
+        created |= created_paths(cmd.command)
         m = re.match(r"^\s*cd\s+(\S+)", cmd.command)
         if m:
             target = m.group(1).strip("'\"")
@@ -650,7 +777,7 @@ def check_paths(commands, repo_root):
             # block depends on, and it must still happen when the target is
             # exempt AND happens to exist (`cd /tmp/wt` in a block run after
             # the worktree was created). Only the FINDING is suppressed.
-            exempt = token_exempt_reason(target)
+            exempt = token_exempt_reason(target, created, declared_absent)
             resolved = resolve_token(target, [cwd, repo_root])
             if exempt is not None:
                 n_skipped += 1
@@ -672,6 +799,13 @@ def check_paths(commands, repo_root):
             if category in UNCHECKED_CATEGORIES:
                 n_skipped += 1
                 continue
+            # `path_tokens` asked the gate with no context (rules 1 and 2 are
+            # all it can decide from a bare token); rules 5 and 6 need the
+            # block, so this is the same gate asked a second time with what
+            # the block knows. One home, two questions.
+            if token_exempt_reason(tok, created, declared_absent) is not None:
+                n_skipped += 1
+                continue
             if not is_anchored(tok, bases):
                 n_skipped += 1
                 continue
@@ -688,6 +822,51 @@ def check_paths(commands, repo_root):
                 cmd, "C001", "path %r resolves nowhere (checked %s)"
                 % (tok, _describe_bases(bases, repo_root))))
     return findings, n_checked, n_skipped
+
+
+def check_absent_registry(repo_root, path=None):
+    """C007: a path DECLARED absent that now EXISTS.
+
+    Rule 6 lets a Verification block name a path that is not there. On its
+    own that is a mute: an allowlist no measurement can falsify passes just
+    as well against a registry somebody filled with real rot. So the
+    registry is read in BOTH directions. Every declared path that has come
+    into existence is a finding against the DECLARATION, reported at the
+    registry's own file:line rather than at the skill's, because the
+    declaration is what went stale.
+
+    This is round 506's gitignore-pin lesson applied one file over: it
+    replaced an only-negative assertion with a pair, on the grounds that an
+    only-negative assertion cannot tell a working filter from one that
+    dropped everything. Same here — C007 firing zero times is only evidence
+    if C007 can fire.
+
+    A missing or unparseable registry returns no findings. A checkout
+    without one (every tmp tree the tests build) is not making a false
+    declaration; it is making none.
+    """
+    rel = path or ABSENT_ALLOWLIST
+    try:
+        with open(os.path.join(repo_root, rel), encoding="utf-8") as f:
+            text = f.read()
+        entries = json.loads(text).get("paths", {})
+    except (OSError, ValueError):
+        return []
+    lines = text.split("\n")
+    findings = []
+    for declared in sorted(entries):
+        if not os.path.exists(os.path.join(repo_root, declared)):
+            continue
+        line_no = next((i + 1 for i, ln in enumerate(lines)
+                        if '"%s"' % declared in ln), 1)
+        findings.append(Finding(
+            Command(rel, line_no, "(registry entry)", None), "C007",
+            "declared absent but EXISTS: %r. Either the path was created "
+            "and the declaration is now false, or the declaration named the "
+            "wrong path. Remove the entry or fix the prose it protects "
+            "— do not leave a live path allowlisted as missing."
+            % declared))
+    return findings
 
 
 def _describe_bases(bases, repo_root):
@@ -1136,6 +1315,12 @@ def main(argv=None):
                         fh.write(json.dumps(row, sort_keys=True) + "\n")
                 del ledger[:]
 
+    # Once, not once per skill: the registry is a property of the checkout.
+    # Deliberately AFTER the loop and before printing, so a C007 lands in the
+    # same sorted-by-nothing stream as every other finding and counts toward
+    # the same exit code.
+    findings.extend(check_absent_registry(repo_root))
+
     for f in findings:
         print(f)
     n_stale = sum(1 for f in findings if f.level == "STALE")
@@ -1167,7 +1352,8 @@ def main(argv=None):
               % (n_bare, n_budgeted, time.monotonic() - t_start))
     n_ran = n_executed
     print("claim_check: %d path(s) resolved, %d unresolvable-by-design "
-          "(scratch/placeholder/output/unanchored); %d stale claim(s) of %d "
+          "(scratch/created/declared-absent/placeholder/output/unanchored); "
+          "%d stale claim(s) of %d "
           "checked; coverage %d/%d paths, %d/%d commands"
           % (paths_checked, paths_skipped, n_stale, paths_checked + n_ran,
              paths_checked, paths_checked + paths_skipped,

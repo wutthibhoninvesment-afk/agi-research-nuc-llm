@@ -613,6 +613,248 @@ class TestExemptionGateHasOneHome(unittest.TestCase):
             "tests above are then asserting against nothing")
 
 
+# --------------------------------------------------------------------------
+# Round 507: suppression rules 5 (created-in-block) and 6 (declared absent),
+# and the C007 assertion that keeps rule 6 from being a mute.
+#
+# Both rules were forced by ONE red that stayed open for two rounds. Round 505
+# (harness A) shipped `skills/diff-to-check-blast-radius/SKILL.md`, whose
+# Verification block names two paths that are CORRECT precisely because they
+# do not exist. Round 506 acknowledged one of them in
+# `state/known-absent-paths.json` — which `xref_check` reads and this checker
+# did not — so `claim_check` stayed red while an acknowledgement for the path
+# sat in the tree.
+# --------------------------------------------------------------------------
+
+
+class TestCreatedPaths(unittest.TestCase):
+    """The EVIDENCE producer for rule 5. It decides nothing."""
+
+    def test_touch_argument_is_created(self):
+        self.assertEqual(
+            claim_check.created_paths("touch languages/whence/zz_probe.py"),
+            {"languages/whence/zz_probe.py"})
+
+    def test_creation_and_use_on_one_line_both_seen(self):
+        self.assertIn(
+            "languages/whence/zz_probe.py",
+            claim_check.created_paths(
+                "touch languages/whence/zz_probe.py && "
+                "python3 harness/readset.py blast"))
+
+    def test_mkdir_p_flag_is_not_mistaken_for_a_path(self):
+        self.assertEqual(claim_check.created_paths("mkdir -p state/x/y"),
+                         {"state/x/y"})
+
+    def test_redirect_target_is_created(self):
+        self.assertIn("out/report.json", claim_check.created_paths(
+            "python3 tool.py > out/report.json"))
+
+    def test_append_redirect_target_is_created(self):
+        self.assertIn("logs/x.log", claim_check.created_paths(
+            "python3 tool.py >> logs/x.log"))
+
+    def test_stderr_dup_is_not_a_created_file(self):
+        """`2>&1` must not invent a file called `1`. The character class in
+        REDIRECT_RE excludes `&` for exactly this."""
+        self.assertEqual(
+            claim_check.created_paths("pytest -q tests/t.py 2>&1 | tail -3"),
+            set())
+
+    def test_copy_destination_is_created_and_source_is_not(self):
+        got = claim_check.created_paths("cp state/a.json state/b.json")
+        self.assertEqual(got, {"state/b.json"})
+
+    def test_rm_creates_nothing(self):
+        """Deliberate. `rm X` is already `mutating`, and a path a block
+        DELETES is a path the block required to exist."""
+        self.assertEqual(claim_check.created_paths("rm languages/whence/z.py"),
+                         set())
+
+    def test_normalisation_is_applied_to_both_spellings(self):
+        self.assertEqual(claim_check.created_paths("touch ./state/x.json"),
+                         {"state/x.json"})
+
+
+class TestRuleFiveInTheGate(unittest.TestCase):
+    def test_gate_without_context_still_answers_none(self):
+        """The default arguments preserve round 411's behaviour exactly: a
+        caller that forgets the context gets the old answer, not a crash."""
+        self.assertIsNone(
+            claim_check.token_exempt_reason("languages/whence/zz_probe.py"))
+
+    def test_gate_with_the_created_set_exempts(self):
+        why = claim_check.token_exempt_reason(
+            "languages/whence/zz_probe.py",
+            created={"languages/whence/zz_probe.py"})
+        self.assertIsNotNone(why)
+        self.assertIn("created", why)
+
+    def test_gate_with_the_declared_set_exempts(self):
+        why = claim_check.token_exempt_reason(
+            "languages/whence/no_such_file.py",
+            declared_absent={"languages/whence/no_such_file.py"})
+        self.assertIsNotNone(why)
+        self.assertIn("declared absent", why)
+
+    def test_the_two_rules_are_not_interchangeable(self):
+        """The load-bearing pin. Round 505's skill needs BOTH: one path the
+        block makes, one the repo declares. If a future round deletes either
+        rule believing the other covers it, this is what says otherwise."""
+        created_only = claim_check.token_exempt_reason(
+            "languages/whence/no_such_file.py",
+            created={"languages/whence/zz_probe.py"})
+        declared_only = claim_check.token_exempt_reason(
+            "languages/whence/zz_probe.py",
+            declared_absent={"languages/whence/no_such_file.py"})
+        self.assertIsNone(created_only)
+        self.assertIsNone(declared_only)
+
+
+class TestRuleFiveEndToEnd(unittest.TestCase):
+    """A differential: the SAME query line, with and without the creation."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        os.makedirs(os.path.join(self.tmp, "languages", "whence"))
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def run_block(self, *lines):
+        cmds = parse(*lines)
+        for c in cmds:
+            c.kind, c.reason = claim_check.classify(c.command)
+        return claim_check.check_paths(cmds, self.tmp, declared_absent=set())
+
+    def test_without_the_creation_the_query_path_is_c001(self):
+        findings, _, _ = self.run_block(
+            "python3 harness/readset.py blast languages/whence/zz_probe.py")
+        self.assertEqual(codes(findings), ["C001"])
+
+    def test_with_the_creation_it_is_skipped_not_flagged(self):
+        findings, checked, skipped = self.run_block(
+            "touch languages/whence/zz_probe.py",
+            "python3 harness/readset.py blast languages/whence/zz_probe.py")
+        self.assertEqual(findings, [])
+        self.assertGreaterEqual(skipped, 1)
+
+    def test_a_creation_LATER_in_the_block_does_NOT_exempt(self):
+        """The exact granularity, pinned rather than described.
+
+        ACROSS command lines the rule respects order — `created` accumulates
+        as the block is read, so a path made at line 2 cannot excuse a claim
+        at line 1, which is real rot. WITHIN one line it does not: see the
+        test below. The first draft of this test asserted the loose
+        behaviour and was refuted by the code, which is the better of the
+        two."""
+        findings, _, _ = self.run_block(
+            "python3 harness/readset.py blast languages/whence/zz_probe.py",
+            "touch languages/whence/zz_probe.py")
+        self.assertEqual(codes(findings), ["C001"])
+
+    def test_within_ONE_line_the_rule_is_order_blind(self):
+        """`touch X && q X` is the shape that matters and is order-correct.
+        The reversed spelling on a single line is exempt too, and that is an
+        over-approximation this round accepts: the alternative is
+        segment-level bookkeeping for a shape nobody writes."""
+        findings, _, _ = self.run_block(
+            "python3 harness/readset.py blast languages/whence/zz_probe.py "
+            "&& touch languages/whence/zz_probe.py")
+        self.assertEqual(findings, [])
+
+
+class TestAbsentRegistryIsSharedAndAsserted(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        os.makedirs(os.path.join(self.tmp, "state"))
+        self.reg = os.path.join(self.tmp, "state", "known-absent-paths.json")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def write(self, paths):
+        with io.open(self.reg, "w", encoding="utf-8") as f:
+            json.dump({"_comment": "x", "paths": paths}, f, indent=2)
+
+    def test_both_checkers_name_the_same_registry_file(self):
+        """THE defect this round closed. Round 506 wrote an acknowledgement
+        into the file `xref_check` reads; `claim_check` read no file at all,
+        so the red stayed open with its own fix sitting in the tree. A second
+        registry would have reproduced that exactly."""
+        import xref_check
+        self.assertEqual(claim_check.ABSENT_ALLOWLIST,
+                         xref_check.ABSENT_ALLOWLIST)
+
+    def test_a_declared_path_that_is_absent_produces_no_finding(self):
+        self.write({"languages/whence/gone.py": "on purpose"})
+        self.assertEqual(claim_check.check_absent_registry(self.tmp), [])
+
+    def test_a_declared_path_that_EXISTS_is_c007(self):
+        """The hand-counted non-zero. An allowlist whose assertion can only
+        come back empty is indistinguishable from an allowlist that swallowed
+        everything — round 506 proved that one file over, on a gitignore pin.
+        This is the case that makes C007 a rule instead of a mute."""
+        os.makedirs(os.path.join(self.tmp, "languages", "whence"))
+        open(os.path.join(self.tmp, "languages", "whence", "here.py"),
+             "w").close()
+        self.write({"languages/whence/here.py": "claimed absent, is not"})
+        findings = claim_check.check_absent_registry(self.tmp)
+        self.assertEqual(codes(findings), ["C007"])
+        self.assertEqual(findings[0].level, "STALE")
+        self.assertIn("here.py", findings[0].message)
+
+    def test_c007_points_at_the_registry_line_not_the_skill(self):
+        """The declaration is what went stale, so that is where the finding
+        is reported."""
+        os.makedirs(os.path.join(self.tmp, "languages", "whence"))
+        open(os.path.join(self.tmp, "languages", "whence", "here.py"),
+             "w").close()
+        self.write({"languages/whence/here.py": "claimed absent, is not"})
+        f = claim_check.check_absent_registry(self.tmp)[0]
+        self.assertTrue(f.command.path.endswith("known-absent-paths.json"))
+        line = io.open(self.reg, encoding="utf-8").read().split(
+            "\n")[f.command.line_no - 1]
+        self.assertIn("here.py", line)
+
+    def test_a_checkout_with_no_registry_makes_no_claim(self):
+        self.assertEqual(claim_check.check_absent_registry(self.tmp), [])
+        self.assertEqual(claim_check.load_absent_allowlist(self.tmp), set())
+
+    def test_an_unparseable_registry_fails_open_not_loud(self):
+        io.open(self.reg, "w", encoding="utf-8").write("{not json")
+        self.assertEqual(claim_check.check_absent_registry(self.tmp), [])
+        self.assertEqual(claim_check.load_absent_allowlist(self.tmp), set())
+
+
+class TestNewPolicyConstantsHaveOneHomeToo(unittest.TestCase):
+    """`TestExemptionGateHasOneHome` above pins rules 1-2's constants. Rules
+    5 and 6 arrive with their own, and the same argument applies: a policy
+    constant read in two places is two policies."""
+
+    SRC = io.open(claim_check.__file__, encoding="utf-8").read()
+
+    def _uses(self, name):
+        return [ln for ln in self.SRC.split("\n")
+                if name in ln and not ln.startswith(name)
+                and not ln.lstrip().startswith("#")]
+
+    def test_the_creation_vocabulary_is_read_only_by_its_producer(self):
+        for name in ("CREATING_PROGRAMS", "CREATING_DEST_PROGRAMS",
+                     "REDIRECT_RE"):
+            uses = self._uses(name)
+            self.assertEqual(len(uses), 1,
+                             "%s is read %d times, want 1:\n%s"
+                             % (name, len(uses), "\n".join(uses)))
+
+    def test_the_registry_path_is_read_only_where_the_file_is_opened(self):
+        """Two readers is correct here and one is not: the loader opens it
+        for rule 6, `check_absent_registry` opens it for C007, and the gate
+        NAMES it in the reason string it hands the reader."""
+        uses = self._uses("ABSENT_ALLOWLIST")
+        self.assertEqual(len(uses), 3, "\n".join(uses))
+
+
 class TestClaimMetrics(unittest.TestCase):
     def test_extracts_every_supported_metric(self):
         m = claim_check.claim_metrics(

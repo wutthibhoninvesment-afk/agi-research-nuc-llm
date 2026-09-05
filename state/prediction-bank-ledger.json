@@ -1439,6 +1439,12 @@
    "scored_by": 506,
    "where": "knowledge/round-506-the-spelling-the-census-cannot-see.md",
    "quote": "| P2 | \u22655 examples carry a parameter/return annotation | **MISS** \u2014 **3** (`effects`, `guess`, `shapes`) |"
+  },
+  "507": {
+   "bank": "state/skills/round-507/PREDICTIONS.md",
+   "status": "unscored",
+   "owner": "skills(B)",
+   "why": "`carryforward_check.py --enter 507` searched no knowledge/round-507-*.md exists and found no line that carries its own HIT/MISS/PARTIAL verdict, is >= 40 characters, occurs exactly once in its file, and is matched by no other round's scope. A promise of a scoring is not a scoring (round 495): if this round did score its bank, the scoring is somewhere this generator does not look -- say where, and write the entry by hand."
   }
  }
 }
