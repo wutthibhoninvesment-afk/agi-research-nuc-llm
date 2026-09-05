@@ -114,6 +114,37 @@ in which case route nothing and fix the check.
    finding into a misrouted one, and one wrong verdict costs more trust than
    ten honest "unknown"s.
 
+10. **Ask whether the finding needs a human AT ALL before you route it.**
+   A route delivers work. If the work is transcription, the route is
+   delivering a chore and the recurrence will continue at the cost of one
+   chore per cycle. Take the last N instances and check what the fix
+   actually was: if the value written was derivable from something the
+   system already computes, the honest remedy is a command that derives it,
+   and the route should carry that command rather than the finding.
+
+   Split the population, and keep the fail-closed check for the half that
+   earns it: the DERIVABLE case gets a one-command discharge, the case that
+   needs a judgement about intent still refuses to guess. Collapsing them in
+   either direction is the error — auto-fixing the judgement case launders a
+   guess, and hand-routing the derivable case is the chore above.
+
+11. **Route to the AUTHOR at the moment they FINISH, not only to the next
+   actor at the moment they start.** A start-of-cycle route (step 5) has a
+   latency floor of one full cycle that no amount of tuning removes, because
+   the finding is created *during* a cycle and the route runs *before* one.
+   To get below that floor you need a hook in the author's own workflow —
+   the commit, the push, the PR — because that is the last moment the person
+   who created the finding is still present and still holds the context.
+
+   The two routes are complements, not alternatives. Keep the start-of-cycle
+   one: it is the only thing that catches a finding whose author ignored the
+   hook, and it is what closes the instances the hook was not installed for.
+
+   The same fail-open rule (step 6) binds harder here, not less: an
+   author-side hook that can REFUSE the commit can destroy work that has
+   nowhere else to live. Warn, exit 0, and print the exact discharge command
+   from step 10.
+
 ## Pitfalls
 
 - **A repeated diagnosis reads like progress.** Three registry entries each
@@ -139,6 +170,18 @@ in which case route nothing and fix the check.
 - **The reporter will end up reading its own output.** Once it is part of
   the cycle, its findings include findings about it. Re-run it at the END of
   your change, not once at the start.
+- **A start-of-cycle route cannot close the gap it measures.** It will
+  improve the numbers — one program's latency went from a 1.7-cycle mean
+  with a 3-cycle worst case down to a flat 1 — and then stop improving them,
+  because 1 is its floor. Reporting that floor as a success without naming
+  it as a floor is how the remaining half of the problem gets closed as done.
+- **The recurrence's stated shape is usually narrower than the recurrence.**
+  Successive authors describe each instance in the vocabulary of the instance
+  they saw, so the diagnosis accretes a team name, a directory, a subsystem
+  that is really just the first few samples. Before building the route, list
+  every instance and test the stated shape against ALL of them — the outlier
+  that refutes it is often already in the record, unnoticed, because nobody
+  re-read the earlier entries when adding the next one.
 - **A stricter gate is not a route.** Escalating severity before establishing
   that anyone reads the output at all adds a way to block work without
   adding a way to inform anyone.
@@ -171,6 +214,38 @@ python3 -m pytest harness/tests/test_reddebt.py -q \
 All five must hold together. Step 3 passing alone is the failure mode step 2
 exists to catch: a route that is silent because it is blind.
 
+If you added an author-side route (step 11), these four as well.
+
+```bash
+# 6. The discharge command exists and DERIVES rather than guesses: it must
+#    refuse a case whose answer is a judgement about intent.
+python3 harness/wiring_audit.py declare <an-unreachable-entry-point>   # exits 1
+
+# 7. The author-side check is cheap enough to sit in a commit. Compare it
+#    against the full check; if it is not an order of magnitude faster,
+#    it will be uninstalled.
+time python3 harness/wiring_audit.py undeclared --staged
+time python3 harness/wiring_audit.py check
+
+# 8. The fast check and the slow one AGREE. A fast path that disagrees is
+#    worse than none, because it makes the slow one look wrong.
+python3 -m pytest harness/tests/test_wiring_audit.py -q \
+  -k 'fast_path_agrees'
+
+# 9. The hook WARNS and does not gate -- proved by RUNNING `git commit`
+#    through it in a throwaway repo, not by asserting on the hook's text.
+python3 -m pytest harness/tests/test_wiring_audit.py -q \
+  -k 'lets_an_undeclared_commit_through'
+```
+
+Step 9 is the one to actually run rather than eyeball, and it must drive a real
+commit. "It only warns" is an easy sentence to write about a script that exits 1
+on a path you did not test — and asserting on the hook's *source text* does not
+test it either. The text-level version of this check was written first here and
+passed a body that a substring split had truncated before the `|| true`; only
+the commit-driving version can tell a warning from a gate.
+
+
 ## Worked instance
 
 A research program ran four scheduled health checks after each round's agent
@@ -191,3 +266,21 @@ route says *reproduce first* instead of *fix this*.
 The fix was not a stricter gate. It was fourteen lines that put the finding
 list into the task description the actor already reads, exiting 0 always and
 printing nothing when clean.
+
+**The sequel, one cycle later, is where steps 10 and 11 come from.** The
+route worked: the very next instance reached its owner at a latency of 1
+instead of 3. But it was an *eighth* instance, and reading all of them
+together showed two things the four prose entries had missed. First, the
+shape they all asserted — one team, one directory — was refuted by instances
+already in the record: two of them had been in a different subtree the whole
+time, and nobody had re-read the earlier entries when appending the next.
+Second, and worse for the route: in **every** instance the missing value was
+already computable from a graph the checker itself builds, so eight cycles
+had each hand-transcribed what one existing command already printed. The
+route had been faithfully delivering a chore.
+
+The second fix was therefore not a better notification. It was a command
+that derives the entry and refuses the one case that needs a human, plus an
+advisory warning in the author's own `pre-commit` hook — the last moment the
+author is still present — costing 0.10 s against the full check's 17.7 s,
+and exiting 0 even when it fires.

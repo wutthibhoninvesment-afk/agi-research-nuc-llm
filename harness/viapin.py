@@ -195,11 +195,14 @@ def _dump_registry(path, registry):
     `indent=2, ensure_ascii=False` reproduces the file byte-for-byte at HEAD;
     the default `ensure_ascii=True` would rewrite every em dash in every
     `reason` string and turn a two-line repair into a 90-line diff.
+
+    Round 499 needed the same writer for `wiring_audit.py declare` and put
+    it in `wiring_audit` — the lower module, which `viapin` already imports.
+    This delegates rather than keeping a second copy: two writers for one
+    file is exactly how the `ensure_ascii` rule gets re-learned by whoever
+    edits only one of them.
     """
-    text = json.dumps(registry, indent=2, ensure_ascii=False) + "\n"
-    with open(path, "w") as fh:
-        fh.write(text)
-    return text
+    return W.dump_registry(path, registry)
 
 
 def fix(root=None, write=False, fill=False, res=None):

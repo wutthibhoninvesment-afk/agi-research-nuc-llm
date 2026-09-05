@@ -162,6 +162,8 @@ Usage:
     python3 harness/wiring_audit.py orphans           # entry points outside it
     python3 harness/wiring_audit.py check             # against the registry
     python3 harness/wiring_audit.py bootstrap         # propose a registry
+    python3 harness/wiring_audit.py undeclared --staged   # commit-time, no closure
+    python3 harness/wiring_audit.py declare PATH --write  # derive the entry
     python3 harness/wiring_audit.py refs TARGET --in FILE [--expect N]
 
 Exit codes: 0 = clean, 1 = at least one ERROR (or a failed `--expect`),
@@ -1070,6 +1072,253 @@ ERROR_CODES = ("W001", "W002", "W003", "W004")
 
 
 # --------------------------------------------------------------------------
+# undeclared / declare — the commit-time half  (round 499, harness A)
+# --------------------------------------------------------------------------
+#
+# WHY THIS EXISTS. `audit()` answers W001 correctly and has since round 415,
+# and it has never once been read by the round that caused it. Six times now
+# a round has built a module, written its test, committed both, and exited;
+# the health check runs AFTER that process is gone and writes to `logs/`,
+# which is not in git. The author cannot see the red it just opened. The
+# instances, all closed by a LATER round by hand:
+#
+#   r471 skills/prediction-banking/scripts/bank_audit.py          closed r473
+#   r472 nuc/dose_response.py                                     closed r473
+#   r478 nuc/summary_fossil.py                                    closed r479
+#   r483 skills/seed-sweep-.../scripts/seedsweep.py               closed r485
+#   r484 nuc/fossil_ledger.py                                     closed r485
+#   r490 nuc/record_union.py                                      closed r493
+#   r498 languages/whence/assertshadow.py                         closed r499
+#
+# Round 493 built `harness/reddebt.py` so the NEXT round is told. That
+# works — it is how round 499 learned about r498's — and it shortens the
+# latency to one round. It cannot make the latency zero, because it runs
+# before a round starts and the debt is created during one.
+#
+# TWO facts make a commit-time check affordable and honest:
+#
+#   1. W001 does not need the closure. "Is this an entry point with no
+#      registry entry" is answered by the tree and the registry alone.
+#      `audit()` costs 19.2 s on this checkout because `Graph` resolves
+#      every reference in 1043 edges; `undeclared()` skips all of it.
+#   2. In 7 of 7 instances the file was ALREADY in the closure, reached by
+#      its own test file, and the entry that closed it was `wired` with a
+#      `via` the graph computes. The human judgement W001 is fail-closed to
+#      protect was never exercised: seven rounds in a row transcribed what
+#      `bootstrap` already prints.
+#
+# So `declare` derives the entry for the reachable case and REFUSES the
+# unreachable one, where `manual` vs `unwired` is a real editorial claim
+# about intent that no graph can make. Fail-closed is preserved exactly
+# where it earns its keep.
+
+
+def dump_registry(path, registry):
+    """Round-trip the registry in ITS OWN formatting.
+
+    `indent=2, ensure_ascii=False` reproduces `harness/wiring-registry.json`
+    byte-for-byte at HEAD; the default `ensure_ascii=True` would rewrite
+    every em dash in every `reason` string and turn a one-entry addition
+    into a whole-file diff. Round 481 learned this in `viapin._dump_registry`,
+    which now delegates here so the two writers cannot drift apart.
+    """
+    text = json.dumps(registry, indent=2, ensure_ascii=False) + "\n"
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(text)
+    return text
+
+
+def staged_paths(root):
+    """Paths staged for commit, repo-relative. Added/copied/modified/renamed.
+
+    `--diff-filter=ACMR` and not the default: a DELETED path cannot be an
+    undeclared entry point, and reporting one would send the reader to a
+    file that is not there.
+    """
+    out = subprocess.run(
+        ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR", "-z"],
+        cwd=root, capture_output=True, text=True)
+    if out.returncode != 0:
+        return []
+    return [p for p in out.stdout.split("\0") if p]
+
+
+def undeclared(root, paths=None, registry=None):
+    """Entry points with no registry entry — the W001 set, WITHOUT the graph.
+
+    `paths` restricts the scan to those repo-relative paths (a commit-time
+    caller passes the staged set); `None` scans the whole tree, in which case
+    the result is exactly the W001 findings `audit()` would report. That
+    equivalence is pinned by a test — a fast path that disagrees with the
+    slow one is worse than no fast path, because it makes the slow one look
+    wrong.
+    """
+    registry = registry if registry is not None else load_registry(root)
+    declared = (registry or {}).get("entry_points", {})
+    prefixes = excluded_prefixes(registry)
+    candidates = code_nodes(tracked_files(root))
+    if paths is not None:
+        wanted = set(paths)
+        candidates = [p for p in candidates if p in wanted]
+    return [p for p in candidates
+            if not is_excluded(p, prefixes)
+            and is_entry_point(root, p)
+            and p not in declared]
+
+
+class Undeclarable(Exception):
+    """A path `declare` refuses to classify, with the reason a human needs."""
+
+
+def propose(root, path, graph=None, registry=None, reason=None):
+    """The registry entry for `path`, derived from the closure.
+
+    Returns the dict to store. Raises `Undeclarable` when the answer is not
+    the graph's to give:
+
+      * not tracked / not an entry point / excluded  — nothing to declare.
+      * already declared                             — nothing to add.
+      * NOT in the closure — `manual` and `unwired` are the two answers and
+        they differ by INTENT, not by any property of the code. `bootstrap`
+        refuses the same choice for the same reason, and collapsing it would
+        put the words "by design" over a real debt.
+    """
+    graph = graph or Graph(root)
+    registry = registry if registry is not None else load_registry(root)
+    declared = (registry or {}).get("entry_points", {})
+    if path in declared:
+        raise Undeclarable("%s is already declared (status %r)"
+                           % (path, declared[path].get("status")))
+    if path not in graph.node_set:
+        raise Undeclarable("%s is not a tracked .py/.sh file" % path)
+    if is_excluded(path, excluded_prefixes(registry)):
+        raise Undeclarable("%s is under a declared vendored/frozen prefix "
+                           "and is deliberately not declared" % path)
+    if not is_entry_point(root, path):
+        raise Undeclarable("%s is not an entry point (no `if __name__ == "
+                           "\"__main__\"` guard, and not a .sh)" % path)
+    if path not in graph.closure():
+        raise Undeclarable(
+            "%s is NOT reachable from %s, so its status is a judgement about "
+            "INTENT that this tool will not make. Add the entry by hand with "
+            "status \"manual\" (an operator tool, a benchmark, a demo, or a "
+            "script that must never fire unattended) or \"unwired\" (a debt "
+            "someone owes) with `owner`, `reason` and `since_round`."
+            % (path, ", ".join(graph.roots)))
+    best = graph.best_incoming(path)
+    entry = {"status": "wired",
+             "via": ("%s:%s" % (best[0], edge_line(best[1])))
+                    if best else "root",
+             "via_kind": best[2] if best else "root"}
+    if reason:
+        entry["reason"] = reason
+    return entry
+
+
+def _insert_entries(existing, added):
+    """Add `added` to `existing` WITHOUT reordering a single existing key.
+
+    Round 499 wrote this the obvious way first — rebuild the dict as
+    `sorted(eps)` so a new entry lands where a reader would look for it —
+    and the resulting one-entry addition showed up as **87 insertions and 81
+    deletions**. `harness/wiring-registry.json` has never been sorted: it is
+    grouped and appended, so `swap_driver.sh` sits directly before
+    `harness/escalationguard.py`. Re-sorting it is a whole-file rewrite that
+    buries the actual change and destroys the grouping every previous round
+    maintained by hand.
+
+    So the rule is: existing keys keep their exact positions, and each new
+    key is placed before the first existing key that sorts after it (or
+    appended). The diff is then a pure insertion of the new entry's lines,
+    which is what `git diff` should show for an addition, and it is also the
+    only shape a reviewer can check at a glance.
+    """
+    out, pending = {}, dict(added)
+    for key, value in existing.items():
+        for new_key in sorted(k for k in pending if k < key):
+            out[new_key] = pending.pop(new_key)
+        out[key] = value
+    for new_key in sorted(pending):
+        out[new_key] = pending[new_key]
+    return out
+
+
+def declare(root, paths, reason=None, write=False, graph=None):
+    """Derive and (with `write`) persist entries for `paths`.
+
+    Dry-run by default, like `viapin.fix`: a tool that edits a tracked
+    registry as a side effect of being asked a question is one a round runs
+    once by accident.
+    """
+    reg_path = os.path.join(root, REGISTRY_NAME)
+    registry = load_registry(root)
+    if registry is None:
+        raise Undeclarable("no registry at %s" % reg_path)
+    graph = graph or Graph(root)
+    added, refused = {}, []
+    for path in paths:
+        try:
+            added[path] = propose(root, path, graph=graph,
+                                  registry=registry, reason=reason)
+        except Undeclarable as exc:
+            refused.append((path, str(exc)))
+    if write and added:
+        registry["entry_points"] = _insert_entries(registry["entry_points"],
+                                                   added)
+        dump_registry(reg_path, registry)
+    return {"added": added, "refused": refused, "wrote": bool(write and added)}
+
+
+def cmd_undeclared(args, root):
+    paths = None
+    if args.staged:
+        paths = staged_paths(root)
+    elif args.paths:
+        paths = list(args.paths)
+    found = undeclared(root, paths)
+    if args.json:
+        print(json.dumps({"undeclared": found,
+                          "scope": "staged" if args.staged
+                                   else ("paths" if args.paths else "tree")},
+                         indent=2))
+        return 1 if found else 0
+    for p in found:
+        print("W001  %s: entry point with no registry entry" % p)
+    if found:
+        print("")
+        print("Declare it before you commit — one command, and it costs "
+              "nothing if the file is already reachable:")
+        print("    python3 harness/wiring_audit.py declare %s --write"
+              % " ".join(found))
+        print("If that refuses, the file is not reachable from run_driver.sh "
+              "and you owe a hand-written `manual` or `unwired` entry in "
+              "harness/wiring-registry.json.")
+    elif not args.quiet:
+        # `paths is None` means the WHOLE TREE was scanned, not zero paths.
+        # Printing "in 0 path(s)" for the tree scan states a false number in
+        # exactly the reassuring direction, which is the one failure mode a
+        # clean-run message must not have.
+        print("wiring-audit: no undeclared entry point in %s"
+              % ("%d path(s)" % len(paths) if paths is not None
+                 else "the whole tree"))
+    return 1 if found else 0
+
+
+def cmd_declare(args, root):
+    res = declare(root, args.paths, reason=args.reason, write=args.write)
+    for path, entry in sorted(res["added"].items()):
+        print("%s  %s  %s"
+              % ("declared" if res["wrote"] else "would declare",
+                 path, json.dumps(entry, ensure_ascii=False)))
+    for path, why in res["refused"]:
+        print("REFUSED  %s" % why)
+    if res["added"] and not args.write:
+        print("\n(dry run — re-run with --write to persist)")
+    return 1 if res["refused"] else 0
+
+
+
+# --------------------------------------------------------------------------
 # refs — re-derive a reference-count claim
 # --------------------------------------------------------------------------
 
@@ -1346,6 +1595,26 @@ def build_parser():
 
     sub.add_parser("bootstrap")
 
+    u = sub.add_parser("undeclared",
+                       help="W001 only, WITHOUT the closure — the "
+                            "commit-time check")
+    u.add_argument("paths", nargs="*",
+                   help="repo-relative paths (default: the whole tree)")
+    u.add_argument("--staged", action="store_true",
+                   help="scan the paths staged for commit")
+    u.add_argument("--quiet", action="store_true",
+                   help="print nothing when the scanned set is clean")
+    u.add_argument("--json", action="store_true")
+
+    d = sub.add_parser("declare",
+                       help="derive a `wired` registry entry from the "
+                            "closure; refuses anything unreachable")
+    d.add_argument("paths", nargs="+")
+    d.add_argument("--reason", default=None)
+    d.add_argument("--write", action="store_true",
+                   help="persist to harness/wiring-registry.json "
+                        "(default: dry run)")
+
     r = sub.add_parser("refs")
     r.add_argument("target")
     r.add_argument("--in", dest="in_file", required=True)
@@ -1375,6 +1644,10 @@ def main(argv=None):
         return cmd_check(args, root)
     if args.cmd == "bootstrap":
         return cmd_bootstrap(args, root)
+    if args.cmd == "undeclared":
+        return cmd_undeclared(args, root)
+    if args.cmd == "declare":
+        return cmd_declare(args, root)
     if args.cmd == "refs":
         return cmd_refs(args, root)
     if args.cmd == "token-refs":

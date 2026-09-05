@@ -366,6 +366,7 @@ def hook_script(python=None, script_rel=None):
     Python where it is tested."""
     python = python or "python3"
     script_rel = script_rel or os.path.join("harness", "escalationguard.py")
+    wiring_rel = os.path.join("harness", "wiring_audit.py")
     return """#!/bin/sh
 %s
 # Refuses a commit that would land a path listed in
@@ -378,8 +379,34 @@ def hook_script(python=None, script_rel=None):
 top=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 [ -f "$top/%s" ] || exit 0
 %s "$top/%s" check || exit 1
+
+# Round 499 (harness A): the SECOND commit-time guard, and the only reason
+# there is one hook file rather than two is that git allows exactly one
+# `pre-commit`. This step is ADVISORY -- it always exits 0.
+#
+# It warns when the commit stages a *.sh, or a *.py with a __main__ guard,
+# that has no entry in harness/wiring-registry.json. That is a W001 error in
+# the fast tier, and it has been opened seven times by seven different
+# rounds (r471, r472, r478, r483, r484, r490, r498) without the round that
+# opened it ever seeing it: the health checks run after the agent process
+# exits and write to logs/, which is not in git. This is the only place the
+# AUTHOR is still present.
+#
+# `undeclared --staged` and never `check`: the full audit resolves the whole
+# invocation closure and costs ~18 s, which is not a thing to put in front
+# of every commit. Restricted to the staged set it costs ~0.1 s.
+#
+# WARNS, NEVER BLOCKS, and that is deliberate rather than timid. A gate here
+# can refuse the commit of a round that has no turns left to debug it, and
+# losing a round's whole uncommitted diff is a strictly worse outcome than
+# one more round of a red registry line -- this program has already lost 32
+# sessions to the turn cap. Fails open on any infrastructure trouble too.
+if [ -f "$top/%s" ]; then
+  %s "$top/%s" undeclared --staged --quiet 2>/dev/null || true
+fi
 exit 0
-""" % (HOOK_MARKER, script_rel, python, script_rel)
+""" % (HOOK_MARKER, script_rel, python, script_rel,
+       wiring_rel, python, wiring_rel)
 
 
 def hooks_dir(repo=REPO_ROOT):

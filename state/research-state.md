@@ -27919,6 +27919,156 @@ the entry is round 493's.
    remains the operator's decision; the checker's own line is the only source
    for its carry count.
 
+### Round 499 — harness(A) — 2026-09-05 — the declaration nobody could see
+
+- **Inherited red:** the `harness/tests/test_wiring_audit.py` trio
+  (`test_the_registry_is_clean`, `test_every_entry_point_in_the_tree_is_declared`,
+  `test_the_cli_check_exits_zero_on_this_tree`), opened by round 498 (language C),
+  owner harness(A), flagged RECURRENT with the instruction to reproduce first.
+  **Reproduced before touching anything**: `1 failed, 44 passed in 21.11 s`, one
+  cause, `W001 languages/whence/assertshadow.py entry point with no registry
+  entry`. Not the runner. Round 498 built the module, committed it in `bd55eb5`,
+  and exited.
+- **The recurrence is SEVEN instances, not five, and the shape written into the
+  registry four times is WRONG.** r471 `skills/prediction-banking/scripts/bank_audit.py`,
+  r472 `nuc/dose_response.py`, r478 `nuc/summary_fossil.py`,
+  r483 `skills/seed-sweep-needs-a-same-seed-control/scripts/seedsweep.py`,
+  r484 `nuc/fossil_ledger.py`, r490 `nuc/record_union.py`, r498
+  `languages/whence/assertshadow.py`. All four existing `reason` fields call this
+  "the E track's pattern" and locate it under `nuc/`; instance 7 is language(C)
+  under `languages/whence/` and instances 1 and 4 were under `skills/` all along.
+  The invariant is **a new module plus its own test, in a tree whose test
+  directory is already a directory edge in the closure** — which is why all seven
+  were reachable the instant they were written, and why not one of them ever
+  needed the human judgement W001 is fail-closed to protect.
+- **Round 493's `reddebt.py` worked and is why this round's latency was 1.**
+  Instances 1-6 averaged 1.7 rounds with a worst case of 3 (r490 -> r493, with a
+  D round and a C round running straight past it). `reddebt` runs *before* a
+  round starts, though, and the debt is created *during* one, so it can shorten
+  the latency and never make it zero.
+- **Built — the commit-time half, which is the only moment the author is still
+  present.** `wiring_audit.py undeclared [PATHS] [--staged]` answers W001 WITHOUT
+  building the closure: **17.7 s** for the full `check`, **1.83 s** whole-tree,
+  **0.10 s** on the staged set (**177x**). A test pins that the fast path returns
+  exactly `audit()`'s W001 set, and another pins that it never constructs a
+  `Graph`. `wiring_audit.py declare PATH --write` derives the `wired` entry from
+  the closure and **refuses** anything unreachable, because `manual` vs `unwired`
+  is a claim about intent no graph can make (`bootstrap` already refused the same
+  choice for the same reason). Dry-run by default, like `viapin.fix`.
+- **The pre-commit hook installed by round 475 now carries a second, ADVISORY
+  step** that runs `undeclared --staged` and always exits 0. Verified end-to-end
+  in an isolated repo: the warning and the exact `declare` command print, and the
+  commit SUCCEEDS. Advisory on purpose — a gate here can refuse the commit of a
+  round with no turns left to debug it, and this program has already lost 32
+  sessions to the turn cap. **No `run_driver.sh` edit was needed**: the driver
+  already calls `install-hook` every round and `install_hook` reports `updated`
+  for a stale hook of its own (confirmed: `hook updated`, then `hook unchanged`).
+- **`dump_registry` now lives in `wiring_audit` and `viapin._dump_registry`
+  delegates to it**, verified byte-identical on the live registry. Two writers for
+  one file is how the `ensure_ascii` rule gets re-learned by whoever edits one.
+- **Three defects this round put into its own work.** (a) `declare` first rebuilt `entry_points` as `sorted(eps)`, and a
+  ONE-ENTRY addition came out as **87 insertions / 81 deletions** — the registry
+  has never been sorted, it is grouped and appended. P4 caught it; `_insert_entries`
+  now never reorders an existing key and the edit is **6 / 0**. Both the rule and
+  the fact that the live registry is unsorted are pinned by tests. (b) Backticks
+  in `--reason` were executed by the shell: it printed `wiring_audit.py: command
+  not found`, stored the sentence with the phrase DELETED, and still exited 0 —
+  the `git commit -m` hazard this program already knows, in a new command. (c) The
+  test asserting the hook is advisory did `body.split("undeclared --staged")[1]`,
+  but the phrase occurs TWICE in the hook body — once in a comment — so it
+  tested the comment and reported the advisory step as a GATE. Replaced as the
+  primary check by `test_the_installed_hook_lets_an_undeclared_commit_through`,
+  which installs the hook in a throwaway repo and **runs `git commit`**. Asserting
+  on a hook's source text cannot tell a warning from a gate; only driving a commit
+  can.
+- **A failure this round CAUSED and did not patch.**
+  `TestEdgeLines::test_best_incoming_is_the_same_answer_in_two_processes` (round
+  481's nondeterminism pin) went red; the `-x` reproduction had stopped at node 45
+  and never reached it. Reproduced against a **pristine HEAD worktree**:
+  `1 passed in 53.91 s` at HEAD, red in the working tree. But an independent
+  3-seed sweep of the working tree reported `N_DIFFERING_NODES: 0`. Both are true:
+  **the suite ran for 171 s while `harness/wiring_audit.py` was being edited**, and
+  that test's three subprocesses re-import it from disk, so subprocess 1 and
+  subprocess 3 read different files. Re-run quiescent: `1 passed in 50.12 s`. The
+  test was right, the code was fine, the measurement was invalid. Nothing about
+  the test was changed.
+- **Predictions (D-013, `state/round-499/predictions.md`, banked before any code
+  was written): P2, P3, P7, P8 HIT; P1 HIT on the stated scope and OVER its 1.0 s
+  bound whole-tree; P6 HIT on substance (6/6) and MISS on paths (2 of 6 banked as
+  `nuc/` were `skills/`, inferred from the prose rather than checked); P4 MISS as
+  first implemented and that miss found the defect; P5 MISS badly — predicted >=110
+  of 117, actual 35.**
+- **P5's miss is a finding, and the answer already had an owner.** 82 of the 117
+  `via` pins render `<file>:-` because the three `ast` passes recorded every edge
+  at line 0 until round 481 fixed them — they are **fossils of the pre-481
+  analyser**, not drift and not error. `viapin.py audit` independently agrees to
+  the entry (`117 pin(s), 35 held, 0 drifted, 0 lost, 0 absent, 82 unpinned`),
+  matching a separate derivation of 35 exactly. `viapin fix --fill` already exists
+  and is the owner. Deliberately NOT run this round — see next steps.
+- **`skills/finding-must-reach-an-actor/SKILL.md` upgraded, not a new skill**
+  (rule 5; upgrading adds no new trigger-case debt to a skills corpus that is
+  currently red and is not this round's). Round 493 authored it and its worked
+  instance IS this recurrence. Round 499 adds **step 10** — ask whether the
+  finding needs a human AT ALL before routing it, because a route whose payload
+  is transcription delivers a chore once per cycle forever — and **step 11** —
+  route to the AUTHOR when they FINISH, not only to the next actor when they
+  start, since a start-of-cycle route has a latency floor of one cycle. Plus two
+  pitfalls and four Verification commands, all runnable in this repo.
+- **Verification, run on a QUIESCENT tree after learning the lesson above:**
+  `test_wiring_audit.py` + `test_escalationguard.py` + `test_viapin.py` +
+  `test_run_driver_escalation_guard.py` -> **155 passed in 257.61 s (0:04:17)**,
+  zero failures. `wiring_audit.py check` -> **141 entry point(s), 121 in closure,
+  0 error(s), 0 warning(s)**. `viapin audit` moved `117 pin(s), 35 held` ->
+  `118 pin(s), 36 held`: the new entry's `via` re-derives from the graph.
+  **26 tests added**, including one that replaces `W.Graph` with a fixture that
+  FAILS if it is ever called, so the fast path cannot silently regain the 18 s
+  cost, and one that drives a real `git commit` through the hook.
+- **Knowledge:** `knowledge/round-499-the-declaration-nobody-could-see.md`.
+
+## Next steps (as of round 499)
+
+1. **The eighth instance is now a one-line command, and the next round to build
+   an entry point is the experiment.** `wiring_audit.py declare <path> --write`
+   plus a pre-commit warning is the whole remedy; if instance 8 still reddens the
+   trio, the hook is not reaching the author and THAT is the finding to write
+   down, not another `reason` field. Whoever opens it: say explicitly whether you
+   saw the hook's warning in your own commit output. any track.
+2. **`viapin fix --fill` would close 82 of 117 unpinned `via`s and was
+   deliberately not run.** It is a separate, reviewable diff and it touches every
+   one of those entries; round 499 had already made one 87/81 mistake in that file
+   and declined to make a second in the same round. Whoever runs it should show
+   `viapin audit` before and after and confirm `wiring_audit check` stays at 0
+   errors. harness(A).
+3. **Round 498's next-step #1 asked for the assert-shadow sweep on the other
+   three trees and this round did not run it.** `assertshadow.py --tests <dir>`
+   costs under a second and `harness/tests/` is harness(A)'s own tree. It is the
+   cheapest unclaimed item in the file. harness(A), NUC(E) or skills(B).
+4. **Round 498's next-step #10 item — "#8's wiring-audit-in-the-health-checks
+   proposal, which `harness/wiring-registry.json` has now proposed five times in
+   prose" — is answered SIDEWAYS and should be re-read, not re-carried.** Round
+   499 did not put the audit in the health checks; it put the cheap half at COMMIT
+   TIME, because the health checks run after the author's process exits and that
+   is the entire defect. If a later round still wants the health-check version, it
+   should say what that adds over the hook. SWE-loop(D) or harness(A).
+5. **The three skills-check reds in this round's briefing were NOT touched**
+   (`corpus_check.py::carryforward`, `::selfdesc_check`, `::unit_tests`, opened by
+   round 498, owner skills(B), all RECURRENT). This round did not run that suite
+   and a drive-by fix from a track that cannot reproduce them is how a red gets
+   patched instead of understood. Carried, not closed. skills(B).
+6. **`nproc` on this box is 1, and this round paid the standing tax twice.**
+   A 171 s suite invalidated by concurrent editing (above), and every
+   `TestThisTree` node rebuilds the ~18 s graph from scratch. Any round touching
+   `test_wiring_audit.py` should budget several minutes, run it in the background,
+   and **stop editing `.py`/`.sh` files while it runs**.
+7. **Round 498's next-steps #2, #3, #5, #6, #7, #9 and #11 stand, untouched.**
+   In particular the `tree_derived` heuristic's 2-of-9 false positives, the
+   `git log -L` floor of 3, and the standing operator items: the `CRITICAL
+   MISSION` and `MASTER MISSION` blocks in CLAUDE.md (still a deletion for the
+   operator), `case_coverage`'s 49-of-103, `claim_check` executing 0 commands, and
+   the NUC `retention --strict` deadline. `languages/whence/SECURITY.md` remains
+   the operator's decision; the checker's own line is the only source for its
+   carry count.
+
 ## Next steps (as of round 497)
 
 1. **The 55 stale ledger rows are now a NAMED, budgeted job.** All of them

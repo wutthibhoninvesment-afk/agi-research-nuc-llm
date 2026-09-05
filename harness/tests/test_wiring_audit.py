@@ -20,6 +20,7 @@ zero references.
 """
 import json
 import os
+import shutil
 import subprocess
 import sys
 
@@ -810,3 +811,263 @@ class TestEdgeLines:
             assert r.returncode == 0, r.stderr[-2000:]
             outs.append(r.stdout)
         assert outs[0] == outs[1] == outs[2]
+
+
+# --------------------------------------------------------------------------
+# undeclared / declare — round 499
+# --------------------------------------------------------------------------
+
+class TestUndeclared:
+    """The commit-time half. `audit()` has answered W001 correctly since
+    round 415 and has never been read by the round that caused it: seven
+    rounds (471, 472, 478, 483, 484, 490, 498) built an entry point, did not
+    declare it, and exited before the health check ran. These pin the fast
+    path that a pre-commit hook can afford."""
+
+    def _repo(self, tmp_path):
+        root = make_repo(tmp_path, {
+            "run_driver.sh": "python3 tool.py\n",
+            "tool.py": "import os\n" + MAIN,
+            "orphan.sh": "echo hi\n",
+            "helper.py": "def f():\n    pass\n",          # no __main__ guard
+            "state/round-1/once.py": "x = 1\n" + MAIN,     # frozen prefix
+        })
+        write_registry(root,
+                       frozen_prefixes=[{"prefix": "state/",
+                                         "reason": "records tree"}],
+                       entry_points={"run_driver.sh": {"status": "wired",
+                                                       "via": "root",
+                                                       "via_kind": "root"}})
+        return root
+
+    def test_it_finds_an_undeclared_entry_point(self, tmp_path):
+        root = self._repo(tmp_path)
+        assert set(W.undeclared(root)) == {"tool.py", "orphan.sh"}
+
+    def test_a_declared_entry_point_is_not_reported(self, tmp_path):
+        assert "run_driver.sh" not in W.undeclared(self._repo(tmp_path))
+
+    def test_a_module_without_a_main_guard_is_not_an_entry_point(self,
+                                                                 tmp_path):
+        assert "helper.py" not in W.undeclared(self._repo(tmp_path))
+
+    def test_an_excluded_prefix_is_not_reported(self, tmp_path):
+        """`state/` is a records tree. A permanent finding for a state the
+        program deliberately keeps is the mute-button failure."""
+        assert "state/round-1/once.py" not in W.undeclared(self._repo(tmp_path))
+
+    def test_restricting_to_paths_scans_only_those(self, tmp_path):
+        root = self._repo(tmp_path)
+        assert W.undeclared(root, ["orphan.sh"]) == ["orphan.sh"]
+        assert W.undeclared(root, ["helper.py"]) == []
+
+    def test_it_needs_no_graph(self, tmp_path):
+        """The whole point of the fast path: it must not touch `Graph`.
+
+        The full audit costs ~18 s on the real tree because it resolves
+        every reference in the closure; that is not something to put in
+        front of every commit. If someone later routes `undeclared` through
+        the graph for convenience, this fails.
+        """
+        root = self._repo(tmp_path)
+        boom = lambda *a, **k: pytest.fail("undeclared() built a Graph")
+        saved = W.Graph
+        W.Graph = boom
+        try:
+            assert set(W.undeclared(root)) == {"tool.py", "orphan.sh"}
+        finally:
+            W.Graph = saved
+
+
+class TestDeclare:
+
+    def _repo(self, tmp_path):
+        root = make_repo(tmp_path, {
+            "run_driver.sh": 'python3 -m pytest tests/\n',
+            "tests/test_thing.py": "import thing\n",
+            "thing.py": "x = 1\n" + MAIN,
+            "lonely.py": "y = 2\n" + MAIN,
+        })
+        write_registry(root, entry_points={})
+        return root
+
+    def test_it_derives_wired_for_a_reachable_entry_point(self, tmp_path):
+        root = self._repo(tmp_path)
+        entry = W.propose(root, "thing.py")
+        assert entry["status"] == "wired"
+        assert entry["via"].startswith("tests/test_thing.py:")
+        assert entry["via_kind"] == "import"
+
+    def test_it_REFUSES_an_unreachable_entry_point(self, tmp_path):
+        """The one judgement no graph can make.
+
+        `manual` and `unwired` differ by INTENT, not by any property of the
+        code, and collapsing them puts the words "by design" over a real
+        debt. `bootstrap` refuses the same choice for the same reason.
+        """
+        root = self._repo(tmp_path)
+        with pytest.raises(W.Undeclarable) as exc:
+            W.propose(root, "lonely.py")
+        msg = str(exc.value)
+        assert "manual" in msg and "unwired" in msg
+
+    def test_declare_is_a_dry_run_by_default(self, tmp_path):
+        root = self._repo(tmp_path)
+        res = W.declare(root, ["thing.py"])
+        assert res["added"] and res["wrote"] is False
+        assert W.load_registry(root)["entry_points"] == {}
+
+    def test_write_persists_and_closes_the_finding(self, tmp_path):
+        root = self._repo(tmp_path)
+        assert "thing.py" in W.undeclared(root)
+        res = W.declare(root, ["thing.py"], write=True)
+        assert res["wrote"] is True
+        assert "thing.py" not in W.undeclared(root)
+        # ...and it is a real W001 closure, not just a key appearing: the
+        # full audit must stop reporting it too.
+        w001 = [p for c, p, _ in W.audit(root)["findings"] if c == "W001"]
+        assert "thing.py" not in w001
+        assert set(w001) == {"run_driver.sh", "lonely.py"}
+
+    def test_declaring_everything_makes_the_fixture_repo_clean(self, tmp_path):
+        """End to end on a whole tiny tree: the two derivable entry points
+        are declared by the tool, `lonely.py` is the one a human must
+        classify, and only then is the audit green."""
+        root = self._repo(tmp_path)
+        W.declare(root, ["thing.py", "run_driver.sh"], write=True)
+        reg = W.load_registry(root)
+        reg["entry_points"]["lonely.py"] = {"status": "manual",
+                                            "owner": "nobody",
+                                            "reason": "a demo"}
+        W.dump_registry(os.path.join(root, W.REGISTRY_NAME), reg)
+        assert W.undeclared(root) == []
+        errs = [f for f in W.audit(root)["findings"] if f[0] in W.ERROR_CODES]
+        assert errs == [], errs
+
+    def test_a_refusal_does_not_block_the_declarable_ones(self, tmp_path):
+        root = self._repo(tmp_path)
+        res = W.declare(root, ["thing.py", "lonely.py"], write=True)
+        assert list(res["added"]) == ["thing.py"]
+        assert [p for p, _ in res["refused"]] == ["lonely.py"]
+
+    def test_declaring_an_already_declared_path_is_refused(self, tmp_path):
+        root = self._repo(tmp_path)
+        W.declare(root, ["thing.py"], write=True)
+        res = W.declare(root, ["thing.py"])
+        assert res["added"] == {}
+        assert "already declared" in res["refused"][0][1]
+
+
+class TestRegistryWriting:
+
+    def test_insert_never_reorders_an_existing_key(self):
+        """Round 499 wrote `declare` the obvious way first — rebuild the
+        dict as `sorted(eps)` — and the resulting ONE-ENTRY addition came
+        out as 87 insertions and 81 deletions, because
+        `harness/wiring-registry.json` has never been sorted: it is grouped
+        and appended, so `swap_driver.sh` sits directly before
+        `harness/escalationguard.py`. This pins the repair."""
+        existing = {"b": 1, "a": 2, "z": 3}
+        out = W._insert_entries(existing, {"c": 9})
+        assert [k for k in out if k in existing] == list(existing)
+        assert list(out) == ["b", "a", "c", "z"]
+
+    def test_insert_appends_when_nothing_sorts_after(self):
+        assert list(W._insert_entries({"b": 1, "a": 2}, {"zz": 9})) \
+            == ["b", "a", "zz"]
+
+    def test_the_live_registry_is_still_append_ordered(self):
+        """If someone ever sorts it, the rule above stops being needed —
+        and the reader should find that out from a failing test rather than
+        from a 90-line diff."""
+        keys = list(W.load_registry(REPO)["entry_points"])
+        assert keys != sorted(keys)
+
+    def test_dump_reproduces_the_live_registry_byte_for_byte(self, tmp_path):
+        """`indent=2, ensure_ascii=False`. The default `ensure_ascii=True`
+        rewrites every em dash in every `reason` string, turning a one-entry
+        addition into a whole-file diff."""
+        src = os.path.join(REPO, W.REGISTRY_NAME)
+        with open(src, encoding="utf-8") as fh:
+            before = fh.read()
+        dst = str(tmp_path / "copy.json")
+        assert W.dump_registry(dst, json.loads(before)) == before
+        with open(dst, encoding="utf-8") as fh:
+            assert fh.read() == before
+
+    def test_viapin_delegates_to_the_same_writer(self):
+        """Two writers for one file is how the `ensure_ascii` rule gets
+        re-learned by whoever edits only one of them."""
+        sys.path.insert(0, _HARNESS)
+        import viapin
+        assert viapin._dump_registry.__module__ == "viapin"
+        src = os.path.join(REPO, W.REGISTRY_NAME)
+        with open(src, encoding="utf-8") as fh:
+            before = fh.read()
+        import inspect
+        assert "dump_registry" in inspect.getsource(viapin._dump_registry)
+        with open(src, encoding="utf-8") as fh:
+            assert fh.read() == before
+
+
+class TestThisTreeCommitTime:
+
+    def test_the_fast_path_agrees_with_the_full_audit(self):
+        """A fast path that disagrees with the slow one is worse than no
+        fast path, because it makes the slow one look wrong."""
+        slow = sorted(p for c, p, _ in W.audit(REPO)["findings"]
+                      if c == "W001")
+        assert sorted(W.undeclared(REPO)) == slow
+
+    def test_the_pre_commit_hook_carries_the_advisory_wiring_step(self):
+        sys.path.insert(0, _HARNESS)
+        import escalationguard as eg
+        body = eg.hook_script()
+        assert "wiring_audit.py" in body
+        assert "undeclared --staged" in body
+        # ADVISORY: the step must never be able to fail the hook. A gate here
+        # can refuse the commit of a round with no turns left to debug it,
+        # and losing a round's uncommitted diff is strictly worse than one
+        # more round of a red registry line.
+        # `[-1]`, not `[1]`: the phrase occurs TWICE in the body, once in
+        # the comment explaining why `check` is not used and once in the
+        # command itself. Splitting on the first occurrence tested the
+        # comment and reported the hook as a gate.
+        step = body.split("undeclared --staged")[-1]
+        assert "|| true" in step
+        assert body.rstrip().endswith("exit 0")
+
+    def test_the_installed_hook_lets_an_undeclared_commit_through(self,
+                                                                  tmp_path):
+        """The claim "it only warns", proved by committing through it.
+
+        Asserting on the hook TEXT cannot distinguish a warning from a gate;
+        only running `git commit` can. An advisory step that exits 1 on a
+        path nobody exercised is exactly the shape that destroys a round's
+        uncommitted work.
+        """
+        sys.path.insert(0, _HARNESS)
+        import escalationguard as eg
+        root = str(tmp_path)
+        os.makedirs(os.path.join(root, "harness"))
+        for name in ("wiring_audit.py", "escalationguard.py"):
+            shutil.copy(os.path.join(_HARNESS, name),
+                        os.path.join(root, "harness", name))
+        with open(os.path.join(root, "run_driver.sh"), "w") as fh:
+            fh.write("python3 harness/wiring_audit.py check\n")
+        write_registry(root)
+        for cmd in (["git", "init", "-q"],
+                    ["git", "config", "user.email", "t@t"],
+                    ["git", "config", "user.name", "t"],
+                    ["git", "add", "-A"],
+                    ["git", "commit", "-qm", "base"]):
+            subprocess.run(cmd, cwd=root, check=True)
+        eg.install_hook(repo=root, python=sys.executable)
+        with open(os.path.join(root, "newtool.py"), "w") as fh:
+            fh.write("x = 1\n" + MAIN)
+        subprocess.run(["git", "add", "newtool.py"], cwd=root, check=True)
+        r = subprocess.run(["git", "commit", "-m", "undeclared entry point"],
+                           cwd=root, capture_output=True, text=True)
+        assert r.returncode == 0, r.stdout + r.stderr          # NOT a gate
+        assert "W001" in r.stdout + r.stderr                   # but it warned
+        assert "declare newtool.py" in r.stdout + r.stderr     # with the fix
