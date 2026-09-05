@@ -547,8 +547,14 @@ class TestLiveCorpus(unittest.TestCase):
         for n, e in led.items():
             if e.get("status") != "scored":
                 continue
-            body = cf.read(os.path.join(ROOT, e["where"]))
-            self.assertIn(e["quote"], body, "round %s cites %s" % (n, e["where"]))
+            # Round 517: K002's own predicate, on collapsed whitespace.
+            # This was the THIRD place asking the raw question -- the
+            # checker, the K005 live node, and here -- and the third one
+            # kept `unit_tests` red after the other two were fixed. A live
+            # node that enforces a checker must ask the checker's question.
+            body = cf.flat(cf.read(os.path.join(ROOT, e["where"])))
+            self.assertIn(cf.flat(e["quote"]), body,
+                          "round %s cites %s" % (n, e["where"]))
             checked += 1
         self.assertGreater(checked, 40)
 

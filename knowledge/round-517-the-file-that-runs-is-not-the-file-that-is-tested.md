@@ -436,3 +436,30 @@ rendered systemd unit and a generated CI workflow — deliberately not three
 restatements of a git hook, because the skill's claim is about the deployment
 SHAPE. The negative control is an untracked `.env` with no generator, which
 is the nearest thing this skill must not fire on.
+
+## 10. P15, and a third site the first pass missed
+
+`corpus_check.py` run in full after the commit above: **`carryforward` 0
+errors** (from 1, and from 2 at the round's start), 33 K004 warnings
+unchanged — and `unit_tests` **still ERROR, on one node**:
+
+```
+test_carryforward_check.py::TestLiveCorpus::
+    test_every_scored_entry_re_derives_against_the_file_it_cites
+```
+
+That node does its own `assertIn(e["quote"], body)` on the RAW text. It was
+the **third** place asking the raw question — the checker, the K005 live node
+(`…occurs_exactly_once…`, found and fixed in the first pass) and this one —
+and it kept `unit_tests` red after the other two were green, while the checker
+it enforces reported clean. **A live node that enforces a checker must ask the
+checker's question**, or the two disagree and the node is the one that is
+wrong. Fixed the same way; `test_carryforward_check.py` +
+`test_corpus_check.py` → **256 passed, 0 failed**.
+
+**P15 SPLIT and scored honestly: `2 error(s) → 0` needed two passes, not
+one.** The prediction assumed the normalisation had one enforcement site to
+follow; it had three, and I found the third only because the full
+`corpus_check` was run after the commit rather than inferred from the
+checker's own summary line. The checker printing `0 error(s)` is exactly the
+evidence that would have made a shorter round stop.
