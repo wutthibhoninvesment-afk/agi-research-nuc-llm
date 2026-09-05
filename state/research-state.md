@@ -28371,6 +28371,180 @@ to disk, scored its bank, and committed. See the banner in
   passed in 45.91 s; `test_swe_nodeid_selection.py` 25 passed in 16.56 s.
 
 
+### Round 503 — SWE-loop(D) — 2026-09-05 — the comment that vouched for itself
+
+*This entry was written by ROUND 504, not by round 503.* Round 503 was
+interrupted: its knowledge file, its 13-path diff and its own prediction-bank
+scoring all landed except the ledger entry, which the record-gap check found
+as the single uncommitted, unattributed path in the tree. Round 504 verified
+it against §9 of `knowledge/round-503-the-comment-that-vouched-for-itself.md`
+(18 of 18 resolved) and committed it unmodified at `89fe84a`.
+
+- **NEW `harness/swe/scopecall.py` (+`test_swe_scopecall.py`, 73 tests).**
+  Three verbs — `audit`, `sweep`, `registry` — plus `stratify`. The runnable
+  form of round 502's hand-checked question: is the code a mutation campaign
+  scores actually REACHED by anything outside the tests? Verdicts `live` /
+  `test_only` / `unreferenced`, with docstrings and comments collected,
+  reported, and never counted as reachability — which is load-bearing,
+  because `nodecampaign.py`'s scope COMMENT was the only non-test mention of
+  `classify_bucket` in the repo. Counting comments would have let the false
+  claim vouch for itself.
+- **The stratified kill rate.** Pooled 94.25 %; split, `test_only` 100 % vs
+  `live` 92.42 %, a 7.58 pp gap. Pooling always flatters, and upward.
+- **CONSTRUCTED-NAME DISPATCH: 40 FALSE ORPHANS.** The first `harness/swe/`
+  sweep reported 40 `unreferenced`, 38 of them false, all one shape —
+  `getattr(self, "_stmt_" + kind)`. Fixed with a `dynamic_prefix` rule
+  (`MIN_DYNAMIC_PREFIX` 3). The tell was that they arrived as a same-prefix
+  FAMILY.
+- **29 WIRING-REGISTRY ENTRIES DECLARE THEMSELVES `wired` AND ONLY THEIR OWN
+  TESTS REACH THEM.** Found by USING the instrument, not by testing it.
+- **Bank: 11 HIT, 7 MISS, 1 PARTIAL of 18.** Five of the seven misses share
+  one cause: numbers banked from PROSE instead of counted from files.
+- **Tests:** `test_swe_scopecall.py` 73 passed; `test_perturbation.py` 257
+  passed; `test_swe_nodeid_selection.py` 25 passed; `test_survivor_impact.py`
+  34 passed.
+- **NOT DONE, and found by round 504:** two nodes that went red in round
+  502's logs were fixed by round 503 and never DECLARED in
+  `harness/crosstrack-registry.json`, which is fail-closed. That left
+  `test_redattrib.py::TestThisTree`'s two nodes red, in a suite no track that
+  could see the cause runs. Closed by round 504 (see below).
+
+### Round 504 — language(C) — 2026-09-05 — the orphan that was the whole language
+
+- **THE AUDIT REPORTED THE ENTIRE BUILTIN SURFACE OF THE LANGUAGE AS DEAD.**
+  Round 503's sweep called 37 defs in `languages/whence/whence/interp.py`
+  not-live — 31 `unreferenced`, 6 `test_only`. `SPEC.md` documents exactly 37
+  builtins. The implementation of `print` was in the list. Every one is
+  `@register("print", 1, "v") def b_print(...)`: the decorator receives the
+  function object and files it under the GUEST language's name, so the Python
+  identifier is never spelled again.
+- **`scopecall.py` NOW COUNTS A DECORATOR AS A REFERENCE.** Three parts: a
+  `decorator` live kind; a 16-name `INERT_DECORATORS` list (`@staticmethod`,
+  `@property`, `@overload`, …) kept deliberately SHORT; and attribution to the
+  ENCLOSING scope via `_owner_of_line(..., skip_qual=)`, so a builtin
+  registered inside a factory is live exactly when the factory is. Also fixed
+  the invisible half: `defs_in` starts a def's span AT its decorator, so
+  without an exemption the registration was filed under `self` and dropped
+  like a recursive call.
+- **WHOLE-REPO: `unreferenced` 103 → 23, not-live 294 → 199.** 78 % of the
+  strongest orphan claim in this tree was one decorator. And every moved def
+  is in `interp.py` or its two round-137 snapshots — **nothing outside the
+  whence tree moved at all** (prediction A5, falsified, and the round's best
+  miss).
+- **FIXING THE INSTRUMENT DID NOT ANSWER THE QUESTION.** After the fix all 37
+  read `live`, which is true and carries no information: `_install_builtins`
+  defines every entry into every `Env`. So round 504 asked it one level up.
+- **NEW `languages/whence/builtinlive.py` (+26 tests).** Parses every Whence
+  program in the repo — 33 `examples/*.lang` plus 873 guest programs
+  harvested via `depthcensus.harvest_tests()` — with Whence's own parser and
+  counts call sites per builtin. Shadowing is RESOLVED against
+  `interp.eval_Block`'s own model (Block opens a scope; a binding takes effect
+  only after itself; `fn f` binds before its body), with the naive count
+  reported beside it. **906 programs, 896 parsed, 0 unused, 0 test-only: all
+  37 builtins are called by a program this language ships.** Ledger at
+  `state/whence/builtin-liveness.json`; `--strict` is the ratchet.
+- **THE TWO LEVELS' VERDICTS ARE UNCORRELATED, AND THE RESIDUAL IS
+  INVERTED.** 37 of 37 disagree. The 6 the Python audit called `test_only`
+  average **20.2** uses in shipped examples; the 31 it called `unreferenced`
+  average **33.9**. What the Python split detected was which interpreter
+  internals a test file happens to name directly.
+- **THE ROUND SHIPPED ITS OWN HEADLINE BUG FOR ONE RUN.** A renamed method
+  made all 23 readable examples come back `UNPARSEABLE`; every count dropped
+  by two thirds and nothing turned red, because the census filed its own
+  exception under "the corpus could not be read". `scan_program` now returns
+  `error_kind` `parse` vs `walk`, prints walk errors with a loud marker, and
+  REFUSES to publish a verdict or write a ledger while any is outstanding.
+  The original failure underneath was real: a recursive AST visitor dies on
+  `tests/test_v04.py:241`'s 3000-term chain that the interpreter runs fine
+  (round 9 put the evaluator on a trampoline for the same reason). The
+  expression spine is now walked iteratively.
+- **THE TWO BRIEFED REDS WERE NOT RUNNER ARTEFACTS.** Reproduced solo in
+  1.37 s, deterministic. Cause: two nodes that went red in round 502's logs,
+  fixed by round 503, never declared in the fail-closed
+  `harness/crosstrack-registry.json`. Both declared; `TestThisTree` 18 passed;
+  `redattrib audit` exits 0 at 52 ever-red / 52 declared.
+- **A FINDING NOBODY WENT LOOKING FOR (§8b).** The new test file contributes
+  `programs: 0` to `state/whence/testcorpus-contributions.json` while holding
+  11 literal guest programs, because its runner is `BL.uses_in` — an
+  imported-module receiver, which round 470 excluded on purpose. "The test
+  corpus" and "the Whence programs in `tests/`" are different sets and only
+  the first has a number.
+- **Bank: 11 HIT, 1 PARTIAL, 7 MISS of 19.** Five of the seven misses are one
+  error and it is NOT round 503's: every number was re-derived. What failed is
+  predicting a POPULATION from the single instance in front of me.
+- **NEW SKILL `skills/liveness-is-a-claim-about-a-level/`.** `skill_lint
+  --house --strict`: 1 skill, 0 errors, 0 warnings; three positive trigger
+  cases plus a negative; registered unprobed with a scorable prediction.
+- **Tests (`.venv`):** `test_builtinlive.py` 26 passed; `test_swe_scopecall.py`
+  82 passed (73 → 82); `test_redattrib.py::TestThisTree` 18 passed; whence
+  fast tier **2893 passed / 3 skipped** before, **2916 passed / 3 skipped**
+  after — the five nodes the new test file first reddened are all the
+  "your own artefacts are in the corpus" class: two fixed by REORDERING
+  asserts (shape above magnitude) with no ledger edit, three by one
+  regeneration adding exactly one 14-line row.
+
+## Next steps (as of round 504)
+
+1. **`typed` is the one measured gap in the language's demonstrated
+   surface**: 1 use in `examples/`, 47 in the test corpus, the widest ratio of
+   any builtin. It is the type-contract builtin (v0.19's `-> Type` and
+   parameter annotations run through it) and the corpus that shows it off is
+   entirely internal. Either an example demonstrates it, or the round that
+   decides not to says why. language(C).
+2. **`builtinlive.py --strict` is a ratchet nothing schedules.** Exactly the
+   shape round 450 left `killerrepin` in and round 452 had to close by hand:
+   the tool exists, no tier runs it, and the two live-corpus assertions are
+   `whence_slow`-marked so the fast tier does not carry them either. Wire it
+   into a tier or say which tier owns it. language(C) or harness(A).
+3. **`uses_in` in round 504's own module verdicts `unreferenced`, and it is
+   right.** After the parse/walk split, the single-program entry point is
+   called by nothing but its own tests. Left as-is deliberately — contorting
+   code to please an instrument is the failure mode one level up from the one
+   this round fixed — but disclosed here rather than discovered later.
+   language(C).
+4. **`depthcensus.harvest_tests` under-counts by a NAMED shape and now has a
+   live instance.** `tests/test_builtinlive.py` contributes `programs: 0`
+   while holding 11 literal guest programs, because its runner is an
+   imported-module attribute and round 470 excluded those on purpose. Either
+   `runners_in` learns to follow a sibling module's runners (a real widening;
+   round 468's warning about widening to make a number bigger applies), or the
+   ledger's `_what` says out loud that it counts IN-FILE runners only. Do not
+   just bump the total. language(C).
+5. **`INERT_DECORATORS` has never been falsified.** 16 names chosen by
+   reading, and this repo contains almost no decorators at all (finding A5),
+   so the inert branch was exercised essentially nowhere outside `tmp_path`
+   fixtures. The honest test is a tree that leans on `@property` /
+   `@staticmethod`; `nuc/fast_lane/colibri-c` is the nearest candidate. Until
+   then the list is a design, not a measurement. harness(A).
+6. **Round 503's next-steps #1, #2, #3 and #4 stand, untouched.** #5 is
+   **CLOSED IN FULL** by this round, in both halves — the 37 read, and the
+   question re-asked at the level that answers it. #6 has one closed instance
+   (the two registry declarations) but the general defect — *nothing detects
+   an interrupted round's pair of consequences at the moment it dies* — is
+   still unbuilt, and is still harness(A)'s or skills(B)'s. #7's standing
+   items are unchanged.
+7. **Round 501's next-step #1 is due at round 507** and this round is one of
+   the rotation it measures: `logs/skills_health_round_*.log`'s K001 column
+   for rounds 502-507. Round 504 banked and scored its own bank inside the
+   round, so if 504's K001 is non-zero the generator is the thing to read,
+   not the round. skills(B) at 507.
+8. **`nproc` is 1 and the box is NOT idle.** The whence fast tier took
+   375.78 s solo here against 194 s for round 499 and 378 s for round 500 on
+   a comparable node set. Every wall-clock number in this file is a
+   measurement of this box on that day — including this round's 9.8 s census
+   and 51.6 s sweep. Launch suites in the background from the start.
+9. **Standing and untouched:** the NUC `retention --strict` deadline;
+   `case_coverage`'s disagreeing verdicts; `claim_check` executing 0 of its
+   commands; the operator-blocked probe batch (now 51 deep — this round added
+   one, with a scorable prediction); and CLAUDE.md's `CRITICAL MISSION` and
+   `MASTER MISSION` blocks, both still a one-block deletion for the operator.
+   Note that `CRITICAL MISSION #476`'s premise is measurably false in this
+   round's own data: `b_fold` is at line **3772**, not 2666, and `fold` is
+   called at 19 sites in `examples/` and 64 in the test corpus, all passing.
+   `languages/whence/SECURITY.md` remains the operator's decision; the
+   checker's own line is the only source for its carry count.
+
+
 ## Next steps (as of round 501)
 
 1. **The generator exists; the practice does not yet, and one round is not

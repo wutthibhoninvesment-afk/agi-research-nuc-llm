@@ -1,0 +1,1120 @@
+{
+ "by_verdict": {
+  "unused": [],
+  "used_by_example": [
+   "abs",
+   "at",
+   "blame",
+   "confidence",
+   "contains",
+   "contrast",
+   "diverge",
+   "filter",
+   "find",
+   "fold",
+   "get",
+   "guess",
+   "has",
+   "is_guess",
+   "join",
+   "keys",
+   "len",
+   "map",
+   "matches",
+   "merge",
+   "missed",
+   "note",
+   "num",
+   "print",
+   "push",
+   "put",
+   "rand",
+   "range",
+   "reasons",
+   "shapeof",
+   "show",
+   "sqrt",
+   "steps",
+   "str",
+   "sure",
+   "trunc",
+   "typed"
+  ],
+  "used_by_test_only": []
+ },
+ "counts": {
+  "unused": 0,
+  "used_by_example": 37,
+  "used_by_test_only": 0
+ },
+ "include_tests": true,
+ "n_builtins": 37,
+ "n_parsed": 896,
+ "n_programs": 906,
+ "n_shadows": 2,
+ "n_unparseable": 10,
+ "n_walk_errors": 0,
+ "rows": [
+  {
+   "call_example": 180,
+   "call_test": 67,
+   "example_files": [
+    "diverge.lang",
+    "dropped.lang",
+    "effects.lang",
+    "guess.lang",
+    "history.lang",
+    "meta.lang",
+    "self_eval.lang",
+    "self_host.lang",
+    "show.lang"
+   ],
+   "naive_example": 180,
+   "naive_test": 72,
+   "naive_total": 252,
+   "name": "len",
+   "ref_example": 0,
+   "ref_test": 4,
+   "shadowed_out": 1,
+   "test_sites": [
+    "test_folding.py:152",
+    "test_folding.py:506",
+    "test_generated_killers.py:77",
+    "test_history.py:97",
+    "test_history.py:97"
+   ],
+   "uses_total": 251,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 186,
+   "call_test": 9,
+   "example_files": [
+    "blame.lang",
+    "checks_demo.lang",
+    "deep.lang",
+    "dropped.lang",
+    "guess.lang",
+    "history.lang",
+    "meta.lang",
+    "self_eval.lang",
+    "self_host.lang",
+    "shapes.lang",
+    "tco.lang"
+   ],
+   "naive_example": 186,
+   "naive_test": 10,
+   "naive_total": 196,
+   "name": "missed",
+   "ref_example": 0,
+   "ref_test": 1,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_interp.py:205",
+    "test_interp.py:204",
+    "test_polarity.py:1758",
+    "test_polarity.py:1961",
+    "test_v04.py:318"
+   ],
+   "uses_total": 196,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 142,
+   "call_test": 38,
+   "example_files": [
+    "agi_buy_and_hold.lang",
+    "blame.lang",
+    "checks_demo.lang",
+    "deep.lang",
+    "diverge.lang",
+    "dropped.lang",
+    "effects.lang",
+    "failing_check.lang",
+    "guess.lang",
+    "hello.lang",
+    "history.lang",
+    "meta.lang",
+    "mini_agi_guardian.lang",
+    "prod_showcase_final.lang",
+    "provenance.lang",
+    "sales.lang",
+    "self_eval.lang",
+    "self_host.lang",
+    "shapes.lang",
+    "show.lang",
+    "tco.lang",
+    "test_simple.lang"
+   ],
+   "naive_example": 142,
+   "naive_test": 41,
+   "naive_total": 183,
+   "name": "str",
+   "ref_example": 0,
+   "ref_test": 3,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_critical_mission_claims.py:93",
+    "test_critical_mission_claims.py:99",
+    "test_critical_mission_claims.py:108",
+    "test_folding.py:120",
+    "test_folding.py:125"
+   ],
+   "uses_total": 183,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 157,
+   "call_test": 20,
+   "example_files": [
+    "blame.lang",
+    "checks_demo.lang",
+    "deep.lang",
+    "diverge.lang",
+    "dropped.lang",
+    "guess.lang",
+    "history.lang",
+    "meta.lang",
+    "provenance.lang",
+    "self_eval.lang",
+    "self_host.lang",
+    "shapes.lang",
+    "show.lang"
+   ],
+   "naive_example": 157,
+   "naive_test": 22,
+   "naive_total": 179,
+   "name": "contains",
+   "ref_example": 0,
+   "ref_test": 2,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_fuzz_regressions.py:66",
+    "test_fuzz_regressions.py:65",
+    "test_fuzz_regressions.py:85",
+    "test_generated_killers.py:77",
+    "test_generated_killers.py:341"
+   ],
+   "uses_total": 179,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 78,
+   "call_test": 68,
+   "example_files": [
+    "agi_buy_and_hold.lang",
+    "blame.lang",
+    "deep.lang",
+    "diverge.lang",
+    "dropped.lang",
+    "effects.lang",
+    "failing_check.lang",
+    "guess.lang",
+    "hello.lang",
+    "history.lang",
+    "meta.lang",
+    "mini_agi_guardian.lang",
+    "prod_showcase_final.lang",
+    "provenance.lang",
+    "sales.lang",
+    "self_eval.lang",
+    "self_host.lang",
+    "shapes.lang",
+    "show.lang",
+    "tco.lang",
+    "test_simple.lang"
+   ],
+   "naive_example": 86,
+   "naive_test": 68,
+   "naive_total": 154,
+   "name": "print",
+   "ref_example": 8,
+   "ref_test": 0,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_critical_mission_claims.py:93",
+    "test_critical_mission_claims.py:99",
+    "test_critical_mission_claims.py:108",
+    "test_folding.py:120",
+    "test_folding.py:125"
+   ],
+   "uses_total": 154,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 19,
+   "call_test": 64,
+   "example_files": [
+    "blame.lang",
+    "diverge.lang",
+    "dropped.lang",
+    "effects.lang",
+    "expense_tracker.lang",
+    "hello.lang",
+    "history.lang",
+    "prod_showcase_final.lang",
+    "sales.lang",
+    "self_eval.lang",
+    "shapes.lang"
+   ],
+   "naive_example": 19,
+   "naive_test": 64,
+   "naive_total": 83,
+   "name": "fold",
+   "ref_example": 0,
+   "ref_test": 0,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_critical_mission_claims.py:93",
+    "test_critical_mission_claims.py:99",
+    "test_critical_mission_claims.py:108",
+    "test_folding.py:120",
+    "test_folding.py:125"
+   ],
+   "uses_total": 83,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 36,
+   "call_test": 46,
+   "example_files": [
+    "blame.lang",
+    "diverge.lang",
+    "dropped.lang",
+    "hello.lang",
+    "history.lang",
+    "meta.lang",
+    "sales.lang",
+    "self_eval.lang",
+    "self_host.lang",
+    "shapes.lang",
+    "show.lang"
+   ],
+   "naive_example": 36,
+   "naive_test": 46,
+   "naive_total": 82,
+   "name": "map",
+   "ref_example": 0,
+   "ref_test": 0,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_folding.py:493",
+    "test_generated_killers.py:191",
+    "test_generated_killers.py:227",
+    "test_generated_killers.py:323",
+    "test_generated_killers.py:353"
+   ],
+   "uses_total": 82,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 63,
+   "call_test": 10,
+   "example_files": [
+    "self_eval.lang",
+    "self_host.lang"
+   ],
+   "naive_example": 63,
+   "naive_test": 10,
+   "naive_total": 73,
+   "name": "push",
+   "ref_example": 0,
+   "ref_test": 0,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_folding.py:152",
+    "test_generated_killers.py:245",
+    "test_interp.py:290",
+    "test_interp.py:289",
+    "test_polarity.py:1758"
+   ],
+   "uses_total": 73,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 12,
+   "call_test": 59,
+   "example_files": [
+    "history.lang",
+    "meta.lang",
+    "self_host.lang",
+    "show.lang",
+    "tco.lang"
+   ],
+   "naive_example": 12,
+   "naive_test": 59,
+   "naive_total": 71,
+   "name": "steps",
+   "ref_example": 0,
+   "ref_test": 0,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_folding.py:506",
+    "test_generated_killers.py:167",
+    "test_generated_killers.py:221",
+    "test_generated_killers.py:275",
+    "test_generated_killers.py:305"
+   ],
+   "uses_total": 71,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 19,
+   "call_test": 46,
+   "example_files": [
+    "agi_buy_and_hold.lang",
+    "guess.lang",
+    "self_eval.lang",
+    "show.lang"
+   ],
+   "naive_example": 19,
+   "naive_test": 46,
+   "naive_total": 65,
+   "name": "guess",
+   "ref_example": 0,
+   "ref_test": 0,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_contract_message_differential.py:288",
+    "test_miss_message_differential.py:481",
+    "test_miss_message_differential.py:481",
+    "test_polarity.py:1948",
+    "test_polarity.py:1948"
+   ],
+   "uses_total": 65,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 13,
+   "call_test": 48,
+   "example_files": [
+    "blame.lang",
+    "diverge.lang",
+    "dropped.lang",
+    "history.lang",
+    "meta.lang",
+    "self_eval.lang",
+    "self_host.lang",
+    "shapes.lang"
+   ],
+   "naive_example": 13,
+   "naive_test": 48,
+   "naive_total": 61,
+   "name": "num",
+   "ref_example": 0,
+   "ref_test": 0,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_contract_message_differential.py:288",
+    "test_contract_message_differential.py:288",
+    "test_contract_message_differential.py:288",
+    "test_contract_message_differential.py:288",
+    "test_contract_message_differential.py:288"
+   ],
+   "uses_total": 61,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 48,
+   "call_test": 9,
+   "example_files": [
+    "guess.lang",
+    "self_eval.lang",
+    "self_host.lang",
+    "shapes.lang",
+    "show.lang"
+   ],
+   "naive_example": 48,
+   "naive_test": 10,
+   "naive_total": 58,
+   "name": "reasons",
+   "ref_example": 0,
+   "ref_test": 1,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_fuzz_regressions.py:85",
+    "test_generated_killers.py:131",
+    "test_generated_killers.py:155",
+    "test_generated_killers.py:317",
+    "test_generated_killers.py:341"
+   ],
+   "uses_total": 58,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 10,
+   "call_test": 43,
+   "example_files": [
+    "blame.lang",
+    "diverge.lang",
+    "history.lang",
+    "meta.lang",
+    "provenance.lang",
+    "self_eval.lang"
+   ],
+   "naive_example": 10,
+   "naive_test": 43,
+   "naive_total": 53,
+   "name": "note",
+   "ref_example": 0,
+   "ref_test": 0,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_generated_killers.py:323",
+    "test_generated_killers.py:353",
+    "test_generated_killers.py:407",
+    "test_generated_killers.py:407",
+    "test_history.py:75"
+   ],
+   "uses_total": 53,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 1,
+   "call_test": 47,
+   "example_files": [
+    "self_eval.lang"
+   ],
+   "naive_example": 1,
+   "naive_test": 47,
+   "naive_total": 48,
+   "name": "typed",
+   "ref_example": 0,
+   "ref_test": 0,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_contract_message_differential.py:288",
+    "test_contract_message_differential.py:288",
+    "test_contract_message_differential.py:288",
+    "test_contract_message_differential.py:288",
+    "test_contract_message_differential.py:288"
+   ],
+   "uses_total": 48,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 30,
+   "call_test": 17,
+   "example_files": [
+    "meta.lang",
+    "self_eval.lang"
+   ],
+   "naive_example": 30,
+   "naive_test": 17,
+   "naive_total": 47,
+   "name": "get",
+   "ref_example": 0,
+   "ref_test": 0,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_self_eval.py:260",
+    "test_self_eval.py:476",
+    "test_v05.py:36",
+    "test_v05.py:44",
+    "test_v05.py:50"
+   ],
+   "uses_total": 47,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 12,
+   "call_test": 33,
+   "example_files": [
+    "history.lang",
+    "meta.lang",
+    "tco.lang"
+   ],
+   "naive_example": 12,
+   "naive_test": 33,
+   "naive_total": 45,
+   "name": "at",
+   "ref_example": 0,
+   "ref_test": 0,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_folding.py:506",
+    "test_generated_killers.py:107",
+    "test_generated_killers.py:341",
+    "test_generated_killers.py:419",
+    "test_history.py:128"
+   ],
+   "uses_total": 45,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 4,
+   "call_test": 35,
+   "example_files": [
+    "hello.lang",
+    "self_eval.lang",
+    "show.lang"
+   ],
+   "naive_example": 4,
+   "naive_test": 35,
+   "naive_total": 39,
+   "name": "range",
+   "ref_example": 0,
+   "ref_test": 0,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_fuzz_regressions.py:85",
+    "test_fuzz_regressions.py:95",
+    "test_fuzz_regressions.py:103",
+    "test_fuzz_regressions.py:102",
+    "test_fuzz_regressions.py:101"
+   ],
+   "uses_total": 39,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 7,
+   "call_test": 29,
+   "example_files": [
+    "diverge.lang"
+   ],
+   "naive_example": 7,
+   "naive_test": 29,
+   "naive_total": 36,
+   "name": "diverge",
+   "ref_example": 0,
+   "ref_test": 0,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_miss_message_differential.py:481",
+    "test_miss_message_differential.py:481",
+    "test_v03.py:283",
+    "test_v03.py:295",
+    "test_v03.py:293"
+   ],
+   "uses_total": 36,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 2,
+   "call_test": 27,
+   "example_files": [
+    "diverge.lang"
+   ],
+   "naive_example": 2,
+   "naive_test": 27,
+   "naive_total": 29,
+   "name": "contrast",
+   "ref_example": 0,
+   "ref_test": 0,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_generated_killers_r29.py:47",
+    "test_generated_killers_r29.py:65",
+    "test_miss_message_differential.py:481",
+    "test_miss_message_differential.py:481",
+    "test_v04.py:341"
+   ],
+   "uses_total": 29,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 16,
+   "call_test": 13,
+   "example_files": [
+    "agi_buy_and_hold.lang",
+    "guess.lang",
+    "self_eval.lang"
+   ],
+   "naive_example": 16,
+   "naive_test": 13,
+   "naive_total": 29,
+   "name": "sure",
+   "ref_example": 0,
+   "ref_test": 0,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_self_eval.py:326",
+    "test_self_eval.py:527",
+    "test_self_eval.py:527",
+    "test_self_eval.py:527",
+    "test_self_eval.py:527"
+   ],
+   "uses_total": 29,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 12,
+   "call_test": 13,
+   "example_files": [
+    "meta.lang",
+    "self_eval.lang"
+   ],
+   "naive_example": 12,
+   "naive_test": 13,
+   "naive_total": 25,
+   "name": "put",
+   "ref_example": 0,
+   "ref_test": 0,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_self_eval.py:260",
+    "test_v05.py:88",
+    "test_v05.py:95",
+    "test_v05.py:100",
+    "test_v05.py:107"
+   ],
+   "uses_total": 25,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 9,
+   "call_test": 12,
+   "example_files": [
+    "dropped.lang",
+    "history.lang",
+    "meta.lang",
+    "self_eval.lang",
+    "shapes.lang"
+   ],
+   "naive_example": 9,
+   "naive_test": 13,
+   "naive_total": 22,
+   "name": "blame",
+   "ref_example": 0,
+   "ref_test": 1,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_fuzz_regressions.py:85",
+    "test_generated_killers.py:113",
+    "test_generated_killers.py:185",
+    "test_generated_killers.py:275",
+    "test_generated_killers.py:425"
+   ],
+   "uses_total": 22,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 6,
+   "call_test": 16,
+   "example_files": [
+    "self_eval.lang"
+   ],
+   "naive_example": 6,
+   "naive_test": 16,
+   "naive_total": 22,
+   "name": "find",
+   "ref_example": 0,
+   "ref_test": 0,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_folding.py:497",
+    "test_self_eval.py:260",
+    "test_self_eval.py:260",
+    "test_v05.py:149",
+    "test_v05.py:155"
+   ],
+   "uses_total": 22,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 6,
+   "call_test": 16,
+   "example_files": [
+    "self_eval.lang",
+    "shapes.lang"
+   ],
+   "naive_example": 6,
+   "naive_test": 16,
+   "naive_total": 22,
+   "name": "matches",
+   "ref_example": 0,
+   "ref_test": 0,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_contract_message_differential.py:510",
+    "test_self_eval.py:640",
+    "test_self_eval.py:640",
+    "test_self_eval.py:942",
+    "test_self_eval.py:942"
+   ],
+   "uses_total": 22,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 8,
+   "call_test": 11,
+   "example_files": [
+    "meta.lang",
+    "self_eval.lang",
+    "self_host.lang"
+   ],
+   "naive_example": 8,
+   "naive_test": 11,
+   "naive_total": 19,
+   "name": "has",
+   "ref_example": 0,
+   "ref_test": 0,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_v06.py:40",
+    "test_v06.py:40",
+    "test_v06.py:46",
+    "test_v06.py:51",
+    "test_v06.py:59"
+   ],
+   "uses_total": 19,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 13,
+   "call_test": 4,
+   "example_files": [
+    "self_eval.lang"
+   ],
+   "naive_example": 13,
+   "naive_test": 5,
+   "naive_total": 18,
+   "name": "keys",
+   "ref_example": 0,
+   "ref_test": 1,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_generated_killers.py:173",
+    "test_generated_killers.py:257",
+    "test_generated_killers.py:275",
+    "test_interp.py:363",
+    "test_v06.py:51"
+   ],
+   "uses_total": 18,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 17,
+   "call_test": 1,
+   "example_files": [
+    "self_eval.lang",
+    "show.lang"
+   ],
+   "naive_example": 17,
+   "naive_test": 1,
+   "naive_total": 18,
+   "name": "show",
+   "ref_example": 0,
+   "ref_test": 0,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_v43.py:122"
+   ],
+   "uses_total": 18,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 5,
+   "call_test": 12,
+   "example_files": [
+    "effects.lang",
+    "self_eval.lang"
+   ],
+   "naive_example": 5,
+   "naive_test": 12,
+   "naive_total": 17,
+   "name": "trunc",
+   "ref_example": 0,
+   "ref_test": 0,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_interp.py:327",
+    "test_interp.py:327",
+    "test_interp.py:326",
+    "test_interp.py:326",
+    "test_interp.py:322"
+   ],
+   "uses_total": 17,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 11,
+   "call_test": 4,
+   "example_files": [
+    "guess.lang",
+    "self_eval.lang"
+   ],
+   "naive_example": 11,
+   "naive_test": 4,
+   "naive_total": 15,
+   "name": "is_guess",
+   "ref_example": 0,
+   "ref_test": 0,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_polarity.py:1948",
+    "test_polarity.py:1948",
+    "test_self_hosting.py:892",
+    "test_self_hosting.py:892"
+   ],
+   "uses_total": 15,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 2,
+   "call_test": 12,
+   "example_files": [
+    "history.lang",
+    "self_eval.lang"
+   ],
+   "naive_example": 2,
+   "naive_test": 12,
+   "naive_total": 14,
+   "name": "abs",
+   "ref_example": 0,
+   "ref_test": 0,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_fuzz_regressions.py:101",
+    "test_generated_killers.py:53",
+    "test_generated_killers.py:155",
+    "test_generated_killers.py:425",
+    "test_interp.py:304"
+   ],
+   "uses_total": 14,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 3,
+   "call_test": 10,
+   "example_files": [
+    "history.lang",
+    "sales.lang",
+    "self_eval.lang"
+   ],
+   "naive_example": 3,
+   "naive_test": 11,
+   "naive_total": 14,
+   "name": "filter",
+   "ref_example": 0,
+   "ref_test": 1,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_folding.py:495",
+    "test_generated_killers.py:185",
+    "test_generated_killers.py:233",
+    "test_history.py:105",
+    "test_interp.py:271"
+   ],
+   "uses_total": 14,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 5,
+   "call_test": 9,
+   "example_files": [
+    "self_eval.lang"
+   ],
+   "naive_example": 5,
+   "naive_test": 9,
+   "naive_total": 14,
+   "name": "join",
+   "ref_example": 0,
+   "ref_test": 0,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_generated_killers.py:95",
+    "test_generated_killers.py:167",
+    "test_generated_killers.py:203",
+    "test_generated_killers.py:305",
+    "test_interp.py:359"
+   ],
+   "uses_total": 14,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 9,
+   "call_test": 4,
+   "example_files": [
+    "agi_buy_and_hold.lang",
+    "guess.lang",
+    "self_eval.lang"
+   ],
+   "naive_example": 9,
+   "naive_test": 4,
+   "naive_total": 13,
+   "name": "confidence",
+   "ref_example": 0,
+   "ref_test": 0,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_miss_message_differential.py:481",
+    "test_miss_message_differential.py:481",
+    "test_self_hosting.py:892",
+    "test_self_hosting.py:892"
+   ],
+   "uses_total": 13,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 9,
+   "call_test": 4,
+   "example_files": [
+    "meta.lang",
+    "sales.lang",
+    "self_eval.lang"
+   ],
+   "naive_example": 9,
+   "naive_test": 4,
+   "naive_total": 13,
+   "name": "merge",
+   "ref_example": 0,
+   "ref_test": 0,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_generated_killers.py:101",
+    "test_interp.py:365",
+    "test_self_eval.py:260",
+    "test_v05.py:140"
+   ],
+   "uses_total": 13,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 6,
+   "call_test": 6,
+   "example_files": [
+    "guess.lang",
+    "self_eval.lang",
+    "shapes.lang"
+   ],
+   "naive_example": 6,
+   "naive_test": 6,
+   "naive_total": 12,
+   "name": "shapeof",
+   "ref_example": 0,
+   "ref_test": 0,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_self_eval.py:640",
+    "test_self_hosting.py:1088",
+    "test_self_hosting.py:1088",
+    "test_self_hosting.py:1088",
+    "test_self_hosting.py:1088"
+   ],
+   "uses_total": 12,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 3,
+   "call_test": 6,
+   "example_files": [
+    "checks_demo.lang",
+    "self_eval.lang",
+    "shapes.lang"
+   ],
+   "naive_example": 3,
+   "naive_test": 6,
+   "naive_total": 9,
+   "name": "sqrt",
+   "ref_example": 0,
+   "ref_test": 0,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_generated_killers.py:89",
+    "test_generated_killers.py:149",
+    "test_generated_killers.py:251",
+    "test_generated_killers_r29.py:47",
+    "test_interp.py:306"
+   ],
+   "uses_total": 9,
+   "verdict": "used_by_example"
+  },
+  {
+   "call_example": 4,
+   "call_test": 4,
+   "example_files": [
+    "effects.lang",
+    "self_eval.lang"
+   ],
+   "naive_example": 4,
+   "naive_test": 4,
+   "naive_total": 8,
+   "name": "rand",
+   "ref_example": 0,
+   "ref_test": 0,
+   "shadowed_out": 0,
+   "test_sites": [
+    "test_v14.py:1182",
+    "test_v14.py:1169",
+    "test_v14.py:1169",
+    "test_v14.py:1169"
+   ],
+   "uses_total": 8,
+   "verdict": "used_by_example"
+  }
+ ],
+ "shadowed_out": 1,
+ "shadows": [
+  {
+   "binder": "fn",
+   "line": 2,
+   "name": "len",
+   "origin": "test",
+   "where": "test_v07.py:92"
+  },
+  {
+   "binder": "param",
+   "line": 1,
+   "name": "len",
+   "origin": "test",
+   "where": "test_v07.py:97"
+  }
+ ],
+ "top3_share": 0.30627126883811373,
+ "total_uses": 2057,
+ "unparseable": [
+  {
+   "error": "ParseError: expected '{', got a line break (blocks are always braced: `if c { a } else { b }`, `fn f(x) { x }`) at line 24, col 11",
+   "origin": "example",
+   "where": "cognitive_verifier.lang"
+  },
+  {
+   "error": "ParseError: 'if' requires 'else' (every expression has a value) at line 17, col 5",
+   "origin": "example",
+   "where": "cognitive_verifier_v2.lang"
+  },
+  {
+   "error": "ParseError: expected '{', got \"VERIFIED: \" (blocks are always braced: `if c { a } else { b }`, `fn f(x) { x }`) at line 12, col 10",
+   "origin": "example",
+   "where": "cognitive_verifier_v3.lang"
+  },
+  {
+   "error": "ParseError: unexpected '=' (Whence has no assignment; a name binds once \u2014 write `let name = value`) at line 31, col 21",
+   "origin": "example",
+   "where": "nano_reasoner.lang"
+  },
+  {
+   "error": "ParseError: unexpected 'rescue' (`rescue` is infix: `risky rescue fallback`) at line 27, col 23",
+   "origin": "example",
+   "where": "prod_demo_v1.lang"
+  },
+  {
+   "error": "ParseError: expected ')', got 'total' (two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted) at line 22, col 19",
+   "origin": "example",
+   "where": "prod_demo_v3.lang"
+  },
+  {
+   "error": "ParseError: two statements on one line (Whence has no spelled-out numbers; write the literal `0.0`) at line 8, col 32",
+   "origin": "example",
+   "where": "prod_demo_v4.lang"
+  },
+  {
+   "error": "ParseError: unexpected 'rescue' (`rescue` is infix: `risky rescue fallback`) at line 35, col 18",
+   "origin": "example",
+   "where": "prod_demo_v5.lang"
+  },
+  {
+   "error": "ParseError: unexpected ':' (records are written `@{a: 1}`, not `{a: 1}`) at line 14, col 10",
+   "origin": "example",
+   "where": "whenceguard_auditor.lang"
+  },
+  {
+   "error": "ParseError: two statements on one line (two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted) at line 9, col 21",
+   "origin": "example",
+   "where": "whenceguard_v2.lang"
+  }
+ ],
+ "walk_errors": [],
+ "wall_seconds": 4.14
+}

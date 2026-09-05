@@ -76,7 +76,24 @@ import time
 import tokenize
 
 #: Reference kinds that make a def reachable, strongest first.
-LIVE_KINDS = ("call", "name", "string", "dynamic_prefix")
+LIVE_KINDS = ("call", "name", "string", "dynamic_prefix", "decorator")
+
+#: Decorators that do NOT hand the function object to code this scan cannot
+#: see. `@staticmethod`/`@classmethod`/`@property` and friends bind the def
+#: as an attribute of its own class and register it nowhere; `@overload` and
+#: `@final` are annotations. Everything ELSE receives the function object at
+#: definition time and may put it anywhere -- a table, a route map, a plugin
+#: registry -- so it counts as a reference. Matched on the last dotted
+#: component, so `@x.setter` and `@functools.wraps(f)` are both caught.
+#: Round 504: this list is deliberately SHORT. The module's stated bias is
+#: that every ambiguity resolves toward `live`, and a decorator whose effect
+#: this scanner cannot read is exactly such an ambiguity.
+INERT_DECORATORS = frozenset((
+    "staticmethod", "classmethod", "property", "abstractmethod",
+    "abstractproperty", "cached_property", "override", "overload",
+    "final", "setter", "getter", "deleter", "wraps", "dataclass",
+    "total_ordering", "runtime_checkable",
+))
 #: A constructed name shorter than this is not evidence of anything -- a
 #: prefix of `"_"` would vouch for every private def in the tree.
 MIN_DYNAMIC_PREFIX = 3
@@ -272,6 +289,32 @@ def scan_references(source, filename="<file>"):
     for pref, lineno in _dynamic_prefixes(tree):
         refs.append((_PREFIX_MARK + pref, lineno, "dynamic_prefix"))
 
+    # DECORATED DEFS. A decorator RECEIVES the function object at definition
+    # time; the def's own name need never be spelled again. Round 503's
+    # whole-repo sweep called all 37 of `languages/whence/whence/interp.py`'s
+    # builtins not-live -- the entire builtin surface of the language, the
+    # implementation of `print` among them -- because every one is
+    # `@register("print", 1, "v") def b_print(...)` and `register`'s `wrap`
+    # closure appends it to a table under the WHENCE name. The verdict was a
+    # true statement about the identifier and a false statement about the
+    # code.
+    #
+    # Like `dynamic_prefix` this can only ADD liveness, which is the
+    # direction an orphan claim has to fail in. It is attributed to the
+    # ENCLOSING scope, not to the decorated def -- see `_owner_of_line`'s
+    # `skip_qual` -- because the decorator expression is evaluated and
+    # applied by whatever encloses the `def`, so a builtin registered inside
+    # a factory is live exactly when the factory is.
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef,
+                                 ast.ClassDef)):
+            continue
+        for dec in node.decorator_list:
+            if _decorator_tail(dec) in INERT_DECORATORS:
+                continue
+            refs.append((node.name, dec.lineno, "decorator"))
+            break
+
     try:
         for tok in tokenize.generate_tokens(io.StringIO(source).readline):
             if tok.type == tokenize.COMMENT:
@@ -286,6 +329,21 @@ def scan_references(source, filename="<file>"):
 
 
 # ------------------------------------------------------------- file walking
+
+def _decorator_tail(dec):
+    """The last dotted component of a decorator expression, or `""`.
+
+    `@register("x")` -> `register`; `@prop.setter` -> `setter`;
+    `@functools.wraps(f)` -> `wraps`; anything stranger -> `""`, which is
+    in no allowlist and therefore counts as a live reference.
+    """
+    node = dec.func if isinstance(dec, ast.Call) else dec
+    if isinstance(node, ast.Attribute):
+        return node.attr
+    if isinstance(node, ast.Name):
+        return node.id
+    return ""
+
 
 def is_test_file(rel):
     """True for the test tree. Basename `test_*.py` / `conftest.py`, or any
@@ -341,6 +399,12 @@ def reference_index(root, rel_paths):
 
 # ---------------------------------------------------------------- the audit
 
+def _skip(rec, d):
+    """The def a reference must not be attributed to itself. Only a
+    decorator has one -- see `_owner_of_line`."""
+    return d.qualname if rec["kind"] == "decorator" else None
+
+
 def _evidence_for(index, rel_subject, d, defs):
     """Split every reference to `d.name` into the four buckets that decide the
     verdict, dropping references that lie inside `d`'s OWN span (a recursive
@@ -362,7 +426,16 @@ def _evidence_for(index, rel_subject, d, defs):
         for kind, lines in by_kind.items():
             for ln in lines:
                 rec = {"path": rel, "line": ln, "kind": kind}
-                if rel == rel_subject and d.covers(ln):
+                # A decorator is never a self-reference. `defs_in` starts a
+                # def's span AT its first decorator (so a mutation there is
+                # attributed to the right name), which would otherwise make
+                # every `@register`-style registration invisible -- filed
+                # under `self` and dropped, exactly like a recursive call.
+                if kind == "decorator" and rel == rel_subject \
+                        and d.covers(ln):
+                    ev["nontest" if not is_test_file(rel) else "test"] \
+                        .append(rec)
+                elif rel == rel_subject and d.covers(ln):
                     ev["self"].append(rec)
                 elif kind in INERT_KINDS:
                     ev["inert"].append(rec)
@@ -375,11 +448,23 @@ def _evidence_for(index, rel_subject, d, defs):
     return ev
 
 
-def _owner_of_line(defs, rel, rel_subject, lineno):
-    """Qualname of the subject def a reference sits inside, or None."""
+def _owner_of_line(defs, rel, rel_subject, lineno, skip_qual=None):
+    """Qualname of the subject def a reference sits inside, or None.
+
+    `skip_qual` (round 504) excludes one def from the search, and exists for
+    exactly one caller: a DECORATOR sits inside the span of the def it
+    decorates, but it is evaluated and applied by the ENCLOSING scope. So
+    `@register(...) def b_print` is owned by `_make_builtin_table`, and
+    `b_print` is live exactly when the factory that registers it is --
+    which is the true statement. Without this, a decorated def would be
+    seeded live by a reference owned by itself, which is the same mistake
+    as counting a recursive call.
+    """
     if rel != rel_subject:
         return None
-    d = innermost(defs, lineno)
+    cands = [x for x in defs if x.qualname != skip_qual] \
+        if skip_qual else defs
+    d = innermost(cands, lineno)
     return d.qualname if d else None
 
 
@@ -427,7 +512,8 @@ def audit(root, rel, line_ranges=None, search_paths=None, subdirs=None,
     seeded_by = {}
     for d in defs:
         for rec in ev[d.qualname]["nontest"]:
-            owner = _owner_of_line(defs, rec["path"], rel, rec["line"])
+            owner = _owner_of_line(defs, rec["path"], rel, rec["line"],
+                                   _skip(rec, d))
             if rec["path"] != rel or owner is None:
                 live.add(d.qualname)
                 seeded_by.setdefault(d.qualname, rec)
@@ -442,7 +528,8 @@ def audit(root, rel, line_ranges=None, search_paths=None, subdirs=None,
             for rec in ev[d.qualname]["nontest"] + ev[d.qualname]["test"]:
                 if rec["path"] != rel:
                     continue
-                owner = _owner_of_line(defs, rec["path"], rel, rec["line"])
+                owner = _owner_of_line(defs, rec["path"], rel, rec["line"],
+                                       _skip(rec, d))
                 if owner is None:
                     continue
                 # a reference from inside a live def, or from inside a live

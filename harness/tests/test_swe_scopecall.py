@@ -697,3 +697,170 @@ class TestThisTreeRegistry(object):
         assert ra["n_entries"] >= 143
         assert len(ra["declared_wired_by_their_own_tests"]) >= 20
         assert "nuc/survivor_impact.py" in ra["declared_wired_by_their_own_tests"]
+
+
+# --------------------------------------------------- decorators (round 504)
+#
+# Round 503's whole-repo sweep called all 37 defs in
+# `languages/whence/whence/interp.py`'s builtin table not-live -- 30 of them
+# `unreferenced`, the strongest claim this module makes. 37 is the ENTIRE
+# builtin surface of the language: `print`, `len`, `fold`, everything
+# `SPEC.md` documents. Every one is `@register("print", 1, "v") def
+# b_print(...)`, and `register`'s `wrap` closure appends the function object
+# to the table `_install_builtins` walks under the WHENCE name, so the Python
+# name is never spelled again.
+#
+# Repo-wide, 80 of the 103 `unreferenced` verdicts were this one shape.
+
+
+DEC = {
+    "pkg/__init__.py": "",
+    "pkg/m.py": '''
+        TABLE = []
+
+        def register(name):
+            def wrap(fn):
+                TABLE.append((name, fn))
+                return fn
+            return wrap
+
+        @register("hello")
+        def b_hello():
+            return 1
+
+        class C(object):
+            @staticmethod
+            def only_static():
+                return 2
+
+            @property
+            def only_prop(self):
+                return 3
+
+        def make_table():
+            out = []
+
+            @register("inner")
+            def b_inner():
+                return 4
+
+            return out
+
+        def install():
+            return TABLE
+    ''',
+    "app.py": "import pkg.m as m\nprint(m.install())\n",
+}
+
+
+def _verdicts(rep):
+    return dict((r["qualname"], r["verdict"]) for r in rep["defs"])
+
+
+def test_a_registering_decorator_makes_its_def_live(tmp_path):
+    """The decorator RECEIVES the function object; the def's own name need
+    never appear again. This is the whence builtin table's exact shape."""
+    v = _verdicts(SC.audit(_tree(tmp_path, DEC), "pkg/m.py"))
+    assert v["b_hello"] == SC.VERDICT_LIVE
+
+
+def test_a_decorated_def_inside_a_factory_is_live_iff_the_factory_is(tmp_path):
+    """The attribution that makes the rule true rather than merely
+    permissive: a decorator is evaluated by the ENCLOSING scope, so
+    `b_inner` is live because `make_table` is -- and `make_table` here is
+    reached from nothing but its own module."""
+    files = dict(DEC)
+    rep = SC.audit(_tree(tmp_path, files), "pkg/m.py")
+    v = _verdicts(rep)
+    assert v["make_table"] == SC.VERDICT_UNREFERENCED
+    # NOT `unreferenced`: the decorator IS a reference, and it sits inside a
+    # def that is itself dead. That is this module's pre-existing
+    # `transitive` reading -- "dead code with a dead caller" -- reached here
+    # through a reference kind that did not exist before round 504.
+    assert v["make_table.b_inner"] == SC.VERDICT_TEST_ONLY
+    row = [r for r in rep["defs"]
+           if r["qualname"] == "make_table.b_inner"][0]
+    assert row["test_only_kind"] == "transitive"
+    assert row["n_test_refs"] == 0
+    assert row["nontest_kinds"] == ["decorator"]
+
+    files["app.py"] = "import pkg.m as m\nprint(m.make_table())\n"
+    v = _verdicts(SC.audit(_tree(tmp_path, files), "pkg/m.py"))
+    assert v["make_table"] == SC.VERDICT_LIVE
+    assert v["make_table.b_inner"] == SC.VERDICT_LIVE
+
+
+def test_staticmethod_and_property_confer_no_liveness_of_their_own(tmp_path):
+    """`INERT_DECORATORS` is the short list of decorators that bind a def as
+    an attribute of its own class and register it nowhere. Widening the rule
+    to `any decorator at all` would make every `@staticmethod` unfalsifiably
+    live, which is how an orphan detector stops detecting orphans."""
+    files = dict(DEC)
+    files["app.py"] = "import pkg.m as m\nprint(m.install())\n"
+    v = _verdicts(SC.audit(_tree(tmp_path, files), "pkg/m.py"))
+    assert v["C"] == SC.VERDICT_UNREFERENCED
+    assert v["C.only_static"] == SC.VERDICT_UNREFERENCED
+    assert v["C.only_prop"] == SC.VERDICT_UNREFERENCED
+
+
+def test_a_decorator_reference_is_never_a_self_reference(tmp_path):
+    """`defs_in` starts a def's span AT its first decorator, so without the
+    exemption in `_evidence_for` the registration would be filed under
+    `self` and dropped exactly like a recursive call -- the bug would be
+    invisible rather than wrong."""
+    root = _tree(tmp_path, DEC)
+    rep = SC.audit(root, "pkg/m.py")
+    row = [r for r in rep["defs"] if r["qualname"] == "b_hello"][0]
+    assert row["nontest_kinds"] == ["decorator"]
+    assert row["n_nontest_refs"] == 1
+    assert row["live_because"]["kind"] == "decorator"
+
+
+def test_a_decorator_in_a_test_file_is_test_evidence_not_live(tmp_path):
+    files = dict(DEC)
+    files["pkg/tests/test_m.py"] = (
+        "import pkg.m as m\n\n\n"
+        "@m.register('t')\ndef t_thing():\n    return 5\n")
+    v = _verdicts(SC.audit(_tree(tmp_path, files), "pkg/tests/test_m.py"))
+    assert v["t_thing"] == SC.VERDICT_TEST_ONLY
+
+
+def test_decorator_tail_reads_the_last_dotted_component():
+    import ast
+    def tail(src):
+        return SC._decorator_tail(ast.parse(src).body[0].decorator_list[0])
+    assert tail("@register('x')\ndef f(): pass\n") == "register"
+    assert tail("@app.route('/')\ndef f(): pass\n") == "route"
+    assert tail("@functools.wraps(g)\ndef f(): pass\n") == "wraps"
+    assert tail("@prop.setter\ndef f(self): pass\n") == "setter"
+    assert tail("@staticmethod\ndef f(): pass\n") == "staticmethod"
+    assert tail("@(lambda f: f)\ndef f(): pass\n") == ""
+
+
+def test_the_rule_can_only_add_liveness(tmp_path):
+    """Same guarantee as `dynamic_prefix`: an orphan claim must fail toward
+    `live`, so the decorator rule is checked against a tree where it changes
+    nothing."""
+    before = _verdicts(SC.audit(_tree(tmp_path, BASE), "pkg/m.py"))
+    assert before["orphan"] == SC.VERDICT_TEST_ONLY
+    assert before["live_one"] == SC.VERDICT_LIVE
+
+
+class TestThisTreeDecorators(object):
+    """Against the live repo. Round 504's finding as an assertion."""
+
+    def test_the_whole_whence_builtin_table_is_live(self):
+        rep = SC.audit(ROOT, "languages/whence/whence/interp.py",
+                       subdirs=["languages/whence"])
+        rows = [r for r in rep["defs"]
+                if r["qualname"].startswith("_make_builtin_table.b_")]
+        assert len(rows) >= 35, len(rows)
+        bad = [r["qualname"] for r in rows
+               if r["verdict"] != SC.VERDICT_LIVE]
+        assert bad == [], bad
+
+    def test_no_def_in_the_whence_interpreter_package_is_an_orphan(self):
+        rep = SC.audit(ROOT, "languages/whence/whence/interp.py",
+                       subdirs=["languages/whence"])
+        assert rep["counts"][SC.VERDICT_UNREFERENCED] == 0
+        assert rep["counts"][SC.VERDICT_TEST_ONLY] == 0

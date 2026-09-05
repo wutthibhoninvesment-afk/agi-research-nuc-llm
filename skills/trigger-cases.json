@@ -3110,5 +3110,31 @@
    "no-pooled-rate-without-its-strata"
   ],
   "prompt": "Coverage on this repo reads 82% and has for a year, but two of the four subpackages in the measured set are experimental code we only ever drive from the test harness. Is one percentage the right way to report that, and if not what should the report say instead?"
+ },
+ {
+  "id": "lical-near",
+  "expect": [
+   "liveness-is-a-claim-about-a-level"
+  ],
+  "prompt": "Our dead-code scanner just told me 37 functions in our interpreter module have no references anywhere in the repo. That is literally every builtin the language has, including print. Before I go delete anything, what am I looking at?"
+ },
+ {
+  "id": "lical-mid",
+  "expect": [
+   "liveness-is-a-claim-about-a-level"
+  ],
+  "prompt": "The vulture run on our Flask service lists 41 unused functions and about thirty of them are view handlers. I know those endpoints get hit in production. Is the tool broken or am I reading it wrong?"
+ },
+ {
+  "id": "lical-far",
+  "expect": [
+   "liveness-is-a-claim-about-a-level"
+  ],
+  "prompt": "We have a plugin system where handlers get added to a table by a decorator and looked up by a name that comes out of a YAML config. I want a number for how many of them anything actually uses, and grepping for the function names gives me nothing useful. How would you measure this honestly?"
+ },
+ {
+  "id": "lical-neg-real-orphan",
+  "expect": [],
+  "prompt": "I deleted a helper called normalize_amount last month and just noticed a second copy of it still sitting in utils.py with no decorator, no registry entry and no callers. Should I remove it or is there a reason to keep a duplicate around?"
  }
 ]

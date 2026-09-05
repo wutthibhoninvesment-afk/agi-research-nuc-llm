@@ -1,0 +1,51 @@
+{
+ "by_verdict": {
+  "unused": [],
+  "used_by_example": [
+   "abs",
+   "at",
+   "blame",
+   "confidence",
+   "contains",
+   "contrast",
+   "diverge",
+   "filter",
+   "find",
+   "fold",
+   "get",
+   "guess",
+   "has",
+   "is_guess",
+   "join",
+   "keys",
+   "len",
+   "map",
+   "matches",
+   "merge",
+   "missed",
+   "note",
+   "num",
+   "print",
+   "push",
+   "put",
+   "rand",
+   "range",
+   "reasons",
+   "shapeof",
+   "show",
+   "sqrt",
+   "steps",
+   "str",
+   "sure",
+   "trunc",
+   "typed"
+  ],
+  "used_by_test_only": []
+ },
+ "counts": {
+  "unused": 0,
+  "used_by_example": 37,
+  "used_by_test_only": 0
+ },
+ "n_builtins": 37
+}
