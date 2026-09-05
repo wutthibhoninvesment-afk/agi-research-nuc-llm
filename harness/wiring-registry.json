@@ -423,6 +423,11 @@
       "via_kind": "import",
       "reason": "Round 464 (language C) shipped the SPEC.md decision registry and its 39-test sibling suite, which imports it; languages/whence/run_tests_fast.sh is pointed at that directory. The same 4-round W001 as the row above, opened by a different track. via/via_kind from `wiring_audit.py bootstrap`."
     },
+    "languages/whence/specstale.py": {
+      "status": "wired",
+      "via": "languages/whence/tests/test_specstale.py:35",
+      "via_kind": "import"
+    },
     "languages/whence/subjprov.py": {
       "status": "wired",
       "via": "languages/whence/tests/test_subjprov.py:42",

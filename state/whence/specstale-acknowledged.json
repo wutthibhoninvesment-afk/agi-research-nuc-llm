@@ -1,0 +1,29 @@
+{
+ "_comment": "Blocks of languages/whence/SPEC.md that specstale.py's T001 rule reports and a round has HAND-READ and found NOT stale. Round 507 (skills B) created this file with all 7 of its first run's surviving findings, after auditing 11 blocks and correcting the 4 that were genuinely stale in SPEC.md itself (1592, 4551, 4584, 4948 at the pre-fix line numbers) rather than listing them here. An entry is a CLAIM, not a mute: keys are content pins (version + digest of the bullet's first line, never a file:line -- round 462 measured that a SPEC line number is not durable), so an entry EXPIRES the moment its bullet is rewritten, and specstale reports every expired entry as T003. Add an entry ONLY after reading the bullet and the code it describes, and say in `reason` what you checked. Round 507 removed one entry the same round it wrote it: fixing the sentence splitter (a `.py` claim's paragraph was leaking its neighbours' identifiers, because a sentence OPENING with a version never split) deleted the `_type_spec_expr` overlap that entry excused, and T003 said so on the next run. That is the control working on a real change rather than a synthetic one.",
+ "blocks": {
+  "v0.12|0af669a20d85": {
+   "head": "- **Primitive tags:** `num str bool list record fn any` — `any` always",
+   "reason": "NOT STALE (hand-audited, round 507). The only tie to the v0.12-v0.18 window is the phrase \"the same classification `typed` uses\", and that is still exactly true: v0.19 removed the parameter-guard DESUGARING, not the `typed` builtin, and `shapeof` still reports the same tags `typed` matches against. Verified against `whence/interp.py`'s `b_typed`/`b_shapeof` at HEAD."
+  },
+  "v0.12|2b1cf455b5f1": {
+   "head": "- **A new self-hosting instrument, not a new language feature.** Every",
+   "reason": "NOT STALE (hand-audited, round 507). Its present tense is about the PARSER DIFFERENTIAL instrument, which still exists (`tests/test_parser_differential.py`), not about the guard erasure the round used it on. Matched on the bare term `kind` via a stale-note this very round added at SPEC.md:4967 -- the feedback loop is real and is disclosed in knowledge/round-507-*.md."
+  },
+  "v0.12|32bba8b11b53": {
+   "head": "- **First real corpus run (35 items: 22 synthetic snippets covering every",
+   "reason": "NOT STALE (hand-audited, round 507). A record of one measurement round 320 took, already in the past tense; the divergences it reports were real then and were fixed then. Matched on the bare term `shape`."
+  },
+  "v0.12|423aaa21a325": {
+   "head": "- **`shape Name = @{field: type, …}` is sugar for `let Name = @{__shape:",
+   "reason": "NOT STALE (hand-audited, round 507). Shape declaration is still sugar for an ordinary `let` binding a record with a `__shape` field; nothing in v0.19 touched it. Matched only via the shared term `NameRef`, which every AST-level bullet in this document uses."
+  },
+  "v0.12|8fdfb6b5f613": {
+   "head": "- **Structural, not nominal: width subtyping.** A record matches a",
+   "reason": "NOT STALE (hand-audited, round 507). Width subtyping is the matching RULE and v0.19 changed only WHERE the rule is applied (host `_check_contract` instead of a prepended guard), not what it decides. Matched on the bare term `shape`."
+  },
+  "v0.12|c00345a3f481": {
+   "head": "- **`fn` is parseable as a type tag** despite being a keyword everywhere",
+   "reason": "NOT STALE (hand-audited, round 507). The annotation parser still accepts the `fn` keyword as a type tag and `shape` is still contextual, both re-derived against `whence/parser.py` at HEAD. Matched on the bare term `shape`."
+  }
+ }
+}

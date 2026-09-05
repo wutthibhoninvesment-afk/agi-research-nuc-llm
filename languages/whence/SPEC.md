@@ -1589,7 +1589,15 @@ Names are `[A-Za-z_][A-Za-z0-9_]*` and numeric literals are ASCII digits
   closure impersonating a callable via a magic field one level down in
   `self_eval.lang`; here a record honestly IS what its fields say it is,
   so matching structurally is simply correct, not a hole).
-- **`typed(value, spec, label)`** — the builtin the guard calls: pass
+- **`typed(value, spec, label)`** — the builtin the v0.12-v0.18 parameter
+  guard called. **Stale-note correction (round 507):** "the guard" is
+  history. Since **v0.19 (round 344)** no guard is built for a parameter
+  annotation (`parser._param_contracts` carries the contract, and
+  `interp._check_contract` applies it), so nothing in an annotated signature
+  reaches this builtin — round 506 measured `typed` invoked ZERO times
+  across every runnable example while 100 020 annotation contracts were
+  applied. Everything after the colon is still exactly true of `typed` as a
+  builtin somebody CALLS: pass
   through the value UNCHANGED (no new provenance node, like `get`/
   index) when it matches; propagate an already-miss `value`/`spec`/
   `label` (decision 2's "misses propagate before inspection", same
@@ -4550,8 +4558,14 @@ not this round. See `knowledge/round-254-whence-self-hosting-round9-steps-repro-
   systemic guest-parser drift.
 - **Root cause**: the v0.12 parameter-type-guard erasure (`_apply_type_
   guards` on the host, `build_guards`/`apply_type_guards` on the guest,
-  guest parity shipped round 158) builds a `typed(param, spec, label)`
-  guard call per annotated parameter. The host's label is `"parameter
+  guest parity shipped round 158) built a `typed(param, spec, label)`
+  guard call per annotated parameter. **Stale-note correction (round 507):**
+  past tense. That erasure held for v0.12-v0.18 only; **v0.19 (round 344)**
+  deleted it and `_apply_type_guards` with it (`interp.py:4180` says so in
+  those words), and the guest lost `apply_type_guards` in the same change
+  (`examples/self_eval.lang:3227`). All three function names in this bullet
+  are gone from the tree; the round-320 label-wording bug it diagnoses is
+  real history and is left as written. The host's label is `"parameter
   '%s'%s" % (pname, suffix)` with `suffix = " of %s" % fn_name if fn_name
   else ""` — a NAMED function's (`FnDef`) guard says which function the
   parameter belongs to (`"parameter 'x' of foo"`); an anonymous function's
@@ -4567,7 +4581,12 @@ not this round. See `knowledge/round-254-whence-self-hosting-round9-steps-repro-
   only ever exercises the SUCCESS path, where the label is never even
   read; the label only becomes visible in a MISS's own reason text, on
   the REJECTION path, which no existing check triggers for a named fn.
-- **The fix**: `build_guards(params, types, i, acc, suffix)` and
+- **The fix**: **Stale-note correction (round 507):** read this bullet's
+  "now" as round 320's now. Both functions it names were deleted from the
+  guest at **v0.19 (round 344)** along with the parameter-guard erasure they
+  implemented (`examples/self_eval.lang:3227`), so nothing described here
+  exists today; the label-wording RULE it fixed survives in
+  `interp._check_contract`. `build_guards(params, types, i, acc, suffix)` and
   `apply_type_guards(block_node, params, types, suffix)` both gained a
   `suffix` parameter (label built as `"parameter '" + params[i] + "'" +
   suffix`, `build_guards`'s own recursive call threading it through
@@ -4945,11 +4964,16 @@ not this round. See `knowledge/round-254-whence-self-hosting-round9-steps-repro-
   than a copy of the shape record, is what makes `shape Line = @{a:
   Point, b: Point}` read the ONE binding `Point` names on both sides —
   pinned by `L.a.__shape == "P"` surviving on the guest.
-- **Parameter guards needed no evaluator change at all.** A guard is
+- **Parameter guards needed no evaluator change at all.** A guard was
   `let p = typed(p, <spec>, label)`, and round 335 had already taught the
   guest `typed` to accept a RECORD spec (via `guest_spec_match`). So the
-  whole `: Shape` half of this round is parser-only — a statement as much
-  about round 335 as about this one.
+  whole `: Shape` half of this round was parser-only — a statement as much
+  about round 335 as about this one. **Stale-note correction (round 507):**
+  past tense throughout. Guest parameter guards existed for v0.12-v0.18 and
+  **v0.19 (round 344)** deleted them on both sides; `self_eval.lang:804`
+  now reads "up to v0.18 this was `apply_type_guards`, which PREPENDED one
+  `let <param> = typed(<param>, spec, label)` statement per annotated
+  parameter". Read this bullet as a round-338 record.
 - **`-> Shape` is the half that did need the evaluator.** The guest now
   mirrors `_closure_ret`: `resolve_ret_spec` resolves the annotation ONCE
   at closure-creation time, never per call (round 336's tail-transparency
