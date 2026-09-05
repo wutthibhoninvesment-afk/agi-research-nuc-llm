@@ -3558,3 +3558,52 @@ extrapolating from one prior observation and over-predicting.
 7. **Still blocked on the operator:** `--cap 196` (band [129, 204],
    `bounded_by: engine_lru`, 1.096 GB margin — **twenty-ninth** round
    unchanged); the E3 A/B with its full six-gate table.
+
+
+## Round 508 (NUC-integration E) — 2026-09-05, box **DOWN** the whole round; FOURTH consecutive down window (490, 496, 502, 508), one continuous outage since `2026-09-04T02:14:05.1Z`
+
+**Reachability.** Two tailnet probes before any code ran, 11:27:41Z
+(`ConnectTimeout 25`) and 11:28:19Z (`ConnectTimeout 30`), `Connection timed
+out`, rc 255 both; CLAUDE.md's two-failure rule fired after the second. LAN
+path NOT tried — `~/.ssh/id_ed25519_nuc` still does not exist on this host
+(re-verified). `tailscale status --json` banked at
+`state/nuc-capture-r508/tailscale-status-r508.json`: `Online false`,
+`LastSeen 2026-09-04T02:14:05.1Z` (byte-identical to rounds 490/496/502),
+relay `sin`, tx 6396 rx 0. Row appended, `source: live-replay-r508`,
+`precision: precise`; log **69 rows**. Gates before and after, identical:
+`coverage --strict` 0, `coverage --strict --no-allow-in-flight` 0,
+`precision-audit --strict` 0, `lastseen-drift --strict` 1 (documented).
+**Zero ssh sessions succeeded; port 8001 never contacted.**
+
+**THE FINDING: `survivor_impact.BATTERY`'s `wsweep_swap` entry never ran the
+swap channel.** It passed no `--channel`, and `wsweep` is the one
+`perturbation.py` subcommand defaulting to `steal`. Byte-identical output to
+`wsweep_steal` (35703 B, md5 31b8b34f8e9d). Five advertised verbs, four run.
+Fixed, plus three guard tests; battery **5 -> 7**, `BATTERY_GAP` **9 -> 7**.
+
+**`reclaim`/`gap` could read NO capture — 0 of 5** (r400, r424, r478, r484,
+union), not just round 490's union as round 502 recorded. New
+`capture_day_tables`; both verbs take `--capture` now; `window`/`population`/
+`wsweep` byte-identical after the shared-walker refactor.
+
+**`window --channel commit|steal` rc 1 is a MODULE CONSTANT, not the record.**
+`--min-bytes 4825718` exits 0 on the same union. Message subject fixed.
+
+**Round 418's two hand-extracted days were not a sample.** Union, 12 days,
+1145 buckets: 108 loud, **8 direct/mixed** (418 said 0), largest **49.67 GB on
+08-26** against 418's 987 MB on 08-31, **87 of 108** `steal_exceeds_scan`.
+`gap`: 43.0 % at `level_bytes == 0`, median ratio 0.0019.
+
+**Tests:** `test_capture_verbs.py` 35 nodes 3.22 s green; regression 347
+passed / 2 failed, both this round's own — one re-pinned, one
+(`test_the_committed_report_is_about_the_subject_at_head`) **left red on
+purpose**, regeneration measured at >600 s for 5 survivors.
+
+**Predictions 8 HIT / 5 MISS / 1 PARTIAL / 1 UNSCORED of 15**
+(`nuc/predictions-e-round508.md`, banked `e6291c3` before measuring). All five
+misses extrapolate the 12-day record from round 418's two days — the round's
+own subject, committed by its own author.
+
+**E-mission status: E1-E5 all still DONE; nothing new unchecked.**
+
+**Next E round: see `knowledge/round-508-the-battery-entry-that-was-not-its-own-name.md` §7.**

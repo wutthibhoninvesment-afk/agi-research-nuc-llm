@@ -28699,6 +28699,117 @@ the authority on its reasoning; this entry records only what landed.*
   closed (see §8 of the round file); `specstale --strict` rc 0;
   `xref_check` 0 NEW; `carryforward` 0 errors; `wiring_audit` clean.
 
+### Round 508 — NUC-integration(E) — 2026-09-05 — the battery entry that was not its own name
+
+- **BOX DOWN THE WHOLE ROUND**, fourth consecutive down window (490, 496, 502,
+  508). Two tailnet probes 11:27:41Z / 11:28:19Z, rc 255 both; two-failure
+  rule fired. `LastSeen 2026-09-04T02:14:05.1Z` byte-identical to all three
+  prior rounds, so ONE outage, ~33.2 h at first probe. Nothing read from or
+  written to the box; port 8001 never contacted. Log now 69 rows. Gates:
+  `coverage --strict` 0, `coverage --strict --no-allow-in-flight` 0 (round
+  502's item 6, run rather than remembered), `precision-audit --strict` 0,
+  `lastseen-drift --strict` 1 (documented).
+- **A BATTERY ENTRY RAN A DIFFERENT CHANNEL FROM THE ONE ITS NAME CLAIMED.**
+  `survivor_impact.BATTERY`'s `wsweep_swap` passed no `--channel`, and
+  `wsweep` is the ONE `perturbation.py` subcommand whose `--channel` defaults
+  to `steal` (ten of twelve default to `swap`, one to `commit`). Its output
+  was **byte-identical to `wsweep_steal`** — 35703 bytes, md5 31b8b34f8e9d,
+  with `"channel": "steal"` inside the shared bytes. The battery advertised
+  five published verbs and ran **four**, counting steal twice and never
+  running the swap channel at all — the only channel with a derived
+  threshold and the one every published number in this track uses. Round
+  502's five-way classification of 32 survivors was made with it.
+- **THE FALSIFIER IS THREE LINES AND IS NOW COMMITTED**:
+  `test_no_two_battery_entries_are_the_same_command`,
+  `test_every_battery_entry_that_can_take_a_channel_names_one`, and a third
+  that pins `wsweep`'s default AS `steal` so that changing it becomes a
+  decision rather than a silent re-interpretation of every argv in the repo.
+  A battery entry that omits a flag is asserting a default it did not check.
+- **`reclaim`/`gap` COULD READ NO CAPTURE IN THIS REPO — 0 of 5.** Round 502
+  recorded their failure as a property of round 490's union ("the union's
+  sar-all.txt is 120 sections"). Measured: the identical `header changed
+  mid-table` raise comes from r400, **r424** (the capture every published
+  number in this track was computed from), r478, r484 and the union. Round
+  418 ran them on two files it hand-extracted; nothing has run them since.
+  New `capture_day_tables` walks `SAR_*_` sections and dates each from its own
+  banner; `window_frame` now calls it and `window`/`population`/`wsweep
+  --channel steal|commit` are **byte-identical** to pre-change baselines.
+- **THE REFUSAL THAT BLAMED THE RECORD.** `window --channel commit` exits 1
+  saying the threshold is missing "on this record", but `CHANNEL_MIN_BYTES` is
+  a MODULE CONSTANT and the raise is a dict lookup that never reads a record.
+  `window --channel commit --min-bytes 4825718` exits **0** on the same union.
+  The design refusal (rounds 412/418: do not invent a threshold) is right and
+  stays; the message's SUBJECT was wrong and is fixed.
+- **ROUND 418'S TWO HAND-EXTRACTED DAYS WERE NOT A SAMPLE.** Over the union's
+  12 days / 1145 buckets: **108 loud reclaim buckets**, **8 direct/mixed**
+  (round 418: "0.00 in every bucket of both days" — direct reclaim is real,
+  and confined to 08-23/08-24), largest bucket **49.67 GB on 2026-08-26**
+  against round 418's 987 MB on 08-31 (50x), **87 of 108** buckets with
+  `steal_exceeds_scan`. `gap` over 9 paired days: 43.0 % of buckets at
+  `level_bytes == 0`, **median ratio 0.0019** — the commit channel is blind
+  rather than coarse, but on the ratio, not on the count of exact zeroes.
+- **THE `%vmeff` RESIDUAL IS NO LONGER ONE SSH COMMAND AWAY.** It is 87
+  buckets in a file already committed, with `reclaim_double_count_check`'s
+  divisor-2 correction already halving a 199.8 % `vmeff` to 99.9 %. Nine E
+  rounds have deferred it to a box that has been down for four of them.
+- **Bank: 8 HIT, 5 MISS, 1 PARTIAL, 1 UNSCORED of 15** (banked `e6291c3`
+  before any measurement). **All five misses are one error and it is this
+  round's own subject**: P5-P9 extrapolate the 12-day record from the two days
+  round 418 hand-extracted — the exact move the round exists to criticise.
+- **Tests:** new `test_capture_verbs.py` **35 nodes, 3.22 s**, green.
+  Regression over `test_perturbation`/`test_survivor_impact`/
+  `test_record_union`/`test_lead_lag_blocks`: **347 passed, 2 failed in
+  56.67 s**, both this round's own. One re-pinned (a `settrace` test pinning
+  `power_floor`'s `why` LINE NUMBERS, moved +4 by the message rewrite 236
+  lines above). One **LEFT RED ON PURPOSE**:
+  `TestThisTree::test_the_committed_report_is_about_the_subject_at_head` —
+  editing the subject expires the committed survivor report and the 87-row
+  mutation ledger keyed on digest `8082749f…`. Regeneration was attempted and
+  **exceeded 600 s on 5 survivors** before being killed; that is the measured
+  reason it was deferred, not a guess. **NOT RUN and named rather than
+  implied:** the full `nuc/tests` suite, the before/after impact audit, and
+  any mutation testing of this round's own code.
+
+## Next steps (as of round 508)
+
+1. **One test is red on purpose and it is mechanical.**
+   `test_survivor_impact.py::TestThisTree::test_the_committed_report_is_about_the_subject_at_head`.
+   Rebuild with `python3 nuc/survivor_impact.py --out
+   state/swe/perturbation-survivor-impact.json` and re-score the 87-row
+   ledger. Budget >600 s for 5 survivors on the OLD 5-verb battery; the new
+   one is 7. The question worth the money: does any standing survivor change
+   verdict now that the swap channel is actually in the battery.
+   NUC-integration(E).
+2. **Round 502's five-way survivor CLASSIFICATION was made on four verbs, one
+   counted twice.** The 32 -> 5 kill-rate story stands (the pytest oracle did
+   that); the kinds do not, until item 1 is paid. Do not re-quote them first.
+   NUC-integration(E).
+3. **The `%vmeff`/`pgsteal` residual is settleable OFFLINE now** — 87
+   `steal_exceeds_scan` buckets and 21 `scan_free_steal` in the committed
+   union, and the divisor-2 correction is a number somebody CHOSE. Nine E
+   rounds have carried this as "one read-only command away" while the box was
+   down for four of them. NUC-integration(E).
+4. **Direct reclaim exists and is confined to 2026-08-23/24** (7 mixed buckets
+   in eight hours, then 1, then never in ten days). The journal for those
+   dates is in the union; what ran is answerable offline. NUC-integration(E).
+5. **This round mutation-tested nothing, including its own new code** — the
+   fourth consecutive E round to leave `test_perturbation.py` unmutated and
+   the first to skip its own. Recorded as a debt, not a pass. NUC-integration(E).
+6. **Round 502's items 3 and 6 are CLOSED** (6 by running both `coverage`
+   forms; 3's cost measured in item 1). Round 502's items 4 and 5 are
+   **CLOSED AS MISATTRIBUTIONS** — both blamed the record for a property of
+   the tool. Round 490's items 3, 4, 5 and 6 stand, untouched.
+7. **`nproc` is 1 and the round has a 3300 s wall-clock cap.** This round
+   spent it on findings and skipped the full suite deliberately; the one
+   600 s process it did start was killed by the 10-minute tool timeout.
+   Plan long suites first or not at all.
+8. **Standing and untouched:** the NUC `retention --strict` deadline; the
+   operator-blocked `--cap 196` (**thirtieth** round unchanged) and the E3
+   A/B; `case_coverage`'s disagreeing verdicts; `claim_check` executing 0 of
+   its commands; and CLAUDE.md's `CRITICAL MISSION` and `MASTER MISSION`
+   blocks, still a one-block deletion for the operator.
+   `languages/whence/SECURITY.md` remains the operator's decision.
+
 ## Next steps (as of round 507)
 
 1. **`specstale.py --window all` is 67 findings against `low`'s 14, and
