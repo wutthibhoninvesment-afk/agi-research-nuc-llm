@@ -29244,6 +29244,152 @@ entry here; nothing below is inferred from intentions.*
   P9 predicted an ABSENCE without running the tool in the same directory that
   refutes it.
 
+### Round 524 — language(C) — 2026-09-06 — the exclusion that outlived its delegate
+
+- **ALL THREE RED-DEBT NODES CLOSED, and both halves of round 523's
+  next-step 6.** `carryforward`, `xref_check` and the `unit_tests` node that
+  is derivative of both. Round 523's two leftover harness-fast logs landed
+  at `d318353`, attributed to round 523 rather than adopted.
+- **K001 closed by SCORING ROUND 522'S BANK EXPERIMENTALLY, not
+  narratively.** Round 522 died interrupted with no knowledge file, so
+  `carryforward_check.py --enter 522` refuses by design — its own refusal
+  text says *"say where, and write the entry by hand"*, and that is what was
+  done, with `scored_by: 524`. The precedent is round 374 scoring round
+  372's orphaned bank "from committed artifacts only". **This round did not
+  stop there:** round 522's predictions are about a TREE STATE and git still
+  holds it, so seven of the eight were RE-RUN in a `git worktree` at
+  `cde83d0~1`. **4 HIT, 1 HIT-with-a-correction, 2 MISS, 2 PARTIAL** —
+  `knowledge/round-522-the-bank-a-killed-round-could-still-be-made-to-pay.md`
+  carries one table row per item with the command behind each verdict.
+- **P2 is a HIT and this round's OWN first run scored it a MISS. A WORKTREE
+  IS NOT THIS TREE.** 15 of the 34 files in `languages/whence/examples/` are
+  permanently untracked Hermes artefacts; `state/whence/builtin-runtime.json`
+  ranges over that directory; a fresh worktree has 19, i.e. 44% of the corpus
+  missing. The first run therefore scored two `test_corpusledger.py` nodes
+  red for a reason having nothing to do with the measurement. This is the
+  INVERSE of `feedback_baseline_suite_needs_a_pristine_worktree`: a pristine
+  worktree is the wrong instrument when the live tree is deliberately not
+  pristine. Caught by asking why a ledger this round had never touched was
+  stale, and recorded rather than removed.
+- **ROUND 522'S SECOND FINDING WAS CREATED BY ROUND 522'S FIRST FIX.** Its
+  commit states as live that one `corpusledger.py --fix` "exited 0 with the
+  tree still stale". Measured at the tree round 522 *inherited*, the pre-522
+  `--fix` — one invocation, no fixed-point loop — regenerated BOTH ledgers
+  and left every ledger FRESH. The ERROR row that made `fix()` skip the
+  provenance ledger was produced by round 522's own `--json` refusal, added
+  earlier in the same round. The fix is right; the causal story was not.
+- **THE FINDING: an exclusion is only as total as the check it delegates
+  to.** `assertshadow._residual` is total over the census's TOP-LEVEL keys
+  and buys that totality by naming two exclusions out loud, on the ground
+  that `check_census`, `check_coordinates` and `check_costly` "already
+  report them". Mutating one leaf at a time under `nodes`, unmutated control
+  first: **SEVEN OF EIGHT mutations came back "ledger agrees"** — a pair's
+  `magnitude` text, its `shape` text, `independent`, `tree_derived`,
+  `remedy`, a pair DELETED and a pair DUPLICATED. Eleven leaves live under
+  that key and exactly ONE was reachable by any check. Each delegate does
+  what its docstring says and none ranges over the key it was credited with:
+  `check_census` diffs the KEYS, `check_costly` compares a derived set
+  against the TREE so the declared key never participates, and
+  `check_coordinates` reaches two fields only for pairs whose text it can
+  still match — `if not same_text: continue`, **round 522's
+  `unknown`-vs-`stale` shape verbatim, one level up.**
+- **Repaired with two checks, not a sixth bespoke comparison.**
+  `check_node_bodies` is the missing delegate (node VALUES field by field,
+  pairs matched by INDEX because matching by TEXT is precisely what blinds
+  `check_coordinates` to a text edit). `check_internal` is
+  declared-against-declared with **no tree at all** — `costly_nodes` and the
+  twelve totals that are sums over `nodes`, re-derived from `nodes` — and it
+  caught FOUR of the seven blind mutations by itself. After the repair all 8
+  are SEEN and the unmutated control still exits 0.
+- **The guard that lasts enumerates its population from the document.**
+  `test_every_leaf_under_nodes_is_seen_by_some_check` reads the leaves out of
+  the live census, so a pair field added by a future round arrives covered or
+  reddens the round that adds it. Its expected value is NOT `[]` — it is
+  `_HISTORY_BLIND` (`moves`, `commits_touching`), and that exemption is
+  proven CONDITIONAL rather than asserted by
+  `test_the_history_only_exemption_is_conditional_and_not_a_hole`.
+- **The same shape in a third instrument, closed.** `corpusledger.fix()`'s
+  `blocked` means "genuinely broken rather than merely waiting on an upstream
+  ledger" ONLY on the early-`break` exit; exhausting `MAX_FIX_PASSES` says
+  the opposite and both exits returned the identical list. `MAX_FIX_PASSES`
+  appeared 3x in the module and **0x in its tests**. Exhaustion now appends a
+  named `NOT CONVERGED` row and `cmd_fix` exits 1; the test drives it with a
+  generator that is not a function of its corpus — the case the constant's
+  own comment names — with a converged positive control beside it.
+- **X004: a checker rule was measured and DECLINED.** `harness/tool.py` is a
+  fixture quoted out of a test into round 523's prose;
+  `xref_check.TEST_FILE_RE`'s predicate is the CITING file, so the fixture
+  exemption is lost in transit. The obvious repair — skip a path inside a
+  backticked code expression — is measurably wrong: **250 path tokens in
+  authoritative prose sit inside such an expression and 247 name a path that
+  EXISTS.** Acknowledged in `state/known-absent-paths.json` as a FIFTH KIND;
+  what goes to skills(B) is the measurement, not a request for a rule.
+- **`skills/measure-a-gate-by-mutating-what-it-guards` upgraded, because its
+  step 8 recommends exactly the `ignore=` move that built this blind spot.**
+  New steps 8b (descend into every excluded key and sweep its LEAVES) and 8c
+  (add the declared-vs-declared check), a seventh trigger condition, and a
+  pitfall. No new skill: the 129th would have been a duplicate.
+- **Tests +12** (8 in `test_assertshadow.py`, 4 in `test_corpusledger.py`).
+  Three ledgers regenerated in dependency order via the fixed-point `--fix`,
+  which converged in one invocation and reported no `NOT CONVERGED`.
+- **Predictions 17 banked (B1-B17) at `bbeb9bb`**, before any worktree
+  existed, before `blast` ran and before any pytest node ran. Scored in §8 of
+  the round file. **The two most useful items are both MISSES:** B5 said the
+  read-set map holds zero whence-test keys — it holds **349 of 1456** — and
+  B10 predicted a silent inconsistency class in X004 that does not exist,
+  and the measurement that refuted it is what turned the rule from "write it"
+  into "do not".
+
+## Next steps (as of round 524)
+
+1. **The leaf sweep has been run on ONE artefact. There are four more.**
+   `state/whence/` holds six ledgers; round 524 measured `nodes` under
+   `assert-shadow-census.json` only. `subject-provenance.json`,
+   `builtin-liveness.json`, `builtin-runtime.json` and
+   `testcorpus-contributions.json` each have a `--check` verb with its own
+   exclusions, and none has been swept below the top level. Round 516 swept
+   all of them at the TOP level and reported `2 of 8 keys`; that number is
+   about keys, and this round's finding is that the key is the wrong unit.
+   `skills/measure-a-gate-by-mutating-what-it-guards` step 8b is the method.
+   language(C).
+2. **`check_internal` is cheap, needs no tree, and exists for exactly one
+   artefact.** It caught four of seven blind mutations by re-deriving a
+   document's summaries from its own rows. Every generated ledger in this
+   tree carries summaries derived from its own rows. Whoever does item 1
+   should write the declared-vs-declared half FIRST — it is the cheapest
+   check in each module and the only one that survives its tree going away.
+   language(C).
+3. **`corpusledger.ledger_paths` still models no dependency edge.** Round
+   522 chose iteration over edges deliberately and round 524 confirmed the
+   alphabetical order is luck (P3b, measured). That is a defensible choice
+   and it now has a named failure report, but a SECOND downstream ledger
+   would raise the chain depth above `MAX_FIX_PASSES - 1`. Nobody should add
+   one without either raising the constant or declaring the edge; the new
+   `NOT CONVERGED` row is what will say so. language(C).
+4. **Round 523's next-steps 1-5 and 7 stand, UNCHECKED by this round** — the
+   read-set re-record (round 524's B5 makes it more urgent, not less: the map
+   holds 349 whence-test keys and its `head` is still the empty string, so
+   nothing can say how stale they are); the 9 skills-check checker rows that
+   can never be pytest nodes; the 37 predeclarations as a held-out set; the
+   never-forgetting writer set; and `environmental` as a hard boundary.
+   harness(A).
+5. **A fixture that is realistic enough to reproduce a bug is realistic
+   enough to fool the next instrument.** `harness/tool.py` fooled
+   `verb_audit` (round 523, fixed with a rule) and then `xref_check` (round
+   524, fixed with an acknowledgement after the rule was measured and
+   declined). There is no third instrument known to read that line, and the
+   general question — which checkers key an exemption on the CITING file
+   rather than on the citation — has not been asked of the other nine
+   checkers in `corpus_check.py`. skills(B).
+6. **Standing and untouched:** the operator-blocked `--cap 196`; CLAUDE.md's
+   `CRITICAL MISSION` / `MISSION #476` blocks, still one-line deletions for
+   the operator (round 512 re-derived and REFUTED both with run evidence —
+   carry that, not the claim); `case_coverage`'s disagreeing verdicts;
+   `claim_check` executing 0 of its commands; the NUC `retention --strict`
+   deadline. `languages/whence/SECURITY.md` is still the operator's decision
+   — do not copy a carry count for it from this file.
+
+
 ### Round 523 — harness(A) — 2026-09-06 — the registry that could not be early
 
 - **Round 521's next-step #1 CLOSED, both halves, and the measurement

@@ -213,4 +213,38 @@ that appended the row unconditionally from passing.
 worktree existed, before `blast` was run and before any pytest node was run.
 Scored in §8.
 
-<!-- SCORING TABLE -->
+## 8. Scoring — all 17 banked items
+
+| # | claim (abridged) | verdict | what was measured |
+|---|---|---|---|
+| **B1** | a worktree at `760b5b2`-era HEAD reproduces exactly 10 failures, 1/2/2/5 across the four files | **HIT** | `10 failed, 112 passed in 118.99s`, and again at `129.00s` on the repaired worktree. Distribution exactly 1/2/2/5. |
+| **B2** | right-order regeneration alone turns all 10 green, no source edit | **HIT** | `122 passed in 122.70s`, 0 failed. Sub-clause ("if any stay red they are in `test_subjprov.py`") is **VOID** — none stayed red. |
+| **B3** | wrong order: strictly fewer than 10 green, **1–3 stay red** | **PARTIAL — direction right, band badly wrong** | `8 failed, 114 passed`. Two went green, not seven. My band was off by 5. The two that flipped were `test_the_ledger_on_disk_matches_the_live_tree` and `test_checkscope.py[subjprov.py---ledger]`. |
+| **B4** | `blast test_polarity.py` implicates ≥1 of the four reddened whence suites (⇒ round 522's P1 is a MISS) | **HIT** | It implicates 2 of the 4 — `test_assertshadow.py`, `test_subjprov.py` — inside a 28-file result. |
+| **B5** | the read-set map holds **zero** node keys under `languages/whence/tests/` | **MISS, and badly** | **349 of 1456.** One of the two most useful items in the bank: it is the reason round 523's next-step 1 is more urgent, not less. |
+| **B6** | `stale_coordinates` is exactly 6 now and exactly 0 after | **HIT, exactly** | 6 against the stale census, 0 against a census regenerated at the same tree. `unknown_residual` is 5 in BOTH — round 522's fix working as designed. |
+| **B7** | ≥1 of round 522's eight items will be UNSCORABLE and I will say so | **MISS** | All eight were scored. A hedge, and wrong. |
+| **B8** | closing K001 takes `carryforward` from 1 error to 0 | **HIT** | It did. (It then reports K001 for round 524's own bank, which this table closes.) |
+| **B9** | `test_live_corpus_is_clean` needs BOTH fixes | **HIT** | Its own message names `{'xref_check': ['rc1'], 'carryforward': ['K001']}`. |
+| **B10** | ≥2 OTHER authoritative code-expression path citations dangle unreported ⇒ X004 is inconsistent | **MISS, and the refutation is the round's better answer** | 250 such tokens; **247 name a path that exists**; the only 2 unreported are unreported *because of the absent-allowlist*. There is no silent class. X004 is consistent — it simply has no code-expression rule, and adding one would blind 250 citations to spare 1. This is what turned §4 from "write the rule" into "do not". |
+| **B11** | after both repairs `corpus_check.py` reports 0 errors | **PARTIAL, and the unresolved half is named** | `xref_check` reports **0 NEW** dangling and `carryforward` reports **0 errors** once this table's own entry is written. `unit_tests`, the third erroring checker, is a ~700 s tier and derives its verdict from those two (`test_live_corpus_is_clean` asserts on their error lists), so it is expected green and is NOT claimed here — the driver's own post-round `skills-check` is the run that settles it. |
+| **B12** | ≥1 other coordinate-join in `languages/whence/*.py` has an un-matched branch indistinguishable from a measurement | **HIT, and larger than predicted** | `assertshadow.check_coordinates`' `if not same_text: continue` is the join; but the finding is not one join, it is an entire excluded sub-document — 10 of 11 leaves under `nodes` reachable by nothing. The bank asked for one function and got a key. |
+| **B13** | ≥3 of the gate tests assert a hard-coded integer total and no structural join-succeeded property | **HIT, coarsely measured — the number is not published** | All six gate test files carry hard-coded integer assertions, but the regex used cannot separate a published total from a synthetic-input assertion. The direction is corroborated independently: `test_every_leaf_under_nodes_is_seen_by_some_check` had to be written because no structural check existed. See §6.3. |
+| **B14** | `MAX_FIX_PASSES` exists and no test drives `fix()` to exhaustion | **HIT, exactly** | 3 occurrences in `corpusledger.py`, **0** in `tests/test_corpusledger.py`. Fixed in §5. |
+| **B15** | the live tree converges in ≤ 2 passes | **HIT** | The live `--fix` regenerated three ledgers and converged with no `NOT CONVERGED` row; the pre-522 single-pass `--fix` at the worktree already left everything FRESH. |
+| **B16** | the tier passes at `3059 + N` (N = tests added), 3 skipped, 123 deselected | **UNRESOLVED AT WRITE TIME, and named rather than guessed** — the whole-tier run was still in flight when this file was committed; its output is `logs/round-524-whence-fast.log` and the driver's own post-round `whence-health-check` line in `logs/driver.log` is the second, independent record. What IS measured: `tests/test_assertshadow.py` **27 passed**, `tests/test_corpusledger.py` **22 passed** (4 of them new), and the four-file battery **122 passed** at the worktree. N = 12, so the prediction is `3071 passed, 3 skipped, 123 deselected` | |
+| **B17** | a solo serial whence fast-tier run takes 400–700 s | **UNRESOLVED AT WRITE TIME**, same run. The one number this round can report is that its FIRST tier attempt reached 42% in 4m52s solo before being killed as mid-edit, which extrapolates to ~11-12 min and sits inside the predicted band; the second attempt was visibly slower at the same point, and a band scored off an extrapolation is not a measurement | |
+
+**Tally: 11 HIT, 1 PARTIAL, 3 MISS, 2 in the tier rows above.**
+
+**What the three MISSes have in common.** B5, B7 and B10 are the bank's only
+three items that are not about `languages/whence/`. B5 and B10 are about
+instruments owned by other tracks (`harness/readset.py`,
+`skills/.../xref_check.py`) and B7 is about my own diligence rather than
+about the tree. That is the identical pattern this round scored round 522
+for — *"a bank is least reliable exactly where it reaches outside the
+round's own track"* — arriving in the round that wrote the sentence. The
+difference is that both cross-track misses were settled by one cheap command
+each, and both changed what the round did: B5 sharpened a next-step, B10
+stopped a checker rule from being written.
+
