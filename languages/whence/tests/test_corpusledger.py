@@ -240,13 +240,27 @@ def test_fix_closes_the_drift_and_is_idempotent(fake):
 def test_a_generator_that_fails_is_an_ERROR_and_not_a_stale_verdict(fake):
     """Distinguishing "the ledger is out of date" from "the check could not
     run" is the difference between a fix command that works and one that
-    quietly writes a truncated file. `--fix` must not touch an ERROR row."""
+    quietly writes a truncated file. `--fix` must not touch an ERROR row.
+
+    ROUND 522 kept the intent and split it from a second claim the old
+    assertion had bundled with it. Not TOUCHING an ERROR row is right, and
+    the byte-comparison below is what pins it. Not MENTIONING it was not a
+    decision anybody took: `fix` returned `([], [])` and `cmd_fix` printed
+    "nothing stale" and exited 0 on a tree it had failed to make fresh.
+    Round 522 hit that live -- `corpusledger.py --fix` regenerated
+    `assert-shadow-census.json`, exited 0, and left `subject-provenance
+    .json` stale, because that row had come back ERROR in the same pass
+    (its generator refuses while its input census is stale) and was
+    dropped in silence."""
     shutil.rmtree(str(fake["corpus"]))       # generator will now raise
     res = cl.check(directory=fake["dir"])
     assert [r["status"] for r in res] == ["ERROR"], res
     before = fake["ledger"].read_bytes()
     fixed, bad = cl.fix(directory=fake["dir"])
-    assert (fixed, bad) == ([], [])
+    assert fixed == []
+    assert [n for n, _why in bad] == ["fake.json"]
+    assert "not attempted" in bad[0][1], bad[0][1]
+    # THE INTENT, unchanged: reported, never rewritten.
     assert fake["ledger"].read_bytes() == before
 
 

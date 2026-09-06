@@ -5,11 +5,11 @@
   "totals": {
     "files": 78,
     "test_functions": 2105,
-    "asserts": 4288,
+    "asserts": 4294,
     "assert_kinds": {
-      "other": 2732,
-      "shape": 610,
-      "shape_empty": 178,
+      "other": 2735,
+      "shape": 612,
+      "shape_empty": 179,
       "magnitude": 768
     },
     "functions_with_magnitude": 518,
@@ -392,14 +392,14 @@
       ]
     },
     "test_polarity.py::test_cored_polarity_counts_the_evidence_the_filter_drops": {
-      "lineno": 693,
+      "lineno": 708,
       "pairs": [
         {
-          "magnitude_line": 706,
+          "magnitude_line": 721,
           "magnitude": "out['co_red_total'] == 3",
           "magnitude_strict": true,
           "magnitude_conditional": false,
-          "shape_line": 708,
+          "shape_line": 723,
           "shape": "out['false_gaps'] == ['Q']",
           "count_implied": false,
           "independent": false,
@@ -415,11 +415,11 @@
           "moves": []
         },
         {
-          "magnitude_line": 707,
+          "magnitude_line": 722,
           "magnitude": "out['co_red_blind'] == 2",
           "magnitude_strict": true,
           "magnitude_conditional": false,
-          "shape_line": 708,
+          "shape_line": 723,
           "shape": "out['false_gaps'] == ['Q']",
           "count_implied": false,
           "independent": false,
@@ -437,14 +437,14 @@
       ]
     },
     "test_polarity.py::test_the_sightedness_filter_drops_measured_red_evidence": {
-      "lineno": 1010,
+      "lineno": 1025,
       "pairs": [
         {
-          "magnitude_line": 1023,
+          "magnitude_line": 1038,
           "magnitude": "out['co_red_unmatched'] == 0",
           "magnitude_strict": true,
           "magnitude_conditional": false,
-          "shape_line": 1026,
+          "shape_line": 1041,
           "shape": "out['false_gaps'] == ['CP03p']",
           "count_implied": false,
           "independent": false,
@@ -460,11 +460,11 @@
           "moves": []
         },
         {
-          "magnitude_line": 1024,
+          "magnitude_line": 1039,
           "magnitude": "out['co_red_total'] == 93",
           "magnitude_strict": true,
           "magnitude_conditional": false,
-          "shape_line": 1026,
+          "shape_line": 1041,
           "shape": "out['false_gaps'] == ['CP03p']",
           "count_implied": false,
           "independent": false,
@@ -480,11 +480,11 @@
           "moves": []
         },
         {
-          "magnitude_line": 1025,
+          "magnitude_line": 1040,
           "magnitude": "out['co_red_blind'] == 16",
           "magnitude_strict": true,
           "magnitude_conditional": false,
-          "shape_line": 1026,
+          "shape_line": 1041,
           "shape": "out['false_gaps'] == ['CP03p']",
           "count_implied": false,
           "independent": false,
@@ -502,14 +502,14 @@
       ]
     },
     "test_polarity.py::test_no_violation_in_the_recorded_corpus_is_undecided_any_more": {
-      "lineno": 2079,
+      "lineno": 2094,
       "pairs": [
         {
-          "magnitude_line": 2092,
+          "magnitude_line": 2107,
           "magnitude": "len(out['violations']) == 2",
           "magnitude_strict": true,
           "magnitude_conditional": false,
-          "shape_line": 2095,
+          "shape_line": 2110,
           "shape": "sorted((r['id'] for r in out['excused'])) == ['EP10m', 'EP11p']",
           "count_implied": false,
           "independent": false,

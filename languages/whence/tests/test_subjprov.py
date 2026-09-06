@@ -470,9 +470,33 @@ def test_every_census_pair_finds_its_assertion(live):
     stale-coordinate finding in `assertshadow.check_coordinates` was
     found."""
     rows, _helpers, _guards = live
+    # ROUND 522: this now asserts the FACT instead of a proxy for it.
+    #
+    # Until this round `compare_with_census` did not record whether a
+    # census pair joined to a live assert at all, so this line had to
+    # INFER it: `not subjects and prov == "unknown"`. That proxy cannot
+    # distinguish "the census sent me to a line with no assert on it" from
+    # "the analyser read the assert and could not resolve its subjects" --
+    # and the second one is a published measurement, the residual. Round
+    # 521 (SWE-loop D) correctly moved a scratch `.lang` file out of the
+    # live tree, shifting `tests/test_polarity.py` by +15 lines, and six
+    # pairs landed in the first bucket wearing the second bucket's label:
+    # `unknown_residual` went 5 -> 11 with nothing anywhere saying stale.
+    # `census_line_found` is what `compare_with_census` now knows.
     unjoined = [(r["node"], r["magnitude_line"]) for r in rows
-                if not r["subjects"] and r["prov"] == "unknown"]
+                if not r["census_line_found"]]
     assert unjoined == []
+    #
+    # The old proxy is KEPT beside the fact rather than deleted, because a
+    # tree on which they disagree tells you something. They agree here, and
+    # round 522 measured WHY they agree, which is not a guarantee: all five
+    # honest `unknown` rows carry a non-empty `subjects` map (`{'ttd':
+    # 'unknown'}` and so on), because the resolver names the subject it
+    # failed to resolve. A resolver that returned `{}` on failure would put
+    # a true residual row into the proxy's answer and this line would be
+    # the only thing that noticed.
+    assert [(r["node"], r["magnitude_line"]) for r in rows
+            if not r["subjects"] and r["prov"] == "unknown"] == unjoined
     #
     # ROUND 512: this line read `== [57, 57]`, which conflated two claims.
     # It split them, and ROUND 516 found the half it kept is not the claim
@@ -526,11 +550,26 @@ def test_the_pair_count_identity_cannot_see_a_join_failure(tmp_path):
     }
     rows, _helpers = S.compare_with_census(str(empty), census)
     assert len(rows) == census["totals"]["pairs"] == 1
-    assert [(r["prov"], r["subjects"]) for r in rows] == [("unknown", {})]
+    # ROUND 522: this row used to read `("unknown", {})` -- the same two
+    # values a real residual row can carry -- which is precisely the
+    # conflation this test was written to complain about. `S.STALE` is not
+    # a member of `S.PROV_ORDER` and is excluded from `unknown_residual`,
+    # so a census that joins to nothing can no longer be read as a
+    # provenance measurement.
+    assert [(r["prov"], r["subjects"], r["census_line_found"])
+            for r in rows] == [(S.STALE, {}, False)]
+    assert S.STALE not in S.PROV_ORDER and S.STALE not in S.DERIVED
+    t = S.totals(rows)
+    # ONE display comparison, not two magnitude asserts: round 522's first
+    # draft of this test wrote `== 1` and `== 0` on their own lines above a
+    # shape assert, and `test_this_file_contains_no_shadow_of_its_own` --
+    # this module's instrument, run on this module -- went red on it.
+    assert [t["stale_coordinates"], t["unknown_residual"]] == [1, 0]
 
-    unjoined = [r["node"] for r in rows
-                if not r["subjects"] and r["prov"] == "unknown"]
+    unjoined = [r["node"] for r in rows if not r["census_line_found"]]
     assert unjoined == ["test_no_such_file.py::test_nothing"]
+    assert S.stale_pairs(rows) == \
+        [("test_no_such_file.py::test_nothing", 1, "assert len(x) > 0")]
 
 
 def test_the_number_of_census_pairs_is_pinned(live):

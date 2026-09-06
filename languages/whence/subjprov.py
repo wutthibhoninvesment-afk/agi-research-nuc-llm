@@ -124,6 +124,34 @@ TESTS = os.path.join(HERE, "tests")
 #: Drift risk, ascending. The join of a set of provenances is the last one.
 PROV_ORDER = ("local", "scratch", "unknown", "handed", "tree")
 
+#: NOT a provenance, and deliberately not a member of `PROV_ORDER`.
+#:
+#: ROUND 522 (language C). `compare_with_census` pairs the census on disk
+#: against the LIVE tree by `assert.lineno == pair["magnitude_line"]`, and
+#: its un-matched default was `prov = "unknown"; subjects = {}`. So a census
+#: whose COORDINATES had gone stale -- the ordinary consequence of anybody
+#: editing a test file above an existing assert -- did not report as stale.
+#: It reported as provenance, in the one population this module promises is
+#: "published, not folded": the residual.
+#:
+#: Round 521 (SWE-loop D) moved a scratch `.lang` file out of the live
+#: `languages/whence/` directory, which is a correct fix to a real race, and
+#: shifted `tests/test_polarity.py` by +15 lines. All SIX of that file's
+#: census rows then read `unknown`, `unknown_residual` went 5 -> 11, `tree`
+#: 12 -> 8 and `local` 31 -> 29, and NOTHING in this module said the word
+#: stale. Measured: regenerating this ledger against that census produced a
+#: document `subjprov.py --check` called green -- "0 finding(s)", exit 0 --
+#: carrying `unknown_residual: 11`. The CLI's own printed regeneration hint
+#: named THIS ledger, so following the instrument's instruction converted a
+#: true red into a false green.
+#:
+#: `unknown` means the analyser looked at the assert and could not resolve
+#: its subjects. `stale` means the analyser never saw that assert, because
+#: the census sent it to a line that no longer holds one. Those are not the
+#: same claim and an instrument that renders them with one word cannot be
+#: falsified on the difference.
+STALE = "stale"
+
 #: `derived` -- the boolean that replaces `assertshadow.tree_derived`.
 #: `unknown` is deliberately absent: an unresolved name is a third answer,
 #: not a quiet vote for either of the other two.
@@ -1031,13 +1059,18 @@ def compare_with_census(directory=None, census=None):
         fname, func = nid.split("::", 1)
         entry = idx.get((fname, func))
         for p in node["pairs"]:
-            prov = "unknown"
-            subjects = {}
+            # ROUND 522: `found` is the whole point. Before it, BOTH of the
+            # ways this lookup can miss -- the census naming a function the
+            # tree no longer has, and the census naming a line the function
+            # no longer asserts on -- fell through to `unknown`, which is a
+            # measurement. See `STALE`.
+            prov, subjects, found = STALE, {}, False
             if entry:
                 for a in entry["asserts"]:
                     if a["lineno"] == p["magnitude_line"]:
                         prov = a["prov"]
                         subjects = a["subjects"]
+                        found = True
                         break
             rows.append({
                 "node": nid,
@@ -1049,8 +1082,31 @@ def compare_with_census(directory=None, census=None):
                 "prov": prov,
                 "derived": prov in DERIVED,
                 "subjects": subjects,
+                "census_line_found": found,
             })
     return rows, helpers
+
+
+def stale_pairs(rows):
+    """Census pairs this module could not locate in the live tree.
+
+    `[(node, magnitude_line, why)]`. `why` distinguishes the two misses so
+    a reader is not left guessing which regeneration they need: a MOVED
+    line is an edit above the assert, a VANISHED node is a renamed or
+    deleted test."""
+    out = []
+    for r in rows:
+        if r.get("census_line_found", True):
+            continue
+        out.append((r["node"], r["magnitude_line"], r["magnitude"]))
+    return sorted(out)
+
+
+#: What to run when `stale_pairs` is non-empty. The CENSUS, not this
+#: ledger -- round 522 measured that regenerating this ledger instead
+#: writes the drift in as the answer and self-checks green.
+CENSUS_REGEN = ("cd languages/whence && python3 assertshadow.py --history "
+                "--json ../../state/whence/assert-shadow-census.json")
 
 
 def guard_rows(directory=None, census=None):
@@ -1079,6 +1135,19 @@ def guard_rows(directory=None, census=None):
             mag = by_line.get(p["magnitude_line"])
             shp = by_line.get(p["shape_line"])
             if mag is None or shp is None:
+                # ROUND 522: the SECOND instance of round 522's shape, and
+                # the more dangerous one. A missing key here is read by
+                # `totals` through `guards.get(...)`, whose absent value is
+                # falsy -- so a stale coordinate does not merely lose a
+                # guard verdict, it silently promotes the pair into
+                # `costly_unguarded`, the list this module publishes as the
+                # pairs worth repairing. It is invisible today only because
+                # the OTHER silence masks it: a stale row's `derived` is
+                # False, so it never reaches `costly_dataflow` to be counted
+                # unguarded. Two silent degradations cancelling is not a
+                # property to rely on. `stale_pairs` is the gate; this
+                # `continue` is now reachable only when that gate has
+                # already fired.
                 continue
             out[(nid, p["magnitude_line"], p["shape_line"])] = \
                 guards_a_use(fn, mag, shp)
@@ -1109,6 +1178,11 @@ def totals(rows, guards=None):
         "heuristic_only": len(t2f),
         "dataflow_only": len(f2t),
         "unknown_residual": kinds.get("unknown", 0),
+        # ROUND 522. Published beside the residual on purpose: these are the
+        # pairs that would have been ADDED to it, silently, before `STALE`
+        # existed. On a tree whose census matches, this is 0 -- and a 0 that
+        # is written down is the positive control that the pairing ran.
+        "stale_coordinates": kinds.get(STALE, 0),
         "pairs_costly_heuristic": len(costly_old),
         "nodes_costly_heuristic": len(set(r["node"] for r in costly_old)),
         "pairs_costly_dataflow": len(costly_new),
@@ -1234,6 +1308,21 @@ def check_ledger(declared, rows, guards, helpers):
     made this verb raise instead of report."""
     import checkscope                                  # noqa: PLC0415
     out = []
+    # ROUND 522: S004 IS FIRST, and it is the only code here that is about
+    # the live tree's INPUT rather than about the ledger's contents. If the
+    # census coordinates are stale then every other finding below is
+    # downstream of a bad pairing, and -- measured, round 522 -- acting on
+    # them regenerates this ledger with the drift written in as the answer.
+    # A reader who sees S004 must fix the census and re-run; there is
+    # nothing here they can usefully act on until they do.
+    stale = stale_pairs(rows)
+    if stale:
+        out.append(("S004", "census_coordinates",
+                    "%d census pair(s) name a line the live tree has no "
+                    "assert on (first: %s line %d). Their provenance is not "
+                    "`unknown`, it is UNMEASURED. Regenerate the CENSUS "
+                    "first: %s"
+                    % (len(stale), stale[0][0], stale[0][1], CENSUS_REGEN)))
     live_doc = build_ledger(rows, helpers, guards)
     live = live_doc["totals"]
     dec_totals = declared.get("totals")
@@ -1332,9 +1421,33 @@ def main(argv):
     rows, helpers = compare_with_census(directory)
     guards = guard_rows(directory)
 
+    # ROUND 522: computed once, before either verb, because BOTH of them
+    # are wrong to run while it is non-empty -- `--json` would write the
+    # drift in, `--check` would report eight downstream findings and name
+    # the wrong file to regenerate.
+    stale = stale_pairs(rows)
+
     if "--json" in args:
         i = args.index("--json")
         path = args[i + 1] if i + 1 < len(args) else ledger_path()
+        if stale:
+            # REFUSE. This is the one change in round 522 that makes the
+            # measured false-green unreachable: writing a provenance ledger
+            # from a census that does not match the tree is never correct,
+            # and `corpusledger.fix()` reads this exit code, so the
+            # dependency between the two generated ledgers is now enforced
+            # by the downstream generator rather than by the accident that
+            # `assert-shadow-census.json` sorts before
+            # `subject-provenance.json`.
+            print("REFUSING to write %s: %d census pair(s) name a line the "
+                  "live tree has no assert on." % (path, len(stale)))
+            for node, line, mag in stale[:10]:
+                print("  STALE  %s  line %d  %s" % (node, line, mag))
+            if len(stale) > 10:
+                print("  ... and %d more" % (len(stale) - 10))
+            print("Regenerate the CENSUS first, then re-run this:")
+            print("    %s" % CENSUS_REGEN)
+            return 2
         dump_ledger(path, build_ledger(rows, helpers, guards))
         print("wrote %s" % path)
         return 0
@@ -1344,8 +1457,15 @@ def main(argv):
                                 helpers)
         for code, what, msg in findings:
             print("%s %s: %s" % (code, what, msg))
-        print("%d finding(s). Regenerate: python3 subjprov.py --json "
-              "../../state/whence/subject-provenance.json" % len(findings))
+        if stale:
+            print("%d finding(s). The CENSUS is stale; regenerate it FIRST "
+                  "and re-run -- regenerating this ledger now writes the "
+                  "drift in as the answer:" % len(findings))
+            print("    %s" % CENSUS_REGEN)
+        else:
+            print("%d finding(s). Regenerate: python3 subjprov.py --json "
+                  "../../state/whence/subject-provenance.json"
+                  % len(findings))
         return 1 if findings else 0
 
     print(render_compare(rows, guards))
