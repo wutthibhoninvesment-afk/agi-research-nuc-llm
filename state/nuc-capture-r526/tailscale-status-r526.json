@@ -1,0 +1,271 @@
+{
+  "Version": "1.102.2-t6cac91817-g6ff0ddc72",
+  "TUN": true,
+  "BackendState": "Running",
+  "HaveNodeKey": true,
+  "AuthURL": "",
+  "TailscaleIPs": [
+    "100.85.110.121",
+    "fd7a:115c:a1e0::5b01:6eae"
+  ],
+  "Self": {
+    "ID": "nd1xdD1Lzo11CNTRL",
+    "NodeID": 6017480304744576,
+    "PublicKey": "nodekey:4746f81e2888389f0708c86a4a6159037ea3f1d2416ee7c9078586265b556e79",
+    "HostName": "srv1244884",
+    "DNSName": "srv1244884.tail68f744.ts.net.",
+    "OS": "linux",
+    "UserID": 7518146122572425,
+    "TailscaleIPs": [
+      "100.85.110.121",
+      "fd7a:115c:a1e0::5b01:6eae"
+    ],
+    "AllowedIPs": [
+      "100.85.110.121/32",
+      "fd7a:115c:a1e0::5b01:6eae/128"
+    ],
+    "Addrs": [
+      "72.60.43.243:41641",
+      "[2a02:4780:5e:af25::1]:41641",
+      "172.17.0.1:41641",
+      "172.18.0.1:41641"
+    ],
+    "CurAddr": "",
+    "Relay": "sin",
+    "PeerRelay": "",
+    "RxBytes": 0,
+    "TxBytes": 0,
+    "Created": "2026-06-26T02:19:21.191787645Z",
+    "LastWrite": "0001-01-01T00:00:00Z",
+    "LastSeen": "0001-01-01T00:00:00Z",
+    "LastHandshake": "0001-01-01T00:00:00Z",
+    "Online": true,
+    "ExitNode": false,
+    "ExitNodeOption": false,
+    "Active": false,
+    "PeerAPIURL": [
+      "http://100.85.110.121:47864",
+      "http://[fd7a:115c:a1e0::5b01:6eae]:64483"
+    ],
+    "TaildropTarget": 0,
+    "NoFileSharingReason": "",
+    "Capabilities": [
+      "HTTPS://TAILSCALE.COM/s/DEPRECATED-NODE-CAPS#see-https://github.com/tailscale/tailscale/issues/11508",
+      "default-auto-update",
+      "https://tailscale.com/cap/file-sharing",
+      "https://tailscale.com/cap/is-admin",
+      "https://tailscale.com/cap/is-owner",
+      "https://tailscale.com/cap/ssh",
+      "https://tailscale.com/cap/tailnet-lock",
+      "probe-udp-lifetime",
+      "ssh-behavior-v1",
+      "ssh-env-vars",
+      "store-appc-routes",
+      "tailnet-display-name"
+    ],
+    "CapMap": {
+      "default-auto-update": [
+        true
+      ],
+      "https://tailscale.com/cap/file-sharing": null,
+      "https://tailscale.com/cap/is-admin": null,
+      "https://tailscale.com/cap/is-owner": null,
+      "https://tailscale.com/cap/ssh": null,
+      "https://tailscale.com/cap/tailnet-lock": null,
+      "probe-udp-lifetime": null,
+      "ssh-behavior-v1": null,
+      "ssh-env-vars": null,
+      "store-appc-routes": null,
+      "tailnet-display-name": [
+        "wutthibhon.invesment@gmail.com"
+      ]
+    },
+    "InNetworkMap": true,
+    "InMagicSock": false,
+    "InEngine": false,
+    "KeyExpiry": "2026-12-23T02:19:21Z"
+  },
+  "Health": [
+    "Tailscale failed to set the DNS configuration of your device: setLinkDefaultRoute: context deadline exceeded"
+  ],
+  "MagicDNSSuffix": "tail68f744.ts.net",
+  "CurrentTailnet": {
+    "Name": "wutthibhon.invesment@gmail.com",
+    "MagicDNSSuffix": "tail68f744.ts.net",
+    "MagicDNSEnabled": true
+  },
+  "CertDomains": null,
+  "ExtraRecords": null,
+  "Peer": {
+    "nodekey:6af64abbf311acc296f511a0310ce3470d669ec19c11484c970e6c5a76b1a735": {
+      "ID": "nd1NPPxgCG11CNTRL",
+      "NodeID": 1946755083570824,
+      "PublicKey": "nodekey:6af64abbf311acc296f511a0310ce3470d669ec19c11484c970e6c5a76b1a735",
+      "HostName": "MacBook Neo ของ Wutthiporn ",
+      "DNSName": "macbook-neo--wutthiporn.tail68f744.ts.net.",
+      "OS": "macOS",
+      "UserID": 7518146122572425,
+      "TailscaleIPs": [
+        "100.113.167.53",
+        "fd7a:115c:a1e0::7638:a736"
+      ],
+      "AllowedIPs": [
+        "100.113.167.53/32",
+        "fd7a:115c:a1e0::7638:a736/128"
+      ],
+      "Addrs": null,
+      "CurAddr": "",
+      "Relay": "sin",
+      "PeerRelay": "",
+      "RxBytes": 0,
+      "TxBytes": 0,
+      "Created": "2026-07-04T22:51:56.238589623Z",
+      "LastWrite": "2026-08-26T16:22:03.180374064Z",
+      "LastSeen": "2026-09-06T11:00:00.1Z",
+      "LastHandshake": "0001-01-01T00:00:00Z",
+      "Online": false,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "PeerAPIURL": [
+        "http://100.113.167.53:46456",
+        "http://[fd7a:115c:a1e0::7638:a736]:53901"
+      ],
+      "TaildropTarget": 5,
+      "NoFileSharingReason": "",
+      "InNetworkMap": true,
+      "InMagicSock": true,
+      "InEngine": false,
+      "KeyExpiry": "2026-12-31T22:51:56Z"
+    },
+    "nodekey:beaf690ad0e16cff145d447c41d5785ad23c415a3cee948ee004445279561356": {
+      "ID": "nYcMzyMsB321CNTRL",
+      "NodeID": 7707781951433541,
+      "PublicKey": "nodekey:beaf690ad0e16cff145d447c41d5785ad23c415a3cee948ee004445279561356",
+      "HostName": "ROG_Phone6",
+      "DNSName": "rog-phone6.tail68f744.ts.net.",
+      "OS": "android",
+      "UserID": 7518146122572425,
+      "TailscaleIPs": [
+        "100.86.19.86",
+        "fd7a:115c:a1e0::7938:1358"
+      ],
+      "AllowedIPs": [
+        "100.86.19.86/32",
+        "fd7a:115c:a1e0::7938:1358/128"
+      ],
+      "Addrs": null,
+      "CurAddr": "",
+      "Relay": "sin",
+      "PeerRelay": "",
+      "RxBytes": 0,
+      "TxBytes": 0,
+      "Created": "2026-06-26T02:33:02.849689669Z",
+      "LastWrite": "0001-01-01T00:00:00Z",
+      "LastSeen": "2026-08-02T08:25:39.1Z",
+      "LastHandshake": "0001-01-01T00:00:00Z",
+      "Online": false,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "PeerAPIURL": null,
+      "TaildropTarget": 5,
+      "NoFileSharingReason": "",
+      "InNetworkMap": true,
+      "InMagicSock": true,
+      "InEngine": false,
+      "KeyExpiry": "2026-12-23T02:33:02Z"
+    },
+    "nodekey:e9540ec3b9581bcd933e4d9a9fd9c1d8345b70056e7f4a7d377ac318304e2c6f": {
+      "ID": "n8EDoMLxLV11CNTRL",
+      "NodeID": 3629824471502649,
+      "PublicKey": "nodekey:e9540ec3b9581bcd933e4d9a9fd9c1d8345b70056e7f4a7d377ac318304e2c6f",
+      "HostName": "pgain-nuc",
+      "DNSName": "pgain-nuc.tail68f744.ts.net.",
+      "OS": "linux",
+      "UserID": 7518146122572425,
+      "TailscaleIPs": [
+        "100.78.44.111",
+        "fd7a:115c:a1e0::3038:2c70"
+      ],
+      "AllowedIPs": [
+        "100.78.44.111/32",
+        "fd7a:115c:a1e0::3038:2c70/128"
+      ],
+      "Addrs": null,
+      "CurAddr": "",
+      "Relay": "sin",
+      "PeerRelay": "",
+      "RxBytes": 0,
+      "TxBytes": 12480,
+      "Created": "2026-08-26T12:46:03.911852676Z",
+      "LastWrite": "2026-09-06T11:08:34.222447253Z",
+      "LastSeen": "2026-09-04T02:14:05.1Z",
+      "LastHandshake": "0001-01-01T00:00:00Z",
+      "Online": false,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": true,
+      "PeerAPIURL": [
+        "http://100.78.44.111:61119",
+        "http://[fd7a:115c:a1e0::3038:2c70]:63400"
+      ],
+      "TaildropTarget": 5,
+      "NoFileSharingReason": "",
+      "InNetworkMap": true,
+      "InMagicSock": true,
+      "InEngine": true,
+      "KeyExpiry": "2027-02-22T12:46:03Z"
+    },
+    "nodekey:ffe56f3c94a76654896f3508bd8d158af19b055a6059319f5025514f41a38c20": {
+      "ID": "ni7EPK7vss11CNTRL",
+      "NodeID": 6515575081157353,
+      "PublicKey": "nodekey:ffe56f3c94a76654896f3508bd8d158af19b055a6059319f5025514f41a38c20",
+      "HostName": "REDMI 15C",
+      "DNSName": "redmi-15c.tail68f744.ts.net.",
+      "OS": "android",
+      "UserID": 7518146122572425,
+      "TailscaleIPs": [
+        "100.99.140.32",
+        "fd7a:115c:a1e0::4138:8c21"
+      ],
+      "AllowedIPs": [
+        "100.99.140.32/32",
+        "fd7a:115c:a1e0::4138:8c21/128"
+      ],
+      "Addrs": null,
+      "CurAddr": "",
+      "Relay": "sin",
+      "PeerRelay": "",
+      "RxBytes": 0,
+      "TxBytes": 0,
+      "Created": "2026-06-26T03:51:20.479151561Z",
+      "LastWrite": "0001-01-01T00:00:00Z",
+      "LastSeen": "2026-08-20T02:43:06.1Z",
+      "LastHandshake": "0001-01-01T00:00:00Z",
+      "Online": false,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "PeerAPIURL": [
+        "http://100.99.140.32:1",
+        "http://[fd7a:115c:a1e0::4138:8c21]:1"
+      ],
+      "TaildropTarget": 5,
+      "NoFileSharingReason": "",
+      "InNetworkMap": true,
+      "InMagicSock": true,
+      "InEngine": false,
+      "KeyExpiry": "2026-12-23T03:51:20Z"
+    }
+  },
+  "User": {
+    "7518146122572425": {
+      "ID": 7518146122572425,
+      "LoginName": "wutthibhon.invesment@gmail.com",
+      "DisplayName": "Wutthibhon Wong-Ngaam",
+      "ProfilePicURL": "https://lh3.googleusercontent.com/a/ACg8ocLBGg4sW4xdumQNK7vhMWT1q_VXjWA0HgEBqhZbmO_Brqg4VF4=s96-c"
+    }
+  },
+  "ClientVersion": null
+}
