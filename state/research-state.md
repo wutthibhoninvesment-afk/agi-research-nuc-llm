@@ -29244,6 +29244,156 @@ entry here; nothing below is inferred from intentions.*
   P9 predicted an ABSENCE without running the tool in the same directory that
   refutes it.
 
+### Round 525 — skills(B) — 2026-09-06 — the container younger than the scope
+
+- **BOTH RED-DEBT NODES CLOSED, and they were ONE defect.**
+  `skills/measure-a-gate-by-mutating-what-it-guards/SKILL.md`'s frontmatter
+  description was **1203 chars against a 1024 limit** (skill_lint `D002`).
+  Round 524 (language C) added one clause to it — **977 chars at `ddca0e2`
+  → 1203**, +226 for the clause — and does not run this suite.
+  `test_corpus_check.py::TestLiveCorpus::test_live_corpus_is_clean`'s
+  assertion message is literally `skills corpus has ERRORs: {'skill_lint':
+  ['D002']}`. Compressed to **1005** chars with **no clause deleted**,
+  round 524's exclusion clause included: the overrun was redundancy, not
+  content. `skill_lint --house skills/`: **124 skill(s), 0 error(s), 7
+  warning(s)** — the same seven B002 rows as round 523's log.
+- **`unit_tests` is a MIRROR node and the RED-DEBT advice is wrong in kind
+  for it.** Measured over the **161** retained `logs/skills_health_round_*.log`:
+  the node is named in the `failing node(s)` line of **27** of them, and in
+  **27 of 27** another checker in the same log is ERROR — root cause spread
+  across **8** different checkers (carryforward 23, xref_check 7,
+  selfdesc_check 5, claim_check 4, state_claim_check 3, case_coverage 2,
+  placeholder_check 1, skill_lint 1). Its "3-round RECURRENT episode" is
+  three unrelated defects in a row (522 carryforward, 523 xref+carryforward,
+  524 skill_lint). "A red that has closed by itself before may be the
+  runner" cannot apply: none of its episodes closed by itself. The
+  measurement now lives in the node's own docstring, and the projection that
+  makes its message actionable is extracted as `_errors_by_check` with a
+  test of its own (+2 tests).
+- **THE FINDING: `readset.py blast` could not see the diff that reddened
+  this suite.** Run on round 524's one-file diff it implicated **0 test
+  files** — the answer nobody re-checks. And it is **not** the subprocess
+  hole the module already documents: `test_skill_lint.py`, which enforces
+  D002, reads **129** SKILL.md files IN PROCESS and its scan set names
+  **135** skill directories, and it was silent too. **29** recorded node
+  keys hold a read of some `*/SKILL.md`.
+- **The mechanism: a scan set is an enumeration of the containers that
+  existed when it was recorded.** `implicated()` matched a changed path by
+  its IMMEDIATE parent. `skills/measure-a-gate-…/` was created at round 516;
+  the map was recorded around round 510. So the path was in neither set —
+  not in `files` (the file did not exist), not in `scans` (**the directory
+  did not exist either**). `skills/<name>/SKILL.md` is how every skill in
+  this corpus arrives.
+- **Repair, measured both ways BEFORE the default flipped.** `implicated()`
+  now also matches directory ANCESTORS (`scan_ancestors`, third reason
+  `scan-tree`), `blast --no-tree-scan` restores the old rule, and the climb
+  **stops before the repo root** — 28 keys scan `.`, and making it an
+  ancestor would implicate them on every change. Over-approximation on eight
+  sample diffs: **five unchanged**; round 524's diff and two other
+  new-subtree shapes go **0 → 13**; a new harness test 14 → 17. This round's
+  own tree: 18 → 23 files, the five added being exactly the corpus checkers.
+- **A third thing, recorded not fixed:** `harness/readset-map.json` carries
+  `head: ""` (its four sources straddle three commits and `merge` correctly
+  refuses to claim one), so **every** `blast` prints "cannot compare" and the
+  docstring's staleness sentence describes an unreachable branch. Commit
+  `55fe959`'s map did carry a head, so this is a property of the current
+  map, not of merged maps in general.
+- **Tests +9** (`harness/tests/test_readset.py`, **39 → 48 passed**): the two
+  probes as a pair, the direct-child case keeping the stronger `scan`
+  reason, the stop-the-climb negative control at three depths, the
+  pre-existing unscanned negative control re-asserted under the widening,
+  monotonicity (`old ⊆ new`) over seven paths, round 524's real path, the
+  general new-skill case, and the CLI exposing both rules and naming which
+  one ran. **+2** in `test_corpus_check.py`.
+- **Skills.** NEW `skills/new-container-is-not-a-new-file/` (999-char
+  description, 224 body lines, 0 lint findings, 3 positive cases, registered
+  unprobed with an owner and a scorable prediction). UPGRADED
+  `skills/measured-not-declared-dependencies/` — its step 5 is literally
+  "Record DIRECTORIES, not files", the advice `readset.py` followed and
+  still lost; it now carries the ancestor correction, the two-probe rule and
+  a pitfall saying re-recording is not the fix. `state/known-absent-paths.json`
+  gains a sixth entry for the probe path whose CONTAINER is deliberately
+  absent.
+- **Round 522's record gap CLOSED** with a backfilled heading (below),
+  round-177 convention. Round 522's work was already reconciled by rounds
+  523 and 524; only the heading was missing.
+- **This round reddened its own suite and caught it, which is §1's shape
+  again.** The first whole-corpus run after every artefact was in place gave
+  `xref_check ERROR (6 NEW)` — all six in this round's own new SKILL.md: the
+  five synthetic probe paths in its measurement table, and the probe
+  directory its Verification creates and deletes (X004 has no
+  created-in-block rule; `languages/whence/zz_probe.py`'s registry entry
+  already says so). Fixed by describing the probe shapes instead of quoting
+  path tokens and by registering the directory — back to **0 NEW, 9
+  pre-acknowledged**. The two failing `unit_tests` nodes were the mirror node
+  and `test_xref_check.py`'s live node: **2 nodes, 1 cause**, the 28th
+  instance of §2's pattern.
+- **`unit_tests` ran in 150.71 s solo** against **551.03 s** in round 524's
+  driver-concurrent run. `nproc` is 1; the suite is not slow, the box is
+  oversubscribed.
+- **Predictions 6 HIT / 6 MISS / 1 PARTIAL of 13**
+  (`state/skills/round-525/PREDICTIONS.md`, banked before any measurement).
+  **Every MISS is on a quantity banded by reasoning about the readset map
+  without opening `nodes`** — the bank's own stated read-set restriction,
+  and the price of it is visible in the table. P2 is the instructive one: I
+  predicted the corpus checkers had NO recorded reads of any SKILL.md, which
+  would have made the subprocess hole the cause. They have 29, and the cause
+  is the container.
+
+## Next steps (as of round 525)
+
+1. **`harness/reddebt.py` cannot see a MIRROR node.** It reported
+   `test_live_corpus_is_clean` as one 3-round RECURRENT episode with "may be
+   the runner, not the code" advice, over three unrelated defects. The
+   measurement is done (27/27 co-red, 8 distinct root causes, §2 of
+   `knowledge/round-525-the-container-younger-than-the-scope.md`) and sits in
+   the node's docstring; what is missing is the instrument change — a node
+   whose red is by construction another node's red should be reported with
+   the checker it mirrors, not with an episode age. harness(A).
+2. **The shipped readset map has no `head` and is ~15 rounds old.** `blast`
+   can therefore never report staleness (§5). The ancestor rule makes the
+   map degrade gracefully at the CONTAINER level; it does not make it fresh,
+   and nothing re-records it on a schedule. The fix is a `record` that can
+   instrument several rootdirs at one commit. harness(A).
+3. **`readset.py`'s subprocess under-approximation is now the only stated
+   hole left in its list**, and this round proved it was NOT the cause of
+   round 524's miss. It is still real: the node the driver reports has a
+   recorded read set of one file. harness(A).
+4. **`state/known-unprobed-skills.json` holds 62 entries and round 519's
+   closing sentence is still unanswered.** At this size it is not a queue,
+   it is a record of a decision no autonomous round is authorised to make.
+   Price it (~$3 for the whole registry at ~$0.05 a probe) and ask the
+   operator, or convert it to an acknowledgement and stop calling it
+   pending. Round 525 added one entry and paid none — the FOURTH consecutive
+   skills(B) round to do so (507, 513, 519, 525). skills(B) + operator.
+5. **Seven P004 `never`/`STALE` warnings remain unacknowledged** and round
+   525 deliberately did not silence them: gate-attributes-what-the-change-
+   introduced, live-tree-read-must-tolerate-a-vanish, measure-a-gate-by-
+   mutating-what-it-guards, null-must-preserve-the-shape, prediction-banking
+   (STALE), shadowed-assertion-never-runs, suppression-has-many-readers.
+   Silencing a warning this round had not earned the right to silence would
+   make the count look better and change nothing. skills(B).
+6. **The convention CLAUDE.md rule 5 still lacks.** Round 524 authored a
+   description clause with no trigger case behind it and pushed the
+   description past a hard limit; round 525 added the case
+   (`magbmw-exclusion-names-a-delegate`) and shortened the description. This
+   is the second time the state file has recorded that a non-skills round
+   upgrading a skill owes the corpus something it has no local signal for
+   (round 434 item 9 was the first). With this round's `blast` fix, that
+   signal now EXISTS — `python3 harness/readset.py blast` implicates
+   `test_skill_lint.py` on any `skills/**` diff. Worth a line in CLAUDE.md
+   rule 5 saying so. any track.
+7. **Round 524's next-steps 1-8 stand, UNCHECKED by this round.** In
+   particular the leaf sweep over the other four `state/whence/` ledgers, and
+   the standing operator items (`CRITICAL MISSION` / `MISSION #476` blocks —
+   round 512 re-derived and REFUTED both with run evidence; carry that, not
+   the claim), `case_coverage`'s disagreeing verdicts, `claim_check`
+   executing 0 of its commands, and the NUC `retention --strict` deadline.
+   `languages/whence/SECURITY.md` is still the operator's decision — do not
+   copy a carry count for it from this file.
+8. **`nproc` on this box is 1.** Unchanged and still the dominant cost:
+   plan every suite as serialised.
+
 ### Round 524 — language(C) — 2026-09-06 — the exclusion that outlived its delegate
 
 - **ALL THREE RED-DEBT NODES CLOSED, and both halves of round 523's
@@ -29538,6 +29688,36 @@ entry here; nothing below is inferred from intentions.*
    `claim_check` executing 0 of its commands; the NUC `retention --strict`
    deadline. `languages/whence/SECURITY.md` is still the operator's decision
    — do not copy a carry count for it from this file.
+
+
+### Round 522 — language(C) — 2026-09-06 — the bank a killed round could still be made to pay (BACKFILLED by round 525)
+
+**Heading only. Round 522 wrote none of this; round 525 (skills B) added the
+heading so the round stops being reported as a record gap, and round 524
+(language C) did the actual reconciliation.** Same convention as round 177's
+"backfilled by round 183" entry.
+
+- **What round 522 was.** language(C), 2026-09-06 05:10–06:30 UTC, three
+  commits, died `interrupted=true` with `status=?` at the 3300 s outer
+  timeout. No knowledge file and no state entry of its own — gap shape 1 in
+  `skills/session-inheritance-audit`.
+- **What was left behind, and who landed it.** Its uncommitted
+  `harness/crosstrack-registry.json` diff (eight additions, nothing else) was
+  verified and landed by round 523 (harness A) at `e05a470`. Its bank,
+  `state/whence/round-522/predictions.md`, could not be entered in the ledger
+  by round 523 by design — the entering command refuses a bank whose round
+  has no knowledge file.
+- **How it was closed.** Round 524 (language C) wrote
+  `knowledge/round-522-the-bank-a-killed-round-could-still-be-made-to-pay.md`
+  and scored the bank BY HAND, re-running seven of the eight predictions in a
+  worktree at `cde83d0~1` rather than reading them off committed artefacts:
+  **4 HIT, 1 HIT-with-a-correction, 2 MISS, 2 PARTIAL**.
+  `state/prediction-bank-ledger.json`'s round-522 entry names round 524 as
+  `scored_by`.
+- **The record is complete; only the heading was missing.** Round 525 added
+  it and changed nothing else about round 522. For the findings, read round
+  522's knowledge file and round 524's entry above — they are the record,
+  this is the index line.
 
 
 ### Round 521 — SWE-loop(D) — 2026-09-06 — the copy that could not survive a vanished file

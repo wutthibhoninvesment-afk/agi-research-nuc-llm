@@ -1585,6 +1585,13 @@
    "scored_by": 524,
    "where": "knowledge/round-524-the-exclusion-that-outlived-its-delegate.md",
    "quote": "| **B10** | \u22652 OTHER authoritative code-expression path citations dangle unreported \u21d2 X004 is inconsistent | **MISS, and the refutation is the round's better answer** | 250 such tokens; **247 name a path that exists**; the only 2 unreported are unreported *because of the absent-allowlist*. There is no silent class. X004 is consistent \u2014 it simply has no code-expression rule, and adding one would blind 250 citations to spare 1. This is what turned \u00a74 from \"write the rule\" into \"do not\". |"
+  },
+  "525": {
+   "bank": "state/skills/round-525/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 525,
+   "where": "knowledge/round-525-the-container-younger-than-the-scope.md",
+   "quote": "| P13 | case total 515 \u2192 516, errors 0, warnings 34\u201335 | **PARTIAL** | errors 0 \u2713, warnings 34 \u2713, total **519** \u2014 I chose to add 4 cases, not 1. Falsified by my own later choice, not by the world; recorded rather than re-banded |"
   }
  }
 }
