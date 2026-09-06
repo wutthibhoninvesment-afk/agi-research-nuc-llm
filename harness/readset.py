@@ -30,6 +30,9 @@ the working tree, before the commit:
     IMPLICATED  harness/tests/test_swe_copyparity_real_subject.py   3 node(s)
     IMPLICATED  harness/tests/test_whenceslow.py                    1 node(s)
 
+    $ python3 harness/readset.py blast --no-tree-scan   # the pre-525 rule,
+                                                        # for differencing
+
 Those are the four nodes round 504 actually reddened. Nothing round 504
 could have run would have told it so.
 
@@ -78,8 +81,37 @@ WHAT IT IS NOT
       hook is not installed there. That file is covered anyway because its
       static tests read the same tree in-process — but the general case is a
       hole, and it is why `blast` reports at FILE granularity by default.
+      `skills/skill-authoring/scripts/test_corpus_check.py::TestLiveCorpus::
+      test_live_corpus_is_clean` is the live instance. It calls
+      `corpus_check.main()` IN process, but `main()` runs each of the ten
+      checkers as a child, so the ~500 corpus files they read are read in
+      grandchildren and the node's recorded set is ONE file. Round 525
+      measured that this is NOT what made round 524's redden invisible — the
+      node that enforces the rule that broke, in `test_skill_lint.py`, reads
+      129 SKILL.md files in process and was ALSO silent; see the next
+      bullet — but it is real, and it is why a FILE-level answer beats a
+      node-level one here.
+    - CLOSED, round 525: a file added inside a directory that is ITSELF new.
+      The `scan` rule matched the changed path's own directory against the
+      scan set, and a scan set is an enumeration of the directories that
+      existed WHEN IT WAS RECORDED. `skills/<new-name>/SKILL.md` — how every
+      skill in this corpus arrives — was therefore invisible on both rules:
+      no read row (the file did not exist) and no scan row (its directory
+      did not exist either). Round 524 changed exactly one such file and
+      reddened skills-check for three rounds; `blast` implicated 0 test
+      files. `implicated()` now also matches the changed path's directory
+      ANCESTORS (reason `scan-tree`, root excluded — `scan_ancestors` says
+      why), which takes that diff from 0 to 13 implicated files including
+      the lint that went red. `--no-tree-scan` restores the old rule so the
+      widening can be differenced on any diff.
     - Anything recorded against a tree that has since moved. The map carries
-      the HEAD it was recorded at and `blast` says so when it is stale.
+      the HEAD it was recorded at and `blast` says so when it is stale —
+      **and as shipped it does not carry one**: `merge` refuses a head its
+      sources disagree on (correctly), `record` instruments one pytest
+      rootdir at a time, and the four record runs behind the current map
+      straddle three different commits. So `blast` prints "cannot compare"
+      every time, and the staleness sentence above describes a branch this
+      map cannot reach. An earlier map (55fe959) did carry one.
 
   OVER-approximation (a node named that would NOT actually go red):
     - Reading a file is not the same as asserting anything about it.
@@ -473,13 +505,63 @@ def changed_paths(root=ROOT):
     return sorted(set(out))
 
 
-def implicated(paths, mp):
+def scan_ancestors(path):
+    """Directories STRICTLY above `path`'s own parent, repo root excluded.
+
+    Round 525. The `scan` rule matched the changed path's IMMEDIATE parent
+    against the recorded scan set, and that is the parent as it exists in
+    the tree TODAY -- while the scan set is an enumeration of the
+    directories that existed when the map was recorded. So the one change
+    shape a scan set cannot express is a file added inside a directory that
+    is ITSELF new. `skills/<new-name>/SKILL.md` is exactly that shape, and
+    it is how every skill in this corpus arrives.
+
+    Measured on the shipped map, `skills/measure-a-gate-by-mutating-what-it-
+    guards/SKILL.md` (round 524's one-file diff, which reddened skills-check
+    for three rounds) implicated **0** test files under the parent rule and
+    **13** under this one -- among them `test_skill_lint.py`, whose D002
+    check is what went red, and `test_corpus_check.py`, the node the driver
+    reported. The over-approximation this buys is small and was measured
+    rather than assumed: of eight sample diffs spanning every tree in the
+    repo, six were UNCHANGED and the only other mover was a new harness test
+    (14 -> 17 files).
+
+    THE ROOT IS EXCLUDED FROM THE CLIMB, deliberately. 28 recorded keys scan
+    `.` (any node that `os.walk`s the checkout lists the root first). Making
+    `.` an ancestor of every path would implicate those 28 on every change
+    in the repo and destroy the shortlist that is this tool's whole output.
+    A node that LISTED the root still depends on the root's own entries, so
+    a top-level addition is caught by the parent rule (`os.path.dirname`
+    gives `""` -> `"."`); what is dropped here is only the transitive claim.
+    `harness/tests/test_readset.py`'s two negative controls pin both halves.
+    """
+    out = []
+    d = os.path.dirname(os.path.dirname(path))
+    while d:
+        out.append(d)
+        d = os.path.dirname(d)
+    return out
+
+
+def implicated(paths, mp, tree_scan=True):
     """Rows: one per map key whose recorded evidence covers a changed path.
 
-    `reason` is `read` (the path is in the node's file set -- a modification
-    of something it demonstrably read) or `scan` (the path's directory is in
-    the node's scan set -- which is how an ADDED file is caught, and the
-    reason this function takes two sets instead of one).
+    `reason` is one of three, weakest last:
+
+      `read`       the path is in the node's file set -- a modification of
+                   something it demonstrably read.
+      `scan`       the path's own directory is in the node's scan set --
+                   which is how an ADDED file is caught, and the reason this
+                   function takes two sets instead of one.
+      `scan-tree`  some directory ABOVE the path's own directory is in the
+                   scan set -- how a file added in a NEW SUBDIRECTORY is
+                   caught. See `scan_ancestors` for the measurement behind
+                   it and for why the repo root does not count.
+
+    `tree_scan=False` restores the pre-round-525 rule exactly, so the two
+    can be run against the same diff and differenced (`blast
+    --no-tree-scan`); a widening nobody can measure both ways is a widening
+    nobody can audit.
     """
     paths = [p.replace(os.sep, "/") for p in paths]
     rows = []
@@ -492,6 +574,11 @@ def implicated(paths, mp):
                 hits.append({"path": p, "reason": "read"})
             elif (os.path.dirname(p) or ".") in scans:
                 hits.append({"path": p, "reason": "scan"})
+            elif tree_scan:
+                anc = [a for a in scan_ancestors(p) if a in scans]
+                if anc:
+                    hits.append({"path": p, "reason": "scan-tree",
+                                 "via": anc[0]})
         if hits:
             rows.append({"key": key, "file": file_of(key), "hits": hits})
     return rows
@@ -797,12 +884,13 @@ def cmd_blast(args):
               "    python3 harness/readset.py record" % (args.map, exc))
         return 0 if not args.strict else 1
     paths = args.paths or changed_paths(args.root)
-    rows = implicated(paths, mp)
+    rows = implicated(paths, mp, tree_scan=not args.no_tree_scan)
     files = by_file(rows)
     stale, note = staleness(mp, args.root)
     if args.json:
         print(json.dumps({"paths": paths, "rows": rows, "files": files,
-                          "stale": stale, "stale_note": note}, indent=2))
+                          "stale": stale, "stale_note": note,
+                          "tree_scan": not args.no_tree_scan}, indent=2))
     else:
         if not paths:
             print("readset blast: the working tree is clean — nothing to "
@@ -816,9 +904,12 @@ def cmd_blast(args):
         if len(paths) > 40:
             print("    ... and %d more" % (len(paths) - 40))
         if not files:
-            print("  NO recorded node reads or scans any of them. That is a "
-                  "claim about the MAP, not about the tree: a node added "
-                  "since the map was recorded has no row here.")
+            print("  NO recorded node reads or scans any of them%s. That "
+                  "is a claim about the MAP, not about the tree: a node "
+                  "added since the map was recorded has no row here."
+                  % (" (--no-tree-scan: directory ancestors above the "
+                     "path's own were NOT consulted)"
+                     if args.no_tree_scan else ""))
         for d in files:
             print("  IMPLICATED  %-52s %d key(s)  [%s]"
                   % (d["file"] or UNATTRIBUTED, d["n_keys"],
@@ -905,6 +996,11 @@ def main(argv=None):
     p.add_argument("--strict", action="store_true",
                    help="exit 1 if anything is implicated (opt-in; the "
                         "driver does NOT use this)")
+    p.add_argument("--no-tree-scan", action="store_true",
+                   help="match a changed path against the scan set by "
+                        "its own directory ONLY, never an ancestor -- "
+                        "the pre-round-525 rule, kept so the widening "
+                        "can be differenced on any diff")
     p.add_argument("paths", nargs="*",
                    help="paths to attribute (default: the working tree)")
     p.set_defaults(fn=cmd_blast)

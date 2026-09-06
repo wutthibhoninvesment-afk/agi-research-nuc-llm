@@ -77,6 +77,22 @@ failures are not symmetric but they are both silent:
    `os.listdir`, `git ls-files`), a file-granular scope misses an ADDED file
    entirely, because nothing opened it. A directory digest over every file in
    it — any extension — catches appearance, disappearance and content.
+
+   **And then match against the recorded directories by ANCESTOR, not by the
+   changed path's own parent.** This step closes the new-FILE case and by
+   itself leaves the new-CONTAINER case open, because the directory set is
+   *also* an enumeration, taken at the same moment, of the containers that
+   existed then. A file added inside a directory that is itself new is in
+   neither set and the scope reports "nothing". Round 525 measured this on
+   `harness/readset.py`: a one-file diff that reddened a health check for
+   three rounds implicated **0** test files under the parent rule and **13**
+   under the ancestor rule, and five of eight sample diffs were unchanged by
+   the widening. Stop the climb before the repository root and pin the stop
+   with a negative control — see `skills/new-container-is-not-a-new-file/`.
+
+   Checkable outcome: TWO probes, not one — a subject that does not exist in
+   a directory that does, and a subject whose directory does not exist
+   either.
 6. **Make every failure mode widen.** Write down the list and give each one a
    test:
    - a subprocess spawned → scope is EVERYTHING (you cannot see the child's
@@ -106,6 +122,11 @@ failures are not symmetric but they are both silent:
   If you skip step 6's first bullet the whole design is unsound, quietly.
 - **Testing only the narrowing.** The narrowing is the easy half. The tests
   that matter are the four refusals — opaque, torn, missing, pre-existing.
+- **Believing the directory half is finished once it exists.** It ages at the
+  container: the scope will always be older than the change it is asked to
+  classify, and a whole new subtree is exactly the shape that escapes it.
+  Re-recording is not the fix — it makes today's containers visible and is
+  stale again with tomorrow's.
 - **Measuring a scope from a run that failed early.** A crashed run read less
   than a healthy one. Either refuse to narrow on a non-clean outcome or accept
   it knowingly; do not discover it later.

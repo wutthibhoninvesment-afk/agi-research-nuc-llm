@@ -3448,5 +3448,33 @@
   "id": "ltrmtav-neg",
   "expect": [],
   "prompt": "Our packaging step fails with `FileNotFoundError: 'dist/app.wasm'` every single time on a clean checkout. The build script expects the wasm artefact to already exist because a previous stage was supposed to emit it, and that stage was removed in a refactor last week. Nothing else runs concurrently. Can you help me restore the missing stage?"
+ },
+ {
+  "id": "ncnf-impact-map-said-nothing",
+  "expect": [
+   "new-container-is-not-a-new-file"
+  ],
+  "prompt": "Our test-impact tool picks which suites CI runs from a recorded coverage map. Last week someone added a new plugin under plugins/reporting/ and the tool selected zero suites, so CI ran nothing and a downstream check broke on main two days later. The tool is definitely right when people EDIT files. I need to understand why an addition came back empty before I go and tell everyone to stop trusting it."
+ },
+ {
+  "id": "ncnf-glob-misses-a-subdir",
+  "expect": [
+   "new-container-is-not-a-new-file"
+  ],
+  "prompt": "Build inputs are declared as glob([\"src/*.py\"]) and someone put a new module in src/handlers/ and the build did not rebuild. I can obviously change it to src/**/*.py, but the same pattern is copied into our watcher config, a cache key, and the scanner allowlist, and I'd like to know what the general shape of this bug is so I fix all four rather than the one that bit me."
+ },
+ {
+  "id": "ncnf-widening-a-scope-rule",
+  "expect": [
+   "new-container-is-not-a-new-file"
+  ],
+  "prompt": "I want to change our blast-radius script so a changed path matches a recorded directory scope by any ancestor directory, not just its immediate parent. My worry is that half the repo's tests scan the checkout root, so this might implicate everything on every change and people will just turn it off. How do I decide where to stop, and how do I show the team the noise cost before I make it the default?"
+ },
+ {
+  "id": "magbmw-exclusion-names-a-delegate",
+  "expect": [
+   "measure-a-gate-by-mutating-what-it-guards"
+  ],
+  "prompt": "Our consistency checker computes a residual over the top-level keys of a generated census, and it buys totality by excluding two keys with ignore=(\"nodes\", \"costly_nodes\") and a comment saying three other checks already cover those. I have no reason to think the comment is false, but nobody has ever confirmed it and \"another check owns this\" is doing a lot of work. What is the right way to settle whether that exclusion is actually covered?"
  }
 ]

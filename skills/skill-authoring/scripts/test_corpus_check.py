@@ -500,6 +500,17 @@ def live_run():
     return _LIVE[0]
 
 
+def _errors_by_check(report):
+    """`{checker: [codes]}` for the checkers that reported an ERROR.
+
+    Round 525 pulled this out of `test_live_corpus_is_clean` so the
+    projection that makes that node's failure message actionable is a thing
+    with a test of its own -- see
+    `test_the_clean_assertion_names_the_checker_it_mirrors`.
+    """
+    return {r["check"]: r["errors"] for r in report["results"] if r["errors"]}
+
+
 class TestLiveCorpus(unittest.TestCase):
     """The enforcement. This is what round 361's H001+P001 would have hit.
 
@@ -522,11 +533,54 @@ class TestLiveCorpus(unittest.TestCase):
             os.environ[corpus_check.REENTRY_ENV] = self._prior
 
     def test_live_corpus_is_clean(self):
+        """THE MIRROR NODE. Read this before triaging it as a flaky test.
+
+        This node has no rule of its own. It is red exactly when some OTHER
+        checker in `corpus_check.checks()` reports an ERROR, and green the
+        moment that checker is fixed. It therefore cannot be reproduced,
+        bisected or repaired on its own terms, and the standing red-debt
+        advice — "a red that has closed by itself before may be the runner,
+        not the code" — is wrong in kind for it: none of its episodes ever
+        closed by itself, each closed when a different checker's error was
+        fixed.
+
+        Measured, round 525, over the 161 retained `logs/skills_health_
+        round_*.log`: this node appears in the `failing node(s)` evidence
+        line of 27 of them (the line exists from round 463 on), and in
+        **27 of 27** at least one other checker row in the same log is
+        ERROR. Across those 27 the root cause is one of EIGHT different
+        checkers — carryforward, xref_check, state_claim_check,
+        selfdesc_check, placeholder_check, claim_check, case_coverage,
+        skill_lint. Its most recent three-round "episode" (522-524) was
+        three unrelated defects in a row.
+
+        So the failure message must always name the checker to go and fix,
+        which is what `test_the_clean_assertion_names_the_checker_it_mirrors`
+        pins."""
         rc, report, _ = live_run()
-        errs = {r["check"]: r["errors"] for r in report["results"]
-                if r["errors"]}
+        errs = _errors_by_check(report)
         self.assertEqual(rc, corpus_check.PASS,
                          "skills corpus has ERRORs: %s" % errs)
+
+    def test_the_clean_assertion_names_the_checker_it_mirrors(self):
+        """A mirror whose message is a bare exit code is a mystery.
+
+        The node above is the one the driver quotes into the next round's
+        prompt, and the ONLY thing that makes it actionable is that its
+        message carries the erroring checker's name and codes. Reducing it
+        to `assertEqual(rc, PASS)` would still be a correct test and would
+        cost the reader the whole diagnosis, so the projection is pinned
+        here against a synthetic report rather than trusted."""
+        fake = {"results": [{"check": "skill_lint", "errors": ["D002"]},
+                            {"check": "xref_check", "errors": []},
+                            {"check": "carryforward", "errors": ["K001"]}]}
+        self.assertEqual(_errors_by_check(fake),
+                         {"skill_lint": ["D002"], "carryforward": ["K001"]})
+        msg = "skills corpus has ERRORs: %s" % _errors_by_check(fake)
+        self.assertIn("skill_lint", msg)
+        self.assertIn("D002", msg)
+        # a clean report projects to nothing, so a green run says nothing
+        self.assertEqual(_errors_by_check({"results": []}), {})
 
     def test_the_reentry_guard_drops_the_unit_test_check(self):
         """These tests RUN under `main()`'s own unit_tests check. Without the

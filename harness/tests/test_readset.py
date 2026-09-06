@@ -833,3 +833,151 @@ def test_the_merge_cli_runs_and_its_output_is_a_usable_map(tmp_path):
     rows = R.implicated(["languages/whence/tests/added_round509.py"], mp)
     assert {d["file"] for d in R.by_file(rows)} == \
         {"languages/whence/tests/t.py"}
+
+
+# ------------------------------------- round 525: the new-subdirectory hole --
+#
+# Round 524 (language C) changed ONE file — `skills/measure-a-gate-by-
+# mutating-what-it-guards/SKILL.md` — and reddened skills-check for three
+# rounds. `blast` on that diff implicated NOTHING, so the preflight the
+# RED-DEBT briefing points every track at returned the one answer that gets
+# acted on: "nothing to run". The cause is not the subprocess hole already
+# stated in the module docstring. `test_skill_lint.py` reads 129 SKILL.md
+# files IN-PROCESS and its scan set names 135 skill directories. It just
+# does not name THAT one, because the skill was created after the map was
+# recorded, and the `scan` rule matched the changed path's own directory
+# only. A file added inside a directory that is itself new fell through
+# both rules.
+
+def test_scan_ancestors_is_strictly_above_the_paths_own_directory():
+    assert R.scan_ancestors("skills/new-skill/SKILL.md") == ["skills"]
+    assert R.scan_ancestors("a/b/c/d.txt") == ["a/b", "a"]
+    # the path's OWN directory is the `scan` rule's job, not this one
+    assert "skills/new-skill" not in R.scan_ancestors(
+        "skills/new-skill/SKILL.md")
+    # and the root is never produced, at any depth
+    assert R.scan_ancestors("top_level.py") == []
+    assert "." not in R.scan_ancestors("a/b/c/d/e/f.txt")
+
+
+def test_a_file_added_in_a_NEW_subdirectory_is_implicated_by_an_ancestor():
+    """The round-524 shape, in miniature and with both rules run.
+
+    A node listed `data/`. A round adds `data/fresh/x.txt` — a directory
+    that did not exist when the scan was recorded. Under the parent rule
+    the node is invisible; under the ancestor rule it is `scan-tree`."""
+    mp = {"nodes": {"t.py::n": {"files": [], "scans": ["data"]}}}
+    rows = R.implicated(["data/fresh/x.txt"], mp)
+    assert rows, "an addition below a scanned directory implicated nothing"
+    assert rows[0]["hits"][0]["reason"] == "scan-tree"
+    assert rows[0]["hits"][0]["via"] == "data"
+    assert R.implicated(["data/fresh/x.txt"], mp, tree_scan=False) == []
+
+
+def test_a_direct_child_of_a_scanned_directory_is_still_plain_scan():
+    """The weaker reason must not swallow the stronger one: a file in the
+    scanned directory ITSELF is `scan`, and stays `scan` with the widening
+    on, or the two cannot be told apart in the output."""
+    mp = {"nodes": {"t.py::n": {"files": [], "scans": ["data"]}}}
+    rows = R.implicated(["data/x.txt"], mp)
+    assert rows[0]["hits"][0]["reason"] == "scan"
+    assert "via" not in rows[0]["hits"][0]
+
+
+def test_the_repo_root_is_not_an_ancestor_however_deep_the_path():
+    """The negative control on the widening, and the reason the climb stops
+    before `.`. 28 keys in the shipped map scan the root; making it an
+    ancestor would implicate all 28 on every change in the repo. A
+    top-level addition is still caught, by the parent rule."""
+    mp = {"nodes": {"n": {"files": [], "scans": ["."]}}}
+    assert R.implicated(["brand_new_top_level.py"], mp)[0]["hits"][0][
+        "reason"] == "scan"
+    assert R.implicated(["sub/brand_new.py"], mp) == []
+    assert R.implicated(["a/b/c/brand_new.py"], mp) == []
+
+
+def test_the_unscanned_negative_control_survives_the_widening(mini):
+    """`test_a_file_added_in_an_unscanned_directory_implicates_nothing` is
+    the control that keeps this instrument from implicating everything. It
+    must still hold with the ancestor rule ON — re-asserted here rather than
+    assumed, because the widening is exactly the change that could break
+    it."""
+    mp = _record(mini)
+    assert R.implicated(["far/brand_new.txt"], mp) == []
+    assert R.implicated(["far/deeper/brand_new.txt"], mp) == []
+
+
+def test_round_524s_one_file_diff_now_implicates_the_lint_that_went_red(
+        real_map):
+    """The falsifiable claim, stated as round 524's real path.
+
+    `skills/measure-a-gate-by-mutating-what-it-guards/SKILL.md` overran
+    skill_lint's D002 (1203 chars, max 1024). The node that enforces D002 is
+    in `test_skill_lint.py`; the node the driver reported is in
+    `test_corpus_check.py`. Both were silent under the old rule."""
+    path = "skills/measure-a-gate-by-mutating-what-it-guards/SKILL.md"
+    new = {d["file"] for d in R.by_file(R.implicated([path], real_map))}
+    old = {d["file"] for d in
+           R.by_file(R.implicated([path], real_map, tree_scan=False))}
+    assert old == set(), sorted(old)
+    assert "skills/skill-authoring/scripts/test_skill_lint.py" in new, \
+        sorted(new)
+    assert "skills/skill-authoring/scripts/test_corpus_check.py" in new, \
+        sorted(new)
+    assert "skills/skill-authoring/scripts/test_case_coverage.py" in new, \
+        sorted(new)
+
+
+def test_a_brand_new_skill_directory_implicates_the_corpus_checkers(real_map):
+    """The general case, not the one instance: `skills/<name>/SKILL.md` is
+    how EVERY skill in this corpus arrives, and none of them can be in any
+    recorded read set at the moment they are written."""
+    path = "skills/a-skill-that-does-not-exist-round-525/SKILL.md"
+    new = {d["file"] for d in R.by_file(R.implicated([path], real_map))}
+    old = {d["file"] for d in
+           R.by_file(R.implicated([path], real_map, tree_scan=False))}
+    assert old == set(), sorted(old)
+    assert len({f for f in new
+                if f.startswith("skills/skill-authoring/scripts/")}) >= 5, \
+        sorted(new)
+
+
+def test_the_widening_is_monotone_on_every_tree_the_health_checks_run(
+        real_map):
+    """A widening must only ADD. Asserted per-tree so a future edit that
+    swaps a `scan` for a `scan-tree` — which would silently DROP a stronger
+    reason — fails here rather than in a round's blast output."""
+    probes = ["skills/whatever-round525/SKILL.md",
+              "languages/whence/newmod_round525.py",
+              "harness/tests/test_newthing_round525.py",
+              "nuc/newthing_round525.py",
+              "knowledge/round-525-probe.md",
+              "state/round_counter",
+              "CLAUDE.md"]
+    for p in probes:
+        old = {d["file"] for d in
+               R.by_file(R.implicated([p], real_map, tree_scan=False))}
+        new = {d["file"] for d in R.by_file(R.implicated([p], real_map))}
+        assert old <= new, (p, sorted(old - new))
+
+
+def test_the_blast_cli_exposes_the_old_rule_and_says_which_one_ran():
+    """`--no-tree-scan` is not decoration: a widening nobody can difference
+    is a widening nobody can audit. The JSON payload names the rule so a
+    later reader of a recorded blast knows which one produced it."""
+    p = subprocess.run(
+        [sys.executable] + BLAST_ARGV + ["--json", "--no-tree-scan",
+                                         "skills/nope-round525/SKILL.md"],
+        cwd=REPO_ROOT, capture_output=True, text=True, timeout=180)
+    assert p.returncode == 0, p.stdout + p.stderr
+    off = json.loads(p.stdout)
+    assert off["tree_scan"] is False
+    assert off["files"] == [], off["files"]
+    p = subprocess.run(
+        [sys.executable] + BLAST_ARGV + ["--json",
+                                         "skills/nope-round525/SKILL.md"],
+        cwd=REPO_ROOT, capture_output=True, text=True, timeout=180)
+    assert p.returncode == 0, p.stdout + p.stderr
+    on = json.loads(p.stdout)
+    assert on["tree_scan"] is True
+    assert on["files"], "the default rule found nothing for a new skill"
