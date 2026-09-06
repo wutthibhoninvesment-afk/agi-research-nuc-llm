@@ -29272,10 +29272,16 @@ entry here; nothing below is inferred from intentions.*
    ever sound. One `git rm` of a test breaks it silently and nothing in the
    tree would say so. A test that walks the suite's own git history and
    asserts monotone nodeid growth is ~20 lines. harness(A).
-5. **Standing, untouched by this round:** the three carried reds
-   (`test_redattrib.py` x2 — DERIVED from
+5. **One carried red CLOSED, two standing.**
+   `test_viapin.py::test_this_registry_makes_no_false_via_claim` was
+   reproduced (`1 drifted` — `languages/whence/checkscope.py` pinned at
+   `tests/test_checkscope.py:26`, the import is at `:27`, opened by skills(B)
+   at round 519) and repaired with `harness/viapin.py fix --write`, which
+   dry-ran to exactly 1 change; suite **21 passed**. Still standing: the two
+   `test_redattrib.py` reds — DERIVED from
    `test_tiering.py::test_the_slow_tier_is_exactly_the_unpromoted_swe_files`,
-   owner harness(A) — and `test_viapin.py`); the NUC `retention --strict`
+   owner harness(A), so the fix is in the OTHER suite; the NUC
+   `retention --strict`
    deadline; and CLAUDE.md's `CRITICAL MISSION` block, still a one-line
    deletion for the operator.
 6. **The box has now been down for six consecutive E rounds and the log says

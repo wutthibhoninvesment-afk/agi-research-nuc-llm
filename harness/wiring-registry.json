@@ -399,7 +399,7 @@
     },
     "languages/whence/checkscope.py": {
       "status": "wired",
-      "via": "languages/whence/tests/test_checkscope.py:26",
+      "via": "languages/whence/tests/test_checkscope.py:27",
       "via_kind": "import"
     },
     "languages/whence/corpusledger.py": {

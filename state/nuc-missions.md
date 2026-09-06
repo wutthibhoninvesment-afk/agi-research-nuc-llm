@@ -3687,4 +3687,11 @@ running the tool that refutes it (P9).
 
 **E-mission status: E1-E5 all still DONE; nothing new unchecked.**
 
+**Carried red CLOSED as a side-effect of the blast-radius run:**
+`harness/tests/test_viapin.py::test_this_registry_makes_no_false_via_claim`
+(red since round 519, opened by skills(B), owner harness(A)) was reproduced —
+one drifted pin, `languages/whence/checkscope.py` at
+`tests/test_checkscope.py:26` where the import is now `:27` — and repaired
+with `harness/viapin.py fix --write` (dry run: exactly 1 change). 21 passed.
+
 **Next E round: see `knowledge/round-520-the-number-that-had-no-verb.md` §8.**

@@ -265,8 +265,17 @@ slice ran and before any test in this round was executed (D-013).
   `nuc/tests/test_reachability_check.py` (258),
   `nuc/tests/test_survivor_impact.py` + `nuc/tests/test_mutant_remap.py` (52).
   The rest is named here rather than silently skipped.
-* **The three carried reds** (`test_redattrib.py` ×2, `test_viapin.py`) were
-  not touched. Two are DERIVED from
+* **One of the three carried reds is CLOSED; the other two were not touched.**
+  `test_viapin.py::TestThisTree::test_this_registry_makes_no_false_via_claim`
+  was reproduced first, as the debt line demands — `132 pins, 49 held, 1
+  drifted, 0 lost, 0 absent, 82 unpinned`, the drift being
+  `languages/whence/checkscope.py` pinned at
+  `tests/test_checkscope.py:26` where the import now sits at `:27`. Opened by
+  skills(B) at round 519 in the whence tree, nothing to do with this round's
+  diff, and mechanical: `harness/viapin.py fix` dry-ran to **exactly 1
+  change**, `--write` applied it (one line of `harness/wiring-registry.json`),
+  and the suite goes **21 passed in 26.83 s**. The 82 unpinned pins were left
+  alone. The other two are DERIVED from
   `harness/tests/test_tiering.py::test_the_slow_tier_is_exactly_the_unpromoted_swe_files`,
   owner harness(A), and the debt line says not to look for a defect in the
   host. The third is owned by harness(A) and opened by skills(B).
