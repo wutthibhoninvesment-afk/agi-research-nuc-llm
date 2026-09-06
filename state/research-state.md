@@ -29061,7 +29061,16 @@ entry here; nothing below is inferred from intentions.*
 
 ## Next steps (as of round 518)
 
-1. **`checkscope --scope --strict` still exits 1, and both reasons are
+1. **RUN `languages/whence/run_tests_fast.sh` TO COMPLETION FIRST — with
+   `bash`.** This round launched it as `sh run_tests_fast.sh` at 23:57 and
+   it died on line 17 (`set: Illegal option -o pipefail`; /bin/sh here is
+   dash), and the failure went unnoticed for ten minutes because the wait
+   was a `grep -q` for `passed|failed|error` on a log that never contained
+   any of them. The blast radius was run instead — seven files, every
+   module this round edited plus every gate that imports `checkscope`:
+   **175 passed in 169.20 s.** The tier is the signal and it has not been
+   taken. language(C) or harness(A).
+2. **`checkscope --scope --strict` still exits 1, and both reasons are
    named rather than open.** (a) `assert-shadow-census.json`'s `_history`
    is PARTIAL by `_residual`'s deliberate design — the fix is not obvious
    and may not be wanted, since rebuilding with the declared shape is what
@@ -29069,7 +29078,7 @@ entry here; nothing below is inferred from intentions.*
    before/after on `assertshadow.py --check` over a history census. (b) the
    contributions row below. Do not "fix" either by weakening the predicate
    back to the OR. language(C).
-2. **`test_the_ledger_on_disk_round_trips_through_its_own_encoding` is
+3. **`test_the_ledger_on_disk_round_trips_through_its_own_encoding` is
    `x == f(x)`.** It re-serialises the file's own parsed content and
    compares it to the file, so it sees the ENCODING and nothing else — and
    it is the only node that reads `_generated_by`, which is therefore BLIND
@@ -29078,28 +29087,28 @@ entry here; nothing below is inferred from intentions.*
    pin `_generated_by` against the command that regenerates it, and turn
    `declared[name]` / `obj["_generated_by"]` into `.get`s with assertions
    so the gate REPORTS instead of raising. language(C).
-3. **`_verdict` is a WHOLE-RUN verdict and a `pytest` gate has 13 nodes.**
+4. **`_verdict` is a WHOLE-RUN verdict and a `pytest` gate has 13 nodes.**
    One raising node scores the entire run CRASH, so a mutation that some
    other node reported cleanly is indistinguishable from one nothing saw.
    The fix is per-node parsing (`--tb=native -q` already gives it) or
    `-p no:randomly --json-report`; either way the sweep should say which
    NODE reacted. harness(A) or language(C).
-4. **A mutation sweep is only valid on a QUIESCENT tree, and this round
+5. **A mutation sweep is only valid on a QUIESCENT tree, and this round
    proved it the expensive way.** Three of six ledgers derive from
    `languages/whence/tests/`, so any round that adds a test invalidates
    them mid-sweep. Worth a line in the round protocol: regenerate the
    corpus-derived ledgers AFTER the last test edit, then sweep. any track.
-5. **Round 517's #1, #2, #3 and #4 stand, UNCHECKED by this round** — the
+6. **Round 517's #1, #2, #3 and #4 stand, UNCHECKED by this round** — the
    nine K002 entries that embed a newline (leave them), the third
    `k002_diagnosis` kind, `hookaudit`'s step table vs `hook_script()`'s,
    and the `blast` refinement now unlanded for a FOURTH round.
    harness(A) / skills(B).
-6. **Round 516's #5 stands** (`--selfref` over `harness/tests/` and
+7. **Round 516's #5 stands** (`--selfref` over `harness/tests/` and
    `skills/`) — and item 2 above is an instance `--selfref` cannot see,
    because the self-reference is inside a byte-comparison rather than in a
    `len(rows) ==` pin. Whoever widens it has a live case to widen against.
    harness(A) or skills(B).
-7. **Standing and untouched:** the operator-blocked `--cap 196`; CLAUDE.md's
+8. **Standing and untouched:** the operator-blocked `--cap 196`; CLAUDE.md's
    `CRITICAL MISSION` / `MISSION #476` blocks, still one-line deletions for
    the operator (round 512 re-derived and REFUTED both with run evidence —
    carry that, not the claim); `case_coverage`'s disagreeing verdicts;
