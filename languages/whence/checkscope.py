@@ -91,6 +91,26 @@ USAGE
     python3 checkscope.py --scope --only subject-provenance.json
     python3 checkscope.py --scope --json <path>
     python3 checkscope.py --scope --strict   # rc 1 if any gate is not total
+    python3 checkscope.py --selfref --tests <dir>            # + its POPULATION
+    python3 checkscope.py --selfref --tests <dir> --strict   # rc 1 if empty
+
+ROUND 519 (skills B): `--selfref` WAS CALIBRATED TO THE TREE IT WAS BORN IN.
+Round 516's next-step #5 called running it over `harness/tests/` and
+`skills/` "mechanical". It was not. Three assumptions were true by
+construction in `languages/whence/tests` and had never been written down:
+the walk was a non-recursive `os.listdir` (so `--tests skills`, whose 17
+test files are all in subdirectories, read ZERO of them); the unit was
+`ast.Assert` (so `skills/skill-authoring/scripts` -- 1 026 test functions,
+1 863 `self.assert*` calls, 0 bare `assert` -- had a population of ZERO);
+and DECLARED-ness was a list of six helper NAMES (so the document read the
+plain way, `open` / `json.load`, was invisible -- round 518's next-step #3).
+
+None of the three raised. Each SHRANK THE POPULATION, and the report said
+`none -- every one has an operand measured from the tree` for all of them:
+a universally quantified claim, printed over the empty set. The population
+is now printed on every run, an EMPTY one is its own verdict naming which
+side the zero is a fact about, and `--selfref --strict` reddens on it --
+never on findings, which are published for a reader to judge.
 """
 import argparse
 import ast
@@ -549,17 +569,193 @@ JOIN_SOURCES = ("compare_with_census",)
 DECLARED, LIVE, JOIN, OTHER = "declared", "live", "join", "other"
 
 
+#: ROUND 519. `unittest`'s assertion METHODS. `selfref_asserts` walked
+#: `ast.Assert` and nothing else, so a suite that writes `self.assertEqual`
+#: had a population of ZERO -- and the report for zero rows says "none --
+#: every one has an operand measured from the tree", which is a claim about
+#: assertions that were never read. `skills/skill-authoring/scripts` is 13
+#: files, 1026 test functions, 1865 `self.assert*` calls and exactly 0 bare
+#: `assert` statements. Binary methods contribute their FIRST TWO arguments
+#: as the compared expressions; unary ones contribute their single argument,
+#: whose own sub-expressions are then the operands (`assertTrue(a == b)`).
+UNITTEST_BINARY = (
+    "assertEqual", "assertNotEqual", "assertIs", "assertIsNot",
+    "assertIn", "assertNotIn", "assertGreater", "assertLess",
+    "assertGreaterEqual", "assertLessEqual", "assertAlmostEqual",
+    "assertNotAlmostEqual", "assertCountEqual", "assertListEqual",
+    "assertDictEqual", "assertSetEqual", "assertTupleEqual",
+    "assertMultiLineEqual", "assertSequenceEqual", "assertRegex",
+    "assertNotRegex", "assertItemsEqual")
+UNITTEST_UNARY = ("assertTrue", "assertFalse", "assertIsNone",
+                  "assertIsNotNone")
+
+#: ROUND 519, and round 518's next-step #3. DECLARED-ness was a list of six
+#: helper NAMES, so an assertion that reads its document the plain way was
+#: invisible: `raw = open(path).read()` / `obj = json.load(open(path))` /
+#: `assert raw == json.dumps(obj, ...)` is `x == f(x)` -- it can only ever
+#: see the ENCODING -- and `--selfref` did not report it.
+DISK_READS = ("open", "load", "safe_load", "read_text", "read_bytes",
+              "read", "readlines", "read_json")
+
+#: ...and the reason the widening above needs a guard. A test that WRITES a
+#: file and reads it back is also `x == f(x)`, and it is a legitimate
+#: round-trip over data the test itself created, not a gate that believes it
+#: is checking the tree. Measured on this repo (round 519), `--selfref
+#: --tests harness/tests`: 70 rows with this guard disabled, 40 with it.
+#: It is NOT the dominant term -- the widening itself takes harness from
+#: 4 rows to 70, and the source/data axis below removes 12 more.
+WRITE_CALLS = ("dump", "write_text", "write_bytes", "write", "writelines",
+               "write_as", "copy", "copyfile", "copy2", "copytree",
+               "makedirs", "mkdir", "run", "check_call", "check_output")
+TMP_NAMES = ("tmp_path", "tmpdir", "tmp_dir", "tmpdir_factory", "tempfile",
+             "mkdtemp", "mkstemp", "TemporaryDirectory",
+             "NamedTemporaryFile", "TmpRepo")
+
+#: Not legal Python identifiers, so they can never collide with a name bound
+#: in the analysed source. `SELF_WRITTEN` is the per-function flag that the
+#: function (or its `setUp`) creates the files it then reads; `LITERALS` maps
+#: a module-level constant to the string literals in its value expression.
+SELF_WRITTEN = "#self-written"
+LITERALS = "#literals"
+#: `READS + name` -> what the disk read that made `name` DECLARED opened.
+#: Recorded at BINDING time because that is where the read is: by the time
+#: the assertion mentions `raw`, the `open()` is three lines up.
+READS = "#read:"
+
+#: ROUND 519, AND THE CORRECTION THE FIRST DRAFT OF THE WIDENING NEEDED.
+#: "reads a file from disk" is not "reads the declared document". TWELVE of
+#: the first draft's 40 `harness/tests` rows were
+#: `src = open(DRIVER_SRC).read(); assert src.index(a) < src.index(b)` --
+#: `DRIVER_SRC` is `run_driver.sh`, so those assertions ARE a fresh
+#: measurement of the tree and clearing them is what `--selfref` is for.
+#: The axis is what the read OPENS: a generated data document is DECLARED,
+#: a source text of the tree is LIVE. Resolved through module-level
+#: constants, because the suffix is almost never written at the call site.
+DATA_SUFFIXES = (".json", ".jsonl", ".ndjson", ".yaml", ".yml", ".toml",
+                 ".csv")
+SOURCE_SUFFIXES = (".py", ".sh", ".bash", ".md", ".txt", ".log", ".lang",
+                   ".cfg", ".ini", ".service")
+
+
+def _attr_key(node):
+    """`"self.reg"` for a one-deep attribute on `self`, else None.
+
+    ROUND 519. `unittest` binds its data in `setUp` as attributes, so a
+    name-keyed environment sees nothing: `self.reg = load_registry()` then
+    `self.assertEqual(self.reg["a"], self.reg["b"])` classifies as OTHER
+    because the only `ast.Name` in either operand is `self`. 1 468 of the
+    skills suite's operand expressions are rooted at `self`."""
+    if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) \
+            and node.value.id == "self":
+        return "self." + node.attr
+    return None
+
+
 def _names_and_calls(node):
-    """`(bare names, called function names)` inside an expression."""
+    """`(bare names, called function names)` inside an expression.
+
+    `names` carries `self.x` keys alongside bare identifiers (round 519);
+    `SELF_WRITTEN` is not an identifier so it can never appear here."""
     names, calls = set(), set()
     for n in ast.walk(node):
         if isinstance(n, ast.Name):
             names.add(n.id)
-        elif isinstance(n, ast.Call):
+        elif isinstance(n, ast.Attribute):
+            key = _attr_key(n)
+            if key:
+                names.add(key)
+        if isinstance(n, ast.Call):
             f = n.func
             calls.add(f.attr if isinstance(f, ast.Attribute)
                       else getattr(f, "id", ""))
     return names, calls
+
+
+def _reads_disk(node):
+    """A call in this expression that opens a file (round 518's #3)."""
+    for n in ast.walk(node):
+        if not isinstance(n, ast.Call):
+            continue
+        f = n.func
+        name = f.attr if isinstance(f, ast.Attribute) else getattr(f, "id", "")
+        if name in DISK_READS:
+            return True
+    return False
+
+
+def _module_literals(tree):
+    """module-level NAME -> the string literals in its value expression.
+
+    `DRIVER_SRC = os.path.join(ROOT, "run_driver.sh")` is how every one of
+    these tests names its subject; the suffix that says what the file IS
+    never appears at the `open()` call site."""
+    out = {}
+    for n in tree.body:
+        if not isinstance(n, ast.Assign):
+            continue
+        lits = [c.value for c in ast.walk(n.value)
+                if isinstance(c, ast.Constant) and isinstance(c.value, str)]
+        if not lits:
+            continue
+        for t in n.targets:
+            if isinstance(t, ast.Name):
+                out[t.id] = lits
+    return out
+
+
+def _read_target(node, env):
+    """`"data"` | `"source"` | `"unresolved"` -- what a read opens.
+
+    UNRESOLVED IS REPORTED, NOT DROPPED. Round 518's own live case is
+    `open(dc.contributions_path())`: a call, no literal anywhere, and it
+    reads a ledger. Dropping what cannot be resolved would lose exactly the
+    instance this widening was built for, so the fallback is to publish and
+    say so -- the module's convention, one level down."""
+    lits = list(env.get(LITERALS, {}).get("", []))
+    for n in ast.walk(node):
+        if isinstance(n, ast.Constant) and isinstance(n.value, str):
+            lits.append(n.value)
+        elif isinstance(n, ast.Name):
+            lits.extend(env.get(LITERALS, {}).get(n.id, []))
+    low = [x.lower() for x in lits]
+    if any(x.endswith(DATA_SUFFIXES) for x in low):
+        return "data"
+    if any(x.endswith(SOURCE_SUFFIXES) for x in low):
+        return "source"
+    return "unresolved"
+
+
+def _writes_or_temps(fn):
+    """True if this function creates the files it then reads.
+
+    The guard on the disk-read widening. A test that writes a fixture and
+    reads it back is a round-trip over its OWN data -- `x == f(x)`, but the
+    `x` is not the tree's, so calling it a vacuous gate is a false positive.
+    Measured (round 519, this repo), this guard off -> on: whence 30 -> 25,
+    harness 70 -> 40, skills 5 -> 3 rows."""
+    for n in ast.walk(fn):
+        if isinstance(n, ast.Name) and n.id in TMP_NAMES:
+            return True
+        if isinstance(n, ast.Attribute) and n.attr in TMP_NAMES:
+            return True
+        if isinstance(n, ast.Call):
+            f = n.func
+            name = f.attr if isinstance(f, ast.Attribute) \
+                else getattr(f, "id", "")
+            if name in TMP_NAMES or name in WRITE_CALLS:
+                return True
+            if name == "open" and len(n.args) > 1:
+                mode = n.args[1]
+                if isinstance(mode, ast.Constant) and \
+                        isinstance(mode.value, str) and \
+                        any(c in mode.value for c in "wax+"):
+                    return True
+        if isinstance(n, ast.keyword) and n.arg == "mode" and \
+                isinstance(n.value, ast.Constant) and \
+                isinstance(n.value.value, str) and \
+                any(c in n.value.value for c in "wax+"):
+            return True
+    return False
 
 
 def _dominant(kind):
@@ -585,6 +781,11 @@ def _classify(node, env):
         return JOIN
     if calls & set(DECLARED_SOURCES) or DECLARED in kinds:
         return DECLARED
+    # Round 519: the document read the plain way. Guarded twice -- a
+    # function that writes its own fixtures reads its own data back, and a
+    # read of the tree's SOURCE is a live measurement, not a document.
+    if not env.get(SELF_WRITTEN) and _reads_disk(node):
+        return LIVE if _read_target(node, env) == "source" else DECLARED
     return OTHER
 
 
@@ -625,6 +826,10 @@ def _bind(target, kind, env):
     flat = _dominant(kind)
     if isinstance(target, ast.Name):
         env[target.id] = kind if isinstance(kind, list) else flat
+        return
+    key = _attr_key(target)                     # round 519: `self.reg = ...`
+    if key:
+        env[key] = kind if isinstance(kind, list) else flat
         return
     for n in ast.walk(target):
         if isinstance(n, ast.Name):
@@ -671,9 +876,48 @@ def _bind_all(targets, kind, env):
         _bind(t, kind, env)
 
 
-def _fn_env(fn, fixtures):
+def _class_env(cls, fixtures, base=None):
+    """Origins bound by a `unittest` class's `setUp` / `setUpClass`.
+
+    ROUND 519. Returned separately from the write flag because a `setUp`
+    that builds a temp repo makes every read in every method of that class
+    a read of the class's OWN data."""
+    env, wrote = dict(base or {}), False
+    for fn in cls.body:
+        if not (isinstance(fn, ast.FunctionDef)
+                and fn.name in ("setUp", "setUpClass")):
+            continue
+        wrote = wrote or _writes_or_temps(fn)
+        if wrote:
+            env[SELF_WRITTEN] = True
+        for n in ast.walk(fn):
+            if isinstance(n, ast.Assign):
+                _bind_all(n.targets, _elementwise(n.value, env), env)
+    return env, wrote
+
+
+def _fn_env(fn, fixtures, base=None):
     """name -> origin inside one test function."""
-    env = dict()
+    env = dict(base or {})
+    #: Function-LOCAL literals matter as much as module ones: the harness
+    #: suite writes `script = os.path.join(d, "run_tests_fast.sh")` inside
+    #: the test, and without this the read that follows is `unresolved`
+    #: rather than `source` -- so a genuine tree measurement is published
+    #: as a self-reference.
+    env[LITERALS] = dict((base or {}).get(LITERALS, {}))
+    for node in ast.walk(fn):
+        if not isinstance(node, ast.Assign):
+            continue
+        lits = [c.value for c in ast.walk(node.value)
+                if isinstance(c, ast.Constant) and isinstance(c.value, str)]
+        if not lits:
+            continue
+        for t in node.targets:
+            for nm in ast.walk(t):
+                if isinstance(nm, ast.Name):
+                    env[LITERALS][nm.id] = lits
+    if _writes_or_temps(fn):
+        env[SELF_WRITTEN] = True
     for a in fn.args.args + fn.args.kwonlyargs:
         if a.arg in fixtures:
             env[a.arg] = fixtures[a.arg]
@@ -687,8 +931,34 @@ def _fn_env(fn, fixtures):
         kind = _elementwise(value, env)
         if _dominant(kind) == OTHER:
             continue
+        if kind == DECLARED and _reads_disk(value):
+            tgt = _read_target(value, env)
+            for t in targets:
+                for nm in ast.walk(t):
+                    if isinstance(nm, ast.Name):
+                        env[READS + nm.id] = tgt
+        elif kind == DECLARED:
+            #: propagate: `again = json.dumps(obj)` inherits `obj`'s read.
+            srcs = [env[READS + n.id] for n in ast.walk(value)
+                    if isinstance(n, ast.Name) and READS + n.id in env]
+            if srcs:
+                for t in targets:
+                    for nm in ast.walk(t):
+                        if isinstance(nm, ast.Name):
+                            env[READS + nm.id] = srcs[0]
         _bind_all(targets, kind, env)
     return env
+
+
+def _row_reads(node, env):
+    """What the reads behind ONE operand opened, transitively."""
+    out = set()
+    if _reads_disk(node):
+        out.add(_read_target(node, env))
+    for n in ast.walk(node):
+        if isinstance(n, ast.Name) and READS + n.id in env:
+            out.add(env[READS + n.id])
+    return out
 
 
 def _derived_operands(node, env):
@@ -718,6 +988,131 @@ def _derived_operands(node, env):
     return found
 
 
+def _assert_exprs(fn):
+    """Every assertion in one test function, as `(expr, lineno, form)`.
+
+    `form` is `"assert"` or the `unittest` method name. A binary method
+    contributes a synthetic tuple of its first two arguments, which is what
+    `_derived_operands` already knows how to descend; a unary one
+    contributes its single argument, so `assertTrue(a == b)` still yields
+    two operands. `assertRaises` and friends are not comparisons and are
+    not assertions for this purpose -- they are counted as SKIPPED-AS-
+    NON-COMPARING rather than silently dropped."""
+    out = []
+    for n in ast.walk(fn):
+        if isinstance(n, ast.Assert):
+            out.append((n.test, n.lineno, "assert"))
+            continue
+        if not (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)):
+            continue
+        name = n.func.attr
+        if name in UNITTEST_BINARY and len(n.args) >= 2:
+            pair = ast.Tuple(elts=[n.args[0], n.args[1]], ctx=ast.Load())
+            ast.copy_location(pair, n)
+            out.append((pair, n.lineno, name))
+        elif name in UNITTEST_UNARY and n.args:
+            out.append((n.args[0], n.lineno, name))
+    return out
+
+
+def _test_files(directory):
+    """`test_*.py` under `directory`, RECURSIVELY.
+
+    ROUND 519. The walk was a single non-recursive `os.listdir`, so
+    `--tests skills` -- the directory round 516's next-step #5 names -- read
+    ZERO files and reported a clean tree. `skills/` has 17 test files, none
+    of them at its top level."""
+    skip = ("__pycache__", "node_modules", "research-env", ".git",
+            "site-packages", ".venv")
+    out = []
+    for base, dirs, names in os.walk(directory):
+        dirs[:] = [d for d in dirs if d not in skip]
+        for name in sorted(names):
+            if name.startswith("test_") and name.endswith(".py"):
+                out.append(os.path.join(base, name))
+    return sorted(out)
+
+
+def selfref_scan(directory=None):
+    """`(rows, census)` -- the findings AND the population they came from.
+
+    ROUND 519. The findings alone are not a result. `render_selfref` used
+    to print, for an empty list, "none -- every one has an operand measured
+    from the tree" -- a claim about assertions, quantified over a set that
+    may be EMPTY. Run against `skills/skill-authoring/scripts` it examined
+    1 026 test functions, found 0 assertions (that suite is `unittest`, so
+    every one of its 1 865 assertions is a method call) and printed the
+    clean-tree line. This is round 513's shape exactly: the absence was a
+    fact about the FILTER and the message was written about the far side.
+    The census is the denominator, and it is what makes the zero readable.
+    """
+    directory = directory or os.path.join(HERE, "tests")
+    rows = []
+    census = {"dir": directory, "files": 0, "functions": 0, "assertions": 0,
+              "bare": 0, "unittest": 0, "reported": 0, "skipped_live": 0,
+              "skipped_pin": 0, "skipped_no_declared": 0,
+              "unresolved_read": 0, "synthetic": 0}
+    for path in _test_files(directory):
+        census["files"] += 1
+        with open(path, encoding="utf-8") as fh:
+            src = fh.read()
+        try:
+            tree = ast.parse(src)
+        except SyntaxError:                     # pragma: no cover
+            continue
+        name = os.path.relpath(path, directory)
+        fixtures = _fixture_origins(tree)
+        lines = src.splitlines()
+        mlits = {LITERALS: _module_literals(tree)}
+        class_of, class_envs = {}, {}
+        for cls in ast.walk(tree):
+            if not isinstance(cls, ast.ClassDef):
+                continue
+            class_envs[cls.name] = _class_env(cls, fixtures, mlits)[0]
+            for m in cls.body:
+                if isinstance(m, ast.FunctionDef):
+                    class_of[id(m)] = cls.name
+        for fn in ast.walk(tree):
+            if not (isinstance(fn, ast.FunctionDef)
+                    and fn.name.startswith("test")):
+                continue
+            census["functions"] += 1
+            env = _fn_env(fn, fixtures,
+                          class_envs.get(class_of.get(id(fn)), mlits))
+            for node, lineno, form in _assert_exprs(fn):
+                census["assertions"] += 1
+                census["bare" if form == "assert" else "unittest"] += 1
+                if _classify(node, env) == LIVE:
+                    census["skipped_live"] += 1
+                    continue
+                ops = _derived_operands(node, env)
+                if not ops:
+                    census["skipped_no_declared"] += 1
+                    continue
+                if len(ops) < 2:
+                    census["skipped_pin"] += 1
+                    continue
+                census["reported"] += 1
+                reads = sorted(set().union(*[_row_reads(o, env)
+                                             for o, k in ops]))
+                synthetic = bool(env.get(SELF_WRITTEN))
+                census["synthetic"] += synthetic
+                census["unresolved_read"] += "unresolved" in reads
+                rows.append({
+                    "file": name,
+                    "func": fn.name,
+                    "lineno": lineno,
+                    "form": form,
+                    "reads": reads,
+                    "synthetic": synthetic,
+                    "source": lines[lineno - 1].strip()[:160],
+                    "operands": sorted(set(
+                        "%s(%s)" % (_src(o, lines), k) for o, k in ops)),
+                    "join": any(k == JOIN for _o, k in ops),
+                })
+    return rows, census
+
+
 def selfref_asserts(directory=None):
     """Assert statements whose truth is a function of the LEDGER ALONE.
 
@@ -725,7 +1120,7 @@ def selfref_asserts(directory=None):
     `checkscope --scope` finds a gate that ranges over too FEW of its
     document's keys; this finds one that never leaves the document.
 
-    THE RULE: an assert is reported when it relates TWO OR MORE distinct
+    THE RULE: an assertion is reported when it relates TWO OR MORE distinct
     expressions derived from the declared document (or from a JOIN onto
     it) and NO expression derived from the tree. One declared expression
     against a literal is not reported -- that is a pin, and the literal is
@@ -739,44 +1134,13 @@ def selfref_asserts(directory=None):
     Heuristic, and PUBLISHED RATHER THAN FILTERED -- the convention every
     census in this tree follows. An internal-consistency assertion is a
     legitimate thing to write; this cannot tell one from a gate that
-    believes it is checking the tree, and reports where a reader decides."""
-    directory = directory or os.path.join(HERE, "tests")
-    out = []
-    for name in sorted(os.listdir(directory)):
-        if not (name.startswith("test_") and name.endswith(".py")):
-            continue
-        path = os.path.join(directory, name)
-        with open(path, encoding="utf-8") as fh:
-            src = fh.read()
-        try:
-            tree = ast.parse(src)
-        except SyntaxError:                     # pragma: no cover
-            continue
-        fixtures = _fixture_origins(tree)
-        lines = src.splitlines()
-        for fn in ast.walk(tree):
-            if not (isinstance(fn, ast.FunctionDef)
-                    and fn.name.startswith("test")):
-                continue
-            env = _fn_env(fn, fixtures)
-            for node in ast.walk(fn):
-                if not isinstance(node, ast.Assert):
-                    continue
-                if _classify(node.test, env) == LIVE:
-                    continue
-                ops = _derived_operands(node.test, env)
-                if len(ops) < 2:
-                    continue
-                out.append({
-                    "file": name,
-                    "func": fn.name,
-                    "lineno": node.lineno,
-                    "source": lines[node.lineno - 1].strip()[:160],
-                    "operands": sorted(set(
-                        "%s(%s)" % (_src(o, lines), k) for o, k in ops)),
-                    "join": any(k == JOIN for _o, k in ops),
-                })
-    return out
+    believes it is checking the tree, and reports where a reader decides.
+
+    Round 519 kept this signature and moved the body to `selfref_scan`,
+    which also returns the population. Callers that only want the rows are
+    unchanged; callers that want to know whether a zero MEANS anything have
+    to ask for the census, which is the point."""
+    return selfref_scan(directory)[0]
 
 
 def _src(node, lines):
@@ -790,19 +1154,58 @@ def _src(node, lines):
     return " ".join(seg.split())[:70]
 
 
-def render_selfref(rows):
+def render_selfref(rows, census=None):
+    """The findings, then the population -- never the findings alone.
+
+    ROUND 519. The old zero-message was `"none -- every one has an operand
+    measured from the tree"`, which asserts a property of every assertion
+    in the directory. It printed unchanged when the directory held no
+    assertions the analysis could read, and when it held no test files at
+    all. A report that cannot tell those apart cannot be believed when it
+    says zero, so the denominator is printed for every run and the empty
+    population is called out by name."""
     out = ["assertions whose truth is a function of the ledger alone -- %d"
            % len(rows)]
     for r in rows:
-        out.append("  %s::%s:%d%s"
+        out.append("  %s::%s:%d%s%s"
                    % (r["file"], r["func"], r["lineno"],
+                      "" if r.get("form", "assert") == "assert"
+                      else "   [%s]" % r["form"],
                       "   [via a JOIN]" if r["join"] else ""))
+        tags = ([] if not r.get("synthetic") else ["fixture written by the "
+                                                  "test itself"]) + \
+            ["read: " + x for x in r.get("reads", [])]
+        if tags:
+            out.append("      (%s)" % "; ".join(tags))
         out.append("      %s" % r["source"])
         for o in r["operands"]:
             out.append("        operand %s" % o)
-    if not rows:
-        out.append("  none -- every one has an operand measured from the "
-                   "tree")
+    if census is None:                          # pragma: no cover
+        if not rows:
+            out.append("  none reported (no census taken -- call "
+                       "selfref_scan for the denominator)")
+        return "\n".join(out)
+    c = census
+    out.append("  population: %d file(s), %d test function(s), "
+               "%d assertion(s) (%d bare `assert`, %d unittest method)"
+               % (c["files"], c["functions"], c["assertions"],
+                  c["bare"], c["unittest"]))
+    out.append("  not reported: %d cleared by a LIVE operand, %d pinned "
+               "against a literal, %d with no declared operand"
+               % (c["skipped_live"], c["skipped_pin"],
+                  c["skipped_no_declared"]))
+    if not c["files"]:
+        out.append("  EMPTY POPULATION -- no test_*.py under %s. This zero "
+                   "is a fact about the directory, not about its "
+                   "assertions." % c["dir"])
+    elif not c["assertions"]:
+        out.append("  EMPTY POPULATION -- %d test function(s) and 0 readable "
+                   "assertion(s). This zero is a fact about the analysis, "
+                   "not about the suite." % c["functions"])
+    elif not rows:
+        out.append("  none of the %d assertion(s) examined relates two "
+                   "declared expressions with nothing measured from the "
+                   "tree." % c["assertions"])
     return "\n".join(out)
 
 
@@ -1077,8 +1480,11 @@ def main(argv=None):
                     help="a directory of modules for --importers")
     ap.add_argument("--selfref", action="store_true",
                     help="assertions whose two sides both come from the "
-                         "declared document (round 512's next-step #8)")
-    ap.add_argument("--tests", default=None, help="a tests/ directory")
+                         "declared document (round 512's next-step #8). "
+                         "Prints its POPULATION on every run; with --strict "
+                         "exits 1 when that population is EMPTY (round 519)")
+    ap.add_argument("--tests", default=None,
+                    help="a tests/ directory, walked RECURSIVELY (round 519)")
     ap.add_argument("--only", default=None,
                     help="one ledger name instead of all of them")
     ap.add_argument("--json", default=None)
@@ -1086,7 +1492,8 @@ def main(argv=None):
     ap.add_argument("--quiet", action="store_true")
     ap.add_argument("--strict", action="store_true",
                     help="exit 1 unless every gate is total over its own "
-                         "document")
+                         "document; with --selfref, exit 1 on an empty "
+                         "population; with --importers, on an unsafe edge")
     args = ap.parse_args(argv)
     if not (args.list or args.scope or args.selfref or args.importers):
         args.list = True
@@ -1097,11 +1504,17 @@ def main(argv=None):
         imps = importers(args.src)
         print(render_importers(imps))
         imp_bad = [r for r in imps if r["unsafe"]]
+    sref_empty = False
     if args.selfref:
-        sref = selfref_asserts(args.tests)
-        print(render_selfref(sref))
+        sref, scensus = selfref_scan(args.tests)
+        print(render_selfref(sref, scensus))
+        #: `--selfref --strict` reddens on an EMPTY POPULATION, not on
+        #: findings. Findings are published for a reader to judge (the
+        #: module's own convention); a run that examined nothing and
+        #: printed a clean line is the failure that LOOKS like a pass.
+        sref_empty = not scensus["assertions"]
     if not args.scope:
-        return 1 if (imp_bad and args.strict) else 0
+        return 1 if (args.strict and (imp_bad or sref_empty)) else 0
 
     names = sorted(GATES) if args.only is None else [args.only]
     rows = []

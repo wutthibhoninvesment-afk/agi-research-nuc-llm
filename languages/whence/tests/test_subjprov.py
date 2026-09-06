@@ -538,13 +538,19 @@ def test_the_number_of_census_pairs_is_pinned(live):
 
     57 from round 500 to round 510; 58 from round 512, when
     `tests/test_branchlive.py`'s shadow pair finally entered a census that
-    had been stale since round 500.
+    had been stale since round 500; 59 from round 519, whose new
+    `test_checkscope.py::test_the_walk_is_recursive` carries one.
+
+    The equality is deliberate and is KEPT as its author wrote it -- a
+    floor would survive a corpus edit but would not notice a pair leaving.
+    The price is this docstring: every round that adds a shadow pair pays
+    one line here, and round 519 (skills B) paid it from another track.
 
     Kept rather than deleted: the invariant above compares two numbers that
     are both derived from the census, so a collapse to zero pairs would
     satisfy it perfectly. This node is the only thing that would notice."""
     rows, _helpers, _guards = live
-    assert len(rows) == 58
+    assert len(rows) == 59
 
 
 def test_the_two_axes_disagree_on_exactly_these_three_pairs(live):

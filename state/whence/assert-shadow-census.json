@@ -4,33 +4,33 @@
   "_headline_predicate": "is_magnitude (widened) x is_shape (non-empty display), branch-compatible, magnitude strictly first",
   "totals": {
     "files": 78,
-    "test_functions": 2094,
-    "asserts": 4258,
+    "test_functions": 2105,
+    "asserts": 4288,
     "assert_kinds": {
-      "other": 2715,
-      "shape": 606,
+      "other": 2732,
+      "shape": 610,
       "shape_empty": 178,
-      "magnitude": 759
+      "magnitude": 768
     },
-    "functions_with_magnitude": 515,
-    "functions_with_shape": 467,
-    "candidates": 38,
-    "pairs": 58,
-    "pairs_strict": 58,
+    "functions_with_magnitude": 518,
+    "functions_with_shape": 470,
+    "candidates": 39,
+    "pairs": 59,
+    "pairs_strict": 59,
     "pairs_widened_only": 0,
     "pairs_conditional": 11,
     "pairs_count_implied": 4,
     "remedies": {
-      "reorder": 43,
+      "reorder": 44,
       "delete_count": 4,
       "split": 11
     },
     "pairs_costly": 7,
     "candidates_costly": 2,
-    "pairs_independent": 29,
-    "candidates_independent": 16,
-    "shadowed_shape_asserts": 45,
-    "pairs_with_history": 58,
+    "pairs_independent": 30,
+    "candidates_independent": 17,
+    "shadowed_shape_asserts": 46,
+    "pairs_with_history": 59,
     "literal_edits": 5,
     "repins": 0,
     "pairs_with_a_repin": 0
@@ -62,6 +62,10 @@
     },
     {
       "file": "test_branchlive.py",
+      "candidates": 1
+    },
+    {
+      "file": "test_checkscope.py",
       "candidates": 1
     },
     {
@@ -211,6 +215,29 @@
           "literal_edits": 0,
           "commits_touching": 1,
           "repins": 0,
+          "moves": []
+        }
+      ]
+    },
+    "test_checkscope.py::test_the_walk_is_recursive": {
+      "lineno": 728,
+      "pairs": [
+        {
+          "magnitude_line": 741,
+          "magnitude": "census['files'] == 1",
+          "magnitude_strict": true,
+          "magnitude_conditional": false,
+          "shape_line": 742,
+          "shape": "_names(rows) == ['test_x']",
+          "count_implied": false,
+          "independent": true,
+          "shared_subjects": [],
+          "reorder_safe": true,
+          "remedy": "reorder",
+          "tree_derived": false,
+          "literal_edits": null,
+          "commits_touching": null,
+          "repins": null,
           "moves": []
         }
       ]

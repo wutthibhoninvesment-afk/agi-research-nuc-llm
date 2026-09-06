@@ -3396,5 +3396,31 @@
   "id": "ataer-neg-plain-untracked-config",
   "expect": [],
   "prompt": "I have a .env file on the box that is gitignored and holds our staging credentials. It has drifted from .env.example and I want to know which keys are missing. There is no generator -- .env.example is a hand-maintained list and nothing renders it."
+ },
+ {
+  "id": "iahc-near",
+  "expect": [
+   "instrument-assumes-its-home-corpus"
+  ],
+  "prompt": "We have a custom AST linter that's been running on our `services/` Python tests for a year and finds a handful of real issues every week. I pointed it at `tools/` this morning, which nobody has ever linted, and it came back with zero findings in about two seconds. I was going to write that up as 'tools/ is clean'. Should I?"
+ },
+ {
+  "id": "iahc-mid",
+  "expect": [
+   "instrument-assumes-its-home-corpus"
+  ],
+  "prompt": "Ticket says 'run the dependency-cycle checker over the new mobile package too - it's mechanical, just pass the other directory'. I did and it reported 0 cycles. The checker discovers modules with a non-recursive listdir on a hardcoded `src/` and keys its rules on a list of our internal import helper names. What should I check before I close the ticket?"
+ },
+ {
+  "id": "iahc-far",
+  "expect": [
+   "instrument-assumes-its-home-corpus"
+  ],
+  "prompt": "Our coverage-gap script reports 'no untested public methods' for a package we just absorbed from another team. The package uses a different test framework than the rest of the monorepo. The script prints a list of gaps and nothing else - no totals. I'd like to reuse the number in the migration sign-off doc."
+ },
+ {
+  "id": "iahc-neg",
+  "expect": [],
+  "prompt": "Our static analyzer flags 14 potential null dereferences in the payments module. Walk through them with me and tell me which are real - I've already confirmed the analyzer covers every file in that module."
  }
 ]

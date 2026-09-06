@@ -13,6 +13,7 @@ the same way:
         its shape rather than quoted, so the test does not depend on git.
   5.    The three repairs this round made with the measurement in hand.
 """
+import ast
 import json
 import os
 import subprocess
@@ -625,3 +626,244 @@ def test_a_pytest_gate_can_reach_the_crash_class_at_all(tmp_path):
     assert run("--tb=native") == C.CRASH
     import inspect                                    # noqa: PLC0415
     assert "--tb=native" in inspect.getsource(C.run_gate)
+
+
+# ---------------------------------------------------------------------------
+# 6. round 519 -- the population `--selfref` could not read
+#
+# Three separate blindnesses, found by running round 516's next-step #5
+# ("the query is mechanical") against `harness/tests/` and `skills/`:
+#
+#   a. the walk was a non-recursive `os.listdir`, so `--tests skills` read
+#      0 of the 17 test files under it;
+#   b. the unit was `ast.Assert`, so a `unittest` suite had a population of
+#      ZERO -- `skills/skill-authoring/scripts` is 1 026 test functions and
+#      1 863 `self.assert*` calls with no bare `assert` anywhere;
+#   c. DECLARED-ness was a list of six helper NAMES, so the document read
+#      the plain way (`open` / `json.load`) was invisible -- round 518's
+#      next-step #3.
+#
+# ...and in every one of them the report printed
+# "none -- every one has an operand measured from the tree", a claim about
+# assertions it had never read.
+# ---------------------------------------------------------------------------
+
+UNITTEST_SHAPE = '''
+import json
+import unittest
+import assertshadow as A
+
+
+class TestLedger(unittest.TestCase):
+    def setUp(self):
+        self.d = A.load_census()
+
+    def test_the_totals_are_their_own_rows(self):
+        self.assertEqual(self.d["totals"]["pairs"], len(self.d["rows"]))
+
+    def test_a_pin_against_a_literal_is_not_vacuous(self):
+        self.assertEqual(self.d["totals"]["pairs"], 58)
+
+    def test_a_live_operand_clears_it(self):
+        self.assertEqual(A.scan_tree(), self.d["totals"]["pairs"])
+
+    def test_a_raise_is_not_a_comparison(self):
+        with self.assertRaises(KeyError):
+            self.d["nope"]
+'''
+
+ROUNDTRIP_SHAPE = '''
+import json
+
+
+def test_the_ledger_round_trips_through_its_own_encoding():
+    path = ledger_path()
+    raw = open(path, encoding="utf-8").read()
+    obj = json.load(open(path, encoding="utf-8"))
+    again = json.dumps(obj, indent=1, sort_keys=True) + "\\n"
+    assert raw == again
+
+
+def test_a_source_file_of_the_tree_is_a_live_measurement():
+    script = os.path.join(HERE, "run_driver.sh")
+    text = open(script, encoding="utf-8").read()
+    assert text.index("SLOWTIER") < text.index("WHENCESLOW")
+
+
+def test_a_fixture_this_function_wrote_is_its_own_data(tmp_path):
+    p = tmp_path / "x.json"
+    p.write_text(json.dumps({"a": 1}), encoding="utf-8")
+    raw = open(str(p), encoding="utf-8").read()
+    obj = json.load(open(str(p), encoding="utf-8"))
+    assert raw == json.dumps(obj)
+'''
+
+
+def _names(found):
+    return [f["func"] for f in found]
+
+
+def test_a_unittest_assertion_is_an_assertion(tmp_path):
+    """(b). The whole skills corpus turned on this one `isinstance`.
+
+    `assertEqual`'s first two arguments are the compared expressions, and
+    the same three exits have to hold for them as for a bare `assert`: a
+    pin against a literal is not reported, one live operand clears it, and
+    `assertRaises` is not a comparison at all."""
+    rows, census = C.selfref_scan(_tests_dir(tmp_path, UNITTEST_SHAPE))
+    assert _names(rows) == ["test_the_totals_are_their_own_rows"]
+    assert rows[0]["form"] == "assertEqual"
+    assert census["bare"] == 0 and census["unittest"] == 3
+    assert census["skipped_pin"] == 1 and census["skipped_live"] == 1
+
+
+def test_a_setup_bound_attribute_reaches_the_method(tmp_path):
+    """The half of (b) that a name-keyed environment forgets: `unittest`
+    binds its document in `setUp`, so the only `ast.Name` in either
+    operand of the reported assertion above is `self`."""
+    rows, _c = C.selfref_scan(_tests_dir(tmp_path, UNITTEST_SHAPE))
+    assert any(o.startswith('self.d["totals"]') for o in rows[0]["operands"])
+
+
+def test_the_walk_is_recursive(tmp_path):
+    """(a). `--tests skills` read zero files and reported a clean tree;
+    `skills/` has 17 test files and none of them at its top level."""
+    d = tmp_path / "tree"
+    (d / "sub" / "deeper").mkdir(parents=True)
+    (d / "sub" / "deeper" / "test_x.py").write_text(
+        "import assertshadow as A\n"
+        "def test_x():\n"
+        "    d = A.load_census()\n"
+        "    assert d['a'] == d['b']\n", encoding="utf-8")
+    (d / "__pycache__").mkdir()
+    (d / "__pycache__" / "test_x.py").write_text("x = 1\n", encoding="utf-8")
+    rows, census = C.selfref_scan(str(d))
+    assert census["files"] == 1                     # not 2: __pycache__ out
+    assert _names(rows) == ["test_x"]
+
+
+def test_a_round_trip_through_the_files_own_encoding_is_reported(tmp_path):
+    """(c), and round 518's next-step #3 by name. `raw == json.dumps(
+    json.load(open(path)))` is `x == f(x)`: it can only ever see the
+    ENCODING, and it was the ONLY node reading `_generated_by`."""
+    rows, _c = C.selfref_scan(_tests_dir(tmp_path, ROUNDTRIP_SHAPE))
+    assert "test_the_ledger_round_trips_through_its_own_encoding" in \
+        _names(rows)
+    row = [r for r in rows
+           if r["func"].startswith("test_the_ledger_round")][0]
+    assert row["operands"] == ["again(declared)", "raw(declared)"]
+    assert row["reads"] == ["unresolved"]           # `ledger_path()`: a call
+
+
+def test_reading_a_source_file_of_the_tree_is_not_a_self_reference(tmp_path):
+    """The correction the first draft of (c) needed, measured rather than
+    reasoned: 'reads a file from disk' is not 'reads the declared
+    document'. Fifteen of the first draft's harness rows were
+    `src = open(DRIVER_SRC).read(); assert src.index(a) < src.index(b)`,
+    which IS a fresh measurement of the tree."""
+    rows, _c = C.selfref_scan(_tests_dir(tmp_path, ROUNDTRIP_SHAPE))
+    assert "test_a_source_file_of_the_tree_is_a_live_measurement" not in \
+        _names(rows)
+    assert C._read_target(
+        ast.parse('open(os.path.join(H, "run_driver.sh"))').body[0].value,
+        {}) == "source"
+    assert C._read_target(
+        ast.parse('open(os.path.join(H, "ledger.json"))').body[0].value,
+        {}) == "data"
+
+
+def test_a_fixture_the_test_wrote_itself_is_not_reported(tmp_path):
+    """The other guard. A round trip over data the test created is a
+    legitimate encoding test, not a gate that believes it checks the tree.
+    Measured guard-off -> guard-on: whence 30 -> 25, harness 70 -> 40."""
+    rows, _c = C.selfref_scan(_tests_dir(tmp_path, ROUNDTRIP_SHAPE))
+    assert "test_a_fixture_this_function_wrote_is_its_own_data" not in \
+        _names(rows)
+
+
+def test_an_empty_population_is_not_a_clean_tree(tmp_path):
+    """THE ROUND'S FINDING, held open. Two directories with nothing to
+    report for two DIFFERENT reasons, and the old renderer printed the
+    same sentence for both -- "none -- every one has an operand measured
+    from the tree", quantified over the empty set."""
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    rows, census = C.selfref_scan(str(empty))
+    text = C.render_selfref(rows, census)
+    assert "EMPTY POPULATION" in text and "fact about the directory" in text
+
+    d = _tests_dir(tmp_path, "import unittest\n\n\nclass T(unittest.TestCase):"
+                             "\n    def test_a(self):\n        pass\n")
+    rows2, census2 = C.selfref_scan(d)
+    text2 = C.render_selfref(rows2, census2)
+    assert census2["functions"] == 1 and census2["assertions"] == 0
+    assert "EMPTY POPULATION" in text2 and "fact about the analysis" in text2
+
+    # ...and a directory with real assertions and no findings says so
+    # WITHOUT claiming the population was empty.
+    d3 = _tests_dir(tmp_path, "def test_a():\n    assert 1 == 1\n",
+                    name="test_ok.py")
+    rows3, census3 = C.selfref_scan(d3)
+    assert "EMPTY POPULATION" not in C.render_selfref(rows3, census3)
+
+
+def test_the_census_partitions_every_assertion_it_read(tmp_path):
+    """The conservation invariant. Every assertion leaves by exactly one
+    of four doors, so a future exit that forgets to count itself makes the
+    arithmetic fail rather than quietly shrinking the denominator."""
+    for src in (UNITTEST_SHAPE, ROUNDTRIP_SHAPE, ROUND_512_SHAPE):
+        _rows, c = C.selfref_scan(_tests_dir(tmp_path, src))
+        assert c["assertions"] == c["bare"] + c["unittest"]
+        assert c["assertions"] == (c["reported"] + c["skipped_live"]
+                                   + c["skipped_pin"]
+                                   + c["skipped_no_declared"])
+
+
+def test_selfref_strict_reddens_on_an_empty_population(tmp_path):
+    """A run that examined nothing and exited 0 is the failure that looks
+    like a pass. `--strict` now says so; findings still do not redden,
+    because the module publishes rather than filters."""
+    empty = tmp_path / "nothing"
+    empty.mkdir()
+    root = os.path.dirname(HERE)
+    def run(d, *extra):
+        return subprocess.run(
+            [sys.executable, os.path.join(root, "checkscope.py"),
+             "--selfref", "--tests", str(d)] + list(extra),
+            capture_output=True, text=True, cwd=root)
+    assert run(empty).returncode == 0
+    assert run(empty, "--strict").returncode == 1
+    p = run(os.path.join(root, "tests"), "--strict")
+    assert p.returncode == 0
+    #: a FLOOR, not the count: this tree grows every language(C) round.
+    n = int(p.stdout.split("population: ")[1].split(" file(s)")[0])
+    assert n >= 70, p.stdout
+
+
+def test_the_three_live_trees_all_have_a_readable_population():
+    """The measurement round 516's next-step #5 asked for, kept as a
+    regression. FLOORS, not equalities: these are live corpora and they
+    grow. What must not come back is a ZERO -- the skills tree reported
+    0 assertions out of 1 026 test functions before this round."""
+    root = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
+    for rel, min_files, min_asserts in (("harness/tests", 90, 4500),
+                                        ("skills", 15, 2000),
+                                        ("languages/whence/tests", 70, 4000)):
+        _rows, c = C.selfref_scan(os.path.join(root, rel))
+        assert c["files"] >= min_files, rel
+        assert c["assertions"] >= min_asserts, rel
+
+
+def test_the_skills_corpus_is_unittest_and_has_no_bare_assert():
+    """Why (b) mattered here and not in the tree it was written for. The
+    analysis was authored against `languages/whence/tests`, which is
+    pytest and 100% bare `assert`; the checker corpus one directory over
+    is `unittest` and 0% bare `assert`. The blindness is invisible from
+    inside the tree the instrument was built in."""
+    root = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
+    _r, c = C.selfref_scan(os.path.join(root, "skills/skill-authoring/scripts"))
+    assert c["bare"] == 0
+    assert c["unittest"] >= 1800
+    _r2, c2 = C.selfref_scan(os.path.join(root, "languages/whence/tests"))
+    assert c2["unittest"] == 0
+    assert c2["bare"] >= 4000

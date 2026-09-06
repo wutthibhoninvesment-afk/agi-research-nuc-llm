@@ -1539,6 +1539,14 @@
    "where": "knowledge/round-518-the-totality-that-was-an-or.md",
    "quote": "**Five misses, and four of them share the shape this program keeps scoring:** P4, P6, P11 and P12 were each derived by *reasoning about a measurement that had not been taken*, in a round whose subject is that reading a gate is not measuring it.",
    "note": "Section 9, one table row per banked item, all eighteen carry a verdict. P6b is VOID because its premise (contributions scoring 2/2) did not happen. The four refutations and the one split are the entry: P4 (assert-shadow total under BOTH mutation kinds), P6 (the contributions row is ok and 2/2), P11 (--scope --strict exits 0 after the repair) and P12 (34 of 34 keys seen) were each reasoned from a table that had not been measured, and each was refuted by the sweep the round then ran. P13 is the one miss made WITH the evidence in hand -- the existing test_the_ledger_check_reports_a_moved_verdict assertion was quoted in this round's notes before the prediction that no existing test would need editing was written; it needed editing, and so did one more."
+  },
+  "519": {
+   "bank": "state/round-519-predictions.md",
+   "status": "scored",
+   "scored_by": 519,
+   "where": "knowledge/round-519-the-population-that-was-never-read.md",
+   "quote": "**The four refutations share one shape, again.** P1, P4a, P5 and P8 were each",
+   "note": "13 banked (P1-P12 with P4 split a/b) at 1d6e92a, before any sweep of harness/tests or skills/ was run and before a line of checkscope.py was edited. 6 HIT, 4 REFUTED, 2 SPLIT, 1 declared NO-BASIS. Section 8, one table row per banked item, all thirteen carry a verdict. The four refutations share the shape this program keeps scoring and the round's own subject makes it pointed: P1 and P4a predicted that harness/tests could not use the whence tree's helper vocabulary (it uses load_ledger 31 times and load_registry 36 -- one grep would have refuted both before the round started); P5 predicted one repair would close every blindness (there were three independent ones, discovery / unit / vocabulary); P8 predicted the self-written-fixture guard would cut the naive count by >=75% (measured 66->38, 42%, and the widening rather than the guard is the dominant term). P3 and P7, the only two predictions derived from something already read at HEAD, both landed. P9 is the no-basis line the prediction-banking skill's own step requires and it is honoured rather than scored: it named what could not be predicted (whether any existing node pinned a --selfref count -- none did, because round 518 content-pinned that node BY NAME) and reported the numbers instead. P10 and P11 are SPLIT rather than kept: P10's claim held and its stated mechanism did not, and P11's >50% held (26 of 38 new rows) while the shape it named describes only a few of them."
   }
  }
 }

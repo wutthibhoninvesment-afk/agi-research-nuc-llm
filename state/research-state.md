@@ -29117,6 +29117,130 @@ entry here; nothing below is inferred from intentions.*
    this file.
 
 
+
+### Round 519 — skills(B) — 2026-09-06 — the population that was never read
+
+- **Round 516's next-step #5 said the cross-tree run was "mechanical". It was
+  carried unchanged through 517 and 518, and it was not mechanical.** Pointing
+  `checkscope.py --selfref` at `harness/tests/` and `skills/` found **three
+  independent blindnesses**, each of which shrinks the POPULATION rather than
+  the verdict, and each reported in the same words the tool uses for a clean
+  tree. Rows at HEAD -> after: whence **7 -> 18**, harness **4 -> 28**,
+  `skills/` **0 -> 3** (and 0 -> 17 files read).
+- **(a) Discovery.** One non-recursive `os.listdir`. `skills/` has 17 test
+  files and **none at its top level**, so `--tests skills` — the exact
+  directory the carried item names — read ZERO files and printed
+  `none -- every one has an operand measured from the tree`.
+- **(b) The unit was `ast.Assert`.**
+  `skills/skill-authoring/scripts` is **1 026 test functions, 1 863
+  `self.assert*` calls and exactly 0 bare `assert`**. The blindness is
+  invisible from inside the home tree: `languages/whence/tests` is 4 291 bare
+  and 0 method calls — two suites, one repo, one directory apart, 100%/0% on
+  the construct the analysis is built around. `harness/tests` is the mixed
+  case (4 577 bare, **542** method) and was under-reading by 10.6% with
+  nothing saying so.
+- **(c) The vocabulary was six helper NAMES** — round 518's #3, now CLOSED.
+  `raw = open(p).read()` / `obj = json.load(open(p))` / `assert raw ==
+  json.dumps(obj)` was invisible. `test_testcorpus_contributions.py:431`, the
+  ONLY reader of `_generated_by`, is now reported.
+- **THE FIRST DRAFT OF (c) INVERTED A VERDICT AND THE MEASUREMENT CAUGHT IT.**
+  "Reads a file from disk" is not "reads the declared document": **12 of the
+  draft's 40** harness rows were `src = open(DRIVER_SRC).read(); assert
+  src.index(a) < src.index(b)` over `run_driver.sh` or `run_tests_fast.sh` — a
+  genuine live measurement, published as a self-reference. Measured by
+  disabling `_read_target` and diffing the row sets, not counted by eye. Fixed by resolving what the read
+  OPENS (`.json` -> declared, `.sh`/`.py`/`.md` -> live) through module-level
+  AND function-local constants. **What cannot be resolved is PUBLISHED with an
+  `unresolved` tag, not dropped** — round 518's own case is
+  `open(dc.contributions_path())`, a call with no literal anywhere, and
+  dropping the unresolvable would have lost the one instance the widening was
+  built for.
+- **The zero-message is the finding held open.**
+  `none -- every one has an operand measured from the tree` is a universally
+  quantified claim, printed unchanged over an empty set and over no files at
+  all. Every run now prints its population and its four exits; the two empty
+  cases render as different text (`fact about the directory` vs `fact about
+  the analysis`); and **`--selfref --strict` exits 1 on an EMPTY POPULATION,
+  never on findings** — findings are for a reader to judge, a run that
+  examined nothing and exited 0 is the failure that looks like a pass. The
+  census carries a conservation invariant, pinned.
+- **Costs paid, and one decline that is measured rather than deferred.** Round
+  518's #5 again: 30 new assertions moved `assert-shadow-census.json`, whose
+  regeneration moved `subject-provenance.json` — `corpusledger.py --fix` twice
+  before `--check` said *every generated ledger reproduces byte-for-byte*. One
+  existing node edited (`test_subjprov.py:547`, `58 -> 59`), its equality left
+  as its author designed it. **Round 513's #1 is DECLINED with a reason**: the
+  obvious home for `corpus_check --precommit` is `.git/hooks/pre-commit`, and
+  that file's own comments rule it out — three advisory steps at ~0.1 s each
+  and an explicit rejection of an 18 s audit. Re-derived here at **37.77 s**.
+- **`state/known-unprobed-skills.json` holds 61 entries, not 14.** Round 435's
+  "FOURTEEN" is its own single BATCH; four rounds of next-steps have carried it
+  as the QUEUE. Re-derived, corrected in the file, and the registry is now
+  ~$3 of probes nobody here is authorised to buy.
+- **Tests +11** (`test_checkscope.py` 40 -> 51, all green; 287 passed across
+  the nine affected whence files). `corpus_check --precommit`: **0 error(s)**.
+  New skill `skills/instrument-assumes-its-home-corpus/SKILL.md` (4 cases,
+  registered unprobed with an owner and a scorable prediction); `skill_lint
+  --house --strict` 0/0.
+- **Bank scored: 13 banked at `1d6e92a`, 6 HIT, 4 REFUTED, 2 SPLIT, 1
+  no-basis.** The four refutations share one shape and the round's subject
+  makes it pointed: P1/P4a/P5/P8 each reasoned about a corpus or a repair
+  instead of measuring it, in a round about a checker's first result being a
+  measurement of the checker. **P1 and P4a were each one `grep` from being
+  refuted before the round started.**
+
+## Next steps (as of round 519)
+
+1. **`--selfref` now reports 49 rows across three trees and NOBODY HAS READ
+   47 of them.** This round read the three `skills/` rows (one legitimate
+   totals identity, one synthetic-fixture unit test, one false positive) and
+   left whence's 18 and harness's 28 published and unjudged. Publishing rather
+   than filtering is the module's design; it only pays if somebody judges.
+   Read them by tree and say, per row, gate / unit test / false positive.
+   harness(A) for its own 28. any track.
+2. **One measured FALSE POSITIVE with a named cause, not repaired.**
+   `test_carryforward_check.py:1378` — `body = cf.read(os.path.join(ROOT,
+   e["where"]))` reads a knowledge FILE, so the assertion is a genuine live
+   check, but it classifies DECLARED because the *path expression* mentions
+   the document. **A value read from a path the document NAMES is a tree
+   measurement**, and `_classify` inherits origin from the argument rather
+   than from the read. The honest fix needs `e["where"]`'s runtime value.
+   Whoever tries it owes a before/after over all three trees. skills(B).
+3. **The `unittest` widening is a floor, not a ceiling.** `_assert_exprs`
+   handles 22 binary and 4 unary methods; the live corpora also contain
+   `assertRaises` (14, correctly not a comparison), `assertManual` (22, a
+   house helper this analysis has never looked at) and `assertIsInstance`.
+   `assertManual` is 22 assertions in the skills tree that no census has ever
+   classified. skills(B).
+4. **Round 518's #2, #4 and #5 stand, UNCHECKED by this round** —
+   `checkscope --scope --strict` still exits 1 for two named reasons,
+   `_verdict` is still a whole-run verdict over a 13-node pytest gate, and the
+   quiescent-tree rule got its second consecutive demonstration here rather
+   than a line in the protocol. Round 518's #1 (`run_tests_fast.sh` to
+   completion, with `bash`) is still untaken. language(C) or harness(A).
+5. **`readset.py blast` did not implicate `test_checkscope.py`** — the suite
+   that imports the changed module — while implicating 20 files that merely
+   scan the tree for `*.py`, and it ran degraded (`map no git HEAD available
+   on one side`). A fourth data point for the carried precision item
+   (20% / 5.6% / 7%), now unlanded for a FIFTH round. harness(A).
+6. **Round 517's #2 (`k002_diagnosis`'s third kind) is deliberately NOT
+   built** — it is still unobserved in the corpus and building it
+   speculatively is what round 517 declined. Left as recorded. skills(B).
+7. **Round 513's #3 and #4 stand.** `selfdesc_check`'s cap still NAMES four
+   unaudited artefacts with nobody deciding, and the fifth-instance sweep
+   (`placeholder_check`, `state_claim_check`, `corpus_history`, `verb_audit`
+   for a negative computed on a filtered view and worded about the raw one)
+   is unrun. This round found a sixth instance in a different checker without
+   sweeping for it. skills(B).
+8. **Standing and untouched:** the operator-blocked `--cap 196`; CLAUDE.md's
+   `CRITICAL MISSION` / `MISSION #476` blocks, still one-line deletions for
+   the operator (round 512 re-derived and REFUTED both with run evidence —
+   carry that, not the claim); `case_coverage`'s disagreeing verdicts;
+   `claim_check` executing 0 of 680 commands. `languages/whence/SECURITY.md`
+   is still the operator's decision — do not copy a carry count for it from
+   this file.
+
+
 ### Round 517 — harness(A) — 2026-09-05 — the file that runs is not the file that is tested
 
 - **The RED DEBT's 2 nodes are ONE cause, reproduced SOLO and root-caused, and

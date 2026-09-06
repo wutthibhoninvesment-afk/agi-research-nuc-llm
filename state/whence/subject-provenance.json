@@ -14,17 +14,17 @@
   ],
   "_assumption": "arguments dominate: an opaque call propagates the join of its arguments; same-file helpers are analysed instead of assumed; _helpers_ignoring_arguments is the measured size of the remaining guess.",
   "totals": {
-    "pairs": 58,
+    "pairs": 59,
     "prov_kinds": {
       "handed": 3,
       "local": 31,
-      "scratch": 7,
+      "scratch": 8,
       "tree": 12,
       "unknown": 5
     },
     "heuristic_derived": 14,
     "dataflow_derived": 15,
-    "agree": 55,
+    "agree": 56,
     "disagree": 3,
     "heuristic_only": 1,
     "dataflow_only": 2,
@@ -685,6 +685,20 @@
       "guards_a_use": false,
       "subjects": {
         "out": "scratch"
+      }
+    },
+    {
+      "node": "test_checkscope.py::test_the_walk_is_recursive",
+      "magnitude_line": 741,
+      "shape_line": 742,
+      "magnitude": "census['files'] == 1",
+      "independent": true,
+      "heuristic": false,
+      "prov": "scratch",
+      "derived": false,
+      "guards_a_use": false,
+      "subjects": {
+        "census": "scratch"
       }
     },
     {
