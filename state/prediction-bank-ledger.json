@@ -1563,6 +1563,13 @@
    "where": "knowledge/round-521-the-copy-that-could-not-survive-a-vanished-file.md",
    "quote": "**What the two SPLITs have in common:** both are cases where the *claim* was",
    "note": "13 banked (P1-P13) at 2126c5c, after the RED DEBT was reproduced on both sides and its cause read out of logs/health_round_517.log, and before a line of harness/swe/mutation.py, harness/swe/linkcopy.py, languages/whence/tests/test_polarity.py or harness/crosstrack-registry.json was edited and before harness/swe/livewrite.py existed. 9 HIT, 2 SPLIT, 1 REFUTED, 1 NO-BASIS-answered. Section 8 carries one table row per banked item, all thirteen with a verdict. The bank opens with a `What is already established at bank time (NOT predictions)` block listing the five facts already on screen, so no item could be scored as a hit for something already read. The REFUTATION is the round's best material: P2 predicted swe/linkcopy.py:link_tree was BROKEN by the same vanish, and it was not broken, it was SILENT -- ENOENT fell through its copy2 fallback into a bare `pass` and was recorded as a link fallback reason that n_files and n_fallback never matched. Two copiers whose whole contract is to make the same sandbox, disagreeing on the one input that occurs in production, and nothing had ever compared them. The two SPLITs share a shape worth carrying: in both, the defensible claim held and a detail smuggled in beside it did not -- P1 named an injection seam I had not tried (patching shutil.copy2 cannot hook copytree, whose copy_function=copy2 is a def-time default; the real seam is the ignore callback) and P4 named a point estimate of 3 against a measured 11. P13 is the no-basis line the prediction-banking skill requires and it is honoured rather than scored: it named what could not be predicted (whether swe.fuzz.write_example_curation has its own vanish exposure) and reports the answer, which is no."
+  },
+  "523": {
+   "bank": "state/harness/round-523/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 523,
+   "where": "knowledge/round-523-the-registry-that-could-not-be-early.md",
+   "quote": "| **P1** map coverage 40-72 of 73, and >=1 suite contributes zero | **SPLIT** | **33** of 73 -- below the floor I set. The second clause HIT, for a reason I had not seen: the `skills` suite's 9 registry entries are **checker rows** (`.../corpus_check.py::carryforward`), not pytest nodes, so no audit hook can ever record them. A structural zero, not a gap. |"
   }
  }
 }

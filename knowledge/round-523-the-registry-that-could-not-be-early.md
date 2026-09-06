@@ -262,9 +262,13 @@ sweep favours a higher value:
 
 | threshold | labelled | agreeing |
 |---|---|---|
-| 3 | 27 | 15 (56%) |
-| 4 | (see §8 for the post-fix re-run) | |
-| 5 | | |
+| **3 (published)** | 27 | 15 (**56%**) |
+| 4 | 22 | 16 (73%) |
+| 5 | 22 | 17 (77%) |
+
+The higher thresholds score better by REFUSING more (`S050` goes 3 → 8), which
+is the shape of a classifier bought with coverage. It is also selected on the
+same 27 rows it is scored on.
 
 Moving it would be fitting the classifier to the same 27 rows it is scored on.
 The correct held-out set already exists and this round created it: **the 37
@@ -337,11 +341,138 @@ Registry written with the file's own `indent=2` / `ensure_ascii` so the diff is
 the change and nothing else.
 
 ---
-
 ## 7. Predictions scored
 
-*(filled in §8 — see `state/harness/round-523/PREDICTIONS.md` for the banked text)*
+Banked at `67b842a` before any measurement; text in
+`state/harness/round-523/PREDICTIONS.md`. **7 HIT / 3 SPLIT / 2 MISS of 12.**
+
+| | verdict | measured |
+|---|---|---|
+| **P1** map coverage 40-72 of 73, and >=1 suite contributes zero | **SPLIT** | **33** of 73 -- below the floor I set. The second clause HIT, for a reason I had not seen: the `skills` suite's 9 registry entries are **checker rows** (`.../corpus_check.py::carryforward`), not pytest nodes, so no audit hook can ever record them. A structural zero, not a gap. |
+| **P2** subject-evidence entries labelled < 69, in [25, 55] | **HIT** | **25** of 69 -- at the very bottom of the band I gave. |
+| **P3** agreement >= 60% and < 90% | **MISS** | **56%** (15/27). Under the floor. |
+| **P4** dominant disagreement is inferred `whole-tree` vs declared `own-suite` | **MISS** | The dominant cell is `own-suite -> shared-corpus` (6). The over-approximation reasoning was right; I named the wrong axis. The cause is not "reading is not asserting" but a writer set taken over the WHOLE history. |
+| **P5** never emits `environmental`; 0 of the 4 get a label | **SPLIT** | First clause HIT by construction. Second clause **MISS**: all 4 got a label (3 `own-suite`, 1 `shared-corpus`). The prediction assumed a subject instrument could refuse; it cannot -- flakiness leaves no trace to refuse ON. The sharper finding is in section 4a. |
+| **P6** audit still 73 ever red / 73 declared / 0 errors | **HIT** | Exactly that, verified before any predeclaration landed. |
+| **P7** `test_redattrib.py` green before and after, more nodes after | **HIT** | HEAD's copy of the file against the modified module: **60 passed**. After: **68 passed**. |
+| **P8** never-red nodes with a read-set row > 500 | **HIT** | 1427 - 33 = **1394**. |
+| **P9** >= 100 predeclarable | **HIT** | **1083** (1302 before the phantom filter; 1046 now that 37 have been declared). |
+| **P10** map's recorded HEAD != `e05a470` | **HIT**, with a twist | The map's `head` is the **empty string** -- `git_head()` returned "" at record time -- so `staleness()` reports `"no git HEAD available on one side; cannot compare"` rather than a comparison. Stale as predicted; unmeasurable for a reason I had not predicted. |
+| **P11** never emits `shared-file-own-content`; its one entry is a guaranteed miss | **HIT** | Never emitted; the entry lands in `shared-corpus`. |
+
+**The two MISSes are the same error.** P3 and P4 both assumed the classifier
+would be limited by its RULES. It is limited by its DATA: 40 of 73 entries
+have no evidence at all, and the dominant disagreement comes from a writer set
+that never forgets.
+
+**What was NOT banked is the more useful lesson.** The two things this round
+spent most of its evidence on -- the 190 phantom paths (section 3) and the
+self-scoring circularity (section 5) -- appear nowhere in the bank. Every one
+of the twelve predictions is about the INSTRUMENT; none is about its INPUTS or
+about what landing its output would do to its own scoring set. Banking a
+prediction about the input is the gap this round demonstrates.
 
 ---
 
-## 8. Runs, and honest failures
+## 8. Runs, and one self-inflicted failure
+
+```
+$ bash harness/run_tests_fast.sh
+2 failed, 1762 passed, 591 deselected in 519.97s (0:08:39)
+FAILED harness/tests/test_scopeinfer.py::TestThisTree::test_the_cli_agrees_with_the_library_and_exits_zero
+FAILED harness/tests/test_verb_audit.py::TestThisTree::test_no_unexplained_broken_invocation
+```
+
+**Both were mine.** The first is a methodology error recorded rather than
+hidden: I launched that suite in the background and went on editing
+`harness/scopeinfer.py` under it, so the `agreement()` change of section 5
+landed mid-run and the CLI subprocess and the in-process library were
+different code. That log is kept under an honest name,
+`logs/round-523-harness-fast-midedit.log`.
+
+Re-run on the stable tree:
+
+```
+$ python3 -m pytest -q harness/tests/test_scopeinfer.py \
+      harness/tests/test_redattrib.py harness/tests/test_readset.py
+159 passed in 13.43s
+$ python3 -m pytest -q harness/tests/test_verb_audit.py
+32 passed in 47.37s
+```
+
+The second failure was REAL, and it was **not the carried one**.
+`research-state.md`'s item 7 has carried "V002 red since round 429" for many
+rounds; on this tree V002 was **0 before this round's diff**, and all three
+findings were against `harness/scopeinfer.py`, caused by my own test fixtures.
+Fixed by narrowing the RULE, not by an exemption:
+`verb-audit: 35 finding(s) (V001 11, V002 0, V003 24)`.
+
+**One warning left standing, deliberately.** `V001 harness/readset.py: 1 of 6
+declared verb(s) never invoked: phantoms` persists even though
+`test_the_readset_phantoms_verb_runs_and_agrees_with_the_library` shells out
+to it -- because the test spells the path as `os.path.join(ROOT, "harness",
+"readset.py")` rather than as a literal, and `verb_audit`'s own docstring
+declares that under-approximation ("a verb assembled at run time is
+invisible"). A concrete instance of a limit the module already states about
+itself; same class as the `V003 harness/scopeinfer.py` row.
+
+---
+
+## 9. The RED DEBT, and the final whole-suite run
+
+Both reddened nodes were reproduced from this round, and they are **one
+cause, not two**:
+
+```
+$ sed -n '30,64p' logs/corpus-evidence/round-522/unit_tests.out
+K001  state/whence/round-522/predictions.md: round 522 banked predictions and
+      state/prediction-bank-ledger.json has no entry for it — nobody can tell
+      whether D-013's second half was ever done
+…
+FAILED skills/…/test_carryforward_check.py::TestLiveCorpus::test_the_live_ledger_accounts_for_every_bank_on_disk
+FAILED skills/…/test_corpus_check.py::TestLiveCorpus::test_live_corpus_is_clean
+2 failed, 1263 passed, 4 subtests passed in 532.52s (0:08:52)
+```
+
+`test_live_corpus_is_clean`'s whole message is
+`skills corpus has ERRORs: {'carryforward': ['K001']}` — it is the aggregate
+of the other one. **One K001, two red nodes.**
+
+**It is neither a corpus defect nor something skills(B) can fix by reading
+it.** It is the OTHER visible half of the same interruption that left §0's
+registry diff uncommitted: round 522 banked
+`state/whence/round-522/predictions.md` at `cde83d0` and died at the 3300 s
+timeout before entering it in the ledger.
+
+**And it cannot be closed by this round, by design.** The entering command
+refuses to register a bank whose round carries no verdict of its own —
+
+> *"That command REFUSES if round 523's knowledge file carries no verdict of
+> its own, so it cannot launder an unscored bank."*
+> — the pre-commit hook's own text
+
+— and **round 522 has no knowledge file at all** (`ls knowledge/ | grep 522`
+→ 0; the driver log records `knowledge_file=False interrupted=True`). Writing
+one for a round I did not run would be inventing the record, which is exactly
+what the refusal exists to prevent. So the honest state is: the red stays,
+its single cause is named, and discharging it is language(C)'s work with
+language(C)'s evidence.
+
+This round's own bank WAS entered, so it adds no second K001:
+
+```
+$ python3 skills/skill-authoring/scripts/carryforward_check.py --enter 523 --write
+carryforward: 200 bank(s) (+2 unnumbered), 195 scored, 3 unscored,
+              1 error(s), 33 warning(s)
+```
+
+The remaining `1 error(s)` is round 522's, unchanged.
+
+**A note on the RED DEBT block's framing.** It labelled both nodes
+`RECURRENT — 8/9 earlier episodes, last closed at round 517` and warned "a
+red that has closed by itself before may be the runner, not the code". That
+warning was right to send and wrong about this instance: the node recurs
+because its CAUSE recurs — an interrupted round leaves an unentered bank —
+not because the runner is flaky. The recurrence is a property of the
+3300 s timeout, and it is the third distinct consequence of round 522's
+interruption this round has had to handle.

@@ -29244,6 +29244,155 @@ entry here; nothing below is inferred from intentions.*
   P9 predicted an ABSENCE without running the tool in the same directory that
   refutes it.
 
+### Round 523 — harness(A) — 2026-09-06 — the registry that could not be early
+
+- **Round 521's next-step #1 CLOSED, both halves, and the measurement
+  contradicts the next-step's own premise.** `harness/redattrib.py` now
+  accepts `predeclared: true`, which exempts an entry from R002 and from
+  NOTHING else; new fail-closed **R007** keeps the exemption narrow (a
+  predeclared entry must say `evidence: subject` and must not say
+  `environmental`, which R006 already establishes is outcome-derived by
+  definition). The case that matters is the non-boolean one:
+  `"predeclared": "yes"` gets BOTH R007 and R002, so an entry cannot switch
+  off a fail-closed rule by being a non-empty string. `audit` prints any
+  predeclared node that has since gone red under `SCORABLE`.
+- **`harness/scopeinfer.py`** proposes a `subject_scope` from evidence
+  available BEFORE any red: the node's recorded read set
+  (`harness/readset-map.json`) plus the committed-writer set of each subject
+  path. Seven named rules, two of which REFUSE. It never opens a health log,
+  never calls `redattrib.read_logs`, and never emits `environmental` or
+  `shared-file-own-content` — the two scopes it declares UNREACHABLE, with
+  reasons, in `UNREACHABLE`. Two AST tests hold the restraint open.
+- **THE MEASUREMENT, over the 73 independent entries: 27 labelled, 15
+  agreeing (56%), refusals S000 40 / S001 3 / S050 3. THE HEADLINE IS THE 40.**
+  More entries are refused for having NO READ-SET ROW AT ALL than are
+  labelled — 25 collected-but-silent, **9 skills-check checker rows that are
+  not pytest nodes at any price**, 6 ids absent from the recorded roster. The
+  binding constraint on predeclaration is COVERAGE, not inference. Round
+  521's next-step assumed the open question was whether a scope is inferable;
+  it is not.
+- **190 PHANTOM PATHS IN THE READ-SET MAP, across 415 of its 1456 rows.**
+  CPython raises the `open` audit event BEFORE the syscall, so a read that
+  fails with ENOENT is recorded like one that succeeds; a caller resolving a
+  bare basename against the ambient cwd (pytest's cwd is the repo root)
+  contributes repo-relative paths that have never existed — `alpha` and
+  `beta` 123 rows each, `my-skill` 54, the `.git` roster 33 each. **219 of
+  the 1302 nodes the first draft called predeclarable were labelled on
+  evidence that has never existed.** New `readset.py phantoms` REPORTS them;
+  `scopeinfer` DROPS them; whether `record` should stop keeping them is the
+  owner's call and needs a re-record — for `blast` a failed probe can be a
+  real dependence.
+- **Two circularities, one COMMITTED before it was caught.** (1) Rule ORDER:
+  shared-corpus before foreign-subject relabelled every whence-subject node,
+  because `SPEC.md` has five track writers — foreign-subject 0/2, reordered
+  2/2. (2) After landing 37 predeclarations, `agree` reported **81%, up from
+  56%**, because 37 of its 39 foreign-subject agreements were its own output
+  scored against itself. `agreement()` now excludes predeclared entries from
+  the headline and reports separately how many still reproduce; **a DROP
+  there means somebody CORRECTED a predeclaration**, which is the event worth
+  reading. Caught by reading the matrix, not by a test — there is a test now.
+- **37 `foreign-subject` predeclarations landed** — that shape and no other,
+  because a foreign-subject red is by construction invisible to the track
+  that runs the suite it lives in, which is the 83% invisible-open rate this
+  registry exists to explain. Hand-verified on a sample, not bulk-trusted.
+  APPENDED not sorted: re-sorting showed as *166 deleted lines for a 37-entry
+  addition*. `audit`: **73 ever red, 110 declared, 37 predeclared (0 now
+  scorable), 0 errors**.
+- **`verb_audit` V002: the fifth false shape, the fourth fixed by a RULE.**
+  `_argv_positions` folded ANY list literal passed to ANY call, so a fixture
+  spelling `row(files=["harness/tool.py", "alpha"])` — a module path followed
+  by a bare word, in an argument position — read as an invocation of an
+  undeclared verb. A list is now an argv only when passed to something that
+  can SPAWN a process. **V002 back to 0.** NOTE: research-state item 7 has
+  carried "V002 red since round 429" for many rounds; on this tree V002 was
+  **0 before this round's diff** and all three findings were mine.
+- **Round 522's leftovers, all three of them.** (a) The uncommitted
+  `harness/crosstrack-registry.json` diff — verified as eight additions and
+  nothing else, landed at `e05a470`. (b) No research-state entry (gap shape
+  1) — not invented here. (c) **The RED DEBT's two skills-check nodes are ONE
+  cause**: `K001`, round 522 banked `state/whence/round-522/predictions.md`
+  and died before entering it in the ledger. It **cannot be closed by this
+  round by design** — the entering command refuses a bank whose round carries
+  no verdict, and round 522 has no knowledge file. Named, not laundered.
+- **Tests +53** (`test_scopeinfer.py`) **+8** (`test_redattrib.py`
+  predeclaration) **+3** (`test_verb_audit.py` argv). Both new entry points
+  declared with `wiring_audit.py declare --write`; `undeclared` is clean.
+- **Predictions 7 HIT / 3 SPLIT / 2 MISS of 12** (`state/harness/round-523/PREDICTIONS.md`,
+  banked `67b842a`, entered in the ledger). **Both MISSes are the same
+  error**: P3 and P4 assumed the classifier would be limited by its RULES; it
+  is limited by its DATA. And the two things this round spent most of its
+  evidence on — the phantom paths and the self-scoring circularity — appear
+  nowhere in the bank: every one of the twelve predictions is about the
+  INSTRUMENT, none about its INPUTS.
+- **A self-inflicted failure, recorded rather than hidden.** The first whole-
+  suite run (`2 failed, 1762 passed, 591 deselected in 519.97s`) was launched
+  in the background and then edited under — the `agreement()` change landed
+  mid-run, so the CLI subprocess and the in-process library were different
+  code. `feedback_baseline_suite_needs_a_pristine_worktree` says exactly
+  this. That log is kept as `logs/round-523-harness-fast-midedit.log`.
+
+## Next steps (as of round 523)
+
+1. **RECORD MORE READ SETS. That is the whole of predeclaration's cost.**
+   40 of 73 registry entries have no row in `harness/readset-map.json`, which
+   is more than the 27 the classifier can label. `python3 harness/readset.py
+   record` is the command; the map's `head` field is currently the EMPTY
+   STRING, so `staleness()` cannot even compare and reports "no git HEAD
+   available on one side". Whoever re-records should also decide whether
+   `record` keeps phantoms (§3 of the round file) and re-run
+   `scopeinfer.py agree` — the 56% is measured against a map that is stale by
+   an unknown amount. harness(A).
+2. **9 of those 40 can NEVER be covered by this route and that is a finding
+   about the taxonomy, not the map.** The skills-check registry entries are
+   CHECKER ROWS (`skills/skill-authoring/scripts/corpus_check.py::carryforward`),
+   parsed out of a verdict TABLE by round 461's second grammar. They are not
+   pytest nodes, so no audit hook can record them and no `subject_scope` can
+   be predeclared for them by any amount of work on `scopeinfer`. Either a
+   checker declares its own subject set, or those nine stay retroactive
+   forever. Say which. harness(A) or skills(B).
+3. **The 37 predeclarations are a HELD-OUT SET and the only honest way to
+   move `SHARED_CORPUS_TRACKS`.** The sweep favours a higher threshold
+   (3 → 56%, 4 → 73%, 5 → 77%) but every one of those is measured on the same
+   27 rows the constant would be tuned against, and the higher values buy
+   accuracy by REFUSING more (S050 3 → 8). Whoever sees a predeclared node go
+   red should score it — `redattrib.py audit` prints them under `SCORABLE` —
+   and only then argue about the constant. any track.
+4. **The dominant disagreement has a named cause nobody has fixed: a writer
+   set that never forgets.** `own-suite → shared-corpus` is 6 of the 12
+   disagreements, and it happens because `path_writers` reads the WHOLE
+   history, so one cross-track edit 200 rounds ago makes a file look shared
+   forever (`languages/whence/SPEC.md` was touched by harness(A) and
+   skills(B)). A recency window or a per-track commit-count floor is the
+   obvious next move and this round did not take it. harness(A).
+5. **`environmental` is a HARD BOUNDARY on predeclaration, not a gap to
+   close.** All 4 environmental entries got a label (3 `own-suite`, 1
+   `shared-corpus`) and that is CORRECT behaviour: flakiness leaves no trace
+   in a read set, so a subject instrument cannot even know to stay silent.
+   Those four are exactly the entries that must wait for outcome history. Do
+   not "fix" this. any track.
+6. **Round 522's K001 is still open and only language(C) can close it.**
+   `state/whence/round-522/predictions.md` is banked and unentered; the
+   entering command refuses because round 522 has no knowledge file. Until
+   somebody scores that bank from committed artefacts and writes the
+   verdicts down, `skills-check` stays red on two nodes for one reason.
+   language(C).
+7. **Round 521's items 2-7 stand, UNCHECKED by this round** — the 12 L001
+   live-tree writes in 4 files; the three module-scope copiers and whether an
+   import-time copy can move into a session fixture; `livewrite`'s three
+   stated limits, none measured against the corpus; and the `blast` precision
+   item, now unlanded for an EIGHTH round (round 512's measured refinement,
+   `blast --strict` wired into nothing). This round used `blast` and it named
+   ~30 files including every suite that mattered, so the precision complaint
+   is still about noise, not recall. harness(A) or SWE-loop(D).
+8. **Standing and untouched:** the operator-blocked `--cap 196`; CLAUDE.md's
+   `CRITICAL MISSION` / `MISSION #476` blocks, still one-line deletions for
+   the operator (round 512 re-derived and REFUTED both with run evidence —
+   carry that, not the claim); `case_coverage`'s disagreeing verdicts;
+   `claim_check` executing 0 of its commands; the NUC `retention --strict`
+   deadline. `languages/whence/SECURITY.md` is still the operator's decision
+   — do not copy a carry count for it from this file.
+
+
 ### Round 521 — SWE-loop(D) — 2026-09-06 — the copy that could not survive a vanished file
 
 - **The RED DEBT's 2 derived nodes CLOSED, by reading the round-517 failure
