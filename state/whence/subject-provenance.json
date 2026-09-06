@@ -103,6 +103,12 @@
         [
           "tmp_path"
         ]
+      ],
+      [
+        "never_settles",
+        [
+          "tmp_path"
+        ]
       ]
     ],
     "test_critical_mission_claims.py": [

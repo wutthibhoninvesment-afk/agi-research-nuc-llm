@@ -1,6 +1,6 @@
 ---
 name: measure-a-gate-by-mutating-what-it-guards
-description: Use when a `--check` / `--verify` verb or a guard test over a committed derived artefact (ledger, census, lockfile, golden file, snapshot, coverage baseline) exits 0 and you need to know WHICH parts of that artefact it can actually see — not reason about it, measure it. Symptoms - a guard was green while the artefact was provably stale; a reviewer asks "does this check cover field X?" and the answer comes from reading the code; a check verb reads one hardcoded path so it can only ever be run against the real file; headline totals printed by a CLI that nothing compares; you are about to widen a guard and want a before/after number. The method - perturb exactly one top-level key at a time, point the guard at the mutant, and record SEES / BLIND / CRASH per key, starting every sweep with an unmutated control that must pass. Covers why a no-op mutation reads as a blind gate, why a crash is not a detection, and the one-line fix that makes an unaimable guard measurable.
+description: Use when a `--check` / `--verify` verb or a guard test over a committed derived artefact (ledger, census, lockfile, golden file, snapshot, coverage baseline) exits 0 and you need to know WHICH parts of that artefact it can actually see — not reason about it, measure it. Symptoms - a guard was green while the artefact was provably stale; a reviewer asks "does this check cover field X?" and the answer comes from reading the code; a check verb reads one hardcoded path so it can only ever be run against the real file; headline totals printed by a CLI that nothing compares; you are about to widen a guard and want a before/after number. Also use when a guard EXCLUDES a key by name (`ignore=(...)`, `skip`, "another check owns this") - an exclusion is a promise that must be measured at LEAF granularity, not read. The method - perturb exactly one key at a time, point the guard at the mutant, and record SEES / BLIND / CRASH per key, starting every sweep with an unmutated control that must pass, then DESCEND into every excluded key and repeat per leaf. Covers why a no-op mutation reads as a blind gate, why a crash is not a detection, and the one-line fix that makes an unaimable guard measurable.
 ---
 
 # Measure a gate by mutating what it guards
@@ -36,6 +36,10 @@ Any one of these:
    reason nobody has measured it — see step 1.
 6. Review of a PR that adds a field to a generated artefact. The new field is
    almost certainly outside every existing guard's predicate.
+7. A guard **names an exclusion** — `ignore=("nodes", "costly_nodes")`, or
+   a comment saying `# check_census owns declared-but-gone nodes`. Naming an
+   exclusion out loud is better than hiding one and is not evidence that the
+   named delegate ranges over it. Step 8b.
 
 ## Steps
 
@@ -112,6 +116,48 @@ Any one of these:
    code for everything else. Do not add an Nth bespoke comparison — that is
    how the gap was built.
 
+8b. **Then descend into every key you just wrote into `ignore=`, and sweep
+   its LEAVES.** Step 8's `ignore=` is not a suppression, it is a
+   DELEGATION: a promise that a named, more readable check ranges over that
+   key. The promise is the same kind of unmeasured claim as the guard you
+   started with, and it is granted at the granularity of a top-level key
+   while every delegate is written against a PROJECTION of it — a key set, a
+   derived set, a coordinate pair. So sweep the excluded key one leaf at a
+   time and score each against **every** check in the module, not just the
+   named delegate.
+
+   On the tree this skill came from, `_residual` excluded two keys and named
+   three delegates. Measured at the leaf:
+
+       mutation (one leaf under the excluded `nodes`)   the guard said
+       ---------------------------------------------    --------------
+       a pair's `magnitude` TEXT rewritten               ledger agrees
+       a pair's `shape` TEXT rewritten                   ledger agrees
+       a pair's `independent` flag flipped               ledger agrees
+       a pair's `tree_derived` flag flipped              ledger agrees
+       a pair's `remedy` rewritten                       ledger agrees
+       a whole pair DELETED from a surviving node        ledger agrees
+       a pair DUPLICATED into a surviving node           ledger agrees
+       a pair's `magnitude_line` moved +7                MOVED  (seen)
+
+   **Seven of eight.** The delegation held for one leaf of eleven, because
+   `check_census` diffs the KEYS of `nodes`, `check_costly` compares a
+   derived set against the TREE so the declared key never participates, and
+   the coordinate check reaches two fields and only for pairs whose text it
+   can still match. Each delegate was doing exactly what its own docstring
+   said; none of them ranged over the key it had been credited with.
+
+8c. **Add the declared-vs-declared check while you are in there.** Every
+   check in step 8's family compares the document to the TREE, so all of
+   them go quiet on a document that is not a faithful record of any tree — a
+   hand edit, a half-applied patch, a generator interrupted between writing
+   the rows and writing the summary. If the artefact carries summaries
+   derived from its own rows (`totals`, a costly/failing/selected subset),
+   re-derive them from the rows and compare, with no tree at all. On the
+   tree above this caught four of the seven blind mutations by itself, is
+   the cheapest check in the module, and is the only one that still works on
+   an artefact whose tree is gone.
+
 9. **Re-run the sweep after the fix and publish both numbers.** A gate repair
    with no before/after is indistinguishable from a gate repair that missed.
 
@@ -155,6 +201,13 @@ Any one of these:
   measured module may touch, and assert the shared function loads no
   module-level binding whose value came from the filesystem or the
   environment.
+* **Scoring an excluded key as covered because something was named.** An
+  exclusion is only as total as the check it delegates to, and the two are
+  written at different granularities: you exclude a KEY, the delegate ranges
+  over a PROJECTION. Enumerate the leaves from the artefact itself rather
+  than typing a field list — a hand-written list is one more thing that goes
+  stale, and the field it misses will be the one somebody adds next, which
+  is how the gap gets built a second time.
 * **Believing a gate table stays true.** It is a measurement of a specific
   commit. Wire the sweep, or at least the "every artefact has a gate entry"
   half of it, into the suite.

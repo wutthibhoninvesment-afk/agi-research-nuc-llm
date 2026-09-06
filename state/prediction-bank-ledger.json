@@ -1570,6 +1570,14 @@
    "scored_by": 523,
    "where": "knowledge/round-523-the-registry-that-could-not-be-early.md",
    "quote": "| **P1** map coverage 40-72 of 73, and >=1 suite contributes zero | **SPLIT** | **33** of 73 -- below the floor I set. The second clause HIT, for a reason I had not seen: the `skills` suite's 9 registry entries are **checker rows** (`.../corpus_check.py::carryforward`), not pytest nodes, so no audit hook can ever record them. A structural zero, not a gap. |"
+  },
+  "522": {
+   "bank": "state/whence/round-522/predictions.md",
+   "status": "scored",
+   "scored_by": 524,
+   "where": "knowledge/round-522-the-bank-a-killed-round-could-still-be-made-to-pay.md",
+   "quote": "**Tally: 4 HIT (P2, P3b, P4, P5), 1 HIT-with-a-correction (P3), 2 MISS (P1,\nP1b), 2 PARTIAL (P2b, P6).**",
+   "note": "Written BY HAND, as `carryforward_check.py --enter 522`'s own refusal text instructs -- \"if this round did score its bank, the scoring is somewhere this generator does not look -- say where, and write the entry by hand.\" The generator refuses because no knowledge/round-522-*.md existed: round 522 died interrupted with no knowledge file and no research-state entry, which is why K001 stood as an ERROR for rounds 522-523 and why round 523 recorded that it could not close it. Same shape and same remedy as round 372, scored by round 374. THE DIFFERENCE FROM 372: round 374 scored \"from committed artifacts only\"; round 524 RE-RAN seven of the eight items in a `git worktree` at cde83d0~1, the tree round 522 banked against, because a bank whose claims are about a TREE is scorable experimentally as long as git still holds it. That is what makes P2 a HIT (122 passed, 0 failed on regeneration alone) rather than the MISS round 524's own first run reported -- the first run was in an unrepaired worktree missing the 15 permanently-untracked Hermes .lang files that state/whence/builtin-runtime.json ranges over, and that self-inflicted error is recorded in section 0 of `where` rather than removed. The two MISSes (P1, P1b) are round 522's only two predictions about an instrument outside its own track."
   }
  }
 }

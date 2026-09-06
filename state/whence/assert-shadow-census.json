@@ -4,16 +4,16 @@
   "_headline_predicate": "is_magnitude (widened) x is_shape (non-empty display), branch-compatible, magnitude strictly first",
   "totals": {
     "files": 78,
-    "test_functions": 2105,
-    "asserts": 4294,
+    "test_functions": 2116,
+    "asserts": 4306,
     "assert_kinds": {
-      "other": 2735,
-      "shape": 612,
+      "other": 2739,
+      "shape": 619,
       "shape_empty": 179,
-      "magnitude": 768
+      "magnitude": 769
     },
-    "functions_with_magnitude": 518,
-    "functions_with_shape": 470,
+    "functions_with_magnitude": 519,
+    "functions_with_shape": 477,
     "candidates": 39,
     "pairs": 59,
     "pairs_strict": 59,

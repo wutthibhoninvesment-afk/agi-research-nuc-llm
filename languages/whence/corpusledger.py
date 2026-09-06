@@ -517,9 +517,11 @@ def fix(directory=LEDGER_DIR, timeout=600, only=None):
     provenance ledger is luck, not design. Iterating to a fixed point is
     the fix that does not require knowing the edges -- it converges for any
     acyclic dependency in at most depth+1 passes, and `MAX_FIX_PASSES`
-    turns a cycle into a report instead of a hang.
+    turns a cycle into a report instead of a hang -- a NAMED one, since round 524: exhausting the ceiling appends
+    a `NOT CONVERGED` row, because `blocked` means "genuinely broken" only
+    on the early-`break` exit and meant the same thing on both before.
     """
-    fixed, failed, blocked = [], [], []
+    fixed, failed, blocked, converged = [], [], [], False
     for _ in range(MAX_FIX_PASSES):
         got, bad_now, blocked = _fix_one_pass(directory, timeout, only)
         fixed.extend(got)
@@ -528,7 +530,28 @@ def fix(directory=LEDGER_DIR, timeout=600, only=None):
             # Nothing moved this pass, so nothing downstream can have been
             # unblocked by it. Whatever is still `blocked` is genuinely
             # broken rather than merely waiting on an upstream ledger.
+            converged = True
             break
+    # ROUND 524. `blocked` carries that "genuinely broken" reading ONLY on
+    # the line above. Leaving the loop by exhausting `MAX_FIX_PASSES` says
+    # the opposite -- the last pass still moved something, so a row that is
+    # blocked may simply not have been reached yet -- and before this the
+    # two exits returned the identical list with nothing to tell them
+    # apart. The docstring's promise that the ceiling "turns a cycle into a
+    # report instead of a hang" was one word short of true: it turned a
+    # cycle into the SAME report a converged run produces. Same shape as
+    # round 522's `unknown`-vs-`stale` in `subjprov`, and as round 524's
+    # `assertshadow` finding: a value whose meaning depends on which branch
+    # produced it, published as one value.
+    if not converged:
+        failed.append((
+            "(all %d ledger(s))" % len(registry(directory)),
+            "NOT CONVERGED: %d pass(es) exhausted and the last one still "
+            "regenerated something, so the %d row(s) still blocked may be "
+            "waiting on an upstream ledger rather than broken. Re-run "
+            "--fix, or --check to see the current state. A cycle among "
+            "generators reaches here too."
+            % (MAX_FIX_PASSES, len(blocked))))
     return fixed, failed + blocked
 
 

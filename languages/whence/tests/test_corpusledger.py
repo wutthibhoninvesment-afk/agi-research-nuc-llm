@@ -322,3 +322,82 @@ def test_this_files_own_contribution_is_declared_like_any_other():
     assert mine["residual"] == 0, (
         "this file must not add an unreadable residual row to the corpus it "
         "reports on: %s" % mine)
+
+
+# ---------------------------------------------------------------------------
+# ROUND 524 — the two exits of `fix`'s fixed-point loop.
+#
+# Round 522 made `fix` iterate, and its ceiling `MAX_FIX_PASSES` appeared
+# three times in this module and ZERO times in this file: nothing drove the
+# loop to exhaustion, so the non-convergence exit was unexecuted by the
+# suite. It mattered, because `blocked` carried the reading "genuinely broken
+# rather than merely waiting on an upstream ledger" from the early-`break`
+# comment, and the exhaustion exit returned the identical list.
+# ---------------------------------------------------------------------------
+
+#: A generator that is NOT a function of its corpus -- it appends a counter,
+#: so its output differs on every run and the ledger can never be made
+#: fresh. `MAX_FIX_PASSES`'s own comment names this case ("a cycle or a
+#: generator that is not a function of the tree -- both worth reporting
+#: rather than looping on"), and a cycle is unbuildable in a one-ledger
+#: fixture while this is not.
+_GEN_UNSTABLE = """\
+import json, os, sys
+corpus = sys.argv[1]
+out = sys.argv[sys.argv.index("--json") + 1]
+cmd = "cd %s && python3 gen.py %s --json <path>" % (os.getcwd(), corpus)
+tick = os.path.join(corpus, "..", "tick")
+n = (int(open(tick).read()) + 1) if os.path.exists(tick) else 1
+open(tick, "w").write(str(n))
+with open(out, "w") as fh:
+    json.dump({"_generated_by": cmd, "n": n}, fh, indent=1, sort_keys=True)
+    fh.write("\\n")
+"""
+
+
+@pytest.fixture
+def never_settles(tmp_path):
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    (corpus / "a.txt").write_text("a")
+    (tmp_path / "gen.py").write_text(_GEN_UNSTABLE)
+    ledgers = tmp_path / "ledgers"
+    ledgers.mkdir()
+    subprocess.run([sys.executable, str(tmp_path / "gen.py"), str(corpus),
+                    "--json", str(ledgers / "fake.json")],
+                   check=True, cwd=str(tmp_path))
+    return {"dir": str(ledgers)}
+
+
+def test_a_loop_that_exhausts_its_ceiling_says_so_instead_of_looking_broken(
+        never_settles):
+    """THE ROUND-524 CLAIM. Before this, both exits of the loop returned the
+    same `(fixed, failed + blocked)` shape and a reader had nothing to tell
+    "I stopped because there was nothing left to do" from "I stopped because
+    I ran out of passes". The row must exist and must NAME the ceiling."""
+    fixed, bad = cl.fix(directory=never_settles["dir"])
+    notconv = [why for _name, why in bad if "NOT CONVERGED" in why]
+    assert [len(fixed), len(notconv)] == [cl.MAX_FIX_PASSES, 1], (fixed, bad)
+    assert str(cl.MAX_FIX_PASSES) in notconv[0], notconv[0]
+
+
+def test_a_converged_run_does_not_claim_non_convergence(fake):
+    """The positive control for the test above, without which a `fix` that
+    appended NOT CONVERGED unconditionally would pass it. Same shape as
+    `test_a_fresh_synthetic_ledger_reads_as_fresh` -- the control's
+    control."""
+    (fake["corpus"] / "b.txt").write_text("b")
+    fixed, bad = cl.fix(directory=fake["dir"])
+    assert [sorted(fixed), bad] == [["fake.json"], []]
+
+
+def test_the_ceiling_is_reachable_and_the_cli_exits_non_zero_on_it(
+        never_settles):
+    """`cmd_fix` returns `1 if bad else 0`, so the new row must also change
+    the CLI's exit status -- a finding that reaches no actor is not a
+    finding. Exercised through `cmd_fix` rather than asserted of it."""
+    class _Args:
+        dir = never_settles["dir"]
+        timeout = 600
+        only = None
+    assert cl.cmd_fix(_Args()) == 1

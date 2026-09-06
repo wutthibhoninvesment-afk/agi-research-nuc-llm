@@ -526,3 +526,222 @@ def test_the_cli_check_goes_red_on_a_tree_with_an_undeclared_shadow(tmp_path):
     cm, ce = A.check_costly(
         {"costly_nodes": ["gone.py::test_x"]}, live)
     assert (cm, ce) == (["gone.py::test_x"], [])
+
+
+# ---------------------------------------------------------------------------
+# 5. ROUND 524 — the sub-document every other check projects.
+#
+# `_residual` (round 516) is total over the census's TOP-LEVEL keys and buys
+# that totality by naming two exclusions, `nodes` and `costly_nodes`, on the
+# ground that `check_census`, `check_coordinates` and `check_costly` already
+# report them. Round 524 mutated one leaf at a time UNDER `nodes` and asked
+# the CLI: seven of eight mutations came back "ledger agrees".
+#
+# The order of this section follows the file's own argument: the predicates
+# first, on synthetic input, then the structural sweep against the live
+# document, then the CLI.
+# ---------------------------------------------------------------------------
+
+def _perturb(v):
+    """A different value of the same shape. `None` is not a shape."""
+    if isinstance(v, bool):
+        return not v
+    if isinstance(v, int):
+        return v + 7
+    if isinstance(v, str):
+        return v + "  # round-524 perturbation"
+    if isinstance(v, list):
+        return v + ["round-524"]
+    if isinstance(v, dict):
+        return dict(v, round_524="perturbation")
+    if v is None:
+        return 0
+    raise AssertionError("no perturbation for %r" % type(v))
+
+
+#: The two pair fields that are UNCOMPARABLE without `--history`, which
+#: `--check` deliberately does not run. Named here rather than left as a
+#: silent pass: `literal_edits` and `repins` are NOT in this list because
+#: `totals` sums both, so `check_internal` reaches them from the other side
+#: with no tree at all. `moves` and `commits_touching` feed no total, so
+#: nothing can see them on a `--check` run -- and
+#: `test_the_history_only_exemption_is_conditional_and_not_a_hole` proves
+#: that is a property of the RUN and not of the checker.
+_HISTORY_BLIND = ("commits_touching", "moves")
+
+
+def _any_check_fires(declared, funcs):
+    """Every finding-producing check in the module, as one dict of booleans.
+
+    The point of returning the whole dict rather than `or`-ing it is that a
+    failure names WHICH check was supposed to see the mutation, which is
+    what the round-524 measurement was missing when it started."""
+    missing, extra = A.check_census(declared, funcs)
+    cmiss, cextra = A.check_costly(declared, funcs)
+    return {
+        "check_census": bool(missing or extra),
+        "check_costly": bool(cmiss or cextra),
+        "check_coordinates": bool(A.check_coordinates(declared, funcs)),
+        "check_node_bodies": bool(A.check_node_bodies(declared, funcs)),
+        "check_internal": bool(A.check_internal(declared)),
+        "_residual": bool(A._residual(declared, funcs)),
+    }
+
+
+def _leaves(declared):
+    """`(label, mutate)` for every leaf under `nodes`, read OUT OF THE LIVE
+    DOCUMENT rather than typed here.
+
+    That is the whole design of this sweep. A hand-written list of eleven
+    field names is a twelfth artefact that can go stale, and the field that
+    goes uncovered would be the one somebody adds next -- which is exactly
+    how `nodes` came to have ten unchecked leaves in the first place."""
+    nid = sorted(k for k, v in declared["nodes"].items() if v.get("pairs"))[0]
+    out = [("nodes[*].lineno",
+            lambda d: d["nodes"][nid].update(
+                lineno=_perturb(d["nodes"][nid]["lineno"])))]
+    for field in sorted(declared["nodes"][nid]["pairs"][0]):
+        def mk(f):
+            return lambda d: d["nodes"][nid]["pairs"][0].__setitem__(
+                f, _perturb(d["nodes"][nid]["pairs"][0][f]))
+        out.append(("nodes[*].pairs[0].%s" % field, mk(field)))
+    out.append(("nodes[*].pairs  (one DELETED)",
+                lambda d: d["nodes"][nid]["pairs"].pop(0)))
+    out.append(("nodes[*].pairs  (one DUPLICATED)",
+                lambda d: d["nodes"][nid]["pairs"].append(
+                    json.loads(json.dumps(d["nodes"][nid]["pairs"][0])))))
+    return out
+
+
+def test_every_leaf_under_nodes_is_seen_by_some_check(live, declared):
+    """THE STRUCTURAL GUARD, and the one round 524 exists to install.
+
+    Round 522's lesson, in its own words, was that the guard on a whole
+    class of drift was "two integer literals in one test function, not a
+    structural check". This is the structural check for the class one level
+    up. It enumerates the leaves from the document, so a pair field added
+    by a future round arrives already covered -- or turns this red on the
+    round that adds it, which is the round that can answer for it.
+
+    Blind-by-run, not blind-by-checker: `_HISTORY_BLIND`."""
+    blind = [name for name, mutate in _leaves(declared)
+             if not any(_any_check_fires(
+                 _mutated(declared, mutate), live).values())]
+    assert blind == ["nodes[*].pairs[0].%s" % f for f in _HISTORY_BLIND]
+
+
+def _mutated(declared, mutate):
+    d = json.loads(json.dumps(declared))
+    mutate(d)
+    return d
+
+
+def test_the_history_only_exemption_is_conditional_and_not_a_hole(live,
+                                                                  declared):
+    """`moves` and `commits_touching` are invisible because `--check` does
+    not run `add_history`, NOT because `check_node_bodies` cannot see them.
+
+    Proven by giving the live side history-shaped pairs: the same two
+    mutations are then reported. An exemption that survives its own
+    precondition being lifted would be a hole."""
+    scored = json.loads(json.dumps(live))
+    for f in scored:
+        for p in f.get("pairs", []):
+            p.setdefault("literal_edits", 0)
+            p.setdefault("repins", 0)
+            p.setdefault("moves", [])
+            p.setdefault("commits_touching", 0)
+    by_name = dict(_leaves(declared))
+    seen = [f for f in _HISTORY_BLIND
+            if A.check_node_bodies(
+                _mutated(declared, by_name["nodes[*].pairs[0].%s" % f]),
+                scored)]
+    assert seen == list(_HISTORY_BLIND)
+
+
+def test_check_internal_needs_no_tree_and_says_so_by_taking_none(declared):
+    """The only check in this module that still works on a census whose
+    tree is gone. It takes one argument on purpose."""
+    flag = json.loads(json.dumps(declared))
+    nid = sorted(k for k, v in flag["nodes"].items()
+                 if any(p["independent"] and p["tree_derived"]
+                        for p in v.get("pairs", [])))[0]
+    for p in flag["nodes"][nid]["pairs"]:
+        p["tree_derived"] = False
+    keys = [k for k, _why in A.check_internal(flag)]
+    assert [A.check_internal(declared), "costly_nodes" in keys] == [[], True]
+
+
+def test_costly_nodes_and_nodes_are_two_records_of_one_fact(declared):
+    """On this tree they agree, which is the positive control: the check
+    above is not passing because the derivation is wrong in the same
+    direction as the file."""
+    assert A.costly_from_nodes(declared["nodes"]) == \
+        sorted(declared["costly_nodes"])
+
+
+def test_totals_derivable_from_nodes_agree_with_the_totals_on_disk(declared):
+    """Twelve of the census's totals are sums over `nodes` and are
+    re-derived here from `nodes` alone. The ones that are NOT derivable
+    (`files`, `test_functions`, `asserts`, `assert_kinds`,
+    `functions_with_*`) are absent from `totals_from_nodes` rather than
+    approximated, and that absence is asserted as a shape."""
+    got = A.totals_from_nodes(declared["nodes"])
+    not_derivable = ("files", "test_functions", "asserts", "assert_kinds",
+                     "functions_with_magnitude", "functions_with_shape")
+    assert [sorted(k for k in not_derivable if k in got),
+            [(k, got[k], declared["totals"][k]) for k in sorted(got)
+             if declared["totals"].get(k) != got[k]]] == [[], []]
+
+
+def test_check_node_bodies_matches_pairs_by_index_and_says_which(live):
+    """Matching by TEXT is what blinds `check_coordinates` to a text edit,
+    and a text edit is what this function is for. So it matches by index,
+    and a REORDER shows here as several field diffs -- asserted rather than
+    left as a docstring claim."""
+    one = [f for f in A.candidates(live) if len(f["pairs"]) >= 2][0]
+    nid = "%s::%s" % (one["file"], one["func"])
+    d = A.build_census(live)
+    d["nodes"][nid]["pairs"] = list(reversed(d["nodes"][nid]["pairs"]))
+    where = [w for n, w, _dv, _lv in A.check_node_bodies(d, live) if n == nid]
+    assert [A.check_node_bodies(A.build_census(live), live),
+            len(where) > 1, all(w.startswith("pairs[") for w in where)] == \
+        [[], True, True]
+
+
+def test_the_residual_excludes_exactly_the_keys_that_have_a_delegate():
+    """`_residual`'s `ignore` tuple is a promise that something else ranges
+    over those keys. Round 524's measurement is that the promise was true
+    for one leaf of eleven. Pin the tuple: a THIRD exclusion added later
+    must arrive with its delegate, and this is the test that asks for it."""
+    src = ast.parse(open(A.__file__, encoding="utf-8").read())
+    fn = next(n for n in ast.walk(src)
+              if isinstance(n, ast.FunctionDef) and n.name == "_residual")
+    kw = next(k for n in ast.walk(fn) if isinstance(n, ast.Call)
+              for k in n.keywords if k.arg == "ignore")
+    assert [e.value for e in kw.value.elts] == ["nodes", "costly_nodes"]
+
+
+def test_the_cli_prints_every_check_it_gates_on():
+    """The green gate and the report must range over the SAME checks. Round
+    524 added two; a check gated on but never printed would exit 1 with no
+    line naming why, and a check printed but not gated would print its
+    findings underneath the words "ledger agrees"."""
+    src = open(A.__file__, encoding="utf-8").read()
+    tree = ast.parse(src)
+    gate = sorted(set(
+        n.id
+        for node in ast.walk(tree) if isinstance(node, ast.If)
+        and isinstance(node.test, ast.UnaryOp)
+        and isinstance(node.test.op, ast.Not)
+        and isinstance(node.test.operand, ast.BoolOp)
+        and isinstance(node.test.operand.op, ast.Or)
+        and any(isinstance(v, ast.Name) and v.id == "residual"
+                for v in node.test.operand.values)
+        for n in node.test.operand.values if isinstance(n, ast.Name)))
+    report = src.split('print("GONE')[1].split("regenerate:")[0]
+    ungated = [n for n in ("missing", "extra", "cmiss", "cextra", "moved",
+                           "residual", "bodies", "internal") if n not in gate]
+    unprinted = [n for n in ("bodies", "internal") if n not in report]
+    assert [ungated, unprinted, "BODY" in report,
+            "INCONSISTENT" in report] == [[], [], True, True]

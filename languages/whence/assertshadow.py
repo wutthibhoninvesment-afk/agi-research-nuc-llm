@@ -894,6 +894,14 @@ def load_census(path=None):
         return json.load(fh)
 
 
+def _short_val(v):
+    """One line, bounded. A `moves` list can be kilobytes and a BODY line
+    that wraps twenty times is the unreadable rendering `_residual`'s
+    docstring rejects, arriving from the other side."""
+    s = repr(v)
+    return s if len(s) <= 60 else s[:57] + "..."
+
+
 def check_census(declared, funcs):
     """`(missing, extra)` -- declared-but-gone, and live-but-undeclared.
 
@@ -963,6 +971,191 @@ def check_costly(declared, funcs):
     live = set(costly_ids(funcs))
     old = set(declared.get("costly_nodes", []))
     return sorted(old - live), sorted(live - old)
+
+
+#: Pair fields that only exist once `--history` has run. `--check`
+#: deliberately does not run `add_history` (it is a `git log -L` per pair),
+#: so these are on the declared side and not the live one. `_residual`
+#: already drops the corresponding TOTALS for exactly this reason; this is
+#: the same rule one level down, at the pair.
+HISTORY_PAIR_FIELDS = ("commits_touching", "literal_edits", "moves", "repins")
+
+#: The two pair fields `check_coordinates` owns. It reports them in a
+#: strictly better form: it matches on ASSERTION TEXT, so it can tell a
+#: pair that MOVED from a pair list that was REORDERED, which a positional
+#: field diff cannot. Excluded here so one drift is not reported twice.
+COORDINATE_PAIR_FIELDS = ("magnitude_line", "shape_line")
+
+
+def check_node_bodies(declared, funcs):
+    """Drift INSIDE `nodes` -- the sub-document every other check projects.
+
+    ROUND 524'S FINDING, and it is round 512's rule arriving one level
+    further down than round 516 took it.
+
+    `_residual` is total over the census's TOP-LEVEL keys, and it is total
+    because it diffs the document this run would write against the one on
+    disk. It buys that totality by naming two exclusions out loud, `nodes`
+    and `costly_nodes`, on the ground that `check_census`,
+    `check_coordinates` and `check_costly` "already report them in a form a
+    reader can act on". Round 524 measured that delegation instead of
+    reading it, by mutating one leaf at a time inside `nodes` and asking
+    `--check`:
+
+        mutation (one leaf under `nodes`)          --check says
+        ---------------------------------------    -----------------
+        a pair's `magnitude` TEXT rewritten         ledger agrees
+        a pair's `shape` TEXT rewritten             ledger agrees
+        a pair's `independent` flag flipped         ledger agrees
+        a pair's `tree_derived` flag flipped        ledger agrees
+        a pair's `remedy` rewritten                 ledger agrees
+        a whole pair DELETED from a live node       ledger agrees
+        a pair DUPLICATED into a live node          ledger agrees
+        a pair's `magnitude_line` moved +7          MOVED  (seen)
+
+    Seven of eight. The delegation holds for exactly ONE of the eleven
+    leaves under `nodes`, because each of the three delegates ranges over a
+    PROJECTION of the key it was credited with:
+
+      * `check_census`  diffs the node-id SET -- the KEYS of `nodes`, never
+        a value.
+      * `check_costly`  diffs `costly_nodes` against the LIVE tree, so the
+        declared `nodes` never participates: flipping `tree_derived` inside
+        `nodes` leaves the census self-contradictory and unreported.
+      * `check_coordinates` reaches two fields, and only for pairs whose
+        text it can still match -- its `if not same_text: continue` is the
+        same un-matched-default shape round 522 fixed in `subjprov`, one
+        level up.
+
+    SO: AN EXCLUSION IS ONLY AS TOTAL AS THE CHECK IT DELEGATES TO. Naming
+    an exclusion out loud, which `_residual` does and which is better than
+    the alternative, does not make the named delegate range over it.
+
+    This is the missing delegate. It compares node VALUES field by field,
+    which is what makes it actionable where a whole-key diff of 39 nodes
+    would not be -- the readability objection in `_residual`'s docstring is
+    correct and is answered by the RENDERING, not by dropping the check.
+
+    Pairs are matched by INDEX here, deliberately and unlike
+    `check_coordinates`. Matching by text is what blinds that function to a
+    text edit, and a text edit is precisely what this function is for. A
+    reorder therefore shows up here as several field diffs; that is not a
+    misreport, and `check_coordinates` remains the authority on move-vs-
+    reorder because it is the one that can tell them apart.
+
+    Returns `[(node_id, where, declared_value, live_value)]`, `where` being
+    `lineno`, `pairs` or `pairs[i].field`."""
+    live = build_census(funcs, history="_history" in declared)["nodes"]
+    scored = any(f.get("pairs") and "literal_edits" in f["pairs"][0]
+                 for f in funcs if f.get("pairs"))
+    skip = set(COORDINATE_PAIR_FIELDS)
+    if not scored:
+        skip |= set(HISTORY_PAIR_FIELDS)
+    out = []
+    for nid in sorted(set(declared.get("nodes", {})) & set(live)):
+        d, l = declared["nodes"][nid], live[nid]
+        if d.get("lineno") != l.get("lineno"):
+            out.append((nid, "lineno", d.get("lineno"), l.get("lineno")))
+        dp, lp = d.get("pairs", []), l.get("pairs", [])
+        if len(dp) != len(lp):
+            out.append((nid, "pairs", "%d pair(s)" % len(dp),
+                        "%d pair(s)" % len(lp)))
+        for i, (a, b) in enumerate(zip(dp, lp)):
+            for k in sorted((set(a) | set(b)) - skip):
+                if a.get(k) != b.get(k):
+                    out.append((nid, "pairs[%d].%s" % (i, k),
+                                a.get(k), b.get(k)))
+    return out
+
+
+def totals_from_nodes(nodes):
+    """The subset of `totals` derivable from `nodes` ALONE, no tree.
+
+    Everything keyed on `asserts` or on non-candidate functions (`files`,
+    `test_functions`, `asserts`, `assert_kinds`, `functions_with_*`) is NOT
+    derivable from `nodes` and is deliberately absent rather than
+    approximated -- a total that is nearly right is the failure this whole
+    module is about."""
+    pairs = [(nid, p) for nid in nodes for p in nodes[nid].get("pairs", [])]
+    remedies = {}
+    for _nid, p in pairs:
+        remedies[p["remedy"]] = remedies.get(p["remedy"], 0) + 1
+    def _any(nid, pred):
+        return any(pred(p) for p in nodes[nid].get("pairs", []))
+    out = {
+        "candidates": len(nodes),
+        "pairs": len(pairs),
+        "pairs_strict": sum(1 for _n, p in pairs if p["magnitude_strict"]),
+        "pairs_widened_only": sum(1 for _n, p in pairs
+                                  if not p["magnitude_strict"]),
+        "pairs_conditional": sum(1 for _n, p in pairs
+                                 if p["magnitude_conditional"]),
+        "pairs_count_implied": sum(1 for _n, p in pairs
+                                   if p["count_implied"]),
+        "remedies": remedies,
+        "pairs_costly": sum(1 for _n, p in pairs
+                            if p["independent"] and p["tree_derived"]),
+        "candidates_costly": sum(
+            1 for nid in nodes
+            if _any(nid, lambda p: p["independent"] and p["tree_derived"])),
+        "pairs_independent": sum(1 for _n, p in pairs if p["independent"]),
+        "candidates_independent": sum(
+            1 for nid in nodes if _any(nid, lambda p: p["independent"])),
+        "shadowed_shape_asserts": len(set(
+            (nid.split("::")[0], p["shape_line"]) for nid, p in pairs)),
+    }
+    if any("repins" in p for _n, p in pairs):
+        out["pairs_with_history"] = sum(1 for _n, p in pairs if "repins" in p)
+        out["literal_edits"] = sum((p.get("literal_edits") or 0)
+                                   for _n, p in pairs)
+        out["repins"] = sum((p.get("repins") or 0) for _n, p in pairs)
+        out["pairs_with_a_repin"] = sum(1 for _n, p in pairs if p.get("repins"))
+    return out
+
+
+def costly_from_nodes(nodes):
+    """`costly_nodes` as the census's own `nodes` imply it. No tree."""
+    return sorted(nid for nid in nodes
+                  if any(p["independent"] and p["tree_derived"]
+                         for p in nodes[nid].get("pairs", [])))
+
+
+def check_internal(declared):
+    """Is the census consistent WITH ITSELF? Declared against declared.
+
+    Every other check in this module compares the document to the TREE, so
+    all of them go quiet the moment a reader has a document that is not a
+    faithful record of any tree -- a hand edit, a half-applied patch, a
+    generator interrupted between writing `nodes` and writing `totals`.
+    Round 524 produced exactly that state by flipping one `tree_derived`
+    flag: `costly_nodes` and `nodes` then disagreed about which nodes are
+    costly, and nothing said so, because `check_costly` asks the TREE and
+    never asks the other half of the file it is reading.
+
+    This check needs no tree and cannot fall behind one. It is the cheapest
+    check in the module and the only one that still works on a census
+    whose tree is gone."""
+    out = []
+    nodes = declared.get("nodes", {})
+    want = costly_from_nodes(nodes)
+    got = sorted(declared.get("costly_nodes", []))
+    if want != got:
+        miss, extra = sorted(set(want) - set(got)), sorted(set(got) - set(want))
+        out.append(("costly_nodes",
+                    "`nodes` implies %d costly node(s), `costly_nodes` "
+                    "lists %d%s%s"
+                    % (len(want), len(got),
+                       "; absent from costly_nodes: %s" % ", ".join(miss[:3])
+                       if miss else "",
+                       "; listed but not implied: %s" % ", ".join(extra[:3])
+                       if extra else "")))
+    declared_totals = declared.get("totals", {})
+    for k, v in sorted(totals_from_nodes(nodes).items()):
+        if k in declared_totals and declared_totals[k] != v:
+            out.append(("totals.%s" % k,
+                        "`nodes` implies %r, `totals` says %r"
+                        % (v, declared_totals[k])))
+    return out
 
 
 def _residual(declared, funcs):
@@ -1123,6 +1316,11 @@ def main(argv):
         # only from a test is a gate the author of a change does not run.
         cmiss, cextra = check_costly(declared, funcs)
         moved = check_coordinates(declared, funcs)
+        # ROUND 524: the delegates `_residual`'s two exclusions name. Seven
+        # of the eight leaf mutations under `nodes` measured in round 524
+        # were reported by NOTHING before these two lines existed.
+        bodies = check_node_bodies(declared, funcs)
+        internal = check_internal(declared)
         # ROUND 516: everything above ranges over `nodes` and
         # `costly_nodes`. `checkscope.py --scope` mutated this census one
         # top-level key at a time and pointed this very verb at each
@@ -1134,7 +1332,8 @@ def main(argv):
         # The residual is not a seventh bespoke comparison: it is the
         # document this run would write, diffed against the one on disk.
         residual = _residual(declared, funcs)
-        if not (missing or extra or cmiss or cextra or moved or residual):
+        if not (missing or extra or cmiss or cextra or moved or residual
+                or bodies or internal):
             print("assert-shadow census: %d candidate node(s), ledger agrees"
                   % totals(funcs)["candidates"])
             return 0
@@ -1149,12 +1348,19 @@ def main(argv):
         for nid, dm, ds, lm, ls in moved:
             print("MOVED    %s  ledger %d/%d -> tree %d/%d"
                   % (nid, dm, ds, lm, ls))
+        for key, why in internal:
+            print("INCONSISTENT %-16s %s  (the census contradicts itself; "
+                  "no tree was consulted)" % (key, why))
+        for nid, where, dv, lv in bodies:
+            print("BODY     %s  %s: ledger %s -> tree %s"
+                  % (nid, where, _short_val(dv), _short_val(lv)))
         for key, why in residual:
             print("DRIFT    %-20s %s" % (key, why))
         if residual:
-            print("         (`nodes` is compared as a set and by "
-                  "coordinate above; its per-pair `literal_edits` need "
-                  "--history and are NOT compared here)")
+            print("         (`nodes` and `costly_nodes` are excluded from "
+                  "this diff and reported by BODY / INCONSISTENT / MOVED "
+                  "above; the four `--history` pair fields need --history "
+                  "and are NOT compared)")
         print("regenerate: cd languages/whence && python3 assertshadow.py "
               "--history --json <census>")
         return 1
