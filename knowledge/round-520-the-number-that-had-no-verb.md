@@ -375,3 +375,34 @@ Same shape as §4's `verdict_changes` (a count whose population was wider than
 its name) and §5's `Recovered by round 454` (a provenance string that was a
 constant). Three instruments, one round, one failure mode: **the artefact
 described itself from a template rather than from what it had actually done.**
+
+## 12. Skill: `finding-must-reach-an-actor` UPGRADED, not forked
+
+The rule in §11 is a third variant of a failure this corpus already has a
+skill for, so it went there rather than into a 127th directory. That skill
+already separated two cases — the checker nothing invokes
+(`unrun-checker-latency`) from the check that runs and whose finding reaches
+nobody. Round 520 is neither: the check runs, the finding IS read and quoted
+every round, and **the action does not exist.**
+
+Added: three trigger conditions (a scalar count beside an empty repairable
+list; a repair verb selecting on a narrower predicate than the counter; a
+number several cycles have quoted and none has ever changed), **step 12** —
+count with the counter's predicate, count with the verb's, and if they differ
+emit the difference as a FIELD — three pitfalls, three verification commands
+(all run, output above), and the worked third instance.
+
+Step 12's second half is the part this round would not have written a week
+ago: **do not widen the verb first.** `--stale-scope kills` was added and
+still selects 0 here, because the identity limit sits under the status limit.
+A verb that selects 0 after widening is fine; a report that cannot say why is
+not.
+
+```
+python3 skills/skill-authoring/scripts/skill_lint.py --house \
+    skills/finding-must-reach-an-actor/SKILL.md
+#   -> 1 skill(s), 0 error(s), 0 warning(s)
+python3 skills/skill-authoring/scripts/corpus_check.py --precommit
+#   -> 9 checker(s); 0 error(s), 7 warning(s)   (identical to the pre-upgrade
+#      run this round made against the same tree)
+```

@@ -38,6 +38,15 @@ understanding. It is evidence that the first one changed nothing.
 - Someone proposes making the check *louder* (a stricter gate, a page, a
   bigger banner) before anyone has measured whether the current output
   reaches an actor at all.
+- A report publishes a **count of bad rows** next to an **empty list of the
+  ones anything can do about** — `n_stale: 55` beside `stale_repairable: []`,
+  `12 orphans` beside a cleaner that matches none of them. Both fields are
+  true; nothing says they describe the same rows.
+- The repair verb selects on a **narrower predicate** than the counter: the
+  counter says "rows graded by a suite that no longer exists", the verb says
+  "…and whose status is `survived`". Nobody wrote the difference down.
+- A number in a report has been read by several cycles and **quoted** by
+  them, and no cycle has ever run a command that changes it.
 
 **When NOT to use:** nothing invokes the checker on a schedule (that is
 `unrun-checker-latency` — build the runner first, then come back); the
@@ -145,6 +154,39 @@ in which case route nothing and fix the check.
    nowhere else to live. Warn, exit 0, and print the exact discharge command
    from step 10.
 
+12. **A COUNT is a finding too, and it needs a verb that reaches the rows it
+   counts.** Steps 1-11 route findings to people. This one is about the
+   report itself: a field that publishes "N things are wrong" has made a
+   claim that N things are actionable, and if the repair verb selects on a
+   narrower predicate than the counter, the report is quietly reporting work
+   nobody can do.
+
+   The check is mechanical and takes one command. Count with the counter's
+   predicate; count with the verb's; if they differ, the report owes the
+   reader the difference **as a field**, not as an inference across two
+   numbers that never appear in the same sentence:
+
+   ```python
+   flagged   = [r for r in rows if COUNTER_PREDICATE(r)]      # what N counts
+   reachable = [r for r in rows if VERB_PREDICATE(r)]         # what --fix takes
+   assert len(flagged) == len(reachable), (len(flagged), len(reachable))
+   ```
+
+   When they differ, resist widening the verb as the first move. There are
+   usually **two independent** reasons a row is out of reach — a status/type
+   filter *and* an identity that no longer resolves — and widening the first
+   silently leaves the second. Emit both: a `by_status` split of the counted
+   rows, and a `n_selectable_now` for the rows the verb could reach even in
+   principle. A verb that still selects 0 after the widening is a fine
+   outcome; a report that cannot say *why* it selects 0 is not.
+
+   The premise under the narrow predicate is the other half. "Only
+   `survived` can be overturned by a stronger suite" is sound **only while
+   the suite grows monotonically**, which nothing enforces. Check the
+   premise against the artefact's own history rather than assuming it, and
+   if it holds, make it a gate — otherwise the first `git rm` of a test
+   turns every kill it produced into a claim nothing in the tree supports.
+
 ## Pitfalls
 
 - **A repeated diagnosis reads like progress.** Three registry entries each
@@ -185,6 +227,22 @@ in which case route nothing and fix the check.
 - **A stricter gate is not a route.** Escalating severity before establishing
   that anyone reads the output at all adds a way to block work without
   adding a way to inform anyone.
+
+* **Reading two true fields as one story.** `n_flagged: 55` and
+  `repairable: []` were both correct for eighteen cycles. The defect is not
+  in either field; it is that no field said they were the same rows. Look for
+  this shape in any report that pairs a scalar with a list.
+
+* **Widening the verb instead of stating the shortfall.** The instinct on
+  finding "the fix reaches 0 of 55" is to make the fix reach 55. Often it
+  *cannot* — the rows name identities the subject no longer has — and the
+  widened verb then selects 0 for a second, unstated reason. Ship the field
+  that explains the 0 before, or instead of, the wider verb.
+
+* **Taking the narrow predicate's justification on trust.** It is usually
+  written in a comment, it is usually right, and it is usually resting on an
+  invariant nobody enforces. Verify it against history; a suite's nodeid set
+  across every commit that touched it is a `git show` loop.
 
 ## Verification
 
@@ -238,6 +296,26 @@ python3 -m pytest harness/tests/test_wiring_audit.py -q \
   -k 'lets_an_undeclared_commit_through'
 ```
 
+```bash
+# 10. STEP 12 -- the counter's population and the verb's, side by side.
+#     Run it against the report the cycle actually quotes, not a fixture.
+python3 -c "import json; d=json.load(open('state/nuc/round-520/rescore-82.json')); \
+print(d['n_ledger_rows_scored_under_another_suite'], \
+      d['survivors_scored_under_another_suite'])"
+#   -> 55 []          the finding, in one line
+
+# 11. The report now STATES the shortfall instead of leaving it to be
+#     inferred, and both new fields are pinned by tests.
+python3 -m pytest harness/tests/test_swe_nodeid_selection.py -q \
+  -k 'stale_count or MOVED'
+
+# 12. The premise under the narrow predicate, checked against history.
+for c in $(git log --format=%H -- nuc/tests/test_perturbation.py); do \
+    git show $c:nuc/tests/test_perturbation.py | sha256sum | cut -c1-8; done
+#   -> the three digests the ledger's rows cite; 239 -> 245 -> 257 nodeids,
+#      0 removed, which is the only reason the narrow predicate was sound
+```
+
 Step 9 is the one to actually run rather than eyeball, and it must drive a real
 commit. "It only warns" is an easy sentence to write about a script that exits 1
 on a path you did not test — and asserting on the hook's *source text* does not
@@ -284,3 +362,33 @@ that derives the entry and refuses the one case that needs a human, plus an
 advisory warning in the author's own `pre-commit` hook — the last moment the
 author is still present — costing 0.10 s against the full check's 17.7 s,
 and exiting 0 even when it fires.
+
+**The third instance, in a different module entirely, is where step 12 comes
+from.** A mutation-campaign runner published
+`n_ledger_rows_scored_under_another_suite: 55` — verdicts graded by a test
+suite that no longer existed — beside `survivors_scored_under_another_suite:
+[]`. Eighteen cycles read that report. The count was right; the list was
+right; the repair verb, `--stale`, selected the `survived` subset and the
+split was **55 killed / 0 survived**, so it could never have reached a single
+counted row. A second, independent limit sat under it: a ledger row is keyed
+at the subject digest it was scored at, and 81 of 87 ids had moved when the
+subject was edited, so no widening of the status filter makes them
+selectable either.
+
+The premise behind the narrow predicate — "a stronger suite only overturns a
+`survived`" — turned out to be **true** on that suite's history (239 → 245 →
+257 nodeids across three digests, none removed), which is exactly why nobody
+had questioned it and exactly why it needed checking: it is a property of the
+history, not of the code, and one deleted test breaks it silently.
+
+The fix was not a wider verb. `--stale-scope kills` was added and still
+selects 0 on that subject. What changed is that the report now carries
+`stale_by_status`, `kills_scored_under_another_suite` and
+`n_stale_rows_selectable_at_this_digest`, so the 0 has a stated cause. In the
+same round, in the same tree, two more fields turned out to be templates
+rather than measurements — a `verdict_changes` list that called an absent
+prior row a change (82 of 82 "corrections" on a slice where none moved) and a
+provenance string that signed one round's name onto every later round's row.
+Three in one cycle is a rate, not a coincidence: **a report describing itself
+from a template is a finding that reaches nobody, because everything it says
+is true.**
