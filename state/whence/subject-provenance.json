@@ -689,8 +689,8 @@
     },
     {
       "node": "test_checkscope.py::test_the_walk_is_recursive",
-      "magnitude_line": 741,
-      "shape_line": 742,
+      "magnitude_line": 755,
+      "shape_line": 756,
       "magnitude": "census['files'] == 1",
       "independent": true,
       "heuristic": false,

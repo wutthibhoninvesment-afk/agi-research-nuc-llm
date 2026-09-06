@@ -232,13 +232,17 @@ come through a named helper (12 of those newly visible via recursion and the
 
 ## 7. Costs this round paid, and one it declined
 
-- **A mutation-derived ledger went stale from my own new tests** — round 518's
-  next-step #5, paid the expensive way for the second round running. Adding 30
-  assertions to `languages/whence/tests/` moved `assert-shadow-census.json`,
-  and regenerating that moved `subject-provenance.json` in turn:
-  `corpusledger.py --fix` had to run **twice** before `--check` reported *every
-  generated ledger reproduces byte-for-byte*. Regenerate AFTER the last test
-  edit, and re-check after each regeneration.
+- **A mutation-derived ledger went stale from my own new tests, TWICE** —
+  round 518's next-step #5, paid the expensive way for the second round
+  running. Adding 30 assertions to `languages/whence/tests/` moved
+  `assert-shadow-census.json`, and regenerating that moved
+  `subject-provenance.json` in turn, so `corpusledger.py --fix` had to run
+  twice each time. The second episode is the sharper one: it was triggered by
+  a **sixteen-line comment** added after the first regeneration, because the
+  census records each pair's `magnitude_line` and every line below the
+  insertion moved. "Regenerate after the last TEST edit" is not the rule —
+  it is *after the last edit to any file the ledger derives from, including
+  comments*, and the freshness check is the only thing that will tell you.
 - **One existing node needed editing**, and not for the reason predicted:
   `test_subjprov.py::test_the_number_of_census_pairs_is_pinned` is `assert
   len(rows) == 58` and my `test_the_walk_is_recursive` carries a shadow pair,
@@ -254,6 +258,16 @@ come through a named helper (12 of those newly visible via recursion and the
   explicitly rejects an 18 s audit as "not a thing to put in front of every
   commit". `--precommit` is 36 s+. It belongs in the driver prompt, which is
   `run_driver.sh` — harness(A)'s file, and one that re-execs itself mid-round.
+- **The pre-commit hook's `escapes --staged` step earned its keep, in the
+  round that opened the defect.** Three of the new nodes scan `harness/tests/`
+  and `skills/` — outside the whence subtree — via
+  `os.path.dirname(...×3)(HERE)`, which would redden
+  `harness/tests/test_swe_copyparity_real_subject.py`, a suite this track does
+  not run, and which resolves to `/tmp` under a `harness/swe/mutation.py` copy
+  of `languages/whence` alone. Routed through `curecheck.AGI_ROOT` (round
+  413's rule). **This is the OWNER-vs-OPENER gap closing for once**: the
+  warning reached the author at commit time instead of a health log the author
+  never sees.
 - **`readset.py blast` on this round's diff implicated 20 files and did not
   implicate `test_checkscope.py`**, the suite that imports the changed module.
   It ran in a degraded mode (`map no git HEAD available on one side; cannot

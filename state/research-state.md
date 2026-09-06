@@ -29165,9 +29165,17 @@ entry here; nothing below is inferred from intentions.*
   examined nothing and exited 0 is the failure that looks like a pass. The
   census carries a conservation invariant, pinned.
 - **Costs paid, and one decline that is measured rather than deferred.** Round
-  518's #5 again: 30 new assertions moved `assert-shadow-census.json`, whose
-  regeneration moved `subject-provenance.json` — `corpusledger.py --fix` twice
-  before `--check` said *every generated ledger reproduces byte-for-byte*. One
+  518's #5 again, TWICE: 30 new assertions moved `assert-shadow-census.json`,
+  whose regeneration moved `subject-provenance.json` — `corpusledger.py --fix`
+  twice each time before `--check` said *every generated ledger reproduces
+  byte-for-byte*. The second episode was triggered by a SIXTEEN-LINE COMMENT,
+  because the census records `magnitude_line`, so the rule is "after the last
+  edit to anything the ledger derives from", not "after the last test". The
+  pre-commit `escapes --staged` step also fired, in the round that opened the
+  defect: three new nodes reached outside the whence subtree via
+  `dirname×3(HERE)` and would have reddened
+  `harness/tests/test_swe_copyparity_real_subject.py`, a suite this track does
+  not run. Routed through `curecheck.AGI_ROOT` (round 413's rule). One
   existing node edited (`test_subjprov.py:547`, `58 -> 59`), its equality left
   as its author designed it. **Round 513's #1 is DECLINED with a reason**: the
   obvious home for `corpus_check --precommit` is `.git/hooks/pre-commit`, and

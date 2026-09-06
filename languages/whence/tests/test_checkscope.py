@@ -26,6 +26,20 @@ sys.path.insert(0, os.path.dirname(HERE))
 
 import checkscope as C                                          # noqa: E402
 import corpusledger as CL                                       # noqa: E402
+import curecheck as _CC                                         # noqa: E402
+
+#: Round 519: the repo root, resolved from `curecheck.AGI_ROOT` (which
+#: prefers `AGI_RESEARCH_ROOT`, exported by `harness/swe/proc.py` into every
+#: test subprocess) rather than from this file's own `__file__`. The three
+#: round-519 nodes below scan `harness/tests/` and `skills/`, which are
+#: OUTSIDE this subtree, and under a `harness/swe/mutation.py` copy of
+#: `languages/whence` alone a `__file__`-derived root is `/tmp` -- so they
+#: would scan nothing and their floors would fail the copy's baseline. This
+#: is round 413's rule and `harness/swe/copyparity.py` measures it; the
+#: pre-commit hook's `escapes --staged` step flagged the first draft of
+#: these three, in the round that opened them, which is the only place the
+#: author is still present.
+REPO_ROOT = _CC.AGI_ROOT
 
 
 # ---------------------------------------------------------------------------
@@ -845,7 +859,7 @@ def test_the_three_live_trees_all_have_a_readable_population():
     regression. FLOORS, not equalities: these are live corpora and they
     grow. What must not come back is a ZERO -- the skills tree reported
     0 assertions out of 1 026 test functions before this round."""
-    root = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
+    root = REPO_ROOT
     for rel, min_files, min_asserts in (("harness/tests", 90, 4500),
                                         ("skills", 15, 2000),
                                         ("languages/whence/tests", 70, 4000)):
@@ -860,7 +874,7 @@ def test_the_skills_corpus_is_unittest_and_has_no_bare_assert():
     pytest and 100% bare `assert`; the checker corpus one directory over
     is `unittest` and 0% bare `assert`. The blindness is invisible from
     inside the tree the instrument was built in."""
-    root = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
+    root = REPO_ROOT
     _r, c = C.selfref_scan(os.path.join(root, "skills/skill-authoring/scripts"))
     assert c["bare"] == 0
     assert c["unittest"] >= 1800

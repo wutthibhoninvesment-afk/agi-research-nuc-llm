@@ -220,14 +220,14 @@
       ]
     },
     "test_checkscope.py::test_the_walk_is_recursive": {
-      "lineno": 728,
+      "lineno": 742,
       "pairs": [
         {
-          "magnitude_line": 741,
+          "magnitude_line": 755,
           "magnitude": "census['files'] == 1",
           "magnitude_strict": true,
           "magnitude_conditional": false,
-          "shape_line": 742,
+          "shape_line": 756,
           "shape": "_names(rows) == ['test_x']",
           "count_implied": false,
           "independent": true,
@@ -235,9 +235,9 @@
           "reorder_safe": true,
           "remedy": "reorder",
           "tree_derived": false,
-          "literal_edits": null,
-          "commits_touching": null,
-          "repins": null,
+          "literal_edits": 0,
+          "commits_touching": 1,
+          "repins": 0,
           "moves": []
         }
       ]
