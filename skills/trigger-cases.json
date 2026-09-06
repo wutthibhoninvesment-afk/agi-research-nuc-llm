@@ -3422,5 +3422,31 @@
   "id": "iahc-neg",
   "expect": [],
   "prompt": "Our static analyzer flags 14 potential null dereferences in the payments module. Walk through them with me and tell me which are real - I've already confirmed the analyzer covers every file in that module."
+ },
+ {
+  "id": "ltrmtav-near",
+  "expect": [
+   "live-tree-read-must-tolerate-a-vanish"
+  ],
+  "prompt": "Our nightly image build died with `shutil.Error: [('/srv/checkout/scratch_2841.tmp', '/build/stage/scratch_2841.tmp', \"[Errno 2] No such file or directory\")]` while copying the source checkout into the build sandbox. The file isn't there now and nobody can say what wrote it. It built fine when I reran it by hand. What do I actually fix?"
+ },
+ {
+  "id": "ltrmtav-mid",
+  "expect": [
+   "live-tree-read-must-tolerate-a-vanish"
+  ],
+  "prompt": "Two of our test suites copy the same source directory into a sandbox before mutating it. One of them has been fine for months and the other crashes maybe once a week during CI, always with ENOENT on a path that no longer exists. Same tree, same ignore list. I was going to add a retry around the crashing one."
+ },
+ {
+  "id": "ltrmtav-far",
+  "expect": [
+   "live-tree-read-must-tolerate-a-vanish"
+  ],
+  "prompt": "A test in team A's package went red once in CI and was green on the next run, and nobody touched it. The failure was a collection error: one module does a `shutil.copytree` of the repo at import time and it blew up, so pytest collected zero tests for the whole directory. Team A doesn't own the code that copy reads. I'd like to grep for whoever writes temp files into the source tree and file bugs on them."
+ },
+ {
+  "id": "ltrmtav-neg",
+  "expect": [],
+  "prompt": "Our packaging step fails with `FileNotFoundError: 'dist/app.wasm'` every single time on a clean checkout. The build script expects the wasm artefact to already exist because a previous stage was supposed to emit it, and that stage was removed in a refactor last week. Nothing else runs concurrently. Can you help me restore the missing stage?"
  }
 ]

@@ -1,0 +1,141 @@
+........................................................................ [  4%]
+........................................................................ [  8%]
+........................................................................ [ 12%]
+........................................................................ [ 16%]
+........................................................................ [ 21%]
+........................................................................ [ 25%]
+....................................F................................... [ 29%]
+........................................................................ [ 33%]
+........................................................................ [ 38%]
+........................................................................ [ 42%]
+........................................................................ [ 46%]
+........................................................................ [ 50%]
+........................................................................ [ 54%]
+........................................................................ [ 59%]
+........................................................................ [ 63%]
+........................................................................ [ 67%]
+........................................................................ [ 71%]
+........................................................................ [ 76%]
+........................................................................ [ 80%]
+........................................................................ [ 84%]
+........................................................................ [ 88%]
+........................................................................ [ 92%]
+........................................................................ [ 97%]
+.................................................                        [100%]
+=================================== FAILURES ===================================
+_ TestParseStepsOnTheHookText.test_every_generation_of_the_hook_that_ever_existed_parses _
+
+self = <tests.test_hookaudit.TestParseStepsOnTheHookText testMethod=test_every_generation_of_the_hook_that_ever_existed_parses>
+
+    def test_every_generation_of_the_hook_that_ever_existed_parses(self):
+        """A parser written against HEAD's text is the staleness defect this
+        module is about, one level up. All four commits that ever touched
+        `harness/escalationguard.py` carry a `hook_script`; each generation
+        adds exactly one step and keeps exactly one blocking step."""
+        rc = subprocess.run(["git", "log", "--format=%H", "--reverse", "--",
+                             "harness/escalationguard.py"], cwd=REPO_ROOT,
+                            stdout=subprocess.PIPE)
+        shas = rc.stdout.decode().split()
+        if not shas:                       # no history (a tarball checkout)
+            self.skipTest("no git history for harness/escalationguard.py")
+        import importlib.util
+        import tempfile
+        counts = []
+        with tempfile.TemporaryDirectory() as td:
+            for i, sha in enumerate(shas):
+                blob = subprocess.run(
+                    ["git", "show", "%s:harness/escalationguard.py" % sha],
+                    cwd=REPO_ROOT, stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL)
+                if blob.returncode != 0:
+                    continue
+                path = os.path.join(td, "eg_%d.py" % i)
+                with open(path, "wb") as fh:
+                    fh.write(blob.stdout)
+                spec = importlib.util.spec_from_file_location("eg_%d" % i,
+                                                              path)
+                mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+                steps = ha.parse_steps(mod.hook_script())
+                self.assertGreater(len(steps), 0, sha)
+                self.assertEqual(sum(1 for s in steps if s["blocking"]), 1,
+                                 sha)
+                counts.append(len(steps))
+        self.assertEqual(counts, sorted(counts), counts)
+>       self.assertEqual(counts[-1], 4, counts)
+E       AssertionError: 5 != 4 : [1, 2, 3, 4, 5]
+
+harness/tests/test_hookaudit.py:141: AssertionError
+tier-budget: 15/15 promoted files timed, 54.1s of a 59.0s budget — worst test_swe_copyparity_real_subject.py 11.3s of 17.1s
+=========================== short test summary info ============================
+FAILED harness/tests/test_hookaudit.py::TestParseStepsOnTheHookText::test_every_generation_of_the_hook_that_ever_existed_parses
+1 failed, 1704 passed, 591 deselected in 467.56s (0:07:47)
+
+--- end of measured output; recorded status below ---
+
+slow tier: 37 files / 38 units, 0 conclusive against checkout 4717ca43b022ca67 (0% recall), 0 failing
+  + 1 file(s) LAST RAN RED, at a checkout that has since moved — not evidence about this one, and the first thing a slow-tier slice should re-run
+  + 3 file(s) conclusive WITHIN their measured read-scope only (8% combined) — the checkout moved outside what they read
+  test_swe_abconfound.py                 stale_harness      1s  6.2h ago
+      moved: swe/linkcopy.py, swe/livewrite.py, swe/mutation.py, swe/nodecampaign.py
+  test_swe_alias_effects.py              fresh_pass_scoped  329s  8.3h ago
+      scope: whence
+  test_swe_bymap.py                      stale_checkout     41s  2.5h ago
+  test_swe_campaign.py[heavy]            stale_checkout     3000s  9.3h ago
+  test_swe_campaign.py[light]            stale_checkout     3000s  0.7h ago
+      excludes: test_cli_runs_offline_stages_and_stops
+  test_swe_copyparity.py                 stale_checkout     8s  6.2h ago
+  test_swe_copyparity_real_subject.py    stale_checkout     10s  6.2h ago
+  test_swe_coverage.py                   stale_checkout     4s  7.3h ago
+  test_swe_depthceiling.py               stale_harness      1s  6.2h ago
+      moved: swe/linkcopy.py, swe/livewrite.py, swe/mutation.py, swe/nodecampaign.py
+  test_swe_equivalence.py                stale_checkout     72s  6.2h ago
+  test_swe_exemptaudit.py                stale_harness      29s  7.3h ago
+      moved: swe/linkcopy.py, swe/livewrite.py, swe/mutation.py, swe/nodecampaign.py
+  test_swe_exemptmap.py                  stale_harness      101s  3.7h ago
+      moved: swe/linkcopy.py, swe/livewrite.py, swe/mutation.py, swe/nodecampaign.py
+  test_swe_falsifiers.py                 stale_checkout     5s  3.7h ago
+  test_swe_fuzz.py                       stale_checkout     85s  2.5h ago
+  test_swe_guardpin.py                   stale_checkout     11s  6.2h ago
+  test_swe_guest.py                      stale_harness      379s  5.0h ago
+      moved: swe/mutation.py
+  test_swe_instrument.py                 stale_checkout     0s  2.5h ago
+  test_swe_killerrepin.py                stale_checkout     14s  3.7h ago
+  test_swe_killers.py                    stale_checkout     30s  6.2h ago
+  test_swe_linkcopy.py                   stale_checkout     2s  6.2h ago
+  test_swe_livewrite.py                  unknown            -
+  test_swe_loop.py                       stale_harness      0s  6.2h ago
+      moved: swe/mutation.py
+  test_swe_loop_cli.py                   stale_checkout     74s  7.3h ago
+  test_swe_mutation.py                   stale_checkout     20s  3.7h ago
+  test_swe_nodeid_selection.py           stale_checkout     15s  6.2h ago
+  test_swe_oraclekill.py                 stale_checkout     52s  6.2h ago
+  test_swe_oracles.py                    stale_checkout     6s  6.2h ago
+  test_swe_prioritize.py                 stale_checkout     3s  6.2h ago
+  test_swe_proc.py                       stale_checkout     6s  7.3h ago
+  test_swe_regiontools.py                fresh_pass_scoped  0s  3.7h ago
+      scope: whence
+  test_swe_repair.py                     stale_checkout     84s  2.5h ago
+  test_swe_review.py                     stale_checkout     94s  7.3h ago
+  test_swe_sandbox_evidence.py           stale_checkout     4s  2.5h ago   [last run RED]
+  test_swe_scopecall.py                  stale_checkout     88s  3.8h ago
+  test_swe_scoreaudit.py                 fresh_pass_scoped  1s  3.7h ago
+      scope: (nothing)
+  test_swe_spacewitness.py               stale_checkout     1s  2.5h ago
+  test_swe_toolliveness.py               stale_checkout     3s  2.5h ago
+  test_swe_triage.py                     stale_harness      0s  6.2h ago
+      moved: swe/mutation.py
+  NOTE: 35 unit(s) are NOT evidence about this checkout.
+
+RECORDED 2026-08-31T20:28:10Z (5.3 days ago) — a stored verdict, not a run just now
+  HEAD HAS MOVED SINCE: recorded at 50c7bb3caf0a, now 760b5b284326 — this verdict is NOT about the current tree
+ref HEAD (50c7bb3caf0a)   verdict dirty_worktree
+  the live tree differs from HEAD in 1 tracked file(s);
+  a differential against it cannot attribute anything.  Commit or stash first:
+    M state/baseline-ledger.jsonl
+
+procreap scan: under=/home/pgain/agi-research-nuc-llm verdict=clean matched=0 unreadable=0 (protected=2 vanished=0)
+
+whence slow tier: 32 units / 122 marked (AST), 6 conclusive against subject c03096d19b1f386b (19% recall), 2 failing
+NOTE: 26 unit(s) are NOT evidence about this checkout
+  test_branchlive.py                         unknown          2 tests  -

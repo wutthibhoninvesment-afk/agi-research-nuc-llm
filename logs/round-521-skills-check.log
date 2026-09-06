@@ -1,0 +1,12 @@
+skill_lint         warn B002              skill-lint: 123 skill(s), 0 error(s), 7 warning(s)
+case_coverage      warn P004,P006,P007,P009 case-coverage: 123 skill(s), 515 case(s) (93 negative); 50 probed under the description on disk, 27 of those on every positive case with full recall; 30 replicated (>=2 same-description reports), 47 o
+claim_check        ok                     claim_check: 401 path(s) resolved, 59 unresolvable-by-design (scratch/created/declared-absent/placeholder/output/unanchored); 0 stale claim(s) of 401 checked; coverage 401/460 paths, 0/690 commands
+state_claim_check  ok                     state_claim_check: 1 claim(s): 1 re-derivable, 0 skipped (none); 0 stale of 1 checked; coverage 1/8 items (12%), 1/1 claims
+xref_check         ok                     xref_check: 9 dangling citation(s) in the authoritative scope (0 NEW, 9 pre-acknowledged in state/known-dangling-citations.json), 120 in the historical scope
+carryforward       warn K004              carryforward: 198 bank(s) (+2 unnumbered), 194 scored, 3 unscored, 0 error(s), 33 warning(s)
+placeholder_check  warn U002              placeholder-check: 442 file(s), 6 unfilled (6 acknowledged), 31 non-bare mention(s) a plain grep would have reported, 0 error(s), 6 warning(s)
+selfdesc_check     ok                     selfdesc-check: 62 artefact(s) of 779 json file(s), 899 prose field(s), 0 error(s), 0 warning(s), 8 info, 1 acknowledged; coverage 189/899 prose-fields, 2/2 must-claims
+verb_audit         ok                     verb-audit: 33 finding(s) (V001 10, V002 0, V003 23) — all WARN, exit code unaffected
+unit_tests         ok                     1265 passed, 4 subtests passed in 171.37s (0:02:51)
+evidence: skill_lint -> logs/corpus-evidence/round-521/skill_lint.out (9 line(s), 977 char(s), rc=1)
+corpus-check: 10 checker(s), 0 error(s), 7 warning(s); coverage: case_coverage 50/123 skills, 30/123 replicated; claim_check 401/460 paths, 0/690 commands; state_claim_check 1/8 items (12%), 1/1 claims; selfdesc_check 189/899 prose-fields, 2/2 must-claims; verb_audit 37/169 verbs

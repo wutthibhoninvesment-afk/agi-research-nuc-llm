@@ -105,9 +105,18 @@ class TestParseStepsOnTheHookText(unittest.TestCase):
 
     def test_every_generation_of_the_hook_that_ever_existed_parses(self):
         """A parser written against HEAD's text is the staleness defect this
-        module is about, one level up. All four commits that ever touched
-        `harness/escalationguard.py` carry a `hook_script`; each generation
-        adds exactly one step and keeps exactly one blocking step."""
+        module is about, one level up. Every commit that ever touched
+        `harness/escalationguard.py` carries a `hook_script`; the step count
+        never decreases and exactly one step is ever blocking.
+
+        Round 521 removed a `counts[-1] == 4` literal from the end of this
+        test. It was a second, brittle spelling of a fact already pinned
+        exactly twice -- `test_the_live_generator_yields_five_steps...` here
+        and `test_the_hook_carries_all_five_steps_in_order_and_no_others` in
+        `test_escalationguard.py` -- and it failed for the ONE reason that is
+        not a defect: the hook grew. A floor keeps the regression it was for
+        (a generation that loses a step) without failing on the growth it was
+        never about."""
         rc = subprocess.run(["git", "log", "--format=%H", "--reverse", "--",
                              "harness/escalationguard.py"], cwd=REPO_ROOT,
                             stdout=subprocess.PIPE)
@@ -138,7 +147,7 @@ class TestParseStepsOnTheHookText(unittest.TestCase):
                                  sha)
                 counts.append(len(steps))
         self.assertEqual(counts, sorted(counts), counts)
-        self.assertEqual(counts[-1], 4, counts)
+        self.assertGreaterEqual(counts[-1], 4, counts)
 
 
 class TestIdentity(_Repo):

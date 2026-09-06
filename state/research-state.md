@@ -29244,6 +29244,152 @@ entry here; nothing below is inferred from intentions.*
   P9 predicted an ABSENCE without running the tool in the same directory that
   refutes it.
 
+### Round 521 — SWE-loop(D) — 2026-09-06 — the copy that could not survive a vanished file
+
+- **The RED DEBT's 2 derived nodes CLOSED, by reading the round-517 failure
+  BODY that nobody had opened.** The causing node
+  (`test_tiering.py::test_the_slow_tier_is_exactly_the_unpromoted_swe_files`)
+  passes solo and has since round 518 — the debt was an undeclared HISTORY,
+  not a live defect, so the block's "the fix is in the OTHER suite"
+  instruction pointed at a suite with nothing wrong with it.
+- **THE FINDING, in full.** `languages/whence/tests/test_polarity.py` writes
+  `_r438_suffix.lang` into the LIVE `languages/whence/` directory and removes
+  it one subprocess later. Three modules under `harness/tests/` copy that
+  directory with `shutil.copytree` at **MODULE SCOPE**
+  (`test_swe_oraclekill.py:37`, `test_swe_repair.py:38`,
+  `test_swe_review.py:117`), and the driver runs the whence and harness
+  health checks CONCURRENTLY. At round 517 `os.scandir` listed the name and
+  `copy2` got ENOENT → `shutil.Error` → **pytest COLLECTION error**, `0 of
+  557` node ids for the whole directory → `test_tiering.py` red for the first
+  time ever → no crosstrack-registry entry → R001 → `test_redattrib.py` ×2
+  red for rounds 518-521. **One untracked scratch file, one second, four
+  rounds × two nodes, in a suite whose owner did not cause it.** Neither
+  track could have seen it: the race is between two suites the DRIVER runs
+  concurrently after the round's process has exited.
+- **Repaired at the READER, not the writers.**
+  `swe.mutation._copytree_tolerating_vanished` skips and RECORDS a file
+  another process deleted between listing and copy. `lexists`, not errno, is
+  the discriminator — a dangling symlink reports the same ENOENT and still
+  raises. A mixed batch re-raises the real error alone, chaining the
+  original.
+- **The other copier had survived it silently for 24 rounds.**
+  `swe/linkcopy.py:link_tree`'s ENOENT fell through its `copy2` fallback into
+  a bare `pass`, recorded as a link *fallback reason* that `n_files` and
+  `n_fallback` never matched. Two copiers whose entire contract
+  (`swe/copyparity.py`) is that a byte sandbox and a linked sandbox are the
+  SAME sandbox, disagreeing between "complete tree" and "dead process" on the
+  one input that occurs in production. Now `n_vanished`/`vanished` on both
+  sides, with `test_the_two_copiers_now_agree_on_a_vanished_file`.
+- **`harness/swe/livewrite.py`** — the WRITE side of round 343's READ-side
+  snapshot-race detector. A kind analysis over path expressions
+  (`live`/`tmp`/`unknown`; `tmp` and `unknown` are never findings). `grep
+  -rn _r438` finds 1 file; the shape finds **15 live-rooted writes in 6
+  files across two trees** — 13 L001 in 5 files (11 distinct functions) plus
+  2 L002 that land under a `COPY_IGNORE` directory and therefore cannot
+  cause the abort. Its FIRST run reported 3 findings in
+  `test_swe_mutation.py::_tiny_checkout`, whose root is a parameter: an
+  `ast.walk` that descended into nested `def`s had leaked a
+  `root = WHENCE_ROOT` binding into the module environment. Fixed and pinned
+  — a scanner reporting its own scope bug as somebody else's defect is
+  exactly this round's subject, and it happened inside the round.
+- **The AMPLIFIER named separately from the trigger.** Module-scope work
+  turns a per-item failure into a whole-DIRECTORY outage. 2 of the 3
+  whole-directory collection outages in this program's retained logs are
+  module-scope work reading the live tree: round 517's copytree, and rounds
+  393/394's `test_v24.py:119` module-level `assert len(names) == 18`.
+- **Landed:** `test_polarity.py` writes to a tempdir (L001 13 → 12, files
+  5 → 4); a FIFTH pre-commit step (`livewrite staged`, ~0.16 s, warns / never
+  blocks / fails open); the registry entry carrying the MECHANISM
+  (`whole-tree` / `evidence: subject`, with `foreign-subject` and
+  `environmental` both rejected in writing).
+- **Tests +20** (`test_swe_livewrite.py`; 8 fail against the pre-fix modules,
+  5 are negative controls). `harness/run_tests_fast.sh` **1704 passed**,
+  591 deselected, 467.56 s — with one failure, round 517's
+  `test_every_generation_of_the_hook_that_ever_existed_parses`, whose
+  trailing `counts[-1] == 4` literal failed for the only reason that is not a
+  regression: the hook grew. Replaced with a floor
+  (`floor-not-equality-for-a-monotone-claim`) and the exact count moved to
+  one place, plus `len(invocations) == len(steps)` so a step ADDED is no
+  longer invisible to a pin written to catch a step DELETED. Also
+  61 + 81 + 173 + 94 + 66 passed across the copier, whence-polarity and hook
+  suites. `redattrib audit` rc 0 (`65 ever red, 65 declared, 0 errors`).
+- **Round 517's `hookaudit.py` told me the installed hook was stale within
+  seconds of my editing the generator** (`5166 bytes installed, 6714
+  generated`). First time in this program a round has been TOLD rather than
+  being the round that found out later.
+- **Predictions 9 HIT / 2 SPLIT / 1 REFUTED / 1 NO-BASIS-answered of 13**
+  (`state/swe/predictions-d-round521.md`, banked `2126c5c`). Both SPLITs are
+  the same shape: the defensible claim held and a detail smuggled in beside
+  it did not — P1 named an injection seam I had not tried (patching
+  `shutil.copy2` cannot hook `copytree`, whose `copy_function=copy2` is a
+  def-time default), P4 a point estimate of 3 against a measured 11.
+- **New skill `skills/live-tree-read-must-tolerate-a-vanish/SKILL.md`** —
+  11 steps, 6 pitfalls, 6 runnable verification commands, 3 positive trigger
+  cases + 1 negative control (26 insertions, 0 deletions, the file's own
+  `indent=1`). Description 1018 chars, under the 1024 limit that caught
+  round 515.
+
+## Next steps (as of round 521)
+
+1. **The crosstrack registry is STRUCTURALLY incapable of being ahead of the
+   first red, and that is what makes every R001 cost a round.**
+   `subject_scope` is a static property of a test — readable from its source
+   before it ever fails — but `R002` makes a pre-declared entry an ERROR
+   ("registry entry for a node that never went red"). So the registry can
+   only ever be populated retroactively, one round late, by whoever comes
+   next. The cheap experiment is to allow `R002`-exempt entries carrying
+   `evidence: subject` and a `predeclared: true` flag, and measure how many
+   of the 65 could have been written before their first red. Named, not
+   fixed: R002's semantics are harness(A)'s design decision. harness(A).
+2. **12 L001 live-tree writes remain in 4 files**, 8 of them in
+   `languages/whence/tests/test_testcorpus_census.py`, which writes
+   `__tmp_*.py` and `zz_tmp_sib*.py` into the live *tests* directory. The
+   copier now tolerates them so this is not urgent — but it is also not
+   swept, and the fifth pre-commit step only reaches the THIRTEENTH.
+   `python3 harness/swe/livewrite.py check` lists them with the expanded path
+   expression. language(C) for its 11, harness(A) for
+   `test_corpus_evidence.py`.
+3. **The amplifier is 3 module-scope copies and nothing bounds it.**
+   `test_the_module_scope_copiers_are_the_three_round_521_measured` pins the
+   set, so a fourth entrant fails a test and has to read why — but every one
+   of the three is round 341/343's *fix* for the snapshot race, so the
+   pressure to add a fourth is real. Whether an import-time copy can be moved
+   into a session-scoped fixture without reopening the snapshot race has not
+   been tried. SWE-loop(D).
+4. **`livewrite`'s stated limits are a floor, not a ceiling.** A root
+   arriving as a function PARAMETER is `unknown`, so a helper
+   `def _write(root, name)` called with a live root is invisible; so is a
+   root reached through a container or a function return; so is anything a
+   `subprocess` writes. The three limits are recorded in the module
+   docstring rather than left to be rediscovered, and none has been measured
+   against the corpus. any track.
+5. **`readset.py blast` named ~43 files for this diff and did NOT implicate
+   `harness/tests/test_swe_linkcopy.py`** — the direct test of a module this
+   diff edits — while implicating 20 files that merely scan the tree for
+   `*.py`. Sixth data point for the carried precision item (20% / 5.6% / 7%),
+   now unlanded for a SEVENTH round. Round 512's measured refinement (4/4
+   recall at 67% precision) is still unlanded and `blast --strict` is still
+   wired into nothing. harness(A) or SWE-loop(D).
+6. **Round 520's items 1, 3 and 4 stand, UNCHECKED by this round** —
+   `--stale-scope kills` still untested against a subject whose ids did not
+   move; nobody has swept for a fourth template-shaped self-description; and
+   the premise check (a test walking a suite's git history asserting monotone
+   nodeid growth) is still a paragraph rather than a gate. Round 519's #1
+   (47 unread `--selfref` rows) and #2 (the measured false positive with a
+   named cause) also stand. harness(A) / skills(B).
+7. **Two stale slow-tier verdicts were reported and not re-run.**
+   `slowtier` says 1 failing unit, `whenceslow` 2, both against a checkout
+   that has since moved — which is exactly the state those instruments exist
+   to report, and exactly the state a slice should clear first. SWE-loop(D).
+8. **Standing and untouched:** the operator-blocked `--cap 196`; CLAUDE.md's
+   `CRITICAL MISSION` / `MISSION #476` blocks, still one-line deletions for
+   the operator (round 512 re-derived and REFUTED both with run evidence —
+   carry that, not the claim; this round did not look at `b_fold` either and
+   says so); `case_coverage`'s disagreeing verdicts; `claim_check` executing
+   0 of its commands; the NUC `retention --strict` deadline.
+   `languages/whence/SECURITY.md` is still the operator's decision — do not
+   copy a carry count for it from this file.
+
 ## Next steps (as of round 520)
 
 1. **`--stale-scope kills` exists and selects 0 on this subject, by
