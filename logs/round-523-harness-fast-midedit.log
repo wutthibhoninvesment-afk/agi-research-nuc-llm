@@ -1,0 +1,141 @@
+........................................................................ [  4%]
+........................................................................ [  8%]
+........................................................................ [ 12%]
+........................................................................ [ 16%]
+........................................................................ [ 20%]
+........................................................................ [ 24%]
+........................................................................ [ 28%]
+........................................................................ [ 32%]
+........................................................................ [ 36%]
+........................................................................ [ 40%]
+........................................................................ [ 44%]
+........................................................................ [ 48%]
+........................................................................ [ 53%]
+........................................................................ [ 57%]
+........................................................................ [ 61%]
+................F....................................................... [ 65%]
+........................................................................ [ 69%]
+........................................................................ [ 73%]
+........................................................................ [ 77%]
+........................................................................ [ 81%]
+........................................................................ [ 85%]
+............................................................F........... [ 89%]
+........................................................................ [ 93%]
+........................................................................ [ 97%]
+....................................                                     [100%]
+=================================== FAILURES ===================================
+_______ TestThisTree.test_the_cli_agrees_with_the_library_and_exits_zero _______
+
+self = <tests.test_scopeinfer.TestThisTree testMethod=test_the_cli_agrees_with_the_library_and_exits_zero>
+
+            self.assertIn("shared-corpus", (lo, hi))
+    
+    def test_the_predeclarable_set_is_disjoint_from_the_registry(self):
+        rows = SI.predeclarable(ROOT)
+        self.assertTrue(rows)
+        for r in rows:
+>           self.assertNotIn(r["node"], self.reg["nodes"], r["node"])
+E           AssertionError: 73 != 110
+
+harness/tests/test_scopeinfer.py:513: AssertionError
+______________ TestThisTree.test_no_unexplained_broken_invocation ______________
+
+self = <tests.test_verb_audit.TestThisTree object at 0x7e6191482360>
+live = (<verb_audit.VerbGraph object at 0x7e618ab99c70>, [{'path': 'harness/escalationguard.py', 'declared': ['audit', 'check...V003', 'harness/scopeinfer.py', 'declares 4 verb(s); NONE is invoked anywhere in the closure (via_kind=import)'), ...])
+
+    def test_no_unexplained_broken_invocation(self, live):
+        """V002 is 0 on this tree. All three instances that existed while the
+        extractor was being built were artefacts and each was fixed by a rule
+        (`_NOT_A_VERB`, the argv-completeness flag, the language rule) rather
+        than by an exemption."""
+        _, _, findings = live
+>       assert [f for f in findings if f[0] == "V002"] == []
+E       assert [('V002', 'ha...e, writers)')] == []
+E         
+E         Left contains 3 more items, first extra item: ('V002', 'harness/scopeinfer.py', "harness/tests/test_scopeinfer.py:99 invokes it with 'alpha', which it does not declare (declared: agree, infer, predeclare, writers)")
+E         Use -v to get more diff
+
+harness/tests/test_verb_audit.py:331: AssertionError
+tier-budget: 15/15 promoted files timed, 57.6s of a 59.0s budget — worst test_swe_copyparity_real_subject.py 16.0s of 17.1s
+=========================== short test summary info ============================
+FAILED harness/tests/test_scopeinfer.py::TestThisTree::test_the_cli_agrees_with_the_library_and_exits_zero
+FAILED harness/tests/test_verb_audit.py::TestThisTree::test_no_unexplained_broken_invocation
+2 failed, 1762 passed, 591 deselected in 519.97s (0:08:39)
+
+--- end of measured output; recorded status below ---
+
+slow tier: 37 files / 38 units, 19 conclusive against checkout 1b21cd2d46780b5a (50% recall), 1 failing
+  + 4 file(s) conclusive WITHIN their measured read-scope only (61% combined) — the checkout moved outside what they read
+  test_swe_sandbox_evidence.py           fresh_fail         5s  0.6h ago
+  test_swe_abconfound.py                 fresh_pass         1s  0.6h ago
+  test_swe_alias_effects.py              fresh_pass_scoped  329s  10.9h ago
+      scope: whence
+  test_swe_bymap.py                      stale_checkout     41s  5.1h ago
+  test_swe_campaign.py[heavy]            stale_checkout     3000s  12.0h ago
+  test_swe_campaign.py[light]            stale_checkout     3000s  3.3h ago
+      excludes: test_cli_runs_offline_stages_and_stops
+  test_swe_copyparity.py                 fresh_pass         9s  0.6h ago
+  test_swe_copyparity_real_subject.py    stale_checkout     12s  1.9h ago
+  test_swe_coverage.py                   fresh_pass         5s  0.6h ago
+  test_swe_depthceiling.py               fresh_pass         1s  0.6h ago
+  test_swe_equivalence.py                fresh_pass         79s  0.6h ago
+  test_swe_exemptaudit.py                fresh_pass_scoped  29s  1.9h ago
+      scope: examples, whence
+  test_swe_exemptmap.py                  stale_harness      101s  6.4h ago
+      moved: swe/linkcopy.py, swe/livewrite.py, swe/mutation.py, swe/nodecampaign.py
+  test_swe_falsifiers.py                 fresh_pass         5s  0.6h ago
+  test_swe_fuzz.py                       stale_checkout     85s  5.1h ago
+  test_swe_guardpin.py                   stale_checkout     11s  1.9h ago
+  test_swe_guest.py                      stale_harness      379s  7.7h ago
+      moved: swe/mutation.py
+  test_swe_instrument.py                 fresh_pass         1s  0.6h ago
+  test_swe_killerrepin.py                fresh_pass         18s  0.6h ago
+  test_swe_killers.py                    fresh_pass         33s  0.6h ago
+  test_swe_linkcopy.py                   fresh_pass         2s  0.6h ago
+  test_swe_livewrite.py                  unknown            -
+  test_swe_loop.py                       fresh_pass_scoped  0s  1.9h ago
+      scope: whence
+  test_swe_loop_cli.py                   stale_checkout     75s  2.0h ago
+  test_swe_mutation.py                   fresh_pass         20s  0.6h ago
+  test_swe_nodeid_selection.py           fresh_pass         21s  0.6h ago
+  test_swe_oraclekill.py                 fresh_pass         52s  0.6h ago
+  test_swe_oracles.py                    stale_checkout     5s  1.9h ago
+  test_swe_prioritize.py                 fresh_pass         3s  0.6h ago
+  test_swe_proc.py                       stale_checkout     7s  1.9h ago
+  test_swe_regiontools.py                fresh_pass         0s  0.6h ago
+  test_swe_repair.py                     stale_checkout     84s  5.1h ago
+  test_swe_review.py                     stale_checkout     93s  1.9h ago
+  test_swe_scopecall.py                  stale_checkout     88s  6.4h ago
+  test_swe_scoreaudit.py                 fresh_pass         1s  0.6h ago
+  test_swe_spacewitness.py               fresh_pass         1s  0.6h ago
+  test_swe_toolliveness.py               fresh_pass         3s  0.6h ago
+  test_swe_triage.py                     fresh_pass_scoped  0s  1.9h ago
+      scope: (nothing)
+  NOTE: 15 unit(s) are NOT evidence about this checkout.
+
+RECORDED 2026-08-31T20:28:10Z (5.4 days ago) — a stored verdict, not a run just now
+  HEAD HAS MOVED SINCE: recorded at 50c7bb3caf0a, now 67b842a29ee7 — this verdict is NOT about the current tree
+ref HEAD (50c7bb3caf0a)   verdict dirty_worktree
+  the live tree differs from HEAD in 1 tracked file(s);
+  a differential against it cannot attribute anything.  Commit or stash first:
+    M state/baseline-ledger.jsonl
+
+procreap scan: under=/home/pgain/agi-research-nuc-llm verdict=residue matched=7 unreadable=0 (protected=2 vanished=0)
+  pid=339038   ppid=680210          cwd=/home/pgain/agi-research-nuc-llm
+      open: /home/pgain/agi-research-nuc-llm/logs/round-523.json, /home/pgain/agi-research-nuc-llm/state/.driver.lock
+  pid=339039   ppid=339038          cwd=/home/pgain/agi-research-nuc-llm
+      open: /home/pgain/agi-research-nuc-llm/claude-wrapper.sh, /home/pgain/agi-research-nuc-llm/logs/round-523.json, /home/pgain/agi-research-nuc-llm/state/.driver.lock
+  pid=339040   ppid=339039          cwd=/home/pgain/agi-research-nuc-llm
+      open: /home/pgain/agi-research-nuc-llm/logs/round-523.json, /home/pgain/agi-research-nuc-llm/state/.driver.lock, /proc/339040/statm
+  pid=382492   ppid=339040          cwd=/home/pgain/agi-research-nuc-llm
+      open: /tmp/claude-1001/-home-pgain-agi-research-nuc-llm/95c964bd-3148-49b0-b002-7c8f95b59d3b/tasks/b4tsks30w.output
+  pid=382497   ppid=382492          cwd=/home/pgain/agi-research-nuc-llm
+      open: /tmp/claude-1001/-home-pgain-agi-research-nuc-llm/95c964bd-3148-49b0-b002-7c8f95b59d3b/tasks/b4tsks30w.output
+  pid=382498   ppid=382497          cwd=/home/pgain/agi-research-nuc-llm
+      open: /tmp/claude-1001/-home-pgain-agi-research-nuc-llm/95c964bd-3148-49b0-b002-7c8f95b59d3b/tasks/b4tsks30w.output
+  pid=680210   ppid=1      ORPHANED cwd=/home/pgain/agi-research-nuc-llm
+      open: /home/pgain/agi-research-nuc-llm/logs/driver_bg.log, /home/pgain/agi-research-nuc-llm/logs/round-523.json, /home/pgain/agi-research-nuc-llm/run_driver.sh, /home/pgain/agi-research-nuc-llm/state/.driver.lock
+
+whence slow tier: 32 units / 122 marked (AST), 1 conclusive against subject b4c6f2cf06643797 (3% recall), 1 failing
+NOTE: 2 unit(s) LAST RAN RED but against a tree that has moved; not counted as failing, and the first thing a slice should re-run
+NOTE: 31 unit(s) are NOT evidence about this checkout

@@ -1,0 +1,99 @@
+........................................................................ [  4%]
+........................................................................ [  8%]
+........................................................................ [ 12%]
+........................................................................ [ 16%]
+........................................................................ [ 20%]
+........................................................................ [ 24%]
+........................................................................ [ 28%]
+........................................................................ [ 32%]
+........................................................................ [ 36%]
+........................................................................ [ 40%]
+........................................................................ [ 44%]
+........................................................................ [ 48%]
+........................................................................ [ 52%]
+........................................................................ [ 56%]
+........................................................................ [ 61%]
+........................................................................ [ 65%]
+........................................................................ [ 69%]
+........................................................................ [ 73%]
+........................................................................ [ 77%]
+........................................................................ [ 81%]
+........................................................................ [ 85%]
+........................................................................ [ 89%]
+........................................................................ [ 93%]
+........................................................................ [ 97%]
+.........................................                                [100%]
+tier-budget: 15/15 promoted files timed, 52.9s of a 59.0s budget — worst test_swe_copyparity_real_subject.py 12.7s of 17.1s
+1769 passed, 591 deselected in 1493.99s (0:24:53)
+
+--- end of measured output; recorded status below ---
+
+slow tier: 37 files / 38 units, 19 conclusive against checkout 1b21cd2d46780b5a (50% recall), 1 failing
+  + 4 file(s) conclusive WITHIN their measured read-scope only (61% combined) — the checkout moved outside what they read
+  test_swe_sandbox_evidence.py           fresh_fail         5s  1.5h ago
+  test_swe_abconfound.py                 fresh_pass         1s  1.4h ago
+  test_swe_alias_effects.py              fresh_pass_scoped  329s  11.8h ago
+      scope: whence
+  test_swe_bymap.py                      stale_checkout     41s  5.9h ago
+  test_swe_campaign.py[heavy]            stale_checkout     3000s  12.8h ago
+  test_swe_campaign.py[light]            stale_checkout     3000s  4.2h ago
+      excludes: test_cli_runs_offline_stages_and_stops
+  test_swe_copyparity.py                 fresh_pass         9s  1.4h ago
+  test_swe_copyparity_real_subject.py    stale_checkout     12s  2.8h ago
+  test_swe_coverage.py                   fresh_pass         5s  1.4h ago
+  test_swe_depthceiling.py               fresh_pass         1s  1.4h ago
+  test_swe_equivalence.py                fresh_pass         79s  1.4h ago
+  test_swe_exemptaudit.py                fresh_pass_scoped  29s  2.8h ago
+      scope: examples, whence
+  test_swe_exemptmap.py                  stale_harness      101s  7.2h ago
+      moved: swe/linkcopy.py, swe/livewrite.py, swe/mutation.py, swe/nodecampaign.py
+  test_swe_falsifiers.py                 fresh_pass         5s  1.4h ago
+  test_swe_fuzz.py                       stale_checkout     85s  5.9h ago
+  test_swe_guardpin.py                   stale_checkout     11s  2.8h ago
+  test_swe_guest.py                      stale_harness      379s  8.5h ago
+      moved: swe/mutation.py
+  test_swe_instrument.py                 fresh_pass         1s  1.4h ago
+  test_swe_killerrepin.py                fresh_pass         18s  1.4h ago
+  test_swe_killers.py                    fresh_pass         33s  1.4h ago
+  test_swe_linkcopy.py                   fresh_pass         2s  1.4h ago
+  test_swe_livewrite.py                  unknown            -
+  test_swe_loop.py                       fresh_pass_scoped  0s  2.8h ago
+      scope: whence
+  test_swe_loop_cli.py                   stale_checkout     75s  2.8h ago
+  test_swe_mutation.py                   fresh_pass         20s  1.4h ago
+  test_swe_nodeid_selection.py           fresh_pass         21s  1.4h ago
+  test_swe_oraclekill.py                 fresh_pass         52s  1.4h ago
+  test_swe_oracles.py                    stale_checkout     5s  2.8h ago
+  test_swe_prioritize.py                 fresh_pass         3s  1.4h ago
+  test_swe_proc.py                       stale_checkout     7s  2.8h ago
+  test_swe_regiontools.py                fresh_pass         0s  1.4h ago
+  test_swe_repair.py                     stale_checkout     84s  5.9h ago
+  test_swe_review.py                     stale_checkout     93s  2.8h ago
+  test_swe_scopecall.py                  stale_checkout     88s  7.2h ago
+  test_swe_scoreaudit.py                 fresh_pass         1s  1.4h ago
+  test_swe_spacewitness.py               fresh_pass         1s  1.4h ago
+  test_swe_toolliveness.py               fresh_pass         3s  1.4h ago
+  test_swe_triage.py                     fresh_pass_scoped  0s  2.8h ago
+      scope: (nothing)
+  NOTE: 15 unit(s) are NOT evidence about this checkout.
+
+RECORDED 2026-08-31T20:28:10Z (5.5 days ago) — a stored verdict, not a run just now
+  HEAD HAS MOVED SINCE: recorded at 50c7bb3caf0a, now 38c90b7ad0bd — this verdict is NOT about the current tree
+ref HEAD (50c7bb3caf0a)   verdict dirty_worktree
+  the live tree differs from HEAD in 1 tracked file(s);
+  a differential against it cannot attribute anything.  Commit or stash first:
+    M state/baseline-ledger.jsonl
+
+procreap scan: under=/home/pgain/agi-research-nuc-llm verdict=residue matched=4 unreadable=0 (protected=2 vanished=0)
+  pid=393642   ppid=680210          cwd=/home/pgain/agi-research-nuc-llm
+      open: /home/pgain/agi-research-nuc-llm/harness/run_tests_fast.sh, /home/pgain/agi-research-nuc-llm/logs/health_round_523.log, /home/pgain/agi-research-nuc-llm/state/.driver.lock
+  pid=393643   ppid=680210          cwd=/home/pgain/agi-research-nuc-llm/languages/whence
+      open: /home/pgain/agi-research-nuc-llm/logs/whence_health_round_523.log, /home/pgain/agi-research-nuc-llm/state/.driver.lock
+  pid=393650   ppid=393642          cwd=/home/pgain/agi-research-nuc-llm
+      open: /home/pgain/agi-research-nuc-llm/logs/health_round_523.log, /home/pgain/agi-research-nuc-llm/state/.driver.lock
+  pid=680210   ppid=1      ORPHANED cwd=/home/pgain/agi-research-nuc-llm
+      open: /home/pgain/agi-research-nuc-llm/logs/driver_bg.log, /home/pgain/agi-research-nuc-llm/run_driver.sh, /home/pgain/agi-research-nuc-llm/state/.driver.lock
+
+whence slow tier: 32 units / 122 marked (AST), 1 conclusive against subject b4c6f2cf06643797 (3% recall), 1 failing
+NOTE: 2 unit(s) LAST RAN RED but against a tree that has moved; not counted as failing, and the first thing a slice should re-run
+NOTE: 31 unit(s) are NOT evidence about this checkout
