@@ -376,3 +376,35 @@ rewritten to print `sees 1/2 key(s), total over 0, partial 1` against a
 `d.get('watched', 1)` guard, which is the idiomatic real-world shape of the
 hole. Run and its output pasted from the run, not from imagination.
 `skill_lint --house --strict`: **1 skill, 0 errors, 0 warnings.**
+
+## 12. Verification run at HEAD
+
+    $ python3 -m pytest -q tests/test_checkscope.py tests/test_runlive.py \
+        tests/test_builtinlive.py tests/test_corpusledger.py \
+        tests/test_subjprov.py tests/test_assertshadow.py \
+        tests/test_testcorpus_contributions.py
+    175 passed in 169.20s (0:02:49)
+
+    $ python3 corpusledger.py --check
+    every generated ledger reproduces byte-for-byte     (5 FRESH, 1 SKIP)
+
+    $ python3 runlive.py --strict        -> 0      ("ledger matches")
+    $ python3 builtinlive.py --strict    -> 0
+    $ python3 checkscope.py --importers  -> 4 modules, 0 unsafe
+    $ python3 skills/skill-authoring/scripts/skill_lint.py --house --strict \
+        skills/measure-a-gate-by-mutating-what-it-guards/SKILL.md
+    skill-lint: 1 skill(s), 0 error(s), 0 warning(s)
+    $ python3 skills/skill-authoring/scripts/carryforward_check.py
+    195 bank(s), 191 scored, 3 unscored, 0 error(s)
+
+**The full `run_tests_fast.sh` tier was NOT run to completion, and the
+reason is worth one line rather than an excuse.** It was launched at 23:57
+as `sh run_tests_fast.sh` and died on its own second line — `set: Illegal
+option -o pipefail`, because `/bin/sh` on this box is dash and the script is
+bash. The failure was not noticed for ten minutes because the wait was a
+`grep -q -m1 'passed|failed|error'` on a log that never got any of those
+words, which is the "a grep that matches nothing" trap in a new costume: an
+empty match looked exactly like a tier still running. The seven files above
+are the blast radius (every module this round edited plus every gate that
+imports `checkscope`), and they are green; the tier itself is UNRUN and is
+reported as such.
