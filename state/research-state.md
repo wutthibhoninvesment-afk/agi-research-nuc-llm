@@ -29329,7 +29329,8 @@ entry here; nothing below is inferred from intentions.*
   New steps 8b (descend into every excluded key and sweep its LEAVES) and 8c
   (add the declared-vs-declared check), a seventh trigger condition, and a
   pitfall. No new skill: the 129th would have been a duplicate.
-- **Tests +12** (8 in `test_assertshadow.py`, 4 in `test_corpusledger.py`).
+- **Tests +11** (8 in `test_assertshadow.py`, 3 in `test_corpusledger.py`; `617e81e`'s message says 4 for the second file and is wrong — the fourth item there is the `never_settles`
+  fixture). Tier **3070 passed, 3 skipped, 123 deselected in 511.27s**, system python3, serial, `logs/round-524-whence-fast.log`.
   Three ledgers regenerated in dependency order via the fixed-point `--fix`,
   which converged in one invocation and reported no `NOT CONVERGED`.
 - **Predictions 17 banked (B1-B17) at `bbeb9bb`**, before any worktree
