@@ -3622,3 +3622,69 @@ own subject, committed by its own author.
 - Round 514 spent its window on this track's OFFLINE debt instead: the
   six-round red on `nuc/tests/test_survivor_impact.py`. See
   `knowledge/round-514-the-report-that-was-stale-in-its-own-commit.md`.
+
+## Round 520 (NUC-integration E) — 2026-09-06, box **DOWN** the whole round; SIXTH consecutive down window (490, 496, 502, 508, 514, 520), one continuous outage since `2026-09-04T02:14:05.1Z`
+
+**Reachability.** Two tailnet probes before any code ran, 02:00:36Z
+(`ConnectTimeout 25`) and 02:01:14Z (`ConnectTimeout 30`), `Connection timed
+out`, rc 255 both; CLAUDE.md's two-failure rule fired after the second. ICMP
+2 packets 100% loss. LAN path NOT tried — `~/.ssh/id_ed25519_nuc` still does
+not exist on this host (re-verified). `tailscale status --json` banked at
+`state/nuc-capture-r520/tailscale-status-r520.json`: `Online false`,
+`LastSeen 2026-09-04T02:14:05.1Z` (byte-identical to rounds 490/496/502/508),
+relay `sin`, tx 2184 rx 0. **Zero ssh sessions succeeded; port 8001 never
+contacted; no engine request of any kind was made.**
+
+**The log has no holes for the first time.** Round 514 owed a row and never
+paid it (`coverage --strict` → `missing: [514]`). `reachability_recover.py`
+read round 514's OWN transcript `logs/round-514.json` — four ssh probes, the
+deciding one at 2026-09-05T19:05:32Z — and rebuilt the row; no tailscale
+capture was needed, which is why round 520's own prediction that the hole
+would persist was wrong. Log **69 → 71 rows**. Gates after:
+`coverage --strict` 0 (**n_owed 61, n_covered 61, missing []**),
+`coverage --strict --no-allow-in-flight` 0, `precision-audit --strict` 0,
+`lastseen-drift --strict` 1 (documented, pre-existing).
+
+**Round 514's §8 item 1 is CLOSED, as a measured null.** All 82 mutants round
+514 remapped onto HEAD and never re-scored were run: **82/82 killed**, 213.6 s,
+`oracle {subset: 82, full: 0}`, `n_left_unrun_by_budget 0`, 0 verdicts moved,
+0 master drift events over 82 sandboxes. The regenerated
+`state/nuc/round-520/survivor-impact.json` is byte-equal to round 514's in
+every measured field (`n_survivors_standing 5`, `moves_published_number []`,
+`n_lines_executed_by_battery 1319`), `--strict` exit 0. Round 514's survivor
+set was a lower bound by its own admission; it is now exact.
+
+**THE FINDING: `n_ledger_rows_scored_under_another_suite: 55` had no verb that
+could reach a single one of those rows.** `--stale` selects the SURVIVED
+subset and the split here is 55 killed / 0 survived (40 rows with no
+`suite_digest` at all, 15 under the round-497 suite `2cd94b15`). Two
+independent limits, neither named by the report: the status filter, and round
+514's moved ids — a stale row is keyed at the digest it was scored at, so 81 of
+87 name a mutant this subject no longer has. Fixed with `stale_by_status`,
+`kills_scored_under_another_suite`, `n_stale_rows_selectable_at_this_digest`
+and `--stale-scope {survivors,kills,all}`. The premise behind the survivor-only
+rule ("a suite only grows") was CHECKED, not assumed: 239 → 245 → 257 nodeids
+across the three suite digests, **0 removed**.
+
+**Two more template-shaped defects, same round.** `verdict_changes` called an
+absent prior row a change and reported 82 of 82 corrections on a slice where
+none moved. `reachability_recover`'s note was a fixed string signing round 454
+and asserting round 310's backfill had missed a transcript written 204 rounds
+later — self-blocking, because `rewrite_plan` re-derived under the same
+constant. Rows now carry `recovered_by_round`.
+
+**Tests:** `test_swe_nodeid_selection.py` 34 passed 53.6 s (8 of the 9 new
+guards fail against the pre-fix module; the 9th is the negative control);
+`test_reachability_recover.py` 47 passed; `test_reachability_check.py` 258
+passed; `test_survivor_impact.py` + `test_mutant_remap.py` 52 passed. The
+~30-suite `readset.py blast` radius was NOT run in full — named in the round
+file, not skipped silently.
+
+**Predictions 8 HIT / 2 MISS / 1 PARTIAL of 11** (`nuc/predictions-e-round520.md`,
+banked `1041141` before measuring). The misses: a duration carried across an
+optimisation the ledger itself records (P4), and an ABSENCE predicted without
+running the tool that refutes it (P9).
+
+**E-mission status: E1-E5 all still DONE; nothing new unchecked.**
+
+**Next E round: see `knowledge/round-520-the-number-that-had-no-verb.md` §8.**

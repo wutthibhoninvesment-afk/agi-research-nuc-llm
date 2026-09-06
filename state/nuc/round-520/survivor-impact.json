@@ -1,0 +1,104 @@
+{
+ "battery": [
+  "window_swap",
+  "wsweep_swap",
+  "wsweep_commit",
+  "wsweep_steal",
+  "population_swap",
+  "reclaim_all",
+  "gap_commit"
+ ],
+ "battery_gap": {
+  "engine": "needs an engine journal the union does not carry",
+  "exclusion": "randomised; not byte-reproducible, so not an output oracle",
+  "oom": "needs a journal the union does not carry",
+  "place": "needs an engine journal the union does not carry",
+  "stability": "needs an engine journal the union does not carry",
+  "window_commit": "rc 1: CHANNEL_MIN_BYTES['commit'] is None -- a module constant, not a property of any record; wsweep sweeps it",
+  "window_steal": "rc 1: CHANNEL_MIN_BYTES['steal'] is None -- a module constant, not a property of any record; wsweep sweeps it"
+ },
+ "by_reason": {
+  "branch_not_taken": 2
+ },
+ "by_verdict": {
+  "reached_but_identical": 3,
+  "unreached_by_battery": 2
+ },
+ "capture": "state/nuc-record-union",
+ "control_identity_clean": true,
+ "moves_published_number": [],
+ "n_lines_executed_by_battery": 1319,
+ "n_survivors_at_another_digest": 5,
+ "n_survivors_standing": 5,
+ "results": [
+  {
+   "description": "LtE -> Lt",
+   "diffs": [],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:1586:cmp#162",
+   "line": 1586,
+   "line_executed_by_battery": true,
+   "op": "cmp",
+   "owner": "_hypergeom_atleast",
+   "reason": null,
+   "verdict": "reached_but_identical"
+  },
+  {
+   "description": "Add -> Sub",
+   "diffs": [],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:1642:arith#984",
+   "line": 1642,
+   "line_executed_by_battery": true,
+   "op": "arith",
+   "owner": "power_floor",
+   "reason": null,
+   "verdict": "reached_but_identical"
+  },
+  {
+   "description": "1 -> 2",
+   "diffs": [],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:1642:const#983",
+   "line": 1642,
+   "line_executed_by_battery": true,
+   "op": "const",
+   "owner": "power_floor",
+   "reason": null,
+   "verdict": "reached_but_identical"
+  },
+  {
+   "description": "0 -> 1",
+   "diffs": [],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:1660:const#1547",
+   "line": 1660,
+   "line_executed_by_battery": false,
+   "op": "const",
+   "owner": "power_floor",
+   "reason": "branch_not_taken",
+   "verdict": "unreached_by_battery"
+  },
+  {
+   "description": "1 -> 2",
+   "diffs": [],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:1661:const#1601",
+   "line": 1661,
+   "line_executed_by_battery": false,
+   "op": "const",
+   "owner": "power_floor",
+   "reason": "branch_not_taken",
+   "verdict": "unreached_by_battery"
+  }
+ ],
+ "subject": "nuc/perturbation.py",
+ "subject_digest": "3b3923df3ee72b3f98f5bdda828a82d94b8b9971848f458d7741f4e644324b8c",
+ "survivors_at_another_digest": [
+  "perturbation.py:1582:cmp#161",
+  "perturbation.py:1638:arith#970",
+  "perturbation.py:1638:const#969",
+  "perturbation.py:1656:const#1508",
+  "perturbation.py:1657:const#1559"
+ ]
+}

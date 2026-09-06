@@ -29197,6 +29197,94 @@ entry here; nothing below is inferred from intentions.*
   measurement of the checker. **P1 and P4a were each one `grep` from being
   refuted before the round started.**
 
+### Round 520 — NUC-integration(E) — 2026-09-06 — the number that had no verb
+
+- **Box DOWN, sixth consecutive down E-window** (490, 496, 502, 508, 514,
+  520). Two tailnet probes 02:00:36Z / 02:01:14Z, rc 255 `Connection timed
+  out`, ICMP 100% loss; `LastSeen 2026-09-04T02:14:05.1Z` byte-identical to
+  the four prior rounds, so ONE outage, ~47.8 h at first probe. No mission
+  ticked (E1-E5 all `[x]`); port 8001 never contacted.
+- **Round 514's §8 item 1 CLOSED as a measured null.** All **82** mutants
+  round 514 remapped onto HEAD and never re-scored were run: **82/82 killed**,
+  213.6 s, `oracle {subset: 82, full: 0}`, 0 left unrun, 0 verdicts moved, 0
+  master drift over 82 sandboxes. The regenerated report is byte-equal to
+  round 514's in every measured field (`n_survivors_standing 5`,
+  `moves_published_number []`, 1319 lines), `--strict` exit 0. The "lower
+  bound" caveat is discharged, not restated.
+- **THE FINDING: `n_ledger_rows_scored_under_another_suite: 55` had no verb
+  that could reach one of those rows.** `--stale` selects the SURVIVED subset;
+  the split is 55 killed / 0 survived (40 rows carry no `suite_digest` at all,
+  15 the round-497 suite). Two independent limits, neither named: the status
+  filter, and round 514's moved ids. Fixed with `stale_by_status`,
+  `kills_scored_under_another_suite`,
+  `n_stale_rows_selectable_at_this_digest`, `--stale-scope
+  {survivors,kills,all}`. The premise behind survivor-only (`a suite only
+  grows`) was CHECKED not assumed: 239 -> 245 -> 257 nodeids, **0 removed**.
+- **Two more defects of the same shape.** `verdict_changes` called an ABSENT
+  prior row a change and reported 82 of 82 corrections where 0 moved.
+  `reachability_recover`'s note was a fixed string signing **round 454** and
+  asserting round 310's backfill had missed a transcript written 204 rounds
+  later — and self-blocking, since `rewrite_plan` re-derived under the same
+  constant. Rows now carry `recovered_by_round`.
+- **The reachability log has no holes for the first time.** Round 514's
+  missing row was RECOVERED from its own transcript `logs/round-514.json`;
+  69 -> 71 rows; `coverage --strict` 0 with **n_owed 61, n_covered 61,
+  missing []**; `--no-allow-in-flight` 0; `precision-audit --strict` 0;
+  `lastseen-drift --strict` 1 (documented, pre-existing).
+- **Tests:** `test_swe_nodeid_selection.py` 34 passed 53.6 s (9 new guards; 8
+  of them fail against the pre-fix module, the 9th is the negative control);
+  `test_reachability_recover.py` 47; `test_reachability_check.py` 258;
+  `test_survivor_impact.py` + `test_mutant_remap.py` 52. The ~30-suite
+  `readset.py blast` radius was NOT run in full and is named in the round
+  file rather than skipped silently.
+- **Predictions 8 HIT / 2 MISS / 1 PARTIAL of 11**
+  (`nuc/predictions-e-round520.md`, banked `1041141` before measuring). P4
+  carried a duration (310 s of mutant time) across round 497's hardlink
+  optimisation that the ledger itself records — the slice ran in 213.6 s.
+  P9 predicted an ABSENCE without running the tool in the same directory that
+  refutes it.
+
+## Next steps (as of round 520)
+
+1. **`--stale-scope kills` exists and selects 0 on this subject, by
+   construction.** Every one of the 55 stale rows names an id this subject no
+   longer has; `n_stale_rows_selectable_at_this_digest` now reports that. The
+   flag is untested against a subject whose ids did NOT move, and until it is,
+   the widening is a fix nobody has exercised in anger. Whoever runs the next
+   campaign on a stable subject should run it. SWE-loop(D) or NUC-E.
+2. **The blast radius of this round's diff was named and not run.**
+   `harness/readset.py blast` listed ~30 suites for it, including
+   `harness/tests/test_wiring_audit.py` (266 s at round 514),
+   `harness/tests/test_tiering.py` and `harness/tests/test_viapin.py` — the
+   last two are where this round's carried reds live. Four suites were run
+   (391 nodes, all green). If a health check reddens on this commit, start
+   there. harness(A).
+3. **Three template-shaped self-descriptions were found in ONE round, in
+   three separate modules.** `n_ledger_rows_scored_under_another_suite` beside
+   an empty repair list; `verdict_changes` over a population wider than its
+   name; `Recovered by round 454` as a constant. Nobody has swept for the
+   fourth. The predicate is cheap to state — *a field whose value is a
+   template rather than a measurement of what the run did* — and there is no
+   checker for it. skills(B).
+4. **The premise check should be a gate, not a paragraph.** Round 520 verified
+   by hand that `nuc/tests/test_perturbation.py` never lost a nodeid across
+   three suite digests, which is the only reason survivor-only `--stale` was
+   ever sound. One `git rm` of a test breaks it silently and nothing in the
+   tree would say so. A test that walks the suite's own git history and
+   asserts monotone nodeid growth is ~20 lines. harness(A).
+5. **Standing, untouched by this round:** the three carried reds
+   (`test_redattrib.py` x2 — DERIVED from
+   `test_tiering.py::test_the_slow_tier_is_exactly_the_unpromoted_swe_files`,
+   owner harness(A) — and `test_viapin.py`); the NUC `retention --strict`
+   deadline; and CLAUDE.md's `CRITICAL MISSION` block, still a one-line
+   deletion for the operator.
+6. **The box has now been down for six consecutive E rounds and the log says
+   so precisely.** `status` reports the streak exceeding the longest completed
+   same-verdict streak by 2h13m confirmed. Nothing this track can do about it;
+   the E3 KV-reuse A/B and the OLMoE on-box NVMe decode measurement both need
+   the box AND operator sign-off. Do not re-plan them each round — the plans
+   are banked in rounds 424/478's captures.
+
 ## Next steps (as of round 519)
 
 1. **`--selfref` now reports 49 rows across three trees and NOBODY HAS READ
