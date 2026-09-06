@@ -110,10 +110,15 @@ def suite_digest(root, base_cmd):
     return CV._file_hash(full)
 
 
+#: Round 520: the three populations of `--stale`. "survivors" is round
+#: 502's original and stays the default meaning of `--stale`.
+STALE_SCOPES = ("survivors", "kills", "all")
+
+
 def run_slice(root, rel, cov_path, base_cmd, line_ranges=None, budget_s=600.0,
               timeout_s=180.0, ledger=LEDGER, full_cmd=None, on_result=None,
               linked=True, workdir=None, only_ids=None, rescore=False,
-              stale_survivors_only=False):
+              stale_survivors_only=False, stale_scope=None):
     """Score as many unscored mutants as `budget_s` allows.
 
     Returns a report dict. `full_cmd` (default `base_cmd`) is what a mutant
@@ -168,6 +173,41 @@ def run_slice(root, rel, cov_path, base_cmd, line_ranges=None, budget_s=600.0,
              or "suite_digest" not in r]
     stale_survivors = sorted(r["id"] for r in stale if r.get("status") == "survived")
 
+    # ROUND 520 (NUC-integration E) -- THE NUMBER AND THE VERB DID NOT MATCH.
+    #
+    # `n_ledger_rows_scored_under_another_suite` below publishes len(stale).
+    # The only verb that could ever pay it down is `--stale`, and `--stale`
+    # selects `stale_survivors`. On `nuc/perturbation.py` at round 520 that is
+    # 55 against 0: fifty-five verdicts produced by a suite that no longer
+    # exists, and a repair verb that reaches none of them.
+    #
+    # The restriction to `survived` rests on a premise -- that a suite only
+    # ever GROWS, so only a `survived` verdict can be overturned. Round 520
+    # checked it on this subject's own history and it holds (239 -> 245 -> 257
+    # nodeids across the three suite digests in the ledger, 0 removed). It is
+    # a premise, not an invariant: `git rm` a test and every kill it produced
+    # becomes a claim no suite in the tree supports. Nothing in this module
+    # enforced it and nothing said out loud that the published number covered
+    # rows the verb did not.
+    #
+    # So: the count is SPLIT BY STATUS, the kills are NAMED, and `stale_scope`
+    # makes all three populations selectable. `stale_survivors_only=True` is
+    # kept and means exactly what it meant.
+    stale_ids = {
+        "survivors": stale_survivors,
+        "kills": sorted(r["id"] for r in stale if r.get("status") == "killed"),
+        "all": sorted(r["id"] for r in stale),
+    }
+    stale_by_status = {}
+    for r in stale:
+        key = r.get("status") or "unknown"
+        stale_by_status[key] = stale_by_status.get(key, 0) + 1
+    if stale_survivors_only and stale_scope is None:
+        stale_scope = "survivors"
+    if stale_scope is not None and stale_scope not in STALE_SCOPES:
+        raise ValueError("stale_scope must be one of %r, got %r"
+                         % (STALE_SCOPES, stale_scope))
+
     # ROUND 502 -- the three selections, and why the last two exist.
     #
     # Round 497 recorded `suite_digest` per row and counted the rows scored
@@ -184,10 +224,10 @@ def run_slice(root, rel, cov_path, base_cmd, line_ranges=None, budget_s=600.0,
     # suite no longer exists. `--only`/`--rescore` is the general form.
     # Neither edits the ledger: `load_ledger` is LAST-WINS, so a re-score is
     # an append and the file keeps its own history.
-    if stale_survivors_only:
-        want = set(stale_survivors)
+    if stale_scope is not None:
+        want = set(stale_ids[stale_scope])
         todo = [m for m in mutants if m.id in want]
-        selection = "stale-survivors"
+        selection = "stale-%s" % stale_scope
     elif only_ids:
         want = set(only_ids)
         todo = [m for m in mutants
@@ -258,12 +298,28 @@ def run_slice(root, rel, cov_path, base_cmd, line_ranges=None, budget_s=600.0,
             "`survived`. Re-collect with coverage.collect(by_test=True).")
     rep["n_selected"] = len(todo)
     if selection != "unscored":
+        # ROUND 520 -- A FIRST SCORING IS NOT A CHANGE.
+        #
+        # Round 502 added this field as "the number the round quotes ...
+        # without it a re-score is a silent correction and nobody can tell how
+        # wrong the old figure was". It compared against
+        # `done.get((id, digest))`, which is absent for any id NOT yet scored
+        # at this subject digest -- and `--only` is exactly how a round scores
+        # ids for the first time. Round 520 re-scored 82 mutants that round
+        # 514 had remapped onto a new digest: every one came back `killed`,
+        # not one verdict moved, and the field reported 82 changes, all of
+        # them `was: null -> now: killed`. A "corrections" count that is 82 of
+        # 82 when the true answer is 0 of 82 is worse than no count.
+        #
+        # So a change needs a PRIOR verdict at this digest. The first scorings
+        # are counted separately, because dropping them silently would hide
+        # that the slice was mostly new work.
+        prior = [(r, done.get((r["id"], digest), {}).get("status")) for r in ran]
         rep["verdict_changes"] = [
-            {"id": r["id"],
-             "was": done.get((r["id"], digest), {}).get("status"),
-             "now": r["status"]}
-            for r in ran
-            if done.get((r["id"], digest), {}).get("status") != r["status"]]
+            {"id": r["id"], "was": was, "now": r["status"]}
+            for r, was in prior if was is not None and was != r["status"]]
+        rep["n_first_scored_at_this_digest"] = sum(
+            1 for _, was in prior if was is None)
     # ROUND 503 -- NO POOLED RATE WITHOUT ITS STRATA.
     #
     # A kill rate over a scope that mixes code the product reaches with code
@@ -289,6 +345,17 @@ def run_slice(root, rel, cov_path, base_cmd, line_ranges=None, budget_s=600.0,
     rep["suite_digest"] = suite
     rep["n_ledger_rows_scored_under_another_suite"] = len(stale)
     rep["survivors_scored_under_another_suite"] = stale_survivors
+    # ROUND 520: the same number, split by the status the repair verb keys on,
+    # plus the ids the verb has never been able to reach.
+    rep["stale_by_status"] = stale_by_status
+    rep["kills_scored_under_another_suite"] = stale_ids["kills"]
+    # And the second half of round 514's finding, made a field: a stale row is
+    # keyed at the subject digest it was scored at, so an id that MOVED is not
+    # a mutant of this subject at all and no `stale_scope` can select it. This
+    # says how many of the stale rows the verb could reach even in principle.
+    live_ids = set(m.id for m in mutants)
+    rep["n_stale_rows_selectable_at_this_digest"] = sum(
+        1 for i in stale_ids["all"] if i in live_ids)
     rep["master"] = master.as_dict() if master is not None else None
     rep["mutants_scored_against_a_drifted_master"] = suspect
     return rep
@@ -415,7 +482,14 @@ def build_parser():
     p.add_argument("--stale", action="store_true",
                    help="score exactly the SURVIVORS whose `suite_digest` is "
                         "not the current suite's -- the verdicts a suite that "
-                        "no longer exists produced (round 497's finding)")
+                        "no longer exists produced (round 497's finding). "
+                        "Shorthand for --stale-scope survivors")
+    p.add_argument("--stale-scope", dest="stale_scope", default=None,
+                   choices=list(STALE_SCOPES),
+                   help="round 520: which stale-verdict population to score. "
+                        "`survivors` is --stale; `kills` is the population "
+                        "n_ledger_rows_scored_under_another_suite counted and "
+                        "no verb could reach; `all` is both")
     p.set_defaults(linked=True)
     return p
 
@@ -439,7 +513,8 @@ def main(argv=None):
                     timeout_s=a.timeout, ledger=os.path.join(root, a.ledger),
                     on_result=echo, linked=a.linked, workdir=a.workdir,
                     only_ids=only, rescore=a.rescore,
-                    stale_survivors_only=a.stale)
+                    stale_survivors_only=a.stale,
+                    stale_scope=a.stale_scope)
     rep["argv"] = list(argv if argv is not None else sys.argv[1:])
     rep["wall_seconds"] = round(time.time() - t0, 1)
     text = json.dumps(rep, indent=1, sort_keys=True)

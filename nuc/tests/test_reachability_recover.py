@@ -378,3 +378,48 @@ def test_the_live_log_is_currently_in_sync_with_its_transcripts():
     """The standing invariant, as a command rather than as prose."""
     plan = rr.rewrite(str(REAL_LOG), str(TRANSCRIPTS))
     assert plan["n_changes"] == 0, plan["changes"]
+
+
+# --------------------------------------------------------------------------
+# Round 520 (NUC-integration E): the row that signed someone else's name.
+#
+# `record_from_probes` opened its notes with the fixed string "Recovered by
+# round 454 ... which round 310's prose backfill never read". Round 520 used
+# the verb to recover round 514's missing row and the row came out asserting
+# that round 310 had failed to read `logs/round-514.json` -- a transcript that
+# did not exist when round 310 ran, about a round 200 later. The attribution
+# was a template, and `rewrite_plan` re-derived every row under the same
+# constant, so the first row written by anybody else read as an unsafe change.
+
+def test_a_recovered_row_names_the_round_that_recovered_it(tmp_path):
+    rec = rr.recover(514, "logs", by_round=520)
+    assert rec["recovered_by_round"] == 520
+    assert rec["notes"].startswith("Recovered by round 520 ")
+
+
+def test_the_default_author_is_454_so_the_seven_old_rows_re_derive(tmp_path):
+    rec = rr.recover(292, "logs")
+    assert rec["recovered_by_round"] == rr.DEFAULT_RECOVER_ROUND == 454
+    assert rec["notes"].startswith("Recovered by round 454 ")
+
+
+def test_the_round_310_clause_is_dropped_above_that_backfills_horizon():
+    """Round 310's prose backfill is a fact about rounds in round 454's own
+    bracket. Above it the clause is not merely unsigned, it is false."""
+    above = rr.recover(514, "logs", by_round=520)
+    below = rr.recover(292, "logs")
+    assert "round 310's prose backfill" not in above["notes"]
+    assert "round 310's prose backfill never read" in below["notes"]
+    assert 514 > rr.BACKFILL_HORIZON_ROUND >= 292
+
+
+def test_rewrite_re_derives_each_row_under_ITS_OWN_author(tmp_path):
+    """The point of storing the field: the derivation is reproducible from
+    the row, not from a module constant. Without this, one row by a second
+    author makes `rewrite` refuse the whole batch."""
+    plan = rr.rewrite_plan(rc.DEFAULT_LOG_PATH, "logs")
+    assert plan["n_changes"] == 0, plan["changes"]
+    rows = [r for r in rc.load_log(rc.DEFAULT_LOG_PATH)
+            if str(r.get("source", "")).startswith("transcript-r")]
+    authors = sorted({r["recovered_by_round"] for r in rows})
+    assert authors == [454, 520], authors

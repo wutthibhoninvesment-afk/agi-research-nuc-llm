@@ -409,3 +409,142 @@ def test_the_cli_parses_the_three_new_flags():
     assert a.only == "a,b" and a.rescore is True and a.stale is False
     b = NC.build_parser().parse_args(["--stale"])
     assert b.stale is True and b.only is None and b.rescore is False
+
+
+# --------------------------------------------------------------------------
+# Round 520 (NUC-integration E): the number and the verb did not match.
+#
+# `n_ledger_rows_scored_under_another_suite` has been published since round
+# 497 and the only verb that can pay it down, `--stale`, selects the SURVIVED
+# rows. On `nuc/perturbation.py` at round 520 that was 55 against 0. The test
+# directly above this block (`test_stale_selects_exactly_the_survivors_...`)
+# already builds a stale KILL and asserts it is skipped -- the behaviour was
+# deliberate. What was missing is that the published count said nothing about
+# it, so a round reading the report could not tell that 55 of 55 were out of
+# the verb's reach.
+
+def test_the_published_stale_count_is_split_by_the_status_the_verb_keys_on(tmp_path):
+    root = _project(tmp_path)
+    ms, digest = NC.select_mutants(root, "pkg/mod.py")
+    led = str(tmp_path / "led.jsonl")
+    NC.append_ledger(led, {"id": ms[0].id, "subject_digest": digest,
+                           "status": "survived", "suite_digest": "old"})
+    NC.append_ledger(led, {"id": ms[1].id, "subject_digest": digest,
+                           "status": "killed", "suite_digest": "old"})
+    rep = _slice(root, tmp_path, led, only_ids=[ms[2].id])
+    assert rep["n_ledger_rows_scored_under_another_suite"] == 2
+    assert rep["stale_by_status"] == {"survived": 1, "killed": 1}
+    assert rep["survivors_scored_under_another_suite"] == [ms[0].id]
+    assert rep["kills_scored_under_another_suite"] == [ms[1].id]
+
+
+def test_stale_scope_kills_selects_the_population_no_verb_could_reach(tmp_path):
+    root = _project(tmp_path)
+    ms, digest = NC.select_mutants(root, "pkg/mod.py")
+    led = str(tmp_path / "led.jsonl")
+    NC.append_ledger(led, {"id": ms[0].id, "subject_digest": digest,
+                           "status": "survived", "suite_digest": "old"})
+    NC.append_ledger(led, {"id": ms[1].id, "subject_digest": digest,
+                           "status": "killed", "suite_digest": "old"})
+    rep = _slice(root, tmp_path, led, stale_scope="kills")
+    assert rep["selection"] == "stale-kills"
+    assert rep["n_selected"] == 1
+    assert rep["n_run_this_slice"] == 1
+
+
+def test_stale_scope_all_takes_both_statuses(tmp_path):
+    root = _project(tmp_path)
+    ms, digest = NC.select_mutants(root, "pkg/mod.py")
+    led = str(tmp_path / "led.jsonl")
+    NC.append_ledger(led, {"id": ms[0].id, "subject_digest": digest,
+                           "status": "survived", "suite_digest": "old"})
+    NC.append_ledger(led, {"id": ms[1].id, "subject_digest": digest,
+                           "status": "killed", "suite_digest": "old"})
+    rep = _slice(root, tmp_path, led, stale_scope="all")
+    assert rep["selection"] == "stale-all"
+    assert rep["n_selected"] == 2
+
+
+def test_stale_survivors_only_still_means_exactly_what_it_meant(tmp_path):
+    """Round 502's flag is not re-pointed by round 520's widening."""
+    root = _project(tmp_path)
+    ms, digest = NC.select_mutants(root, "pkg/mod.py")
+    led = str(tmp_path / "led.jsonl")
+    NC.append_ledger(led, {"id": ms[0].id, "subject_digest": digest,
+                           "status": "survived", "suite_digest": "old"})
+    NC.append_ledger(led, {"id": ms[1].id, "subject_digest": digest,
+                           "status": "killed", "suite_digest": "old"})
+    rep = _slice(root, tmp_path, led, stale_survivors_only=True)
+    assert rep["selection"] == "stale-survivors"
+    assert rep["n_selected"] == 1
+
+
+def test_an_unknown_stale_scope_is_refused_rather_than_silently_ignored(tmp_path):
+    root = _project(tmp_path)
+    led = str(tmp_path / "led.jsonl")
+    try:
+        _slice(root, tmp_path, led, stale_scope="stale")
+    except ValueError as exc:
+        assert "stale_scope" in str(exc)
+    else:
+        raise AssertionError("an unknown scope selected something")
+
+
+def test_a_stale_row_whose_id_MOVED_is_not_selectable_and_the_report_says_so(tmp_path):
+    """Round 514's other half. A ledger row is keyed at the subject digest it
+    was scored at; an id that moved when the subject was edited is not a
+    mutant of this subject at all, so no `stale_scope` can reach it. Widening
+    the verb does not widen what the verb can select, and the report has to
+    say which of the two limits is biting."""
+    root = _project(tmp_path)
+    ms, digest = NC.select_mutants(root, "pkg/mod.py")
+    led = str(tmp_path / "led.jsonl")
+    NC.append_ledger(led, {"id": ms[0].id, "subject_digest": digest,
+                           "status": "killed", "suite_digest": "old"})
+    NC.append_ledger(led, {"id": "pkg/mod.py:9999:const#4242",
+                           "subject_digest": "a-digest-this-subject-never-had",
+                           "status": "killed", "suite_digest": "old"})
+    rep = _slice(root, tmp_path, led, only_ids=[ms[1].id])
+    assert rep["n_ledger_rows_scored_under_another_suite"] == 2
+    assert rep["n_stale_rows_selectable_at_this_digest"] == 1
+
+
+def test_the_cli_parses_the_stale_scope_flag():
+    a = NC.build_parser().parse_args(["--stale-scope", "kills"])
+    assert a.stale_scope == "kills" and a.stale is False
+    b = NC.build_parser().parse_args(["--stale"])
+    assert b.stale is True and b.stale_scope is None
+    c = NC.build_parser().parse_args([])
+    assert c.stale_scope is None
+
+
+def test_a_FIRST_scoring_is_not_reported_as_a_changed_verdict(tmp_path):
+    """Round 520. `verdict_changes` compared against the ledger row for
+    `(id, subject_digest)` and called an ABSENT row a change, so an `--only`
+    slice over ids never scored at this digest reported 100% corrections. The
+    round that found it re-scored 82 mutants, moved zero verdicts, and got 82
+    `was: null` rows back."""
+    root = _project(tmp_path)
+    ms, digest = NC.select_mutants(root, "pkg/mod.py")
+    led = str(tmp_path / "led.jsonl")
+    rep = _slice(root, tmp_path, led, only_ids=[ms[0].id, ms[1].id])
+    assert rep["n_run_this_slice"] == 2
+    assert rep["verdict_changes"] == []
+    assert rep["n_first_scored_at_this_digest"] == 2
+
+
+def test_a_real_verdict_change_is_still_reported(tmp_path):
+    """The fix must not empty the field it narrows."""
+    root = _project(tmp_path)
+    ms, digest = NC.select_mutants(root, "pkg/mod.py")
+    led = str(tmp_path / "led.jsonl")
+    NC.append_ledger(led, {"id": ms[0].id, "subject_digest": digest,
+                           "status": "survived", "suite_digest": "old"})
+    rep = _slice(root, tmp_path, led, only_ids=[ms[0].id], rescore=True)
+    changes = {c["id"]: c for c in rep["verdict_changes"]}
+    assert rep["n_first_scored_at_this_digest"] == 0
+    if rep["by_status"].get("killed"):
+        assert changes[ms[0].id] == {"id": ms[0].id, "was": "survived",
+                                     "now": "killed"}
+    else:
+        assert changes == {}

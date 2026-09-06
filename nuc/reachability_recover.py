@@ -328,8 +328,24 @@ def verdict_from_probes(probes: list) -> dict:
             "deciding": None, "conflicts": []}
 
 
+#: Round 520. The note this module writes used to open "Recovered by round
+#: 454 ... which round 310's prose backfill never read" as a FIXED string, so
+#: every later caller signed round 454's name and asserted something about a
+#: backfill that ran 200 rounds before the transcript it was talking about.
+#: Round 520 recovered round 514 with it and the row came out claiming round
+#: 310 had failed to read `logs/round-514.json` -- a file that did not exist
+#: when round 310 ran. The default is 454 so every row already in the log
+#: re-derives BYTE-IDENTICALLY under `rewrite`; callers pass their own.
+DEFAULT_RECOVER_ROUND = 454
+#: The last round in round 454's own bracket ([124, 448]). Round 310's prose
+#: backfill is only a fact about rounds at or below it; above it the clause is
+#: not merely unsigned, it is false.
+BACKFILL_HORIZON_ROUND = 448
+
+
 def record_from_probes(round_: int, probes: list, extra_note: str = "",
-                       readings: list = ()) -> dict:
+                       readings: list = (),
+                       by_round: int = DEFAULT_RECOVER_ROUND) -> dict:
     v = verdict_from_probes(probes)
     if v["verdict"] is None:
         raise ValueError("round %s: %s" % (round_, v["why"]))
@@ -379,11 +395,14 @@ def record_from_probes(round_: int, probes: list, extra_note: str = "",
         tgt, why = next(iter(d["failures"].items()))
         stderr = "ssh: connect to host %s port 22: %s" % (tgt, why)
 
+    lead = ("Recovered by round %d from this round's own transcript "
+            "logs/round-%d.json" % (by_round, round_))
+    if round_ <= BACKFILL_HORIZON_ROUND:
+        lead += ", which round 310's prose backfill never read"
     notes = [
-        "Recovered by round 454 from this round's own transcript logs/round-%d.json, "
-        "which round 310's prose backfill never read. Deciding probe issued %s, "
-        "answered %s: `%s`. Evidence line: %s" % (
-            round_, d["issued_utc"], d["at_utc"], d["command_head"], d["evidence"] or "(none)"),
+        "%s. Deciding probe issued %s, answered %s: `%s`. Evidence line: %s" % (
+            lead, d["issued_utc"], d["at_utc"], d["command_head"],
+            d["evidence"] or "(none)"),
         "%d NUC ssh probe(s) in the transcript (%d up, %d down)." % (
             len(probes), sum(p["verdict"] == "up" for p in probes),
             sum(p["verdict"] == "down" for p in probes)),
@@ -417,6 +436,12 @@ def record_from_probes(round_: int, probes: list, extra_note: str = "",
         "boot_utc": boot_exact,
         "suspend": None,
         "source": "transcript-r%d" % round_,
+        # ROUND 520. Which round DERIVED this row. Without it `rewrite_plan`
+        # re-derives every recovered row under one hardcoded author and the
+        # first row written by anybody else reads as an unsafe `notes` change.
+        # The field is the row's own provenance, so the derivation can be
+        # reproduced from the row instead of from a constant.
+        "recovered_by_round": by_round,
         "precision": "precise",
         "notes": " ".join(notes),
     }
@@ -425,13 +450,15 @@ def record_from_probes(round_: int, probes: list, extra_note: str = "",
     return out
 
 
-def recover(round_: int, transcript_dir: str = "logs", extra_note: str = "") -> dict:
+def recover(round_: int, transcript_dir: str = "logs", extra_note: str = "",
+            by_round: int = DEFAULT_RECOVER_ROUND) -> dict:
     p = Path(transcript_dir) / ("round-%d.json" % round_)
     if not p.exists():
         raise FileNotFoundError("no transcript for round %d at %s" % (round_, p))
     text = p.read_text()
     return record_from_probes(round_, transcript_probes(text), extra_note,
-                              transcript_lastseen_readings(text))
+                              transcript_lastseen_readings(text),
+                              by_round=by_round)
 
 
 def rewrite_plan(log_path: str, transcript_dir: str = "logs") -> dict:
@@ -455,7 +482,9 @@ def rewrite_plan(log_path: str, transcript_dir: str = "logs") -> dict:
     for i, row in enumerate(rows):
         if not str(row.get("source", "")).startswith("transcript-r"):
             continue
-        fresh = recover(row["round"], transcript_dir)
+        fresh = recover(row["round"], transcript_dir,
+                        by_round=row.get("recovered_by_round",
+                                         DEFAULT_RECOVER_ROUND))
         if fresh == row:
             continue
         added = sorted(set(fresh) - set(row))
@@ -516,6 +545,11 @@ def main(argv=None) -> int:
         sp.add_argument("--log-path", default=rc.DEFAULT_LOG_PATH)
         if name == "recover":
             sp.add_argument("--append", action="store_true")
+            sp.add_argument("--by-round", dest="by_round", type=int,
+                            default=DEFAULT_RECOVER_ROUND,
+                            help="the round WRITING the row (round 520). The "
+                                 "default keeps every row already in the log "
+                                 "re-derivable byte-for-byte by `rewrite`.")
     rw = sub.add_parser("rewrite", help="re-derive every transcript-sourced row "
                                        "in place; add-only, refuses otherwise")
     rw.add_argument("--transcript-dir", default="logs")
@@ -544,7 +578,7 @@ def main(argv=None) -> int:
         if n in existing:
             out.append({"round": n, "skipped": "already has a row"})
             continue
-        rec = recover(n, args.transcript_dir)
+        rec = recover(n, args.transcript_dir, by_round=args.by_round)
         out.append(rec)
         if args.append:
             rc.append_record(rec, args.log_path)

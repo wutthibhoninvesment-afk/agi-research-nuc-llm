@@ -1,0 +1,766 @@
+  perturbation.py:581:ifneg#19       killed      1.76s 
+  perturbation.py:583:ifneg#20       killed      1.96s 
+  perturbation.py:588:ifneg#21       killed      1.21s 
+  perturbation.py:590:ifneg#22       killed      1.12s 
+  perturbation.py:592:ifneg#23       killed      1.13s 
+  perturbation.py:594:ifneg#24       killed      1.23s 
+  perturbation.py:1584:ifneg#38      killed      1.28s 
+  perturbation.py:1586:ifneg#39      killed      1.34s 
+  perturbation.py:1589:ifneg#40      killed      1.16s 
+  perturbation.py:1635:ifneg#41      killed      1.34s 
+  perturbation.py:1637:ifneg#42      killed      1.30s 
+  perturbation.py:1639:ifneg#43      killed      2.05s 
+  perturbation.py:559:const#127      killed      1.34s 
+  perturbation.py:581:cmp#128        killed      1.16s 
+  perturbation.py:583:cmp#129        killed      1.18s 
+  perturbation.py:585:bool#130       killed      1.25s 
+  perturbation.py:587:cmp#131        killed      1.19s 
+  perturbation.py:588:bool#132       killed      1.19s 
+  perturbation.py:594:cmp#133        killed      1.15s 
+  perturbation.py:1584:bool#161      killed      1.87s 
+  perturbation.py:1589:cmp#163       killed      1.31s 
+  perturbation.py:1591:arith#164     killed      1.15s 
+  perturbation.py:1635:cmp#165       killed      1.24s 
+  perturbation.py:1637:not#166       killed      1.58s 
+  perturbation.py:1639:cmp#167       killed      1.94s 
+  perturbation.py:1641:arith#168     killed      1.29s 
+  perturbation.py:2394:ifneg#186     killed      1.76s 
+  perturbation.py:581:const#333      killed      2.18s 
+  perturbation.py:583:const#334      killed      1.29s 
+  perturbation.py:585:cmp#335        killed      1.14s 
+  perturbation.py:586:cmp#336        killed      1.35s 
+  perturbation.py:594:const#337      killed      1.21s 
+  perturbation.py:633:const#338      killed      1.33s 
+  perturbation.py:1584:cmp#377       killed      1.34s 
+  perturbation.py:1584:cmp#378       killed      2.49s 
+  perturbation.py:1584:cmp#379       killed      1.29s 
+  perturbation.py:1584:cmp#380       killed      1.23s 
+  perturbation.py:1584:cmp#381       killed      1.21s 
+  perturbation.py:1586:const#382     killed      1.13s 
+  perturbation.py:1635:const#383     killed      1.22s 
+  perturbation.py:1639:const#384     killed      1.24s 
+  perturbation.py:1653:arith#385     killed      1.27s 
+  perturbation.py:1665:const#386     killed      2.26s 
+  perturbation.py:2372:ifneg#407     killed      1.22s 
+  perturbation.py:2392:ifneg#408     killed      1.35s 
+  perturbation.py:585:arith#570      killed      1.27s 
+  perturbation.py:1584:const#635     killed      1.28s 
+  perturbation.py:1584:const#636     killed      1.43s 
+  perturbation.py:1584:const#637     killed      1.61s 
+  perturbation.py:1637:const#638     killed      4.67s 
+  perturbation.py:1642:cmp#639       killed      1.39s 
+  perturbation.py:1654:const#640     killed      1.38s 
+  perturbation.py:1657:not#641       killed      1.30s 
+  perturbation.py:2359:cmp#679       killed      1.12s 
+  perturbation.py:2360:cmp#680       killed      1.19s 
+  perturbation.py:2361:cmp#681       killed      2.17s 
+  perturbation.py:2363:cmp#682       killed      1.18s 
+  perturbation.py:2364:cmp#683       killed      1.16s 
+  perturbation.py:2392:cmp#684       killed      1.21s 
+  perturbation.py:2409:not#685       killed      1.39s 
+  perturbation.py:1591:arith#982     killed      1.24s 
+  perturbation.py:1650:const#985     killed      1.42s 
+  perturbation.py:1659:cmp#986       killed      1.40s 
+  perturbation.py:2360:const#1016    killed      1.16s 
+  perturbation.py:2361:const#1017    killed      1.19s 
+  perturbation.py:2374:not#1018      killed      1.19s 
+  perturbation.py:1642:const#1238    killed      1.32s 
+  perturbation.py:1651:const#1239    killed      2.06s 
+  perturbation.py:1659:arith#1240    killed      1.21s 
+  perturbation.py:1591:arith#1424    killed      1.24s 
+  perturbation.py:1591:arith#1425    killed      1.60s 
+  perturbation.py:1592:arith#1426    killed      1.35s 
+  perturbation.py:1659:arith#1427    killed      1.41s 
+  perturbation.py:1659:const#1428    killed      1.46s 
+  perturbation.py:2379:const#1439    killed      1.37s 
+  perturbation.py:1592:const#1545    killed      1.93s 
+  perturbation.py:1658:const#1546    killed      1.25s 
+  perturbation.py:1659:const#1599    killed      1.54s 
+  perturbation.py:1658:const#1600    killed      1.31s 
+  perturbation.py:1659:const#1634    killed      1.29s 
+  perturbation.py:558:fconst#1791    killed      1.41s 
+  perturbation.py:560:fconst#1792    killed      1.46s 
+{
+ "argv": [
+  "--root",
+  ".",
+  "--lines",
+  "all",
+  "--budget",
+  "1500",
+  "--timeout",
+  "180",
+  "--only",
+  "perturbation.py:1584:bool#161,perturbation.py:1584:cmp#377,perturbation.py:1584:cmp#378,perturbation.py:1584:cmp#379,perturbation.py:1584:cmp#380,perturbation.py:1584:cmp#381,perturbation.py:1584:const#635,perturbation.py:1584:const#636,perturbation.py:1584:const#637,perturbation.py:1584:ifneg#38,perturbation.py:1586:const#382,perturbation.py:1586:ifneg#39,perturbation.py:1589:cmp#163,perturbation.py:1589:ifneg#40,perturbation.py:1591:arith#1424,perturbation.py:1591:arith#1425,perturbation.py:1591:arith#164,perturbation.py:1591:arith#982,perturbation.py:1592:arith#1426,perturbation.py:1592:const#1545,perturbation.py:1635:cmp#165,perturbation.py:1635:const#383,perturbation.py:1635:ifneg#41,perturbation.py:1637:const#638,perturbation.py:1637:ifneg#42,perturbation.py:1637:not#166,perturbation.py:1639:cmp#167,perturbation.py:1639:const#384,perturbation.py:1639:ifneg#43,perturbation.py:1641:arith#168,perturbation.py:1642:cmp#639,perturbation.py:1642:const#1238,perturbation.py:1650:const#985,perturbation.py:1651:const#1239,perturbation.py:1653:arith#385,perturbation.py:1654:const#640,perturbation.py:1657:not#641,perturbation.py:1658:const#1546,perturbation.py:1658:const#1600,perturbation.py:1659:arith#1240,perturbation.py:1659:arith#1427,perturbation.py:1659:cmp#986,perturbation.py:1659:const#1428,perturbation.py:1659:const#1599,perturbation.py:1659:const#1634,perturbation.py:1665:const#386,perturbation.py:2359:cmp#679,perturbation.py:2360:cmp#680,perturbation.py:2360:const#1016,perturbation.py:2361:cmp#681,perturbation.py:2361:const#1017,perturbation.py:2363:cmp#682,perturbation.py:2364:cmp#683,perturbation.py:2372:ifneg#407,perturbation.py:2374:not#1018,perturbation.py:2379:const#1439,perturbation.py:2392:cmp#684,perturbation.py:2392:ifneg#408,perturbation.py:2394:ifneg#186,perturbation.py:2409:not#685,perturbation.py:558:fconst#1791,perturbation.py:559:const#127,perturbation.py:560:fconst#1792,perturbation.py:581:cmp#128,perturbation.py:581:const#333,perturbation.py:581:ifneg#19,perturbation.py:583:cmp#129,perturbation.py:583:const#334,perturbation.py:583:ifneg#20,perturbation.py:585:arith#570,perturbation.py:585:bool#130,perturbation.py:585:cmp#335,perturbation.py:586:cmp#336,perturbation.py:587:cmp#131,perturbation.py:588:bool#132,perturbation.py:588:ifneg#21,perturbation.py:590:ifneg#22,perturbation.py:592:ifneg#23,perturbation.py:594:cmp#133,perturbation.py:594:const#337,perturbation.py:594:ifneg#24,perturbation.py:633:const#338",
+  "--out",
+  "state/nuc/round-520/rescore-82.json"
+ ],
+ "by_status": {
+  "killed": 82
+ },
+ "kill_rate": 100.0,
+ "linked": true,
+ "live_suite_hashes": {
+  "nuc/tests/test_perturbation.py": "7ac31f492f6c32a4e97d07aa797b9d3f3ed4cb2279e1bd8df20fddb1296c3a63"
+ },
+ "map_is_stale": false,
+ "map_suite_hashes": {
+  "nuc/tests/test_perturbation.py": "7ac31f492f6c32a4e97d07aa797b9d3f3ed4cb2279e1bd8df20fddb1296c3a63"
+ },
+ "master": {
+  "drift_events": [],
+  "link_seconds": 13.94,
+  "n_drift_events": 0,
+  "n_fallback": 0,
+  "n_sandboxes": 82,
+  "n_stagings": 1,
+  "seconds_per_sandbox": 0.17,
+  "stage_seconds": 2.3,
+  "witness_seconds": 11.91
+ },
+ "median_units_selected": 43.0,
+ "mutants_scored_against_a_drifted_master": [],
+ "n_already_scored": 1764,
+ "n_ledger_rows_scored_under_another_suite": 55,
+ "n_left_unrun_by_budget": 0,
+ "n_run_this_slice": 82,
+ "n_selected": 82,
+ "n_sites_in_scope": 1846,
+ "oracle": {
+  "full": 0,
+  "subset": 82
+ },
+ "scope_not_live": [
+  "_block_seconds",
+  "_bucket_at",
+  "_profile_from_blocks",
+  "_profile_stats",
+  "_summarise_profile",
+  "block_lead_lag_profile",
+  "block_shift_null_lead_lag",
+  "classify_bucket",
+  "effective_cells",
+  "gap_blocks",
+  "lead_lag_profile",
+  "parse_vmstat_fields",
+  "sadc_reclaim_literals",
+  "scan_undercount_evidence",
+  "steal_double_count_evidence"
+ ],
+ "scope_strata": {
+  "live_only": {
+   "graded": 66,
+   "kill_rate": 0.9242,
+   "killed": 61
+  },
+  "mutants_not_inside_any_def": [],
+  "pooled": {
+   "graded": 87,
+   "kill_rate": 0.9425,
+   "killed": 82
+  },
+  "pooled_minus_live_pp": 1.83,
+  "strata": {
+   "live": {
+    "graded": 66,
+    "kill_rate": 0.9242,
+    "killed": 61,
+    "n": 66,
+    "other": 0,
+    "owners": {
+     "AttributionEvidence": 1,
+     "ReclaimEvent": 1,
+     "_hypergeom_atleast": 21,
+     "power_floor": 29,
+     "verdict_floor": 7,
+     "verdict_floor.passes": 7
+    },
+    "survived": 5
+   },
+   "test_only": {
+    "graded": 21,
+    "kill_rate": 1.0,
+    "killed": 21,
+    "n": 21,
+    "other": 0,
+    "owners": {
+     "classify_bucket": 21
+    },
+    "survived": 0
+   }
+  }
+ },
+ "scope_verdicts": {
+  "AttributionEvidence": "live",
+  "AttributionEvidence.as_dict": "live",
+  "BucketMap": "live",
+  "BucketMap.__init__": "live",
+  "BucketMap._build_runs": "live",
+  "BucketMap._runs_in": "live",
+  "BucketMap.abs_second": "live",
+  "BucketMap.cover": "live",
+  "BucketMap.seconds": "live",
+  "BucketMap.span_buckets": "live",
+  "BucketMap.span_bytes": "live",
+  "BucketMap.verify": "live",
+  "BucketMap.verify_runs": "live",
+  "Channel": "live",
+  "Channel.__post_init__": "live",
+  "CommitStep": "live",
+  "CommitStep.as_dict": "live",
+  "EngineEvent": "live",
+  "EngineEvent.as_dict": "live",
+  "Event": "live",
+  "LedgerEntry": "live",
+  "LedgerEntry.as_dict": "live",
+  "OomEvent": "live",
+  "OomEvent.as_dict": "live",
+  "PerturbationError": "live",
+  "ReclaimEvent": "live",
+  "ReclaimEvent.as_dict": "live",
+  "ResourceAccounting": "live",
+  "ResourceAccounting.as_dict": "live",
+  "ResourceAccounting.has_memory": "live",
+  "SarRow": "live",
+  "SarRow.get": "live",
+  "SarTable": "live",
+  "SarTable.at": "live",
+  "SarTable.column": "live",
+  "Stitch": "live",
+  "Stitch.as_dict": "live",
+  "SwapExcursion": "live",
+  "SwapExcursion.as_dict": "live",
+  "Timer": "live",
+  "Timer.__post_init__": "live",
+  "Timer.avoidable": "live",
+  "Timer.p_fire_in_window": "live",
+  "WindowDay": "live",
+  "WindowDay.as_dict": "live",
+  "_Unset": "live",
+  "_Unset.__repr__": "live",
+  "_block_seconds": "test_only",
+  "_bucket_at": "test_only",
+  "_capture_days": "live",
+  "_date_ordinal": "live",
+  "_fisher_2x2": "live",
+  "_hist": "live",
+  "_hms_to_s": "live",
+  "_hypergeom_atleast": "live",
+  "_iso_seconds": "live",
+  "_load": "live",
+  "_looks_like_header": "live",
+  "_opt": "live",
+  "_parse_cpu": "live",
+  "_profile_from_blocks": "test_only",
+  "_profile_stats": "test_only",
+  "_profile_stats.at": "live",
+  "_record_lines": "live",
+  "_shift_utc": "live",
+  "_stitch_arg": "live",
+  "_summarise_profile": "test_only",
+  "attribute": "live",
+  "attribution_evidence": "live",
+  "auto_stitches": "live",
+  "best_case_p": "live",
+  "block_lead_lag_profile": "test_only",
+  "block_shift_null_lead_lag": "test_only",
+  "bucket_costs": "live",
+  "bucket_spans": "live",
+  "capture_day_tables": "live",
+  "channel_sweep": "live",
+  "classify_bucket": "test_only",
+  "cluster_evidence": "live",
+  "commit_steps": "live",
+  "cost_ledger": "live",
+  "costly_bucket_cofires": "live",
+  "dedupe_journal": "live",
+  "direct_cost_table": "live",
+  "direct_vs_inferred": "live",
+  "effective_cells": "test_only",
+  "engine_event_summary": "live",
+  "engine_placement_sensitivity": "live",
+  "engine_verdict_stability": "live",
+  "eviction_gap": "live",
+  "eviction_gap_pooled": "live",
+  "gap_blocks": "test_only",
+  "inseparable_classes": "live",
+  "is_session_scope": "live",
+  "journal_sections": "live",
+  "lead_lag_profile": "test_only",
+  "main": "live",
+  "names_of": "live",
+  "observer_confounding": "live",
+  "observer_confounding.in_window": "live",
+  "observer_trace": "live",
+  "oom_cost_context": "live",
+  "oom_episodes": "live",
+  "parse_engine_events": "live",
+  "parse_oom_kills": "live",
+  "parse_resource_accounting": "live",
+  "parse_sar": "live",
+  "parse_size": "live",
+  "parse_unit_starts": "live",
+  "parse_unit_starts_any_kind": "live",
+  "parse_unit_starts_complete": "live",
+  "parse_user_unit_starts": "live",
+  "parse_vmstat_fields": "test_only",
+  "population_coverage": "live",
+  "power_floor": "live",
+  "reclaim_double_count_check": "live",
+  "reclaim_events": "live",
+  "reclaim_pooled": "live",
+  "reclaim_summary": "live",
+  "redundant_sections": "live",
+  "sadc_reclaim_literals": "test_only",
+  "sar_banner_date": "live",
+  "sar_sections": "live",
+  "scan_undercount_evidence": "test_only",
+  "session_exclusion_tables": "live",
+  "session_scope_sessions": "live",
+  "shift_null": "live",
+  "shift_null_covered": "live",
+  "shift_null_covered.rate": "live",
+  "steal_double_count_evidence": "test_only",
+  "steal_double_count_evidence._n": "live",
+  "steal_double_count_evidence._over": "live",
+  "stitch_applies": "live",
+  "stitch_from": "live",
+  "swap_excursions": "live",
+  "unit_kind_census": "live",
+  "unit_start_verb_audit": "live",
+  "unpaired_inflation": "live",
+  "verdict_floor": "live",
+  "verdict_floor.passes": "live",
+  "window_attribution": "live",
+  "window_frame": "live",
+  "window_guard": "live",
+  "window_sweep": "live"
+ },
+ "seconds": 213.6,
+ "seconds_per_mutant": 2.61,
+ "selection": "only",
+ "subset_baseline": {
+  "n_clean": 15,
+  "n_distinct_subsets": 15,
+  "n_poisoned": 0,
+  "n_probes_run": 15,
+  "poisoned": [],
+  "probe_seconds": 84.8
+ },
+ "suite_digest": "7ac31f492f6c32a4e97d07aa797b9d3f3ed4cb2279e1bd8df20fddb1296c3a63",
+ "survivors": [],
+ "survivors_scored_under_another_suite": [],
+ "verdict_changes": [
+  {
+   "id": "perturbation.py:581:ifneg#19",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:583:ifneg#20",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:588:ifneg#21",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:590:ifneg#22",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:592:ifneg#23",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:594:ifneg#24",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1584:ifneg#38",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1586:ifneg#39",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1589:ifneg#40",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1635:ifneg#41",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1637:ifneg#42",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1639:ifneg#43",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:559:const#127",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:581:cmp#128",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:583:cmp#129",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:585:bool#130",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:587:cmp#131",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:588:bool#132",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:594:cmp#133",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1584:bool#161",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1589:cmp#163",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1591:arith#164",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1635:cmp#165",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1637:not#166",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1639:cmp#167",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1641:arith#168",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:2394:ifneg#186",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:581:const#333",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:583:const#334",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:585:cmp#335",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:586:cmp#336",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:594:const#337",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:633:const#338",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1584:cmp#377",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1584:cmp#378",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1584:cmp#379",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1584:cmp#380",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1584:cmp#381",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1586:const#382",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1635:const#383",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1639:const#384",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1653:arith#385",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1665:const#386",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:2372:ifneg#407",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:2392:ifneg#408",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:585:arith#570",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1584:const#635",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1584:const#636",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1584:const#637",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1637:const#638",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1642:cmp#639",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1654:const#640",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1657:not#641",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:2359:cmp#679",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:2360:cmp#680",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:2361:cmp#681",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:2363:cmp#682",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:2364:cmp#683",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:2392:cmp#684",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:2409:not#685",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1591:arith#982",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1650:const#985",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1659:cmp#986",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:2360:const#1016",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:2361:const#1017",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:2374:not#1018",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1642:const#1238",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1651:const#1239",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1659:arith#1240",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1591:arith#1424",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1591:arith#1425",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1592:arith#1426",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1659:arith#1427",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1659:const#1428",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:2379:const#1439",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1592:const#1545",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1658:const#1546",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1659:const#1599",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1658:const#1600",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:1659:const#1634",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:558:fconst#1791",
+   "now": "killed",
+   "was": null
+  },
+  {
+   "id": "perturbation.py:560:fconst#1792",
+   "now": "killed",
+   "was": null
+  }
+ ],
+ "wall_seconds": 235.6
+}
