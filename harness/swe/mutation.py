@@ -464,6 +464,80 @@ COPY_IGNORE = ("__pycache__", ".pytest_cache", "*.pyc",
                ".venv", "research-env", "*.egg-info", ".git", "node_modules")
 
 
+#: Every path `_copytree_tolerating_vanished` skipped, most recent last.
+#: A module-level list rather than only a return value because the three
+#: MODULE-SCOPE callers (`test_swe_oraclekill.py:37`, `test_swe_repair.py:38`,
+#: `test_swe_review.py:117`) copy during pytest COLLECTION, where there is no
+#: test yet to hand a return value to.
+VANISHED = []
+
+
+def _copytree_tolerating_vanished(src, dst):
+    """`shutil.copytree`, surviving a file that another process deleted.
+
+    Round 521 (SWE-loop D). A copy of a LIVE checkout can never be atomic:
+    `shutil.copytree` lists a directory with `os.scandir` and then calls
+    `copy2` on each name, and anything running concurrently may unlink a
+    name in between. `copytree` collects those into `shutil.Error` and
+    raises AFTER copying everything else — so the tree at `dst` is already
+    complete apart from the file that no longer exists, and the raise is
+    pure loss.
+
+    It is not a hypothetical. `logs/health_round_517.log`:
+
+        shutil.Error: [('…/languages/whence/_r438_suffix.lang', …,
+                        "[Errno 2] No such file or directory: …")]
+
+    `languages/whence/tests/test_polarity.py` writes `_r438_suffix.lang`
+    into the live `languages/whence/` directory, runs `run.py` on it and
+    removes it — a window one subprocess wide, and the driver runs the
+    whence and harness health checks concurrently. Because the copy above
+    happens at MODULE SCOPE the raise was a pytest COLLECTION error, so the
+    whole `harness/tests/` directory collected nothing,
+    `test_tiering.py::test_the_slow_tier_is_exactly_the_unpromoted_swe_files`
+    went red for the first time, and the R001 that followed reddened
+    `test_redattrib.py` x2 for four rounds. One vanished scratch file.
+
+    `swe/linkcopy.py:link_tree` — the OTHER copier, which must produce the
+    same sandbox — already survives this: `os.link` raises `OSError`, the
+    `copy2` fallback raises `OSError`, and the second handler passes. The
+    two copiers disagreed on exactly the input that occurs in production,
+    and the tolerant one was the one nothing pointed at the live tree.
+
+    Skipping is CORRECT, not a papering-over: a name that no longer exists
+    is not part of the subject. It is recorded rather than swallowed --
+    returned, and appended to `VANISHED` -- because the difference between
+    "nothing vanished" and "we did not look" is the whole reason this
+    function is not a bare `except shutil.Error: pass`.
+
+    A dangling SYMLINK also raises `ENOENT` and is NOT treated as vanished:
+    `os.path.lexists` is true for the link itself, so it still raises. Any
+    error that is not a vanish is re-raised, with the vanishes removed.
+    """
+    try:
+        shutil.copytree(src, dst, ignore=shutil.ignore_patterns(*COPY_IGNORE))
+        return []
+    except shutil.Error as e:
+        errors = list(e.args[0]) if e.args and isinstance(e.args[0], list) else []
+        vanished, rest = [], []
+        for item in errors:
+            if (isinstance(item, tuple) and len(item) == 3
+                    and "No such file or directory" in str(item[2])
+                    and not os.path.lexists(item[0])):
+                vanished.append(item[0])
+            else:
+                rest.append(item)
+        if not vanished:
+            raise
+        VANISHED.extend(vanished)
+        if rest:
+            # a genuine failure that happened to share a batch with a
+            # vanish: report it alone, with the original chained, so the
+            # reader is not asked to filter noise out of the traceback.
+            raise shutil.Error(rest) from e
+        return vanished
+
+
 def _copy_project(project_root, dst):
     """Copy a project into a throwaway tree.
 
@@ -490,13 +564,13 @@ def _copy_project(project_root, dst):
     called HERE, at the one boundary where the checkout is still reachable,
     and writes the answer into the copy.
     """
-    shutil.copytree(project_root, dst,
-                    ignore=shutil.ignore_patterns(*COPY_IGNORE))
+    vanished = _copytree_tolerating_vanished(project_root, dst)
     try:
         from .fuzz import write_example_curation
     except ImportError:                      # imported as a top-level module
         from fuzz import write_example_curation
     write_example_curation(project_root, dst)
+    return {"vanished": vanished}
 
 
 def _write_mutant(dst, m):

@@ -78,10 +78,13 @@ def link_tree(src, dst, ignore=COPY_IGNORE):
     files are `os.link`ed. Anything `os.link` refuses (EXDEV, EMLINK, EPERM
     on some filesystems) falls back to `shutil.copy2` and is counted.
 
-    Returns a stats dict; `n_fallback > 0` means this was not the cheap path.
+    Returns a stats dict; `n_fallback > 0` means this was not the cheap
+    path, and `n_vanished > 0` means another process deleted a listed file
+    mid-walk (round 521 -- see `swe.mutation._copytree_tolerating_vanished`
+    for the episode that named this).
     """
     st = {"n_dirs": 0, "n_files": 0, "n_symlinks": 0, "n_fallback": 0,
-          "fallback_reasons": {}}
+          "fallback_reasons": {}, "n_vanished": 0, "vanished": []}
     src = os.path.abspath(src)
     os.makedirs(dst, exist_ok=True)
     st["n_dirs"] += 1
@@ -108,6 +111,20 @@ def link_tree(src, dst, ignore=COPY_IGNORE):
                 os.link(s, d)
                 st["n_files"] += 1
             except OSError as e:
+                # Round 521. A name `os.walk` listed and another process
+                # deleted before `os.link` reached it. This path ALREADY
+                # survived it -- ENOENT fell through to the copy2 fallback,
+                # which raised OSError too and was swallowed by the `pass`
+                # below -- so the tree was right and the accounting was
+                # wrong: `fallback_reasons` gained an ENOENT that `n_files`
+                # and `n_fallback` never matched. `swe/mutation.py`'s byte
+                # copier ABORTED on the same input until round 521, and the
+                # two copiers must make the same sandbox. Named on both
+                # sides now instead of being a silent difference.
+                if e.errno == errno.ENOENT and not os.path.lexists(s):
+                    st["n_vanished"] += 1
+                    st["vanished"].append(s)
+                    continue
                 name = errno.errorcode.get(e.errno, str(e.errno))
                 st["fallback_reasons"][name] = st["fallback_reasons"].get(name, 0) + 1
                 try:
@@ -246,7 +263,8 @@ class MasterTree(object):
         self._want_deep = deep_witness
         self.stats = {"n_sandboxes": 0, "n_stagings": 0, "link_seconds": 0.0,
                       "stage_seconds": 0.0, "witness_seconds": 0.0,
-                      "n_fallback": 0, "drift_events": []}
+                      "n_fallback": 0, "n_vanished": 0,
+                      "drift_events": []}
 
     # -- lifecycle ---------------------------------------------------------
     def stage(self):
@@ -304,6 +322,7 @@ class MasterTree(object):
         self.stats["link_seconds"] += time.monotonic() - t0
         self.stats["n_sandboxes"] += 1
         self.stats["n_fallback"] += st["n_fallback"]
+        self.stats["n_vanished"] += st.get("n_vanished", 0)
         return st
 
     # -- soundness ----------------------------------------------------------

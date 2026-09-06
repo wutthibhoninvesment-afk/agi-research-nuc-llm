@@ -370,6 +370,7 @@ def hook_script(python=None, script_rel=None):
     carry_rel = os.path.join("skills", "skill-authoring", "scripts",
                              "carryforward_check.py")
     copyp_rel = os.path.join("harness", "swe", "copyparity.py")
+    livew_rel = os.path.join("harness", "swe", "livewrite.py")
     return """#!/bin/sh
 %s
 # Refuses a commit that would land a path listed in
@@ -459,11 +460,40 @@ fi
 if [ -f "$top/%s" ]; then
   %s "$top/%s" escapes --staged 2>/dev/null || true
 fi
+
+# Round 521 (SWE-loop D): the FIFTH advisory step, and the cheapest thing on
+# this list to have cost four rounds. `harness/swe/livewrite.py staged` finds
+# a staged TEST that creates a file inside a live checkout tree instead of a
+# temporary directory.
+#
+# The episode: languages/whence/tests/test_polarity.py wrote
+# `_r438_suffix.lang` into the live languages/whence/ directory and removed
+# it one subprocess later. Three modules in harness/tests/ copy that
+# directory with shutil.copytree at MODULE SCOPE, and the driver runs the
+# whence and harness health checks CONCURRENTLY -- so at round 517 os.scandir
+# listed the name, copy2 got ENOENT, and because the copy is at module scope
+# the raise was a pytest COLLECTION error: 0 of 557 node ids, the whole
+# directory. test_tiering.py went red, it had never been red before, so
+# redattrib R001 fired and test_redattrib.py x2 was red for rounds 518-521.
+#
+# Round 521 closed the mechanism at the copier (a vanished file is now
+# skipped and recorded, matching linkcopy.link_tree, which already survived
+# it), so this step is not load-bearing for correctness. It is here because
+# 12 more live-tree writes in 4 files are still in the tree, in two tracks'
+# suites, and the author of the thirteenth is the only person who can be
+# told cheaply. AST over the staged blob only, ~0.16 s.
+#
+# WARNS, NEVER BLOCKS, fails open -- round 499's reason above applies
+# unchanged.
+if [ -f "$top/%s" ]; then
+  %s "$top/%s" staged 2>/dev/null || true
+fi
 exit 0
 """ % (HOOK_MARKER, script_rel, python, script_rel,
        wiring_rel, python, wiring_rel,
        carry_rel, python, carry_rel,
-       copyp_rel, python, copyp_rel)
+       copyp_rel, python, copyp_rel,
+       livew_rel, python, livew_rel)
 
 
 def hooks_dir(repo=REPO_ROOT):

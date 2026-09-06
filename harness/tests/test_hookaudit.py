@@ -37,7 +37,7 @@ def git(repo, *args):
 
 
 class _Repo(unittest.TestCase):
-    """A throwaway checkout with the four scripts the hook names, so a step
+    """A throwaway checkout with the five scripts the hook names, so a step
     is `live` unless the test breaks it on purpose."""
 
     def setUp(self):
@@ -47,7 +47,7 @@ class _Repo(unittest.TestCase):
         git(self.tmp, "config", "user.email", "t@t")
         git(self.tmp, "config", "user.name", "t")
         for rel in ("harness/escalationguard.py", "harness/wiring_audit.py",
-                    "harness/swe/copyparity.py",
+                    "harness/swe/copyparity.py", "harness/swe/livewrite.py",
                     "skills/skill-authoring/scripts/carryforward_check.py"):
             dst = os.path.join(self.tmp, rel)
             os.makedirs(os.path.dirname(dst), exist_ok=True)
@@ -65,16 +65,17 @@ class _Repo(unittest.TestCase):
 
 
 class TestParseStepsOnTheHookText(unittest.TestCase):
-    def test_the_live_generator_yields_four_steps_one_of_them_blocking(self):
+    def test_the_live_generator_yields_five_steps_one_of_them_blocking(self):
         steps = ha.parse_steps(eg.hook_script())
         self.assertEqual([s["script"] for s in steps],
                          ["harness/escalationguard.py",
                           "harness/wiring_audit.py",
                           "skills/skill-authoring/scripts/"
                           "carryforward_check.py",
-                          "harness/swe/copyparity.py"])
+                          "harness/swe/copyparity.py",
+                          "harness/swe/livewrite.py"])
         self.assertEqual([s["blocking"] for s in steps],
-                         [True, False, False, False])
+                         [True, False, False, False, False])
 
     def test_the_f_guard_lines_are_not_read_as_invocations(self):
         """`[ -f "$top/x" ] || exit 0` and `if [ -f "$top/x" ]; then` both
@@ -158,9 +159,16 @@ class TestIdentity(_Repo):
         self.assertEqual(ha.identity(repo=self.tmp)[0], "foreign")
 
     def test_an_older_generation_of_our_own_hook_is_stale(self):
-        """THE STATE ROUND 515 ASKED FOR. Rounds 499, 501 and 515 each added
-        a step to `hook_script()`; each had to remember to run `install-hook`
-        as a separate act, and nothing anywhere would have said so."""
+        """THE STATE ROUND 515 ASKED FOR. Rounds 499, 501, 515 and 521 each
+        added a step to `hook_script()`; each had to remember to run
+        `install-hook` as a separate act, and until round 517 nothing
+        anywhere would have said so. Round 521 was told by THIS node, in the
+        same session that added the step -- which is the whole point.
+
+        The expected step count is derived from `hook_script()` rather than
+        written as a literal: round 521 hit `4 != 3` here purely because the
+        hook grew, and a pin that has to be edited for an unrelated reason is
+        a pin whose next reader edits it without reading it."""
         _, path = self.install()
         body = eg.hook_script()
         older = body.replace(
@@ -172,7 +180,9 @@ class TestIdentity(_Repo):
         state, _p, why = ha.identity(repo=self.tmp)
         self.assertEqual(state, "stale")
         self.assertIn("did not run `install-hook`", why)
-        self.assertEqual(len(ha.audit(repo=self.tmp)["steps"]), 3)
+        # one step short of `hook_script()`'s current five
+        self.assertEqual(len(ha.audit(repo=self.tmp)["steps"]),
+                         len(ha.parse_steps(body)) - 1)
 
     def test_a_hook_installed_with_another_interpreter_is_not_stale(self):
         """`install_hook(python=...)` is a real parameter two existing tests
@@ -194,10 +204,10 @@ class TestStepReferenceIntegrity(_Repo):
     deletes the step, silently, and for step 1 that means the only BLOCKING
     guard in the program reports success."""
 
-    def test_all_four_steps_are_live_in_a_complete_checkout(self):
+    def test_all_five_steps_are_live_in_a_complete_checkout(self):
         self.install()
         rep = ha.audit(repo=self.tmp)
-        self.assertEqual(rep["counts"]["live"], 4, rep)
+        self.assertEqual(rep["counts"]["live"], 5, rep)
         self.assertTrue(ha.is_clean(rep))
 
     def test_moving_the_blocking_scripts_file_is_reported_not_silent(self):

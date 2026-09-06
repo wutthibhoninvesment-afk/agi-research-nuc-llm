@@ -28,6 +28,11 @@
     ]
   },
   "nodes": {
+    "harness/tests/test_tiering.py::test_the_slow_tier_is_exactly_the_unpromoted_swe_files": {
+      "subject_scope": "whole-tree",
+      "evidence": "subject",
+      "why": "Round 521 (SWE-loop D), declared with the mechanism rather than the symptom. The node does not read files: it SHELLS OUT `pytest --collect-only harness/tests/ -m swe_slow` and asserts rc 0, so anything that makes that directory fail to COLLECT turns it red, and a collection error is all-or-nothing -- 0 of 557 node ids come back. Three modules in that directory copy a live checkout at MODULE SCOPE, i.e. during collection: test_swe_oraclekill.py:37, test_swe_repair.py:38 and test_swe_review.py:117, all `_copy_project(WHENCE_ROOT, ...)`. Its one red, round 517: `languages/whence/tests/test_polarity.py::test_the_two_counterexamples_disagree_when_actually_run` wrote `_r438_suffix.lang` into the LIVE `languages/whence/` directory and removed it a subprocess later; the driver runs the whence and harness health checks CONCURRENTLY; `shutil.copytree` listed that name with os.scandir and got ENOENT from copy2, raised shutil.Error, and pytest reported `Interrupted: 1 error during collection`. So the subject is the collectability of harness/tests/ AND of every tree its module-scope copies read -- two trees, both wider than the host suite, which is why `foreign-subject` (which says ONE other tree) is wrong here. `environmental` was considered and rejected under R006: the verdict does alternate on unchanged code, but this label was read off the SUBJECT (the failure body plus the two sources), not off the outcomes, and R006 forbids an environmental label that is not outcome-derived. NEITHER track could have seen it: the race is between two suites the DRIVER runs concurrently after the round's process has exited. Round 521 closed the mechanism at the copier (`_copytree_tolerating_vanished` skips and records a file another process deleted, matching `linkcopy.link_tree`, which already survived it) and moved test_polarity.py's scratch program to a tempdir; `harness/swe/livewrite.py` scans for the shape and found 12 more live-tree writes in 4 files."
+    },
     "harness/tests/test_whenceslow.py::test_the_real_tree_yields_the_units_round_469_measured": {
       "subject_scope": "foreign-subject",
       "evidence": "subject",

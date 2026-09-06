@@ -13,6 +13,7 @@ Two kinds of test, kept apart on purpose:
 """
 
 import os
+import shutil
 import sys
 
 import pytest
@@ -490,21 +491,35 @@ def test_the_two_counterexamples_disagree_when_actually_run():
     step that makes `undecidable` a measurement.
     """
     import subprocess
+    import tempfile
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    # ROUND 521 (SWE-loop D): this scratch program used to be written into
+    # `here` -- the LIVE `languages/whence/` directory -- and removed in the
+    # `finally`. `harness/tests/test_swe_oraclekill.py` (and two more) copy
+    # that directory with `shutil.copytree` at MODULE SCOPE, and the driver
+    # runs the whence and harness health checks concurrently. At round 517
+    # the copy listed `_r438_suffix.lang` with `os.scandir` and found it gone
+    # by the time `copy2` reached it: `shutil.Error` at COLLECTION time, so
+    # `harness/tests/` collected nothing, `test_tiering.py` went red, and the
+    # R001 that followed reddened `test_redattrib.py` x2 for four rounds.
+    # `run.py` takes an absolute path, so a temporary directory costs nothing
+    # and takes this test out of every other suite's copy scope.
+    # `harness/swe/livewrite.py` is the scanner that finds this shape.
+    tmp = tempfile.mkdtemp(prefix="r438-")
     got = {}
-    for stem in ("suffix", "infix"):
-        src, pin = _r438_case(stem)
-        mutant = CP.apply_edit(src, pin)
-        prog = os.path.join(here, "_r438_%s.lang" % stem)
-        with open(prog, "w", encoding="utf-8") as f:
-            f.write(mutant)
-        try:
+    try:
+        for stem in ("suffix", "infix"):
+            src, pin = _r438_case(stem)
+            mutant = CP.apply_edit(src, pin)
+            prog = os.path.join(tmp, "_r438_%s.lang" % stem)
+            with open(prog, "w", encoding="utf-8") as f:
+                f.write(mutant)
             p = subprocess.run([sys.executable, os.path.join(here, "run.py"),
                                 prog], cwd=here, capture_output=True,
                                text=True, timeout=120)
-        finally:
-            os.remove(prog)
-        got[stem] = p.returncode
+            got[stem] = p.returncode
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
     assert got == {"suffix": 0, "infix": 1}
 
 

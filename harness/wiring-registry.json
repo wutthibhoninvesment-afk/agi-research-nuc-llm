@@ -189,6 +189,11 @@
       "via": "harness/tests/test_ledgerreplay.py:-",
       "via_kind": "import"
     },
+    "harness/swe/livewrite.py": {
+      "status": "wired",
+      "via": "harness/tests/test_swe_livewrite.py:42",
+      "via_kind": "import"
+    },
     "harness/swe/loop.py": {
       "status": "wired",
       "via": "harness/tests/test_swe_loop_cli.py:-",
