@@ -392,11 +392,234 @@
       "subject_scope": "own-suite",
       "evidence": "subject",
       "why": "ROUND 522 (language C), one episode, eight nodes. Round 521 (SWE-loop D) moved a scratch `.lang` file out of the live `languages/whence/` directory -- a correct fix to a real `shutil.copytree` race -- which shifted `languages/whence/tests/test_polarity.py` by +15 lines and left `state/whence/assert-shadow-census.json` pointing at six coordinates the tree no longer asserts on. Everything below is downstream of that ONE fact. SCOPE BY SUBJECT: the walk root is `languages/whence/tests/` and the ledgers are `state/whence/*.json`, both language(C) artefacts; no change in `harness/`, `nuc/` or `skills/` can move any of them, which is what `own-suite` asserts and it is true. The SECOND sentence of `own-suite`'s definition is false again, for the second recorded time and with a different opener: SWE-loop(D) opened all eight and does not run `languages/whence/tests`. Round 507 (skills B) is the first instance and the four `assertshadow.py --check` entries above already say so. Two openers, two tracks, one taxonomy clause: the label is right about the subject and wrong about who can see it. That belongs to harness(A) / SWE-loop(D), who own `redattrib.py`. Closed by round 522 at `bdd3243` by regenerating both ledgers in dependency order and by making the silence that hid the cause impossible. The whole published result of round 498's next-step #2 as a set: the pairs where the name-list heuristic and dataflow disagree. Four of the six unjoined pairs flipped `derived` True -> False, so `disagree` went 3 -> 7 and the pinned set moved. Subject: the census and `languages/whence/tests/`."
+    },
+    "harness/tests/test_escalationguard.py::test_load_registry_reads_the_entries_and_skips_underscore_keys": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'skills', host tree is 'harness'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "harness/tests/test_nuc_health_line.py::test_the_real_script_still_prints_the_verdict_line_this_parses": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'nuc', host tree is 'harness'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "harness/tests/test_round101.py::test_region_tools_share_one_budget": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'languages/whence', host tree is 'harness'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "harness/tests/test_round101.py::test_review_task_with_read_budget_states_it_and_enforces_it": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'languages/whence', host tree is 'harness'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "harness/tests/test_run_driver_nuc_health_check.py::test_all_four_health_checks_are_independent": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'skills', host tree is 'harness'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "harness/tests/test_run_driver_record_gap_check.py::test_acknowledged_escalation_logs_one_line_and_injects_no_note": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'skills', host tree is 'harness'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "harness/tests/test_run_driver_record_gap_check.py::test_injected_note_preamble_enumerates_every_implemented_gap_shape": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'skills', host tree is 'harness'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "harness/tests/test_run_driver_record_gap_check.py::test_record_gap_check_finds_gap_and_injects_note_into_prompt": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'skills', host tree is 'harness'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "harness/tests/test_run_driver_record_gap_check.py::test_record_gap_check_passes_on_clean_history": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'skills', host tree is 'harness'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "harness/tests/test_run_driver_skills_health_check.py::test_a_checker_that_could_not_run_reads_as_error_not_fail": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'skills', host tree is 'harness'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "harness/tests/test_run_driver_skills_health_check.py::test_all_three_health_checks_are_independent": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'skills', host tree is 'harness'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "harness/tests/test_run_driver_skills_health_check.py::test_pass_line_carries_the_summary_including_the_warning_count": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'skills', host tree is 'harness'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "harness/tests/test_run_driver_skills_health_check.py::test_rule_violation_reads_as_fail_not_as_a_broken_runner": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'skills', host tree is 'harness'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "harness/tests/test_slowtier.py::test_rule_10_also_applies_on_the_READ_side_to_entries_already_written": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'languages/whence', host tree is 'harness'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "harness/tests/test_slowtier.py::test_rule_10_changes_nothing_for_an_entry_with_no_returncode_field": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'languages/whence', host tree is 'harness'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "harness/tests/test_slowtier.py::test_the_real_checkout_digest_is_computable_and_short": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'languages/whence', host tree is 'harness'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "harness/tests/test_swe_coverage.py::test_cli_analyses_an_existing_coverage_file": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'languages/whence', host tree is 'harness'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "harness/tests/test_swe_coverage.py::test_real_checkout_lexer_tests_cover_the_lexer": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'languages/whence', host tree is 'harness'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "harness/tests/test_swe_proc.py::test_ref_diff_test_survives_running_from_a_tempdir_copy": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'languages/whence', host tree is 'harness'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "harness/tests/test_swe_regiontools.py::test_outline_tool_on_the_real_interpreter_and_error_paths": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'languages/whence', host tree is 'harness'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "harness/tests/test_swe_regiontools.py::test_read_range_never_exceeds_cap_on_the_real_file": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'languages/whence', host tree is 'harness'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "harness/tests/test_swe_regiontools.py::test_region_tools_register_under_the_classic_names": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'languages/whence', host tree is 'harness'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "harness/tests/test_whence_anchor.py::test_the_live_anchor_rule_still_finds_candidates_in_interp_py": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'languages/whence', host tree is 'harness'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "harness/tests/test_whenceslow.py::test_test_tiering_is_not_a_unit_despite_two_grep_hits": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'languages/whence', host tree is 'harness'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "harness/tests/test_whenceslow.py::test_the_biggest_units_are_the_ones_round_469_named": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'languages/whence', host tree is 'harness'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "harness/tests/test_whenceslow.py::test_the_real_cross_import_chain_is_in_the_closure": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'languages/whence', host tree is 'harness'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "skills/derived-subject-set/scripts/test_pattern_vs_enum.py::TestLiveTree::test_the_cli_exit_code_follows_the_findings": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'harness', host tree is 'skills'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "skills/skill-authoring/scripts/test_carryforward_check.py::TestBankDiscovery::test_a_bank_with_no_round_number_is_reported_not_dropped": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'nuc', host tree is 'skills'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "skills/skill-authoring/scripts/test_carryforward_check.py::TestBankDiscovery::test_all_six_live_naming_conventions_are_found": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'nuc', host tree is 'skills'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "skills/skill-authoring/scripts/test_carryforward_check.py::TestBankDiscovery::test_the_nuc_convention_is_found_this_is_the_regression": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'nuc', host tree is 'skills'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "skills/skill-authoring/scripts/test_state_claim_check.py::TestCheckReference::test_a_count_matching_both_numbers_is_clean": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'nuc', host tree is 'skills'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "skills/skill-authoring/scripts/test_state_claim_check.py::TestCheckReference::test_a_count_matching_neither_number_is_S009_stale": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'nuc', host tree is 'skills'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "skills/skill-authoring/scripts/test_state_claim_check.py::TestCheckReference::test_a_count_matching_only_the_invocation_number_is_S010_warn": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'nuc', host tree is 'skills'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "skills/skill-authoring/scripts/test_state_claim_check.py::TestCheckReference::test_a_count_matching_only_the_mention_number_is_S010_warn": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'nuc', host tree is 'skills'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "skills/skill-authoring/scripts/test_state_claim_check.py::TestCheckReference::test_an_unreadable_container_is_skipped_rather_than_flagged": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'nuc', host tree is 'skills'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "skills/skill-authoring/scripts/test_state_claim_check.py::TestCheckReference::test_an_unresolved_target_is_skipped_rather_than_flagged": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'nuc', host tree is 'skills'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
+    },
+    "skills/skill-authoring/scripts/test_state_claim_check.py::TestCheckReference::test_every_finding_carries_the_command_that_re_derives_it": {
+      "subject_scope": "foreign-subject",
+      "evidence": "subject",
+      "predeclared": true,
+      "why": "PREDECLARED by round 523's `harness/scopeinfer.py predeclare`, before this node has ever been red. Rule S020: every tree-resident path is in 'nuc', host tree is 'skills'. The evidence is the node's recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, neither about any verdict. If this node does go red and the scope is wrong, correct it and say so: a predeclared entry is a prediction, and a wrong one is more useful than a missing one."
     }
   },
   "_evidence_kind": {
     "_comment": "Round 467 (SWE-loop D). WHAT DECIDED THIS ENTRY'S `subject_scope`. The invisible-open rate and its p-value are computed over these labels, so a label read off the episode outcomes it is later used to explain is circular. Declaring the evidence kind makes the circularity checkable instead of arguable, and R006 makes it fail-closed. NOTE the proxy that does NOT work: 29 of the 31 entries at round 467 mention a round number or a track name in `why`, so `does the prose cite an opener` flags almost everything; the question is whether the scope SURVIVES deleting those clauses. Adjudicated entry by entry, only 3 do not.",
     "subject": "The scope follows from what the node READS or ASSERTS OVER -- an argv, an os.walk root, the files a helper resolves -- with every clause that names an opening round or track deleted. Opener history may appear in `why` as corroboration; it is not what decided the value.",
     "outcome": "The scope could only be reached from the verdict history: the same code passing and failing across rounds, a failure text, a base rate. `environmental` is the only scope this can produce, and it is the only scope that requires it -- flakiness is invisible in a subject. R006 pins that equivalence both ways. These episodes are already excluded from the `excl_environmental` headline, so the association is never computed over an outcome-derived label."
-  }
+  },
+  "_r523_predeclared": "Round 523 (harness A) added the first PREDECLARED entries this registry has ever held, closing round 521's next-step #1. Until this round R002 made an entry for a node that had never been red an ERROR, so the registry could only ever be written retroactively -- one round after the R001 that demanded it, by whoever came next, which is what made every R001 cost a round. An entry carrying `predeclared: true` is exempt from R002 and from nothing else; redattrib's R007 keeps the exemption narrow (a predeclared entry must say `evidence: subject` and must not say `environmental`, which R006 already establishes is outcome-derived by definition). The 37 entries added here are every `foreign-subject` node `harness/scopeinfer.py predeclare` could label -- deliberately that shape and no other, because a foreign-subject red is by construction invisible to the track that runs the suite it lives in, which is the 83% invisible-open rate this registry exists to explain. They are PREDICTIONS: `redattrib.py audit` prints any of them that has since gone red under SCORABLE, and the honest response to a wrong one is to correct it in the open, not to delete it. Round 523 measured the classifier against the 73 entries that were already here: 27 labelled, 15 agreeing, and the binding constraint is COVERAGE (40 entries have no read-set row at all), not inference. The entries are APPENDED rather than sorted in: re-sorting the whole map would have shown as 166 deleted lines for a 37-entry addition."
 }

@@ -16,6 +16,7 @@ never a pinned count, because a pinned count is what round 403 found rotting
 in `test_self_hosting.py`.
 """
 
+import ast
 import os
 import sys
 
@@ -290,6 +291,33 @@ if __name__ == "__main__":
                                       "check": "subparser"}})
         # `nope` is undeclared AND trusted: this is the shape V002 exists for
         assert any(s[3] == "nope" and s[5] for s in sites["tool.py"])
+
+    def test_a_list_passed_to_an_ordinary_function_is_data_not_an_argv(self):
+        """ROUND 523. The fifth false-V002 shape, and the fourth fixed by a
+        rule. `_argv_positions` used to fold ANY list literal passed to ANY
+        call, so a test fixture spelling `row(files=["harness/tool.py",
+        "alpha"])` -- a module path followed by a bare word, in an argument
+        position -- read as an invocation of a verb `tool.py` does not
+        declare. `row()` does not start a process. The tell is which callable
+        receives the list, and it is syntactic."""
+        tree = ast.parse('row(files=["harness/tool.py", "alpha"])\n'
+                         'helper(["harness/tool.py", "alpha"], root)\n')
+        assert V._argv_positions(tree) == set()
+
+    def test_a_list_passed_to_a_real_spawner_is_still_an_argv(self):
+        for call in ('subprocess.run(["python3", "tool.py", "check"])',
+                     'subprocess.check_output(["python3", "tool.py", "check"])',
+                     'Popen(["python3", "tool.py", "check"])'):
+            tree = ast.parse(call)
+            assert V._argv_positions(tree), call
+
+    def test_an_assignment_is_still_an_argv_position(self):
+        """The hand-off to the spawner is usually a separate statement, so
+        the assignment branch stays deliberately loose -- narrowing it too
+        would lose the `cmd = [...]` / `subprocess.run(cmd)` shape this repo
+        actually uses."""
+        tree = ast.parse('cmd = ["python3", "tool.py", "check"]\n')
+        assert V._argv_positions(tree)
 
     def test_a_files_own_usage_block_is_not_evidence_it_runs(self, tmp_path):
         """A self-reference is dropped: a script documenting its own verbs in

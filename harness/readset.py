@@ -548,6 +548,36 @@ def silent_nodes(mp):
     return [nid for nid in mp.get("roster", ()) if nid not in seen]
 
 
+def phantom_paths(mp, root=ROOT):
+    """(path -> rows that recorded it) for every recorded path NOT in the tree.
+
+    ROUND 523 (harness A). The audit hook fires on the `open` EVENT, and
+    CPython raises that event BEFORE the syscall -- so a read that fails with
+    ENOENT is recorded exactly like a read that succeeds. Combine that with a
+    caller that resolves a bare basename against the ambient cwd, and pytest's
+    cwd is this repo's root, and the map acquires repo-relative paths that
+    have never existed: `alpha` and `beta` (123 rows each), `my-skill` (54),
+    and the `.git` subdirectory roster `branches`/`heads`/`hooks`/`info`/
+    `objects`/`pack`/`refs`/`tags` (33 each) -- 190 distinct names across 415
+    of the 1456 rows in the map recorded before round 523.
+
+    REPORTED, NOT DROPPED, and the distinction is the owner's call rather
+    than an oversight. For `blast` a failed probe can be a REAL dependence:
+    create `alpha` at the repo root and a node that probes for it may behave
+    differently, which is exactly the addition-shaped redden `scans` exists
+    to catch. For a SCOPE it is never evidence, so `harness/scopeinfer.py`
+    drops these itself. Deciding whether `record` should stop keeping them
+    needs a re-record (a full instrumented suite run) and a judgement about
+    probes; this function is what makes either one arguable from data.
+    """
+    out = {}
+    for nid, ent in (mp.get("nodes") or {}).items():
+        for p in list(ent.get("files", ())) + list(ent.get("scans", ())):
+            if not os.path.exists(os.path.join(root, p)):
+                out.setdefault(p, []).append(nid)
+    return out
+
+
 def staleness(mp, root=ROOT):
     """`(is_stale, note)` -- did the tree move since the map was recorded?"""
     head = git_head(root)
@@ -826,6 +856,27 @@ def cmd_show(args):
     return 0
 
 
+def cmd_phantoms(args):
+    mp = load_map(args.map)
+    ph = phantom_paths(mp)
+    rows = sorted(ph.items(), key=lambda kv: (-len(kv[1]), kv[0]))
+    nodes = set()
+    for _p, ns in rows:
+        nodes |= set(ns)
+    if args.json:
+        print(json.dumps({"n_paths": len(ph), "n_nodes": len(nodes),
+                          "paths": dict((p, len(n)) for p, n in rows)},
+                         indent=1, sort_keys=True))
+        return 0
+    print("recorded paths that do not exist in this tree: %d, across %d of "
+          "%d node row(s)" % (len(ph), len(nodes), len(mp.get("nodes", {}))))
+    for path, ns in rows[:args.show]:
+        print("  %5d  %s" % (len(ns), path))
+    if len(rows) > args.show:
+        print("  ... %d more" % (len(rows) - args.show))
+    return 0
+
+
 def cmd_silent(args):
     mp = load_map(args.map)
     out = silent_nodes(mp)
@@ -868,6 +919,13 @@ def main(argv=None):
     p.add_argument("--map", default=DEFAULT_MAP)
     p.add_argument("--limit", type=int, default=20)
     p.set_defaults(fn=cmd_show)
+
+    p = sub.add_parser("phantoms",
+                       help="recorded paths that do not exist in the tree")
+    p.add_argument("--map", default=DEFAULT_MAP)
+    p.add_argument("--json", action="store_true")
+    p.add_argument("--show", type=int, default=25)
+    p.set_defaults(fn=cmd_phantoms)
 
     p = sub.add_parser("silent", help="rostered nodes that read nothing")
     p.add_argument("--map", default=DEFAULT_MAP)

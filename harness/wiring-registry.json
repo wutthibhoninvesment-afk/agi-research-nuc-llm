@@ -111,6 +111,12 @@
       "via": "run_driver.sh:811",
       "via_kind": "path"
     },
+    "harness/scopeinfer.py": {
+      "status": "wired",
+      "via": "harness/tests/test_scopeinfer.py:35",
+      "via_kind": "import",
+      "reason": "Round 523 (harness A), closing round 521's next-step #1. `scopeinfer.py` proposes a node's `subject_scope` from its recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, so both available before the node has ever been red, which is the whole point: R002 used to make a pre-red registry entry an error. Wired by import: the fast tier collects harness/tests/test_scopeinfer.py, which imports it. The driver does not invoke it directly and nothing gates on it -- `agree` is a measurement and exits 0 whatever it finds, per round 493's rule that a check must never be able to stop the round that would fix it."
+    },
     "harness/swe/bench_prioritize.py": {
       "status": "manual",
       "owner": "SWE-loop(D)",
@@ -293,6 +299,12 @@
       "status": "wired",
       "via": "harness/run_tests_fast.sh:51",
       "via_kind": "dir"
+    },
+    "harness/tests/test_scopeinfer.py": {
+      "status": "wired",
+      "via": "harness/run_tests_fast.sh:51",
+      "via_kind": "dir",
+      "reason": "Round 523 (harness A), closing round 521's next-step #1. `scopeinfer.py` proposes a node's `subject_scope` from its recorded read set (`harness/readset-map.json`) plus the committed-writer set of each subject path -- both facts about the SUBJECT, so both available before the node has ever been red, which is the whole point: R002 used to make a pre-red registry entry an error. Wired by import: the fast tier collects harness/tests/test_scopeinfer.py, which imports it. The driver does not invoke it directly and nothing gates on it -- `agree` is a measurement and exits 0 whatever it finds, per round 493's rule that a check must never be able to stop the round that would fix it."
     },
     "harness/tests/test_tools.py": {
       "status": "wired",

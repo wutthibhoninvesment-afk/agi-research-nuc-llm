@@ -168,6 +168,21 @@ def _str_seq(node):
     return out
 
 
+#: Callables that actually start a process. A list literal handed to
+#: anything else is data, however much it looks like an argv.
+_SPAWNERS = frozenset((
+    "run", "Popen", "call", "check_call", "check_output",
+    "execv", "execve", "execvp", "execvpe", "spawnv", "spawnve",
+    "create_subprocess_exec",
+))
+
+
+def _spawns(fn):
+    """Does this `Call.func` name a process-spawning callable?"""
+    name = getattr(fn, "attr", None) or getattr(fn, "id", None)
+    return name in _SPAWNERS
+
+
 def _argv_positions(tree):
     """`id()` of every node that sits where an ARGV LIST is spelled.
 
@@ -192,12 +207,30 @@ def _argv_positions(tree):
     one. The iterable of a `for`, an element of a bigger literal, a `return`
     value and a comparison operand are not.
 
+    ROUND 523 (harness A) NARROWED THE CALL BRANCH, and it is the fifth
+    instance of the same rule-not-exemption pattern. As first written, ANY
+    list literal passed to ANY call counted as an argv position -- so
+    ordinary DATA passed to an ordinary function did too. Three fresh V002s
+    came from one new test file whose fixtures happen to spell
+    `SI.existing(["harness/scopeinfer.py", "alpha", ...])` and
+    `row(files=["harness/scopeinfer.py", "alpha"])`: a module path followed
+    by a bare word, in an argument position, which is exactly an argv's
+    shape and is not one. `row()` does not start a process.
+
+    A list is now in an argv position only when it is passed to something
+    that can SPAWN one (`_SPAWNERS`), or assigned to a name (`cmd = [...]`,
+    later handed to a spawner -- the assignment branch stays deliberately
+    loose because the hand-off is usually a separate statement). This can
+    only REMOVE V002 findings, never add one, and it does not touch REACHED.
+
     As with the `*argv` rule above, only V002 is suppressed: a verb REACHED
     from such a line is still sound, because the word really is there.
     """
     out = set()
     for parent in ast.walk(tree):
         if isinstance(parent, ast.Call):
+            if not _spawns(parent.func):
+                continue
             for a in list(parent.args) + [k.value for k in parent.keywords]:
                 if isinstance(a, ast.Starred):
                     a = a.value

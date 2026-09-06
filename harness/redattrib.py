@@ -74,6 +74,22 @@ open is not. The reconciliation printed by `attribute` is the guard on that
 claim: every round the driver called FAIL or ERROR must be a round in which
 this parser found a red node or found something that could not report.
 
+PREDECLARATION (round 523, harness A). Round 521's next-step #1 named the
+structural defect in the rule above: `subject_scope` is a property of what a
+node READS, so it is knowable the first time the node is ever run -- but R002
+made an entry for a node that has never been red an ERROR, so the registry
+could only ever be filled in retroactively, one round after the R001 that
+demanded it. An entry may now carry `predeclared: true`, which exempts it from
+R002 and nothing else. R007 keeps the exemption narrow: a predeclared entry
+must say `evidence: subject` and must not say `environmental`, because R006
+already establishes that an `environmental` label can only be read off a
+verdict history that a predeclared entry by definition does not have.
+
+A predeclared entry is a PREDICTION, and `audit` prints the ones that have
+since gone red under `SCORABLE` so the next reader is told to score them
+rather than left to notice. `harness/scopeinfer.py` proposes them; this module
+only decides what a well-formed one looks like.
+
 Commands
 --------
     python3 harness/redattrib.py attribute [--json]
@@ -87,9 +103,13 @@ Commands
     python3 harness/redattrib.py audit
         FAIL-CLOSED registry audit. Exit 1 on any error.
           R001  a node went red and has no registry entry
-          R002  a registry entry names a node that never went red
+          R002  a registry entry names a node that never went red, and does
+                not carry `predeclared: true`
           R003  a registry entry declares an unknown subject_scope
           R004  a track named by an episode has no track_suites row
+          R007  a `predeclared` entry is malformed: the flag is not a bool,
+                its evidence is not `subject`, or its scope is
+                `environmental` -- none of which can be known before a red
 
 An episode's opener is NOT attributed when the episode began on the check's
 FIRST EVER run: the check was installed red, and nobody opened it. That is
@@ -500,8 +520,22 @@ def analyse(root=ROOT):
             findings.append(("R001", nid, _r001_message(first, tracks.get(first),
                                                         firable)))
     for nid, ent in sorted(nodes_reg.items()):
-        if nid not in seen:
-            findings.append(("R002", nid, "registry entry for a node that never went red"))
+        pre = ent.get("predeclared")
+        if pre is not None and (pre is not True or ent.get("evidence") != "subject"
+                                or ent.get("subject_scope") == "environmental"):
+            findings.append(("R007", nid,
+                             "malformed predeclaration: predeclared=%r "
+                             "evidence=%r subject_scope=%r -- a predeclared "
+                             "entry must be `true` with `evidence: subject` "
+                             "and cannot be `environmental`, which R006 makes "
+                             "outcome-derived by definition"
+                             % (pre, ent.get("evidence"),
+                                ent.get("subject_scope"))))
+        if nid not in seen and pre is not True:
+            findings.append(("R002", nid,
+                             "registry entry for a node that never went red "
+                             "-- add `predeclared: true` if this is a scope "
+                             "declared ahead of the first red (round 523)"))
         if ent.get("subject_scope") not in scopes:
             findings.append(("R003", nid, "unknown subject_scope %r"
                              % ent.get("subject_scope")))
@@ -1281,14 +1315,35 @@ def cmd_scope_test(args):
     return 0
 
 
+def predeclared_status(root=ROOT, res=None):
+    """(all predeclared node ids, the ones that have since gone red).
+
+    The second list is the SCORABLE set: a predeclared scope is a prediction
+    made before any evidence, and a prediction nobody scores is not a
+    prediction. Reported by `audit`, never an error -- a wrong predeclaration
+    that is corrected in the open is the outcome this mechanism exists for.
+    """
+    reg = load_registry(root)
+    pre = sorted(nid for nid, e in reg["nodes"].items()
+                 if e.get("predeclared") is True)
+    res = res if res is not None else analyse(root)
+    red = set(r["node"] for r in res["nodes"])
+    return pre, [nid for nid in pre if nid in red]
+
+
 def cmd_audit(args):
     res = analyse()
     for code, nid, msg in res["registry_findings"]:
         print("%s  %s: %s" % (code, nid, msg))
     n = len(res["registry_findings"])
-    print("red-attribution audit: %d node(s) ever red, %d declared, %d error(s)"
+    pre, scorable = predeclared_status(res=res)
+    for nid in scorable:
+        print("SCORABLE  %s: predeclared before any red, and it has since gone "
+              "red -- score the scope and drop the flag or correct it" % nid)
+    print("red-attribution audit: %d node(s) ever red, %d declared, "
+          "%d predeclared (%d now scorable), %d error(s)"
           % (res["totals"]["distinct_red_nodes"],
-             len(load_registry()["nodes"]), n))
+             len(load_registry()["nodes"]), len(pre), len(scorable), n))
     return 1 if n else 0
 
 

@@ -388,6 +388,94 @@ class TestEvidenceKind(unittest.TestCase):
         self.assertEqual(res["totals"]["attributable"], 1)
 
 
+class TestPredeclaration(unittest.TestCase):
+    """Round 523 (harness A), closing round 521's next-step #1.
+
+    R002 made a registry entry for a node that has never been red an ERROR,
+    so the registry could only ever be written retroactively -- one round
+    after the R001 that demanded it, by whoever came next. `predeclared: true`
+    exempts an entry from R002 and from nothing else; R007 keeps the exemption
+    from swallowing R005/R006's work.
+    """
+
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.mkdtemp()
+
+    def _ghost(self, entry, node="harness/tests/test_ghost.py::t"):
+        """A tree in which `node` has NEVER been red."""
+        reg = json.loads(json.dumps(BASE_REG))
+        reg["_subject_scope"]["foreign-subject"] = ""
+        reg["nodes"][node] = entry
+        build_root(self.tmp, ["round 5 track=harness(A) start"],
+                   {"health_round_5.log": pytest_log()}, reg)
+        return RA.analyse(self.tmp)
+
+    def test_a_predeclared_entry_is_exempt_from_R002(self):
+        ent = dict(SUBJ("own-suite"), predeclared=True)
+        codes = [f[0] for f in self._ghost(ent)["registry_findings"]]
+        self.assertNotIn("R002", codes)
+        self.assertEqual(codes, [], codes)
+
+    def test_an_undeclared_ghost_is_still_R002_and_the_message_says_how(self):
+        f, = [x for x in self._ghost(SUBJ("own-suite"))["registry_findings"]
+              if x[0] == "R002"]
+        self.assertIn("predeclared: true", f[2])
+
+    def test_a_predeclared_entry_claiming_outcome_evidence_is_R007(self):
+        """R006 already says an outcome-derived label can only be
+        `environmental`; R007 says the same thing from the other end -- a
+        scope declared BEFORE any red cannot have been read off a verdict
+        history that does not exist."""
+        ent = dict(SUBJ("own-suite", evidence="outcome"), predeclared=True)
+        codes = [f[0] for f in self._ghost(ent)["registry_findings"]]
+        self.assertIn("R007", codes)
+
+    def test_a_predeclared_environmental_entry_is_R007(self):
+        ent = dict(SUBJ("environmental", evidence="subject"), predeclared=True)
+        codes = [f[0] for f in self._ghost(ent)["registry_findings"]]
+        self.assertIn("R007", codes)
+
+    def test_a_non_boolean_flag_is_R007_and_does_NOT_buy_the_exemption(self):
+        """`"predeclared": "yes"` is the shape a hand-edited registry
+        acquires. It must not be truthy enough to silence R002 -- an entry
+        that turns off a fail-closed rule by being a non-empty string is the
+        exemption escaping its own definition."""
+        ent = dict(SUBJ("own-suite"), predeclared="yes")
+        codes = [f[0] for f in self._ghost(ent)["registry_findings"]]
+        self.assertIn("R007", codes)
+        self.assertIn("R002", codes)
+
+    def test_predeclared_false_is_malformed_rather_than_ignored(self):
+        ent = dict(SUBJ("own-suite"), predeclared=False)
+        codes = [f[0] for f in self._ghost(ent)["registry_findings"]]
+        self.assertIn("R007", codes)
+
+    def test_a_predeclared_entry_that_has_since_gone_red_is_reported_as_scorable(self):
+        """The prediction becomes scorable the moment its node breaks, and
+        nobody is watching unless the audit says so out loud."""
+        node = "harness/tests/test_a.py::t"
+        reg = json.loads(json.dumps(BASE_REG))
+        reg["nodes"][node] = dict(SUBJ("whole-tree"), predeclared=True)
+        build_root(self.tmp,
+                   ["round 5 track=harness(A) start",
+                    "round 6 track=language(C) start"],
+                   {"health_round_5.log": pytest_log(),
+                    "health_round_6.log": pytest_log(node)}, reg)
+        res = RA.analyse(self.tmp)
+        pre, scorable = RA.predeclared_status(self.tmp, res)
+        self.assertEqual(pre, [node])
+        self.assertEqual(scorable, [node])
+        self.assertEqual([f[0] for f in res["registry_findings"]], [])
+
+    def test_a_predeclared_entry_still_faces_R003(self):
+        """The exemption is from R002 alone. A predeclared entry with a scope
+        the registry does not define is as broken as any other."""
+        ent = dict(SUBJ("nonsense"), predeclared=True)
+        codes = [f[0] for f in self._ghost(ent)["registry_findings"]]
+        self.assertIn("R003", codes)
+
+
 class TestOneRoundLag(unittest.TestCase):
     """Round 461's next-step 2. A fail-closed check cannot fire in the round
     that breaks it, and until now its own message did not say so."""
