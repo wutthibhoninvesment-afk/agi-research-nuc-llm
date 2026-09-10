@@ -3695,3 +3695,74 @@ one drifted pin, `languages/whence/checkscope.py` at
 with `harness/viapin.py fix --write` (dry run: exactly 1 change). 21 passed.
 
 **Next E round: see `knowledge/round-520-the-number-that-had-no-verb.md` §8.**
+
+## Round 526 (NUC-integration E) — 2026-09-06, box **DOWN** the whole round; SEVENTH consecutive down window (490, 496, 502, 508, 514, 520, 526), one continuous outage since `2026-09-04T02:14:05.1Z`
+
+**Reachability.** Two tailnet probes before any code ran, 11:07:31Z
+(`ConnectTimeout 25`) and 11:08:04Z (`ConnectTimeout 30`), `Connection timed
+out`, rc 255 both; CLAUDE.md's two-failure rule fired after the second. ICMP
+2 packets 100 % loss. LAN path NOT tried — `~/.ssh/id_ed25519_nuc` still does
+not exist on this host (re-verified). `tailscale status --json` banked at
+`state/nuc-capture-r526/tailscale-status-r526.json`: `Online false`,
+`LastSeen 2026-09-04T02:14:05.1Z` (byte-identical to rounds
+490/496/502/508/520), relay `sin`, tx 12480 rx 0 — **56.9 h** at first probe.
+Log **71 → 72 rows**. Gates after, with true exit codes: `coverage --strict` 0
+(**n_owed 62, n_covered 62, missing []**), `coverage --strict
+--no-allow-in-flight` 0 (63/63), `precision-audit --strict` 0,
+`lastseen-drift --strict` 1 (documented, pre-existing).
+**Zero ssh sessions succeeded; port 8001 never contacted; no engine request of
+any kind was made.**
+
+**THE FINDING: round 520's five surviving mutants are three classes, and the
+report had words for two.** All five sit in the statistics kernel that
+computes this track's published p-values. Two (`1642:const#983`,
+`1642:arith#984`) are ordinary suite gaps that move `power_floor`'s PUBLISHED
+`min_/max_testable_occupancy` — killed this round by two new tests. One
+(`1586:cmp#162`) is a genuinely EQUIVALENT mutant. Two (`1660:const#1547`,
+`1661:const#1601`) are **unreachable by theorem**: `best_case_p(N, K, ·)` is
+quasiconvex in `d`, so the testable set is always an interval and
+`power_floor`'s non-contiguous `why` arm can never run — 66 400 shapes swept,
+**0 non-contiguous**. Round 520 graded those two `branch_not_taken`, whose own
+documented meaning is "the only one of the three that is evidence about the
+box". They are evidence about arithmetic, on any box.
+
+**Fixed** with `nuc/survivor_impact.py`'s `PROVEN` registry and two verdicts,
+`provably_equivalent` / `provably_unreachable`, each entry citing a test
+nodeid that `--verify-proofs` RUNS, naming the `subject_digest` it was proved
+at, and losing to any `moves_published_number` measurement. Report:
+`n_survivors_standing` **5 → 3**, `n_survivors_provably_dead` **3**,
+`n_survivors_unexplained` **0**.
+
+**SECOND FINDING: `nodecampaign.report()`'s `n_already_scored` said "scored"
+and computed "not selected".** Correct under the default `unscored` selection
+and only there. Rounds 514/520/526 all ran `--only` and published 1841 / 1764
+/ 1841 of `n_sites_in_scope` 1846 — "99.7 % mutation-tested" — against a
+ledger holding **87** distinct ids at that digest. Fixed; the old arithmetic
+keeps the honest name `n_not_selected_this_slice`.
+
+**THE CARRIED DEBT ABOVE IS CORRECTED, NOT PAID.** Item 5 of the round-490
+section — "`test_perturbation.py` has STILL never been mutation-tested" — is
+WRONG in its wording. The module has been mutation-tested since round **491**
+(ledger commit `036cbb3`, first row `perturbation.py:581:ifneg#19`, path
+`nuc/perturbation.py`). The substance stands and now has a fresh number:
+census at HEAD is **87 of 1846 sites scored = 4.71 %, i.e. 95.29 %
+un-mutation-tested**, against round 491's 96.93 %. **~27.2 h** of remaining
+work at this round's measured 55.6 s/mutant. Re-derive it with
+`state/nuc/round-526/coverage-census.json`, not from any pre-526 report's
+`n_already_scored`.
+
+**Tests:** `test_perturbation.py` 262 passed 47.69 s (257→262, **0 removed**);
+`nuc/tests` whole tree 1275 passed 126.26 s; `test_survivor_impact.py` 50
+passed (12 new, 8 fail pre-fix); `test_swe_nodeid_selection.py` 37 passed
+29.68 s (3 new, 3 of 3 fail pre-fix). **The full `readset.py blast` radius was
+run** — all 17 suites, including the `test_wiring_audit.py` +
+`test_verb_audit.py` pair (121 passed, 196.55 s) that rounds 514 and 520 both
+named as skipped. `test_verb_audit.py`'s V002 node, carried as "red since
+round 429", **passes at HEAD**.
+
+**Predictions 8 HIT / 2 PARTIAL of 10 scorable**
+(`nuc/predictions-e-round526.md`, banked `202cb6d` before measuring).
+
+**E-mission status: E1-E5 all still DONE; nothing new unchecked.**
+
+**Next E round: see `knowledge/round-526-the-branch-no-record-could-take.md` §6.**

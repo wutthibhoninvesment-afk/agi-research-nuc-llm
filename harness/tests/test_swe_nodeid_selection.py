@@ -548,3 +548,70 @@ def test_a_real_verdict_change_is_still_reported(tmp_path):
                                      "now": "killed"}
     else:
         assert changes == {}
+
+
+# --------------------------------------------------------------------------
+# ROUND 526 (NUC-integration E): `n_already_scored` SAID "SCORED" AND MEANT
+# "NOT SELECTED", AND THE TWO COINCIDE UNDER EXACTLY ONE OF THREE SELECTIONS.
+#
+# `len(mutants) - len(todo)` is right under the default `unscored` selection
+# and only there. Rounds 514, 520 and 526 all ran `--only` against
+# `nuc/perturbation.py` and published `n_already_scored` 1841, 1764 and 1841
+# out of `n_sites_in_scope` 1846 -- read plainly, "this file is 99.7 %
+# mutation-tested". The ledger holds 87 distinct ids at that digest: 4.7 %.
+# The repo's own carried debt says "96.9 % un-mutation-tested" a few thousand
+# lines away in `state/research-state.md` and nothing reconciled the two.
+#
+# Same shape as round 520's `verdict_changes` and round 502's stale count: a
+# field whose arithmetic is a fact about the SELECTION, published under a name
+# that is a claim about the LEDGER.
+# --------------------------------------------------------------------------
+
+def test_already_scored_counts_the_ledger_not_the_unselected_remainder(tmp_path):
+    root = _project(tmp_path)
+    ms, digest = NC.select_mutants(root, "pkg/mod.py")
+    led = str(tmp_path / "led.jsonl")
+    NC.append_ledger(led, {"id": ms[0].id, "subject_digest": digest,
+                           "status": "killed"})
+    rep = _slice(root, tmp_path, led, only_ids=[ms[1].id], rescore=True)
+    assert rep["n_sites_in_scope"] == len(ms)
+    assert rep["n_selected"] == 1
+    # exactly one mutant has a ledger row at this digest
+    assert rep["n_already_scored"] == 1
+    assert rep["n_unscored_at_this_digest"] == len(ms) - 1
+    # and the OLD arithmetic, under its own honest name
+    assert rep["n_not_selected_this_slice"] == len(ms) - 1
+    # the pre-fix bug, stated as the thing that must never come back: with
+    # `--only` these two are wildly different and the report must not pool
+    # them under a name that claims the ledger.
+    assert rep["n_already_scored"] != rep["n_not_selected_this_slice"]
+
+
+def test_the_two_counts_coincide_under_the_default_unscored_selection(tmp_path):
+    """Why it hid for eighteen rounds. Round 491 published 0 and round 497
+    published 55, both correct, because `unscored` selects exactly the
+    complement of the ledger."""
+    root = _project(tmp_path)
+    ms, digest = NC.select_mutants(root, "pkg/mod.py")
+    led = str(tmp_path / "led.jsonl")
+    for m in ms[:2]:
+        NC.append_ledger(led, {"id": m.id, "subject_digest": digest,
+                               "status": "killed"})
+    rep = _slice(root, tmp_path, led)
+    assert rep["n_already_scored"] == 2
+    assert rep["n_already_scored"] == rep["n_not_selected_this_slice"]
+    assert rep["n_unscored_at_this_digest"] == len(ms) - 2
+
+
+def test_a_row_at_another_subject_digest_is_not_a_scoring_of_this_one(tmp_path):
+    """Round 520's rule, applied to this count: a ledger row is keyed at the
+    digest it was scored at, so a row from a previous version of the file
+    leaves the mutant unscored HERE."""
+    root = _project(tmp_path)
+    ms, _digest = NC.select_mutants(root, "pkg/mod.py")
+    led = str(tmp_path / "led.jsonl")
+    NC.append_ledger(led, {"id": ms[0].id, "subject_digest": "a-different-one",
+                           "status": "killed"})
+    rep = _slice(root, tmp_path, led)
+    assert rep["n_already_scored"] == 0
+    assert rep["n_unscored_at_this_digest"] == len(ms)

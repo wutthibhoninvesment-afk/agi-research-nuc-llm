@@ -3347,3 +3347,202 @@ def test_classify_bucket_calls_a_single_swapped_page_unattributed():
     round 388 needed a name for."""
     assert pt.classify_bucket(0.0, 0.1, 0.0, 1) == "unattributed"
     assert pt.classify_bucket(0.0, 0.1, 0.0, 0) == "quiet"
+
+
+# --------------------------------------------------------------------------
+# ROUND 526 (NUC-integration E) -- THE FIVE SURVIVORS ARE THREE DIFFERENT
+# THINGS, AND THE REPORT HAD ONE WORD FOR TWO OF THEM.
+#
+# `state/nuc/round-520/survivor-impact.json` grades every survivor of this
+# module at `subject_digest 3b3923df` -- five of them, all in the statistics
+# kernel that computes this track's published p-values:
+#
+#   1586:cmp#162     `h <= 0` -> `h < 0`                 reached_but_identical
+#   1642:const#983   `range(1, N+1)` -> `range(2, N+1)`  reached_but_identical
+#   1642:arith#984   `range(1, N+1)` -> `range(1, N-1)`  reached_but_identical
+#   1660:const#1547  `testable[0]` -> `testable[1]`      unreached / branch_not_taken
+#   1661:const#1601  `testable[-1]` -> `testable[-2]`    unreached / branch_not_taken
+#
+# Round 526 measured them and they are three classes, not two:
+#
+#   * `const#983` and `arith#984` are ORDINARY SUITE GAPS. Both move
+#     `power_floor`'s PUBLISHED fields -- `min_testable_occupancy` and
+#     `max_testable_occupancy` -- and the first two tests below kill them.
+#     `survivor_impact`'s docstring says `reached_but_identical` is "killable
+#     only by a test that asserts something no published number depends on".
+#     For two of its three instances here that sentence is false.
+#   * `cmp#162` is a GENUINELY EQUIVALENT mutant. Line 1584 already raises on
+#     `h < 0`, so the two guards differ only at `h == 0`, where the
+#     fall-through sums Vandermonde's identity over the whole range and
+#     returns exactly 1.0. Nothing can kill it; the third test is the proof.
+#   * `const#1547` and `const#1601` are UNREACHABLE BY THEOREM. They sit in
+#     the third arm of `power_floor`'s `why` f-string, the arm that reports a
+#     NON-CONTIGUOUS testable set. `best_case_p(N, K, .)` is quasiconvex in
+#     `d` -- `C(K,d)/C(N,d)`, non-increasing, for `d < K`, then
+#     `C(d,K)/C(N,K)`, non-decreasing, for `d >= K` -- and a sublevel set of a
+#     quasiconvex function is an interval. So the testable set is ALWAYS
+#     contiguous and that arm can never run. Round 520 called this
+#     `branch_not_taken`, whose own documented meaning is "the only one of the
+#     three that is evidence about the box". It is not evidence about the box.
+#     No box, and no record, can take that branch.
+#
+# The last two tests are the citation `nuc/survivor_impact.py`'s PROVEN
+# registry points at. If either ever fails, the registry's claim is void and
+# `survivor_impact --strict` must stop grading those two mutants as proven.
+# --------------------------------------------------------------------------
+
+import math  # noqa: E402
+
+
+def test_occupancy_one_is_testable_when_the_record_is_wide_enough():
+    """kills `perturbation.py:1642:const#983` (`range(1, N+1)` ->
+    `range(2, N+1)`).
+
+    The docstring's first "surprised me" bullet says occupancy 1 is untestable
+    "whenever `K * n_units_tested / N > max_family_p`" -- which says out loud
+    that it IS testable when that inequality runs the other way, and until
+    round 526 no test made a record where it does. `best_case_p(N, K, 1)` is
+    exactly `K / N`, so a wide record with a single costly bucket puts
+    occupancy 1 in the set and `min_testable_occupancy` must be 1, not 2.
+    """
+    assert pt.best_case_p(1000, 1, 1) == 0.001            # == K / N
+    pf = pt.power_floor(1000, 1, 1)
+    assert pf["per_unit_bar"] == 0.05
+    assert pf["min_testable_occupancy"] == 1
+    assert pf["max_testable_occupancy"] == 50
+    assert pf["n_testable_occupancies"] == 50
+    assert pf["best_p_at_occupancy_1"] == 0.001
+
+
+def test_the_top_testable_occupancy_reaches_N_minus_one_but_never_N():
+    """kills `perturbation.py:1642:arith#984` (`range(1, N+1)` ->
+    `range(1, N-1)`).
+
+    The obvious witness does not exist: `best_case_p(N, K, N) == 1.0` for
+    every legal `K`, because drawing every bucket covers every costly one with
+    certainty, so no record can make occupancy `N` testable and no test can
+    kill this mutant by reaching the top of the range. `N - 1` is a different
+    matter -- `best_case_p(N, K, N-1)` is `(N - K) / N`, which a high-`K`
+    record drives under the bar. `range(1, N-1)` stops at `N - 2`, so a
+    testable `N - 1` is exactly the assertion that separates them.
+    """
+    assert pt.best_case_p(100, 99, 100) == 1.0            # d == N: never
+    assert pt.best_case_p(100, 99, 99) == 0.01            # d == N-1: (N-K)/N
+    pf = pt.power_floor(100, 99, 1)
+    assert pf["max_testable_occupancy"] == 99             # == N - 1
+    assert pf["min_testable_occupancy"] == 95
+    assert pf["n_testable_occupancies"] == 5
+    # and the ceiling itself, stated as the general fact it is
+    for N, K in ((10, 0), (10, 1), (10, 5), (10, 10), (37, 4)):
+        assert pt.best_case_p(N, K, N) == 1.0
+
+
+def test_the_zero_hit_guard_is_a_fast_path_and_not_a_branch():
+    """PROOF that `perturbation.py:1586:cmp#162` (`h <= 0` -> `h < 0`) is an
+    EQUIVALENT mutant -- unkillable, by any test, for arithmetic reasons.
+
+    `_hypergeom_atleast` raises on `h < 0` one line earlier, so the guard is
+    reachable only at `h == 0`. Deleting it sends `h == 0` into the general
+    sum with `lo = 0`, `hi = min(K, n)`, and Vandermonde's identity makes that
+    sum exactly `comb(N, n)` -- so the quotient is exactly 1.0, the same float
+    the guard returns, with no rounding to argue about.
+
+    Cited by `nuc/survivor_impact.py`'s PROVEN registry. If this test fails,
+    that registry is lying.
+    """
+    def without_the_guard(N, K, n):
+        lo, hi = 0, min(K, n)
+        if lo > hi:                       # unreachable: K >= 0 and n >= 0
+            return 0.0
+        return sum(math.comb(K, i) * math.comb(N - K, n - i)
+                   for i in range(lo, hi + 1)) / math.comb(N, n)
+
+    n_pairs = 0
+    for N in range(0, 31):
+        for K in range(0, N + 1):
+            for n in range(0, N + 1):
+                got = without_the_guard(N, K, n)
+                assert got == 1.0, (N, K, n, got)
+                assert pt._hypergeom_atleast(N, K, n, 0) == got
+                n_pairs += 1
+    assert n_pairs == 10416           # every legal (N, K, n) with N <= 30,
+    #                                 i.e. sum of (N+1)^2 for N in 0..30
+
+
+def test_best_case_p_is_quasiconvex_in_the_occupancy():
+    """The lemma under `test_the_testable_set_is_always_contiguous`.
+
+    `best_case_p(N, K, d)` is non-increasing for `d < K` (ratio
+    `(K-d)/(N-d) <= 1`) and non-decreasing for `d >= K` (ratio
+    `(d+1)/(d+1-K) >= 1`), so it has a single valley and never a second one.
+    Its minimum sits at `d == K` EXCEPT in the degenerate `K == N` case, where
+    every occupancy scores exactly 1.0 and "the minimum" is a tie -- round
+    526's own prediction P2 got that exception wrong and it is pinned here so
+    the next reader does not have to rediscover it.
+    """
+    n_shapes = 0
+    n_ties = 0
+    for N in range(1, 61):
+        for K in range(0, N + 1):
+            vals = [pt.best_case_p(N, K, d) for d in range(1, N + 1)]
+            i = 0
+            while i + 1 < len(vals) and vals[i + 1] < vals[i]:
+                i += 1
+            j = i
+            while j + 1 < len(vals) and vals[j + 1] >= vals[j]:
+                j += 1
+            assert j == len(vals) - 1, ("second valley", N, K)
+            argmin = min(range(1, N + 1), key=lambda d: vals[d - 1])
+            if K >= 1 and argmin != K:
+                assert K == N and len(set(vals)) == 1, (N, K, argmin)
+                n_ties += 1
+            n_shapes += 1
+    assert n_shapes == 1890
+    assert n_ties == 59               # exactly the K == N diagonal, N >= 2
+
+
+def test_the_testable_set_is_always_contiguous_so_the_third_why_arm_is_dead():
+    """PROOF that `perturbation.py:1660:const#1547` and `1661:const#1601` are
+    UNREACHABLE BY THEOREM, not merely unreached by round 520's battery.
+
+    Those two mutants live in `power_floor`'s third `why` arm, the one that
+    reports `"{n} occupancies in [lo, hi]"` when the testable set is NOT an
+    interval. `best_case_p` is quasiconvex in `d`
+    (`test_best_case_p_is_quasiconvex_in_the_occupancy`) and the testable set
+    is its sublevel set at `per_unit_bar`; a sublevel set of a quasiconvex
+    function is an interval. So `testable[-1] - testable[0] + 1 ==
+    len(testable)` for every record shape that exists, the `else` arm cannot
+    run, and no test anyone writes will ever kill those two.
+
+    The sweep below is the empirical half: 37 820 record shapes, every one
+    contiguous. The reason it is *always* true is the lemma, not the sweep.
+
+    Cited by `nuc/survivor_impact.py`'s PROVEN registry.
+    """
+    n_calls = 0
+    n_nonempty = 0
+    n_empty = 0
+    for N in range(1, 61):
+        for K in range(0, N + 1):
+            for units in range(1, 21):
+                pf = pt.power_floor(N, K, units)
+                n_calls += 1
+                width = pf["n_testable_occupancies"]
+                if width == 0:
+                    n_empty += 1
+                    assert pf["any_testable"] is False
+                    assert pf["min_testable_occupancy"] is None
+                    assert "cannot support any attribution" in pf["why"]
+                    continue
+                n_nonempty += 1
+                lo = pf["min_testable_occupancy"]
+                hi = pf["max_testable_occupancy"]
+                assert hi - lo + 1 == width, ("NON-CONTIGUOUS", N, K, units,
+                                              lo, hi, width)
+                # the corollary: the `why` string never takes the third arm
+                assert pf["why"] == (f"occupancies {lo}..{hi} can clear the "
+                                     f"bar (contiguous)")
+                assert "occupancies in [" not in pf["why"]
+    assert n_calls == 37800           # 20 * sum of (N+1) for N in 1..60
+    assert n_nonempty + n_empty == n_calls
+    assert n_empty > 0                # the empty case is exercised too

@@ -1,6 +1,6 @@
 # Whence — a provenance-first language
 
-*Spec level: **v0.50** (round 494; heading first written by round 486). The
+*Spec level: **v1.0** (round ~511; heading first written by round 486). The
 `## vN` sections below are the authoritative version list and each names the
 round that built it; this line deliberately no longer enumerates rounds,
 because the enumeration it replaced had said "v0.16.6 + v0.14.2" since round

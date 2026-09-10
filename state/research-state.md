@@ -29394,6 +29394,134 @@ entry here; nothing below is inferred from intentions.*
 8. **`nproc` on this box is 1.** Unchanged and still the dominant cost:
    plan every suite as serialised.
 
+### Round 526 — NUC-integration(E) — 2026-09-06 — the branch no record could take
+
+- **Box DOWN, SEVENTH consecutive down E-window** (490, 496, 502, 508, 514,
+  520, 526). Two tailnet probes 11:07:31Z / 11:08:04Z, rc 255 `Connection
+  timed out`, ICMP 2 packets 100 % loss; `LastSeen 2026-09-04T02:14:05.1Z`
+  byte-identical to the five prior rounds, so ONE outage, **56.9 h** at first
+  probe. LAN path not tried (`~/.ssh/id_ed25519_nuc` still absent, re-verified).
+  No mission ticked (E1-E5 all `[x]`); port 8001 never contacted; no engine
+  request of any kind. Log 71 → 72 rows; gates `coverage --strict` 0
+  (n_owed 62, n_covered 62, missing []), `--no-allow-in-flight` 0 (63/63),
+  `precision-audit --strict` 0, `lastseen-drift --strict` 1 (documented).
+- **THE FINDING: round 520's five surviving mutants are THREE classes and the
+  report had words for two.** All five live in the statistics kernel that
+  computes this track's published p-values. `1642:const#983` and
+  `1642:arith#984` are ordinary suite gaps that move `power_floor`'s PUBLISHED
+  `min_/max_testable_occupancy` — killed this round. `1586:cmp#162` is a
+  genuinely EQUIVALENT mutant (the `h <= 0` guard is a fast path; `h == 0`
+  falls through to Vandermonde and returns exactly 1.0 — 23 821 pairs, 0
+  differing). `1660:const#1547`/`1661:const#1601` are **unreachable by
+  theorem**: `best_case_p(N, K, ·)` is quasiconvex in `d`, so the testable set
+  is always an interval and `power_floor`'s non-contiguous `why` arm can never
+  run — **66 400 shapes swept, 0 non-contiguous**. Round 520 graded those two
+  `branch_not_taken`, whose own documented meaning is "the only one of the
+  three that is evidence about the box". They are evidence about arithmetic.
+- **The fix: `nuc/survivor_impact.py` gains `PROVEN` + `provably_equivalent` /
+  `provably_unreachable`, with three fences** — every entry CITES a test
+  nodeid (`--verify-proofs` RUNS them; `--strict` fails unless they pass),
+  every entry names the `subject_digest` it was proved at (round 520's stale-
+  row rule), and a `moves_published_number` measurement OVERRIDES the registry
+  and is a strict failure. `raw_verdict`/`reason` are kept beside the upgrade.
+  Report: `n_survivors_standing` **5 → 3**, `n_survivors_provably_dead` **3**,
+  `n_survivors_unexplained` **0**. `nuc/perturbation.py` has NO unexplained
+  surviving mutant at this digest — a sentence that could not be written
+  before. Re-score: `killed 2 / survived 3`, 278.1 s, `oracle full 5`, 0 drift;
+  kill rate at this digest **84 of 87 (96.55 %)**.
+- **SECOND FINDING: `nodecampaign.report()`'s `n_already_scored` said "scored"
+  and computed "not selected".** `len(mutants) - len(todo)` is correct under
+  the default `unscored` selection and ONLY there. Rounds 514, 520 and 526 all
+  ran `--only` and published 1841, 1764 and 1841 of `n_sites_in_scope` 1846 —
+  "99.7 % mutation-tested" — while the ledger holds **87** distinct ids at that
+  digest and this file's own carried debt says "96.9 % un-mutation-tested".
+  Fixed: the name now asks the LEDGER, `n_not_selected_this_slice` keeps the
+  old arithmetic, `n_unscored_at_this_digest` publishes the complement.
+- **The carried mutation-coverage debt RE-DERIVED and it STANDS.** Census at
+  HEAD: **87 of 1846 sites scored = 4.71 %, i.e. 95.29 % un-mutation-tested**
+  (round 491: 96.93 %). Only the WORDING in `state/nuc-missions.md` ("has
+  STILL never been mutation-tested") is stale — the module has been
+  mutation-tested since round **491**, ledger commit `036cbb3`.
+- **A carried red, re-derived and found GREEN.**
+  `test_verb_audit.py::TestThisTree::test_no_unexplained_broken_invocation`,
+  carried as "red since round 429", **passes at HEAD** (1 passed, 22.70 s;
+  whole file 32 nodes green). Not closed by this round — the carried line is
+  simply wrong.
+- **Tests:** `test_perturbation.py` **262 passed 47.69 s** (257→262, 0 removed);
+  `nuc/tests` whole tree **1275 passed 126.26 s**; `test_survivor_impact.py`
+  **50 passed** (12 new; **8 of 12 fail** against the pre-fix module, the 4 that
+  pass read only the committed report or are the negative control);
+  `test_swe_nodeid_selection.py` **37 passed 29.68 s** (3 new, **3 of 3 fail**
+  pre-fix). **The full `readset.py blast` radius WAS run** — all 17 suites,
+  including `test_wiring_audit.py` + `test_verb_audit.py` (121 passed, 196.55 s)
+  which rounds 514 and 520 both named as skipped. The only 2 reds are
+  `carryforward` K001 on this round's OWN unscored bank, entered at the end.
+- **Predictions 8 HIT / 2 PARTIAL of 10 scorable**
+  (`nuc/predictions-e-round526.md`, banked `202cb6d` before measuring). Both
+  PARTIALs are one error: a crisp property proved, then an unchecked corollary
+  bolted on. P2 proved quasiconvexity and added "minimum at `d = K`", refuted
+  by the degenerate `K == N` diagonal (59 of 1890). P9 proved the debt's
+  WORDING stale and concluded the DEBT was void without re-deriving its number.
+- **A process failure, recorded in §8 of the round file.** `git stash -q
+  --include-untracked -- <path> || git show HEAD:<path> > /tmp/x` — the `||`
+  fallback was written for a failing stash; the stash SUCCEEDED, so the next
+  line saved HEAD's file as "my version" and deleted 199 lines of this round's
+  own new tests. Caught by a line count, recovered with `git stash pop`. **A
+  `A || B` fallback means you wrote two commands and thought about one.**
+  Reading a past version of a file is `git show`, always — never a stash.
+
+## Next steps (as of round 526)
+
+1. **The dead `why` arm in `power_floor` is a DECISION, not a task, and its
+   price is measured.** Deleting lines 1659-1661 moves
+   `nuc/perturbation.py`'s digest and invalidates all **87** ledger rows at
+   `3b3923df…` — a full re-score at the measured **55.6 s/mutant**. It also
+   removes a guard that would fire if `best_case_p` were ever replaced with a
+   non-quasiconvex tail. The invariant is now pinned by a test instead.
+   Whoever deletes it should pay the re-score in the same round, not leave the
+   ledger stale. NUC(E) or SWE-loop(D).
+2. **1759 of 1846 mutation sites are unscored at this digest — ~27.2 h at the
+   measured rate.** The census
+   (`state/nuc/round-526/coverage-census.json`, produced by a slice that runs
+   NOTHING in 22.7 s) exists so the next slice can be sized honestly instead
+   of re-deriving the denominator. Do not quote `n_already_scored` from a
+   pre-round-526 report: under `--only` it means the opposite of its name.
+   SWE-loop(D) or NUC(E).
+3. **`PROVEN` has three entries and no round has yet tried to abuse it.** The
+   fences are written and tested (citation must collect and RUN, digest must
+   match, a measurement overrides). The honest next check is adversarial: add
+   an entry that is FALSE and confirm `--strict` catches it. The machinery for
+   that is `test_strict_fails_when_a_proven_mutant_turns_out_to_be_killable`,
+   which uses a synthetic report — nobody has run the real path. NUC(E).
+4. **The `n_already_scored` class has not been swept.** Round 502's stale
+   count, round 520's `verdict_changes` and round 526's `n_already_scored` are
+   three instances of one defect: an arithmetic that is a fact about the
+   SELECTION published under a name that claims the LEDGER. `nodecampaign.py`
+   has other counts that have only ever been read under one selection
+   (`median_units_selected`, `scope_strata`, `n_first_scored_at_this_digest`).
+   Nobody has asked what each means under `--only` and `--stale-scope`.
+   harness(A) or SWE-loop(D).
+5. **Two carried lines are WRONG and should be corrected where they live, not
+   re-carried.** (a) `state/nuc-missions.md`'s "`test_perturbation.py` has
+   STILL never been mutation-tested" — corrected in place this round to the
+   measured 95.29 %. (b) The debt list's `test_verb_audit.py` V002 "red since
+   round 429" — measured GREEN at HEAD this round. Re-derive before carrying:
+   this is the fourth consecutive round where re-deriving a carried item
+   changed its answer. any track.
+6. **Still blocked on the operator, and untouched:** the `--cap 196` band
+   [129, 204]; the E3 KV-reuse A/B and the OLMoE on-box NVMe decode
+   measurement (both need a live box — seven windows down); the NUC
+   `retention --strict` deadline; CLAUDE.md's `CRITICAL MISSION` /
+   `MISSION #476` blocks (round 512 re-derived and REFUTED both with run
+   evidence — carry THAT, not the claim). `languages/whence/SECURITY.md`
+   remains the operator's decision — do not copy a carry count for it from
+   this file.
+7. **`nproc` on this box is 1.** Unchanged. This round serialised every suite
+   deliberately and the whole test budget came to ~10 min of wall clock across
+   six invocations; the one 4.6-minute item was the 5-mutant re-score, which
+   runs the full 262-test suite per mutant because the by-test map is stale by
+   construction after new tests land.
+
 ### Round 524 — language(C) — 2026-09-06 — the exclusion that outlived its delegate
 
 - **ALL THREE RED-DEBT NODES CLOSED, and both halves of round 523's

@@ -1592,6 +1592,14 @@
    "scored_by": 525,
    "where": "knowledge/round-525-the-container-younger-than-the-scope.md",
    "quote": "| P13 | case total 515 \u2192 516, errors 0, warnings 34\u201335 | **PARTIAL** | errors 0 \u2713, warnings 34 \u2713, total **519** \u2014 I chose to add 4 cases, not 1. Falsified by my own later choice, not by the world; recorded rather than re-banded |"
+  },
+  "526": {
+   "bank": "nuc/predictions-e-round526.md",
+   "status": "scored",
+   "scored_by": 526,
+   "where": "knowledge/round-526-the-branch-no-record-could-take.md",
+   "quote": "| **P9** | the \"never been mutation-tested\" debt is STALE and should be struck; mutation-tested **since round 497** | **PARTIAL** | the WORDING is stale (it has been mutation-tested) but the DEBT stands: **95.29 % un-mutation-tested, 87 of 1846**. And the round number is wrong \u2014 the first campaign is round **491**, not 497. Predicting a carried claim is stale is not the same as predicting it is void |",
+   "note": "Tally: 8 HIT, 2 PARTIAL of 10 scorable (P11 was observed before the bank was written and is recorded, not claimed). Banked at commit 202cb6d BEFORE any measurement, per D-013. Both PARTIALs are one error and the round file names it: a crisp property proved, then an unchecked corollary bolted on -- P2 proved best_case_p quasiconvex and added 'minimum at d = K', refuted by the degenerate K == N diagonal (59 of 1890 shapes, all values tied at 1.0); P9 proved the carried debt's WORDING stale and concluded the DEBT was void without re-deriving its number, which stands at 95.29 % un-mutation-tested. The generator anchored on P9's row; the full table is section 7 of the round file."
   }
  }
 }

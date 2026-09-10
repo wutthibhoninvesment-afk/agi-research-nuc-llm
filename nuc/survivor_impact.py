@@ -133,6 +133,73 @@ BATTERY_GAP = {
 }
 
 
+#: ROUND 526 (NUC-integration E) -- MUTANTS NO TEST CAN KILL, AND THE PROOF.
+#:
+#: Every verdict above is a fact about THIS BATTERY on THIS RECORD.
+#: `unreached_by_battery/branch_not_taken` is documented above as "the only
+#: one of the three that is evidence about the box" -- and round 520 spent it
+#: on two mutants that are evidence about nothing but arithmetic. They live in
+#: the third arm of `power_floor`'s `why` f-string, the arm that fires when
+#: the testable set is NOT contiguous, and `best_case_p(N, K, .)` is
+#: quasiconvex in `d`, so its sublevel set is an interval and that arm cannot
+#: run on ANY record, on any box, ever. A reader of round 520's report would
+#: have concluded the box's record happens not to produce a non-contiguous
+#: set. No record can.
+#:
+#: So the report gains a class it did not have, with three rules that keep it
+#: from becoming a place to hide survivors:
+#:
+#:   1. Every entry CITES a test nodeid that proves the claim. `--verify-proofs`
+#:      runs them; `test_every_proven_entry_cites_a_test_that_exists` collects
+#:      them on every suite run. A claim with no runnable proof is not one.
+#:   2. Every entry names the `subject_digest` it was proved at. A mutant id is
+#:      only meaningful at the digest that generated it (round 520's finding
+#:      about stale rows, applied to this registry): at any other digest the
+#:      entry is reported as `proven_at_another_digest` and grades NOTHING.
+#:   3. A `moves_published_number` verdict OVERRIDES the registry and is a
+#:      `--strict` failure. If the battery kills a mutant the registry calls
+#:      unkillable, the registry is wrong and must say so loudly.
+#:
+#: `equivalent` = the mutated program computes the same value for every legal
+#: input. `unreachable` = no legal input executes the mutated line at all.
+_SUBJECT_3B39 = ("3b3923df3ee72b3f98f5bdda828a82d94b8b9971848f458d7741f4e64"
+                 "4324b8c")
+_T_PERT = "nuc/tests/test_perturbation.py"
+
+PROVEN = {
+    "perturbation.py:1586:cmp#162": {
+        "class": "provably_equivalent",
+        "subject_digest": _SUBJECT_3B39,
+        "proof": _T_PERT + "::test_the_zero_hit_guard_is_a_fast_path_and_not_a_branch",
+        "why": "`_hypergeom_atleast` raises on `h < 0` one line earlier, so "
+               "`h <= 0` and `h < 0` differ only at `h == 0`, where the "
+               "fall-through sums Vandermonde's identity over the full range "
+               "and returns exactly 1.0 -- the same float, no rounding. "
+               "Verified over all 10416 legal (N, K, n) with N <= 30.",
+    },
+    "perturbation.py:1660:const#1547": {
+        "class": "provably_unreachable",
+        "subject_digest": _SUBJECT_3B39,
+        "proof": _T_PERT + "::test_the_testable_set_is_always_contiguous_so_the_third_why_arm_is_dead",
+        "why": "`testable[0]` -> `testable[1]` in the third arm of "
+               "`power_floor`'s `why` f-string. `best_case_p(N, K, .)` is "
+               "quasiconvex in `d`, so the testable set is a sublevel set of "
+               "a quasiconvex function, i.e. an interval; the non-contiguous "
+               "arm cannot run on any record. 37800 record shapes swept, 0 "
+               "non-contiguous.",
+    },
+    "perturbation.py:1661:const#1601": {
+        "class": "provably_unreachable",
+        "subject_digest": _SUBJECT_3B39,
+        "proof": _T_PERT + "::test_the_testable_set_is_always_contiguous_so_the_third_why_arm_is_dead",
+        "why": "`testable[-1]` -> `testable[-2]`, same dead arm, same proof "
+               "as `1660:const#1547`.",
+    },
+}
+
+PROVEN_CLASSES = ("provably_equivalent", "provably_unreachable")
+
+
 class ImpactError(RuntimeError):
     pass
 
@@ -442,15 +509,36 @@ def audit(root: str = ROOT, rel: str = DEFAULT_SUBJECT,
                        else "function_not_entered")
             else:
                 verdict, why = "reached_but_identical", None
-            results.append({
+
+            # ROUND 526 -- the fourth question, and it is not about the
+            # battery: could ANY input kill this mutant? The verdicts above
+            # cannot answer it, because every one of them is measured by
+            # running this battery on this record. A cited proof can.
+            raw_verdict = verdict
+            entry, pstatus = proof_for(m.id, digest)
+            row = {
                 "id": m.id, "line": m.lineno, "op": m.op,
                 "description": m.description, "owner": owner,
                 "verdict": verdict, "reason": why,
+                "raw_verdict": raw_verdict,
                 "line_executed_by_battery": m.lineno in reached,
                 "enclosing_function_called_in_module": (None if not top
                                                         else top in calls),
                 "diffs": diffs,
-            })
+                "proven": None, "proof": None, "proof_status": pstatus,
+            }
+            if pstatus == "at_this_digest":
+                if raw_verdict == "moves_published_number":
+                    # The registry says nothing can kill it and the battery
+                    # just did. The MEASUREMENT wins; the registry is wrong
+                    # and `--strict` says so.
+                    row["proven_contradicted"] = True
+                else:
+                    row["verdict"] = entry["class"]
+                    row["proven"] = entry["class"]
+                    row["proof"] = entry["proof"]
+                    row["proof_why"] = entry["why"]
+            results.append(row)
     finally:
         import shutil
         shutil.rmtree(tmp, ignore_errors=True)
@@ -458,6 +546,10 @@ def audit(root: str = ROOT, rel: str = DEFAULT_SUBJECT,
     by = {}
     for r in results:
         by[r["verdict"]] = by.get(r["verdict"], 0) + 1
+    n_proven = sum(1 for r in results if r.get("proven"))
+    proven_here = {mid for mid, e in PROVEN.items()
+                   if e.get("subject_digest") == digest}
+    proven_elsewhere = set(PROVEN) - proven_here
     return {
         "subject": rel,
         "subject_digest": digest,
@@ -470,11 +562,79 @@ def audit(root: str = ROOT, rel: str = DEFAULT_SUBJECT,
         "n_lines_executed_by_battery": len(reached),
         "control_identity_clean": True,
         "by_verdict": by,
+        "by_raw_verdict": _tally(r.get("raw_verdict") for r in results),
         "moves_published_number": sorted(
             r["id"] for r in results if r["verdict"] == "moves_published_number"),
         "by_reason": _tally(r.get("reason") for r in results),
+        # ROUND 526 -- the headline number, decomposed. `n_survivors_standing`
+        # pooled two populations: survivors a test could still kill, and
+        # survivors no test will ever kill. Reporting only the total invites
+        # the reader to price them the same.
+        "n_survivors_provably_dead": n_proven,
+        "n_survivors_unexplained": len(rows) - n_proven,
+        "proven_registry": {
+            "n_entries": len(PROVEN),
+            "n_at_this_digest": len(proven_here),
+            "n_at_another_digest": len(proven_elsewhere),
+            "ids_at_another_digest": sorted(proven_elsewhere),
+            "n_applied": n_proven,
+            "unused_at_this_digest": sorted(
+                proven_here - {r["id"] for r in results}),
+            "contradicted": sorted(r["id"] for r in results
+                                   if r.get("proven_contradicted")),
+        },
+        "audited_full_population": only_ids is None,
         "results": results,
     }
+
+
+def proof_for(mid: str, digest: str) -> tuple:
+    """ROUND 526. `(entry, status)` for a mutant id against the CURRENT digest.
+
+    `status` is one of `None` (no registry entry), `"at_this_digest"` (the
+    entry governs) or `"at_another_digest"` (an entry exists but was proved
+    against a different subject; a mutant id only means anything at the digest
+    that generated it, so it governs NOTHING here).
+    """
+    entry = PROVEN.get(mid)
+    if entry is None:
+        return None, None
+    if entry.get("subject_digest") != digest:
+        return entry, "at_another_digest"
+    return entry, "at_this_digest"
+
+
+def verify_proofs(root: str, digest: str | None = None,
+                  python: str | None = None, timeout_s: int = 600) -> dict:
+    """ROUND 526. RUN the tests the PROVEN registry cites, and report.
+
+    A citation nobody executes is a comment. This runs the distinct nodeids in
+    one pytest invocation and returns the verdict per nodeid; `--strict` fails
+    unless every cited proof passes. Entries proved at another digest are
+    reported and NOT run, because they grade nothing at this one.
+    """
+    entries = {mid: e for mid, e in PROVEN.items()
+               if digest is None or e.get("subject_digest") == digest}
+    nodeids = sorted({e["proof"] for e in entries.values()})
+    out = {"n_entries_checked": len(entries), "nodeids": nodeids,
+           "skipped_at_another_digest": sorted(set(PROVEN) - set(entries))}
+    if not nodeids:
+        out["ok"] = False
+        out["note"] = "no proof was run: the registry cites nothing at this digest"
+        return out
+    cmd = [python or sys.executable, "-m", "pytest", "-q", "--no-header",
+           "-p", "no:cacheprovider", *nodeids]
+    try:
+        pr = subprocess.run(cmd, cwd=root, capture_output=True, text=True,
+                            timeout=timeout_s)
+    except subprocess.TimeoutExpired:
+        out["ok"] = False
+        out["note"] = "pytest timed out after %ds" % timeout_s
+        return out
+    out["returncode"] = pr.returncode
+    out["tail"] = (pr.stdout or "").strip().splitlines()[-1:] or [""]
+    out["ok"] = pr.returncode == 0
+    return out
 
 
 def _tally(items) -> dict:
@@ -499,6 +659,23 @@ def strict_fails(rep: dict) -> list:
         bad.append("the battery executed no line of the subject at all")
     for mid in rep["moves_published_number"]:
         bad.append("%s survives the suite AND moves a published number" % mid)
+    # ROUND 526 -- three ways the PROVEN registry can be wrong, all loud.
+    reg = rep.get("proven_registry") or {}
+    for mid in reg.get("contradicted", []):
+        bad.append("%s is in PROVEN as unkillable and the battery KILLED it: "
+                   "the registry entry is false" % mid)
+    for mid in reg.get("ids_at_another_digest", []):
+        bad.append("PROVEN entry %s was proved at a different subject digest "
+                   "and grades nothing here; re-prove it or drop it" % mid)
+    pv = rep.get("proof_verification")
+    if pv is not None and not pv.get("ok"):
+        bad.append("the PROVEN registry's cited tests did not pass: %s"
+                   % json.dumps({k: pv.get(k) for k in ("returncode", "tail",
+                                                        "note")}))
+    if rep.get("audited_full_population"):
+        for mid in reg.get("unused_at_this_digest", []):
+            bad.append("PROVEN entry %s names a mutant that is not a standing "
+                       "survivor at this digest" % mid)
     return bad
 
 
@@ -515,6 +692,9 @@ def build_parser():
                    help="comma-separated mutant ids to audit instead of every "
                         "standing survivor")
     p.add_argument("--out", default=None)
+    p.add_argument("--verify-proofs", action="store_true",
+                   help="round 526: RUN the tests the PROVEN registry cites, "
+                        "and fail --strict unless every one passes")
     p.add_argument("--strict", action="store_true")
     p.add_argument("--quiet", action="store_true")
     return p
@@ -525,6 +705,9 @@ def main(argv=None) -> int:
     only = [s.strip() for s in a.only.split(",")] if a.only else None
     rep = audit(root=os.path.abspath(a.root), rel=a.rel, ledger=a.ledger,
                 capture=a.capture, only_ids=only)
+    if a.verify_proofs:
+        rep["proof_verification"] = verify_proofs(
+            os.path.abspath(a.root), digest=rep["subject_digest"])
     text = json.dumps(rep, indent=1, sort_keys=True)
     if a.out:
         d = os.path.dirname(os.path.join(a.root, a.out))

@@ -1,0 +1,124 @@
+{
+ "audited_full_population": true,
+ "battery": [
+  "window_swap",
+  "wsweep_swap",
+  "wsweep_commit",
+  "wsweep_steal",
+  "population_swap",
+  "reclaim_all",
+  "gap_commit"
+ ],
+ "battery_gap": {
+  "engine": "needs an engine journal the union does not carry",
+  "exclusion": "randomised; not byte-reproducible, so not an output oracle",
+  "oom": "needs a journal the union does not carry",
+  "place": "needs an engine journal the union does not carry",
+  "stability": "needs an engine journal the union does not carry",
+  "window_commit": "rc 1: CHANNEL_MIN_BYTES['commit'] is None -- a module constant, not a property of any record; wsweep sweeps it",
+  "window_steal": "rc 1: CHANNEL_MIN_BYTES['steal'] is None -- a module constant, not a property of any record; wsweep sweeps it"
+ },
+ "by_raw_verdict": {
+  "reached_but_identical": 1,
+  "unreached_by_battery": 2
+ },
+ "by_reason": {
+  "branch_not_taken": 2
+ },
+ "by_verdict": {
+  "provably_equivalent": 1,
+  "provably_unreachable": 2
+ },
+ "capture": "state/nuc-record-union",
+ "control_identity_clean": true,
+ "moves_published_number": [],
+ "n_lines_executed_by_battery": 1319,
+ "n_survivors_at_another_digest": 5,
+ "n_survivors_provably_dead": 3,
+ "n_survivors_standing": 3,
+ "n_survivors_unexplained": 0,
+ "proof_verification": {
+  "n_entries_checked": 3,
+  "nodeids": [
+   "nuc/tests/test_perturbation.py::test_the_testable_set_is_always_contiguous_so_the_third_why_arm_is_dead",
+   "nuc/tests/test_perturbation.py::test_the_zero_hit_guard_is_a_fast_path_and_not_a_branch"
+  ],
+  "ok": true,
+  "returncode": 0,
+  "skipped_at_another_digest": [],
+  "tail": [
+   "2 passed in 1.82s"
+  ]
+ },
+ "proven_registry": {
+  "contradicted": [],
+  "ids_at_another_digest": [],
+  "n_applied": 3,
+  "n_at_another_digest": 0,
+  "n_at_this_digest": 3,
+  "n_entries": 3,
+  "unused_at_this_digest": []
+ },
+ "results": [
+  {
+   "description": "LtE -> Lt",
+   "diffs": [],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:1586:cmp#162",
+   "line": 1586,
+   "line_executed_by_battery": true,
+   "op": "cmp",
+   "owner": "_hypergeom_atleast",
+   "proof": "nuc/tests/test_perturbation.py::test_the_zero_hit_guard_is_a_fast_path_and_not_a_branch",
+   "proof_status": "at_this_digest",
+   "proof_why": "`_hypergeom_atleast` raises on `h < 0` one line earlier, so `h <= 0` and `h < 0` differ only at `h == 0`, where the fall-through sums Vandermonde's identity over the full range and returns exactly 1.0 -- the same float, no rounding. Verified over all 10416 legal (N, K, n) with N <= 30.",
+   "proven": "provably_equivalent",
+   "raw_verdict": "reached_but_identical",
+   "reason": null,
+   "verdict": "provably_equivalent"
+  },
+  {
+   "description": "0 -> 1",
+   "diffs": [],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:1660:const#1547",
+   "line": 1660,
+   "line_executed_by_battery": false,
+   "op": "const",
+   "owner": "power_floor",
+   "proof": "nuc/tests/test_perturbation.py::test_the_testable_set_is_always_contiguous_so_the_third_why_arm_is_dead",
+   "proof_status": "at_this_digest",
+   "proof_why": "`testable[0]` -> `testable[1]` in the third arm of `power_floor`'s `why` f-string. `best_case_p(N, K, .)` is quasiconvex in `d`, so the testable set is a sublevel set of a quasiconvex function, i.e. an interval; the non-contiguous arm cannot run on any record. 37800 record shapes swept, 0 non-contiguous.",
+   "proven": "provably_unreachable",
+   "raw_verdict": "unreached_by_battery",
+   "reason": "branch_not_taken",
+   "verdict": "provably_unreachable"
+  },
+  {
+   "description": "1 -> 2",
+   "diffs": [],
+   "enclosing_function_called_in_module": true,
+   "id": "perturbation.py:1661:const#1601",
+   "line": 1661,
+   "line_executed_by_battery": false,
+   "op": "const",
+   "owner": "power_floor",
+   "proof": "nuc/tests/test_perturbation.py::test_the_testable_set_is_always_contiguous_so_the_third_why_arm_is_dead",
+   "proof_status": "at_this_digest",
+   "proof_why": "`testable[-1]` -> `testable[-2]`, same dead arm, same proof as `1660:const#1547`.",
+   "proven": "provably_unreachable",
+   "raw_verdict": "unreached_by_battery",
+   "reason": "branch_not_taken",
+   "verdict": "provably_unreachable"
+  }
+ ],
+ "subject": "nuc/perturbation.py",
+ "subject_digest": "3b3923df3ee72b3f98f5bdda828a82d94b8b9971848f458d7741f4e644324b8c",
+ "survivors_at_another_digest": [
+  "perturbation.py:1582:cmp#161",
+  "perturbation.py:1638:arith#970",
+  "perturbation.py:1638:const#969",
+  "perturbation.py:1656:const#1508",
+  "perturbation.py:1657:const#1559"
+ ]
+}

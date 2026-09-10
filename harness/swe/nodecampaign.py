@@ -285,7 +285,7 @@ def run_slice(root, rel, cov_path, base_cmd, line_ranges=None, budget_s=600.0,
                 shutil.rmtree(own_wd, ignore_errors=True)
 
     rep = report(ran, mutants, todo, out_of_budget, guard, prio,
-                 time.time() - t0)
+                 time.time() - t0, done=done, digest=digest)
     rep["linked"] = bool(linked)
     rep["selection"] = selection
     rep["map_is_stale"] = bool(map_is_stale)
@@ -361,7 +361,13 @@ def run_slice(root, rel, cov_path, base_cmd, line_ranges=None, budget_s=600.0,
     return rep
 
 
-def report(ran, mutants, todo, out_of_budget, guard, prio, seconds):
+def report(ran, mutants, todo, out_of_budget, guard, prio, seconds,
+           done=None, digest=None):
+    # ROUND 526 -- `done` and `digest` are what make `n_already_scored`
+    # a question about the LEDGER rather than about the selection. They
+    # are optional so an existing caller keeps working, and when they are
+    # absent the field is reported as None rather than as a number that
+    # would be measuring the wrong thing.
     by_status = {}
     for r in ran:
         by_status[r["status"]] = by_status.get(r["status"], 0) + 1
@@ -371,7 +377,35 @@ def report(ran, mutants, todo, out_of_budget, guard, prio, seconds):
     sub = [r for r in ran if r["oracle"] == "subset"]
     return {
         "n_sites_in_scope": len(mutants),
-        "n_already_scored": len(mutants) - len(todo),
+        # ROUND 526 (NUC-integration E) -- THE FIELD SAID "SCORED" AND MEANT
+        # "NOT SELECTED", AND THE TWO COINCIDE UNDER EXACTLY ONE SELECTION.
+        #
+        # `len(mutants) - len(todo)` is the number this slice did not pick.
+        # Under the default `unscored` selection that IS the already-scored
+        # count, which is why it went eighteen rounds unnoticed: round 491
+        # published 0 and round 497 published 55, both correct. Under `--only`
+        # and `--stale-scope` it is the size of the file minus the size of the
+        # hand-written id list, and nothing else.
+        #
+        # Rounds 514, 520 and 526 all ran `--only` on `nuc/perturbation.py`
+        # and published `n_already_scored` 1841, 1764 and 1841 against
+        # `n_sites_in_scope` 1846 -- i.e. "99.7 % of this file is
+        # mutation-tested". The ledger has 87 distinct ids at that digest.
+        # The true figure is 4.7 %, and this repo's own carried debt says so
+        # in `state/research-state.md` ("96.9 % un-mutation-tested, 55 of
+        # 1794 sites"). Two numbers, twenty-fold apart, neither wrong on its
+        # own terms, and no reader could see which question each answered.
+        #
+        # So: the name now means what it says, ASKED OF THE LEDGER; the old
+        # arithmetic keeps its own name; and the complement is published so a
+        # reader never has to subtract to find the debt.
+        "n_already_scored": (None if done is None else
+                             sum(1 for m in mutants
+                                 if (m.id, digest) in done)),
+        "n_not_selected_this_slice": len(mutants) - len(todo),
+        "n_unscored_at_this_digest": (None if done is None else
+                                      sum(1 for m in mutants
+                                          if (m.id, digest) not in done)),
         "n_run_this_slice": len(ran),
         "n_left_unrun_by_budget": out_of_budget,
         "by_status": by_status,
